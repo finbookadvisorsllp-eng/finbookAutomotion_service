@@ -1,0 +1,51 @@
+@import "tailwindcss";
+
+@layer base {
+  * {
+    @apply box-border;
+  }
+
+  html,
+  body,
+  #root {
+    @apply min-h-screen;
+  }
+
+  body {
+    @apply m-0 bg-[#f3f4f8] font-sans text-[#202737] antialiased;
+  }
+}
+
+@keyframes marqueeRightToLeft {
+  0% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+.themed-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--app-accent) var(--app-accent-soft);
+}
+
+.themed-scrollbar::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.themed-scrollbar::-webkit-scrollbar-track {
+  background: var(--app-accent-soft);
+  border-radius: 9999px;
+}
+
+.themed-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--app-accent);
+  border-radius: 9999px;
+  border: 2px solid var(--app-accent-soft);
+}
+
+.themed-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #007a3d;
+}
