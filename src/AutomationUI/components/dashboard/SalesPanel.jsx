@@ -27,7 +27,13 @@ import {
   BookOpen,
   Check,
   Calendar,
-  Minus
+  Minus,
+  CloudUpload,
+  FolderOpen,
+  LayoutList,
+  Menu,
+  Paperclip,
+  FileOutput
 } from 'lucide-react';
 import CreateSales from './CreateSales';
 
@@ -38,7 +44,10 @@ const SalesPanel = ({ mode, isDark, onAdd }) => {
   const [isStockModalOpen, setIsStockModalOpen] = useState(false);
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [viewMode, setViewMode] = useState('inbox'); // 'inbox' or 'transaction'
+  const [viewMode, setViewMode] = useState('inbox');
+  const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
+  const [isUploadFilesOpen, setIsUploadFilesOpen] = useState(false);
 
   // Visibility state for Optional Columns only (from Configure popup)
   const [optionalColumns, setOptionalColumns] = useState({});
@@ -138,6 +147,9 @@ const SalesPanel = ({ mode, isDark, onAdd }) => {
       )}
 
       {/* Modals & Popups */}
+      {isUploadOpen && <UploadInvoiceModal onClose={() => setIsUploadOpen(false)} isDark={isDark} />}
+      {isBulkUploadOpen && <BulkUploadInvoiceModal onClose={() => setIsBulkUploadOpen(false)} isDark={isDark} />}
+      {isUploadFilesOpen && <UploadFilesModal onClose={() => setIsUploadFilesOpen(false)} isDark={isDark} />}
       {isLedgerModalOpen && <AddLedgerModal onClose={() => setIsLedgerModalOpen(false)} />}
       {isStockModalOpen && <AddStockModal onClose={() => setIsStockModalOpen(false)} />}
       {isConfigOpen && (
@@ -157,36 +169,75 @@ const SalesPanel = ({ mode, isDark, onAdd }) => {
           <div className="flex gap-2 ml-2">
             {mode === 'Inbox' && (
               <>
-                <IconButton icon={Upload} color="emerald" />
-                <IconButton icon={Plus} color="emerald" onClick={() => setViewMode('transaction')} />
-                <IconButton icon={ChevronsRight} color="purple" />
-                <IconButton icon={CheckCircle2} color="emerald" />
+                {excelMode ? (
+                  <>
+                    <IconButton icon={Upload} color="emerald" onClick={() => setIsBulkUploadOpen(true)} />
+                    <IconButton icon={Edit3} color="emerald" />
+                    <IconButton icon={Paperclip} color="emerald" />
+                    <IconButton icon={ChevronsRight} color="purple" />
+                    <IconButton icon={CheckCircle2} color="emerald" />
+                    <IconButton icon={Trash2} color="red" />
+                    <IconButton icon={FolderOpen} color="purple" onClick={() => setIsUploadFilesOpen(true)} />
+                    <IconButton icon={Download} color="purple" />
+                    
+                    <div className="flex items-center gap-3 ml-2 border-l pl-4" style={{ borderColor: isDark ? '#334155' : '#e2e8f0' }}>
+                      <select className="h-8 w-32 rounded-lg border px-2 text-[11px] font-bold outline-none shadow-sm transition-colors hover:border-indigo-400" style={{ backgroundColor: isDark ? '#0f172a' : '#fff', color: isDark ? '#f1f5f9' : '#475569', borderColor: isDark ? '#334155' : '#e2e8f0' }}>
+                        <option>Select File</option>
+                      </select>
+                      <label className="flex items-center gap-1.5 cursor-pointer ml-2">
+                        <input type="checkbox" className="w-3.5 h-3.5 rounded accent-indigo-600 cursor-pointer" />
+                        <span className="text-[11px] font-bold" style={{ color: isDark ? '#94a3b8' : '#64748b' }}>Not Selected Ledger</span>
+                      </label>
+                      <label className="flex items-center gap-1.5 cursor-pointer ml-2">
+                        <input type="checkbox" className="w-3.5 h-3.5 rounded accent-indigo-600 cursor-pointer" />
+                        <span className="text-[11px] font-bold" style={{ color: isDark ? '#94a3b8' : '#64748b' }}>Selected Ledger</span>
+                      </label>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <IconButton icon={Upload} color="emerald" onClick={() => setIsUploadOpen(true)} />
+                    <IconButton icon={Plus} color="emerald" onClick={() => setViewMode('transaction')} />
+                    <IconButton icon={ChevronsRight} color="purple" />
+                    <IconButton icon={CheckCircle2} color="emerald" />
+                    <IconButton icon={Trash2} color="red" />
+                    <IconButton icon={RefreshCw} color="emerald" />
+                  </>
+                )}
               </>
             )}
             {mode === 'Review' && (
               <>
                 <IconButton icon={ChevronsLeft} color="purple" />
                 <IconButton icon={CheckCircle2} color="emerald" />
+                <IconButton icon={Trash2} color="red" />
+                <IconButton icon={RefreshCw} color="emerald" />
               </>
             )}
-            <IconButton icon={Trash2} color="red" />
-            {mode === 'Archive' && <IconButton icon={Download} color="purple" />}
-            <IconButton icon={RefreshCw} color="emerald" />
+            {mode === 'Archive' && (
+              <>
+                <IconButton icon={Trash2} color="red" />
+                <IconButton icon={Download} color="purple" />
+                <IconButton icon={RefreshCw} color="emerald" />
+              </>
+            )}
           </div>
         </div>
 
-        {/* Centered Search Bar */}
-        <div className="flex-1 max-w-[400px] px-4">
-          <div className="relative group">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 transition-colors group-focus-within:text-indigo-500" size={13} strokeWidth={3} />
-            <input
-              type="text"
-              placeholder="Search on Party Name..."
-              className="w-full h-8 rounded-lg border px-9 text-[11px] font-bold outline-none transition-all shadow-sm focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/5"
-              style={{ backgroundColor: isDark ? 'var(--app-control-bg)' : '#fff', borderColor: '#e2e8f0', color: isDark ? '#f1f5f9' : '#475569' }}
-            />
+        {/* Centered Search Bar — hidden in Excel Mode */}
+        {!excelMode && (
+          <div className="flex-1 max-w-[400px] px-4">
+            <div className="relative group">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 transition-colors group-focus-within:text-indigo-500" size={13} strokeWidth={3} />
+              <input
+                type="text"
+                placeholder="Search on Party Name..."
+                className="w-full h-8 rounded-lg border px-9 text-[11px] font-bold outline-none transition-all shadow-sm focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/5"
+                style={{ backgroundColor: isDark ? 'var(--app-control-bg)' : '#fff', borderColor: '#e2e8f0', color: isDark ? '#f1f5f9' : '#475569' }}
+              />
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-3 cursor-pointer select-none" onClick={handleToggleExcel}>
@@ -197,6 +248,12 @@ const SalesPanel = ({ mode, isDark, onAdd }) => {
           </div>
 
           <div className="flex gap-2">
+            {excelMode && (
+              <>
+                <IconButton icon={LayoutList} color="slate" onClick={() => setIsLedgerModalOpen(true)} />
+                <IconButton icon={Menu} color="slate" onClick={() => setIsStockModalOpen(true)} />
+              </>
+            )}
             <IconButton icon={HelpCircle} color="blue" />
             <IconButton icon={Settings} color="indigo" onClick={() => setIsConfigOpen(true)} />
             <IconButton icon={Filter} color="emerald" onClick={() => setIsFilterOpen(true)} />
@@ -317,10 +374,8 @@ const SalesPanel = ({ mode, isDark, onAdd }) => {
             </thead>
             <tbody>
               <tr>
-                <td colSpan={40} className="p-32 text-center">
-                  <div className="flex flex-col items-center justify-center">
-                    <p className="text-[11px] font-black uppercase tracking-widest text-slate-300 animate-pulse">No Inbox Data found.</p>
-                  </div>
+                <td colSpan={40} className="p-3 border-b text-[11px] font-bold text-slate-500" style={{ borderColor: '#f1f5f9' }}>
+                  No Inbox Data found.
                 </td>
               </tr>
             </tbody>
@@ -496,65 +551,95 @@ const ColumnConfigPopup = ({ onClose, isExcel, optionalColumns, setOptionalColum
   );
 };
 
-const FilterPopup = ({ onClose, isExcel }) => {
-  const [values, setValues] = useState({});
-  const update = (key, val) => setValues(prev => ({ ...prev, [key]: val }));
+const FilterPopup = ({ isExcel, onClose }) => {
+  const Input = ({ placeholder, icon: Icon, type = "text", fullWidth }) => (
+    <div className={`relative ${fullWidth ? 'w-full' : 'flex-1'}`}>
+      <input type={type} placeholder={placeholder} className="w-full h-9 border rounded-lg px-3 text-[12px] font-medium outline-none transition-all focus:border-indigo-400 placeholder:text-slate-500" style={{ borderColor: '#e2e8f0', color: '#475569' }} />
+      {Icon && <Icon className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />}
+    </div>
+  );
 
   return (
-    <div className="fixed inset-0 z-[200] animate-in fade-in duration-300 overflow-hidden">
+    <div className="fixed inset-0 z-[200] animate-in fade-in duration-300">
       <div className="absolute inset-0 bg-black/5" onClick={onClose} />
-      <div className="absolute top-4 right-4 bottom-4 w-[400px] bg-white rounded-2xl shadow-[-10px_0_30px_rgba(0,0,0,0.1)] border border-slate-100 flex flex-col animate-in slide-in-from-right-10 duration-300">
+      <div className="absolute top-24 right-8 w-[400px] bg-white rounded-2xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] border flex flex-col animate-in slide-in-from-top-4 duration-200 overflow-hidden max-h-[85vh]" style={{ borderColor: '#f1f5f9' }}>
         <div className="p-4 flex items-center justify-between border-b" style={{ borderColor: '#f1f5f9' }}>
-          <h2 className="text-[16px] font-black text-indigo-600 tracking-tight">Filter</h2>
+          <h2 className="text-[15px] font-black text-indigo-600 tracking-tight px-1">Filter</h2>
           <button onClick={onClose} className="p-1 hover:bg-slate-50 rounded-lg transition-colors"><X size={18} className="text-slate-400" /></button>
         </div>
 
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-3">
-          {isExcel ? (
-            <div className="space-y-3">
-              <div className="relative group"><input type="text" placeholder="invoice Date" className="w-full h-9 border rounded-lg px-3 text-[11px] font-bold outline-none transition-all focus:border-indigo-400 shadow-sm" style={{ borderColor: '#e2e8f0' }} /><Calendar className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300" size={14} /></div>
-              <FilterInput placeholder="Invoice Number" />
-              <div className="grid grid-cols-2 gap-3"><FilterInput placeholder="Party Name" /><SearchableDropdown placeholder="Party Ledger" options={['HDFC Bank', 'ICICI Bank']} value={values.partyLedger} onChange={v => update('partyLedger', v)} compact /></div>
-              <FilterInput placeholder="Party GSTIN" />
-              <div className="grid grid-cols-2 gap-3"><FilterInput placeholder="Consignee" /><FilterInput placeholder="Cost Center Name" /></div>
-              <div className="grid grid-cols-2 gap-3"><FilterInput placeholder="Sale Name" /><SearchableDropdown placeholder="Sales Ledger" options={['General Sales']} value={values.salesLedger} onChange={v => update('salesLedger', v)} compact /></div>
-              <div className="grid grid-cols-2 gap-3"><FilterInput placeholder="Base Amount From" /><FilterInput placeholder="Base Amount To" /></div>
-              <div className="grid grid-cols-2 gap-3"><FilterInput placeholder="Total Amount From" /><FilterInput placeholder="Total Amount To" /></div>
-              <div className="grid grid-cols-2 gap-3"><FilterInput placeholder="TDS Rate" /><FilterInput placeholder="TCS Rate" /></div>
-              <div className="grid grid-cols-3 gap-2"><FilterInput placeholder="CGST Rate" /><FilterInput placeholder="SGST Rate" /><FilterInput placeholder="IGST Rate" /></div>
-              <FilterInput placeholder="Narration" />
-            </div>
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-5 flex flex-col gap-3.5">
+          {!isExcel ? (
+            <>
+              <div className="flex gap-3">
+                <Input placeholder="Invoice Number" />
+                <Input placeholder="Party Name" />
+              </div>
+              <div className="flex gap-3">
+                <Input placeholder="Invoice Date (From)" icon={Calendar} />
+                <Input placeholder="Invoice Date (To)" icon={Calendar} />
+              </div>
+              <div className="flex gap-3">
+                <Input placeholder="Base Total (From)" />
+                <Input placeholder="Base Total (To)" />
+              </div>
+              <div className="flex gap-3">
+                <Input placeholder="Sub Total (From)" />
+                <Input placeholder="Sub Total (To)" />
+              </div>
+              <div className="flex gap-3">
+                <Input placeholder="TDS/ TCS (From)" />
+                <Input placeholder="TDS/ TCS (To)" />
+              </div>
+              <SearchableDropdown label="User" value="aman bhamuriya" options={['aman bhamuriya']} onChange={() => {}} showX legendStyle compact />
+              <SearchableDropdown placeholder="Status" options={['Pending', 'Approved']} value="" onChange={() => {}} compact />
+            </>
           ) : (
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <FilterInput placeholder="Invoice Number" />
-                <FilterInput placeholder="Party Name" />
+            <>
+              <Input placeholder="invoice Date" icon={Calendar} fullWidth />
+              <Input placeholder="Invoice Number" fullWidth />
+              <div className="flex gap-3">
+                <div className="flex-1"><Input placeholder="Party Name" fullWidth /></div>
+                <div className="flex-1"><SearchableDropdown placeholder="Party Ledger" options={[]} value="" onChange={() => {}} compact /></div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <FilterInput placeholder="Invoice Date (From)" icon={Calendar} />
-                <FilterInput placeholder="Invoice Date (To)" icon={Calendar} />
+              <Input placeholder="Party GSTIN" fullWidth />
+              <div className="flex gap-3">
+                <Input placeholder="Consignee" />
+                <Input placeholder="Cost Center Name" />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <FilterInput placeholder="Base Total (From)" />
-                <FilterInput placeholder="Base Total (To)" />
+              <div className="flex gap-3">
+                <div className="flex-1"><Input placeholder="Sale Name" fullWidth /></div>
+                <div className="flex-1"><SearchableDropdown placeholder="Sales Ledger" options={[]} value="" onChange={() => {}} compact /></div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <FilterInput placeholder="Sub Total (From)" />
-                <FilterInput placeholder="Sub Total (To)" />
+              <div className="flex gap-3">
+                <Input placeholder="Base Amount From" />
+                <Input placeholder="Base Amount To" />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <FilterInput placeholder="TDS/ TCS (From)" />
-                <FilterInput placeholder="TDS/ TCS (To)" />
+              <div className="flex gap-3">
+                <Input placeholder="Total Amount From" />
+                <Input placeholder="Total Amount To" />
               </div>
-              <SearchableDropdown label="User" placeholder="aman bhamuriya" options={['aman bhamuriya', 'admin', 'operator']} value={values.user} onChange={v => update('user', v)} compact />
-              <SearchableDropdown label="Status" placeholder="Status" options={['approved', 'archived', 'auto_generated', 'completed', 'converted_from_invoice']} value={values.status} onChange={v => update('status', v)} compact />
-            </div>
+              <div className="flex gap-3">
+                <Input placeholder="TDS Rate" />
+                <Input placeholder="TCS Rate" />
+              </div>
+              <div className="flex gap-2">
+                <Input placeholder="CGST Rate" />
+                <Input placeholder="SGST Rate" />
+                <Input placeholder="IGST Rate" />
+              </div>
+              <Input placeholder="Narration" fullWidth />
+            </>
           )}
         </div>
 
-        <div className="p-4 border-t bg-slate-50/50 flex items-center justify-between gap-3" style={{ borderColor: '#f1f5f9' }}>
-          <button onClick={() => setValues({})} className="flex-1 h-9 rounded-xl border border-red-200 bg-white text-red-500 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all hover:bg-red-50 active:scale-95 shadow-sm"><X size={13} /> Clear</button>
-          <button className="flex-1 h-9 rounded-xl bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-indigo-100 transition-all hover:bg-indigo-700 active:scale-95"> Apply</button>
+        <div className="p-4 border-t bg-white flex items-center justify-between">
+          <button onClick={onClose} className="px-4 py-2 rounded-lg border border-slate-200 bg-white text-red-500 text-[13px] font-bold flex items-center justify-center gap-1.5 transition-all hover:bg-slate-50 shadow-sm">
+            <X size={14} strokeWidth={2.5} /> Clear
+          </button>
+          <button onClick={onClose} className="px-6 py-2 rounded-lg bg-indigo-600 text-white text-[13px] font-bold flex items-center justify-center gap-1.5 shadow-md transition-all hover:bg-indigo-700">
+            <Check size={14} strokeWidth={3} /> Apply
+          </button>
         </div>
       </div>
     </div>
@@ -735,6 +820,116 @@ const TableHead = ({ label, sortable, center, width, borderRight }) => (
       {label} {sortable && <ArrowUpDown size={11} className="opacity-30" />}
     </div>
   </th>
+);
+
+/* --- Upload Modals (Sales) --- */
+
+const UploadInvoiceModal = ({ onClose, isDark }) => (
+  <div className="fixed inset-0 bg-black/30 backdrop-blur-[2px] z-[100] flex items-center justify-center p-4 animate-in fade-in duration-300">
+    <div className="bg-white rounded-2xl w-[650px] p-8 relative animate-in zoom-in-95 duration-200" style={{ backgroundColor: isDark ? '#1e293b' : '#fff', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
+      <button onClick={onClose} className="absolute right-6 top-6 w-8 h-8 flex items-center justify-center rounded-full border transition-colors hover:bg-slate-50" style={{ borderColor: isDark ? '#334155' : '#e2e8f0', color: isDark ? '#94a3b8' : '#64748b' }}>
+        <X size={16} />
+      </button>
+      <h2 className="text-[16px] font-black text-indigo-600 mb-6 tracking-tight">Upload Invoice</h2>
+      <div className="text-center mb-6 text-[11px] font-bold text-red-500">Max limit: 10 files *</div>
+      <div className="flex justify-between text-[11px] font-bold mb-10 px-2" style={{ color: isDark ? '#e2e8f0' : '#475569' }}>
+        <div className="flex flex-col gap-3">
+          <div>Credit Balance: <span className="font-medium">-372</span></div>
+          <div>Uploaded Files: <span className="font-medium">0</span></div>
+        </div>
+        <div className="flex flex-col gap-3 text-right">
+          <div>Total Pages: <span className="font-medium">0</span></div>
+          <div>Remaining Files: <span className="font-medium">0</span></div>
+        </div>
+      </div>
+      <div className="flex flex-col items-center justify-center mb-8">
+        <div className="w-16 h-16 rounded-full border flex items-center justify-center mb-3 cursor-pointer shadow-sm hover:border-indigo-400 hover:text-indigo-600 transition-colors" style={{ borderColor: isDark ? '#334155' : '#cbd5e1', color: isDark ? '#94a3b8' : '#334155' }}>
+          <CloudUpload size={24} strokeWidth={2} />
+        </div>
+        <div className="text-[11px] font-medium" style={{ color: isDark ? '#94a3b8' : '#475569' }}>Click here to Choose Files</div>
+      </div>
+      <div className="border border-dashed rounded-lg py-8 flex items-center justify-center text-[11px] font-medium cursor-pointer" style={{ borderColor: '#38bdf8', backgroundColor: isDark ? '#0f172a' : '#f0f9ff40', color: isDark ? '#94a3b8' : '#475569' }}>
+        Drag and drop files here
+      </div>
+    </div>
+  </div>
+);
+
+const BulkUploadInvoiceModal = ({ onClose, isDark }) => (
+  <div className="fixed inset-0 bg-black/30 backdrop-blur-[2px] z-[100] flex items-center justify-center p-4 animate-in fade-in duration-300">
+    <div className="bg-white rounded-2xl w-[650px] p-8 relative animate-in zoom-in-95 duration-200" style={{ backgroundColor: isDark ? '#1e293b' : '#fff', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
+      <button onClick={onClose} className="absolute right-6 top-6 w-8 h-8 flex items-center justify-center rounded-full border transition-colors hover:bg-slate-50" style={{ borderColor: isDark ? '#334155' : '#e2e8f0', color: isDark ? '#94a3b8' : '#64748b' }}>
+        <X size={16} />
+      </button>
+      <h2 className="text-[16px] font-black text-indigo-600 mb-6 tracking-tight">Bulk Upload Invoice</h2>
+
+      <div className="flex items-center justify-center mb-10 px-12 relative">
+        <div className="absolute left-16 right-16 top-1/2 -translate-y-1/2 h-[1px]" style={{ backgroundColor: isDark ? '#334155' : '#e2e8f0', zIndex: 0 }} />
+        <div className="w-full flex justify-between relative" style={{ zIndex: 1 }}>
+          <div className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-md"><CloudUpload size={14} /></div>
+          <div className="w-8 h-8 rounded-full border bg-white flex items-center justify-center shadow-sm" style={{ borderColor: isDark ? '#334155' : '#e2e8f0', color: '#94a3b8' }}><Settings size={14} /></div>
+          <div className="w-8 h-8 rounded-full border bg-white flex items-center justify-center shadow-sm" style={{ borderColor: isDark ? '#334155' : '#e2e8f0', color: '#94a3b8' }}><Check size={14} /></div>
+        </div>
+      </div>
+
+      <h3 className="text-center text-[13px] font-bold mb-4" style={{ color: isDark ? '#f8fafc' : '#0f172a' }}>Upload File</h3>
+      <div className="text-center mb-6 text-[11px] font-bold text-red-500">Header in file must be Present*</div>
+
+      <div className="flex flex-col items-center justify-center mb-8">
+        <div className="w-14 h-14 rounded-full border flex items-center justify-center mb-3 cursor-pointer shadow-sm hover:border-indigo-400 hover:text-indigo-600 transition-colors" style={{ borderColor: isDark ? '#334155' : '#cbd5e1', color: isDark ? '#94a3b8' : '#334155' }}>
+          <CloudUpload size={20} strokeWidth={2} />
+        </div>
+        <div className="text-[11px] font-medium" style={{ color: isDark ? '#94a3b8' : '#475569' }}>Click here to Choose Files</div>
+      </div>
+
+      <div className="border border-dashed rounded-lg py-8 flex items-center justify-center text-[11px] font-medium cursor-pointer" style={{ borderColor: '#38bdf8', backgroundColor: isDark ? '#0f172a' : '#f0f9ff40', color: isDark ? '#94a3b8' : '#475569' }}>
+        Drag and drop files here
+      </div>
+      <div className="flex justify-end mt-8">
+        <button className="px-6 py-2 bg-indigo-600 text-white text-[12px] font-bold rounded-lg hover:bg-indigo-700 transition-colors shadow-md active:scale-95">Next</button>
+      </div>
+    </div>
+  </div>
+);
+
+const UploadFilesModal = ({ onClose, isDark }) => (
+  <div className="fixed inset-0 bg-black/30 backdrop-blur-[2px] z-[100] flex items-center justify-center p-4 animate-in fade-in duration-300">
+    <div className="bg-white rounded-2xl w-[900px] p-6 relative animate-in zoom-in-95 duration-200 shadow-2xl" style={{ backgroundColor: isDark ? '#1e293b' : '#fff' }}>
+      <button onClick={onClose} className="absolute right-4 top-4 w-8 h-8 flex items-center justify-center rounded-full text-slate-400 hover:bg-slate-50 transition-colors">
+        <X size={16} />
+      </button>
+      <div className="flex items-center gap-3 mb-6">
+        <h2 className="text-[15px] font-black text-indigo-600 tracking-tight">Upload Files</h2>
+        <button className="w-6 h-6 rounded-full border flex items-center justify-center shadow-sm transition-colors" style={{ borderColor: 'rgba(16,185,129,0.2)', color: '#10b981' }}>
+          <RefreshCw size={12} />
+        </button>
+      </div>
+      <div className="border rounded-xl overflow-hidden shadow-sm" style={{ borderColor: isDark ? '#334155' : '#e2e8f0' }}>
+        <table className="w-full text-left">
+          <thead>
+            <tr className="border-b" style={{ borderColor: isDark ? '#334155' : '#e2e8f0', backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : '#fcfdfe' }}>
+              <th className="p-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Sr No.</th>
+              <th className="p-3 text-[10px] font-black uppercase tracking-widest text-slate-500"><div className="flex items-center gap-1 cursor-pointer hover:text-indigo-500">Filename <ArrowUpDown size={10} className="opacity-40" /></div></th>
+              <th className="p-3 text-[10px] font-black uppercase tracking-widest text-slate-500"><div className="flex items-center gap-1 cursor-pointer hover:text-indigo-500">Uploaded At <ArrowUpDown size={10} className="opacity-40" /></div></th>
+              <th className="p-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Uploaded By</th>
+              <th className="p-3 text-[10px] font-black uppercase tracking-widest text-slate-500"><div className="flex items-center gap-1 cursor-pointer hover:text-indigo-500">Status <ArrowUpDown size={10} className="opacity-40" /></div></th>
+              <th className="p-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Inbox</th>
+              <th className="p-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Review</th>
+              <th className="p-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Archive</th>
+              <th className="p-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td colSpan={9} className="p-6">
+                <div className="text-[11px] font-bold text-slate-500">No Inbox Data found.</div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 );
 
 export default SalesPanel;
