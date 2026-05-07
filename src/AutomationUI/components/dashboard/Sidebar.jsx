@@ -1,6 +1,5 @@
 import {
   LayoutDashboard,
-  Database,
   Settings2,
   FileText,
   ReceiptText,
@@ -11,11 +10,12 @@ import {
   ShieldCheck,
   FolderOpen,
   Boxes,
-  ChevronLeft,
+  ChevronsLeft,
+  ChevronsRight,
   ChevronRight,
-  ChevronDown,
 } from 'lucide-react'
-import { useMemo, useState, useEffect } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { AnimatePresence, motion } from 'motion/react'
 
 const menuItems = [
   { key: 'Dashboard', icon: LayoutDashboard, children: ['User Data'] },
@@ -31,129 +31,167 @@ const menuItems = [
   { key: 'Master Data', icon: Boxes, children: ['Party Ledger', 'Stock Ledger'] },
 ]
 
-const SidebarItem = ({ item, activeItem, onItemClick, collapsed, isDark, openMenu, setOpenMenu }) => {
+function SidebarItem({ item, activeItem, onItemClick, collapsed, openMenu, setOpenMenu }) {
   const { key, icon: Icon, children } = item
   const hasChildren = !!children
-  
-  // A menu is considered open if it's explicitly set as the openMenu, 
-  // or if its children include the currently active item (to keep it open when navigating)
-  const isOpen = openMenu === key || (children && children.includes(activeItem) && openMenu === null) || (children && children.includes(activeItem) && openMenu === key)
-
+  const isOpen = openMenu === key
   const isActive = activeItem === key || (children && children.includes(activeItem))
 
-  const handleMenuClick = () => {
+  const handleClick = () => {
     if (hasChildren) {
-      setOpenMenu(isOpen ? null : key) // Toggle open/close, closing others
+      setOpenMenu(isOpen ? null : key)
+      if (!isOpen) onItemClick(children[0])
+    } else {
+      onItemClick(key)
     }
-    onItemClick(key)
   }
 
   return (
-    <div>
-      <button
+    <div className="relative">
+      <motion.button
+        whileTap={{ scale: 0.985 }}
         type="button"
-        onClick={handleMenuClick}
-        className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[12px] transition-all duration-300 relative overflow-hidden ${
-          isActive
-            ? 'font-bold shadow-md scale-[1.02]'
-            : 'hover:translate-x-1'
-        }`}
+        onClick={handleClick}
+        className="group relative flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left text-[12.5px] transition-colors"
         style={{
-          color: isActive ? (isDark ? '#fff' : 'var(--app-heading)') : (isDark ? 'rgba(255,255,255,0.6)' : '#71717a'),
-          background: isActive 
-            ? (isDark ? 'linear-gradient(135deg, rgba(0, 94, 217, 0.4) 0%, rgba(9, 182, 185, 0.1) 100%)' : 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)')
-            : 'transparent',
-          boxShadow: isActive && isDark ? '0 0 20px -5px rgba(9, 182, 185, 0.3), inset 0 0 0 1px rgba(9, 182, 185, 0.2)' : undefined,
+          color: isActive ? 'var(--app-heading)' : 'var(--app-text)',
+          backgroundColor: isActive ? 'var(--app-control-hover)' : 'transparent',
+          fontWeight: isActive ? 600 : 500,
         }}
       >
-        {isActive && isDark && (
-          <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-[#09B6B9] to-[#005ED9] shadow-[0_0_8px_#09B6B9]"></div>
+        {isActive && (
+          <motion.span
+            layoutId="sidebar-active-indicator"
+            className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full"
+            style={{ background: 'var(--app-accent-gradient)' }}
+            transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+          />
         )}
-        <Icon size={16} strokeWidth={isActive ? 2.5 : 2} style={{ color: isActive ? (isDark ? '#09B6B9' : 'var(--app-accent)') : (isDark ? 'rgba(255,255,255,0.4)' : '#94949e') }} className="relative z-10" />
+
+        <span
+          className="flex h-7 w-7 items-center justify-center rounded-md shrink-0 transition-colors"
+          style={{
+            backgroundColor: isActive ? 'var(--app-accent-soft)' : 'transparent',
+            color: isActive ? 'var(--app-accent)' : 'var(--app-muted)',
+          }}
+        >
+          <Icon size={15} strokeWidth={isActive ? 2.4 : 2} />
+        </span>
+
         {!collapsed && (
           <>
-            <span className="truncate flex-1 relative z-10">{key}</span>
+            <span className="truncate flex-1">{key}</span>
             {hasChildren && (
-              <span className={`ml-auto transition-transform duration-300 relative z-10 ${isOpen ? 'rotate-180' : ''}`} style={{ color: isDark ? 'rgba(255,255,255,0.4)' : '#94949e' }}>
-                <ChevronDown size={14} />
-              </span>
+              <motion.span
+                animate={{ rotate: isOpen ? 90 : 0 }}
+                transition={{ duration: 0.18 }}
+                style={{ color: 'var(--app-muted)' }}
+              >
+                <ChevronRight size={13} />
+              </motion.span>
             )}
           </>
         )}
-      </button>
+      </motion.button>
 
-      {hasChildren && isOpen && !collapsed && (
-        <div className="ml-7 mt-1.5 space-y-1 border-l" style={{ borderColor: isDark ? 'rgba(255,255,255,0.05)' : '#f1f5f9' }}>
-          {children.map((child) => {
-            const isChildActive = activeItem === child
-            return (
-              <button
-                type="button"
-                key={child}
-                onClick={() => { onItemClick(child); setOpenMenu(key); }}
-                className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-[11px] transition-all duration-300 relative group ${isChildActive ? 'font-semibold' : 'hover:translate-x-1'}`}
-                style={{
-                  color: isChildActive ? (isDark ? '#09B6B9' : 'var(--app-accent)') : (isDark ? 'rgba(255,255,255,0.5)' : '#71717a'),
-                  backgroundColor: isChildActive ? (isDark ? 'rgba(9, 182, 185, 0.1)' : 'var(--app-accent-soft)') : 'transparent',
-                }}
-              >
-                {isChildActive && isDark && (
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-1/2 bg-[#09B6B9] rounded-r-full shadow-[0_0_4px_#09B6B9]"></div>
-                )}
-                <div className={`h-1.5 w-1.5 rounded-full transition-all duration-300 ${isChildActive ? 'scale-125' : 'scale-100 opacity-40 group-hover:opacity-100'}`} style={{ backgroundColor: isChildActive ? (isDark ? '#09B6B9' : 'var(--app-accent)') : (isDark ? 'rgba(255,255,255,0.3)' : '#94949e'), boxShadow: isChildActive && isDark ? '0 0 5px #09B6B9' : undefined }} />
-                {child}
-              </button>
-            )
-          })}
-        </div>
-      )}
+      <AnimatePresence initial={false}>
+        {hasChildren && isOpen && !collapsed && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+            className="overflow-hidden"
+          >
+            <div
+              className="ml-[26px] mt-1 mb-1 space-y-0.5 border-l pl-2.5"
+              style={{ borderColor: 'var(--app-border)' }}
+            >
+              {children.map((child) => {
+                const childActive = activeItem === child
+                return (
+                  <button
+                    type="button"
+                    key={child}
+                    onClick={() => onItemClick(child)}
+                    className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[11.5px] transition-all hover:translate-x-0.5"
+                    style={{
+                      color: childActive ? 'var(--app-accent)' : 'var(--app-text)',
+                      backgroundColor: childActive ? 'var(--app-accent-soft)' : 'transparent',
+                      fontWeight: childActive ? 600 : 500,
+                    }}
+                  >
+                    <span
+                      className="h-1 w-1 rounded-full transition-all"
+                      style={{
+                        background: childActive ? 'var(--app-accent-gradient)' : 'var(--app-muted)',
+                        opacity: childActive ? 1 : 0.5,
+                        transform: childActive ? 'scale(1.6)' : 'scale(1)',
+                      }}
+                    />
+                    <span className="truncate">{child}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
 
-function Sidebar({ activeItem, onItemClick, collapsed, onToggle, isDark }) {
+function Sidebar({ activeItem, onItemClick, collapsed, onToggle }) {
   const renderItems = useMemo(() => menuItems, [])
   const [openMenu, setOpenMenu] = useState(null)
 
-  // Determine initial open menu based on activeItem
   useEffect(() => {
-    const activeParent = renderItems.find(item => item.children && item.children.includes(activeItem));
-    if (activeParent) {
-      setOpenMenu(activeParent.key);
-    }
-  }, [activeItem, renderItems]);
+    const activeParent = renderItems.find(
+      (item) => item.children && item.children.includes(activeItem),
+    )
+    if (activeParent) setOpenMenu(activeParent.key)
+  }, [activeItem, renderItems])
 
   return (
-    <aside
-      className={`border-r px-3 py-3 transition-all duration-300 flex flex-col h-full shrink-0 relative ${
-        collapsed ? 'w-[80px]' : 'w-[260px]'
-      }`}
-      style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-sidebar-bg)' }}
+    <motion.aside
+      animate={{ width: collapsed ? 76 : 248 }}
+      transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+      className="border-r flex flex-col h-full shrink-0 relative"
+      style={{
+        borderColor: 'var(--app-border)',
+        backgroundColor: 'var(--app-sidebar-bg)',
+      }}
     >
-      <style>{`
-        .sidebar-scrollbar::-webkit-scrollbar { width: 4px; }
-        .sidebar-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .sidebar-scrollbar::-webkit-scrollbar-thumb { background: ${isDark ? 'rgba(255,255,255,0.1)' : '#e2e8f0'}; border-radius: 4px; }
-        .sidebar-scrollbar::-webkit-scrollbar-thumb:hover { background: ${isDark ? 'rgba(255,255,255,0.2)' : '#cbd5e1'}; }
-      `}</style>
-      
-      <div className="mb-2 flex items-center justify-end shrink-0">
+      {/* Header / collapse */}
+      <div
+        className="flex items-center justify-between px-3 py-2.5 border-b"
+        style={{ borderColor: 'var(--app-border)' }}
+      >
+        {!collapsed && (
+          <span
+            className="text-[10px] font-semibold uppercase tracking-[0.12em]"
+            style={{ color: 'var(--app-muted)' }}
+          >
+            Workspace
+          </span>
+        )}
         <button
           type="button"
           onClick={onToggle}
-          className="inline-flex h-7 w-7 items-center justify-center rounded-lg border transition-all hover:bg-slate-50 dark:hover:bg-white/5"
+          className="ml-auto inline-flex h-7 w-7 items-center justify-center rounded-md border focus-ring transition-colors hover:bg-[var(--app-control-hover)]"
           style={{
             borderColor: 'var(--app-border)',
-            color: isDark ? '#fff' : 'var(--app-heading)',
-            backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : '#ffffff',
+            color: 'var(--app-text)',
+            backgroundColor: 'var(--app-control-bg)',
           }}
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
-          {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+          {collapsed ? <ChevronsRight size={13} /> : <ChevronsLeft size={13} />}
         </button>
       </div>
 
-      <nav className="space-y-0.5 flex-1 overflow-y-auto sidebar-scrollbar pr-1 pb-4">
+      {/* Nav */}
+      <nav className="flex-1 overflow-y-auto themed-scrollbar px-2 py-3 space-y-0.5">
         {renderItems.map((item) => (
           <SidebarItem
             key={item.key}
@@ -161,13 +199,46 @@ function Sidebar({ activeItem, onItemClick, collapsed, onToggle, isDark }) {
             activeItem={activeItem}
             onItemClick={onItemClick}
             collapsed={collapsed}
-            isDark={isDark}
             openMenu={openMenu}
             setOpenMenu={setOpenMenu}
           />
         ))}
       </nav>
-    </aside>
+
+      {/* Footer card */}
+      {!collapsed && (
+        <div className="p-3">
+          <div
+            className="rounded-xl border p-3"
+            style={{
+              borderColor: 'var(--app-border)',
+              background:
+                'linear-gradient(135deg, var(--app-accent-soft) 0%, transparent 100%)',
+            }}
+          >
+            <div
+              className="text-[11px] font-semibold mb-0.5"
+              style={{ color: 'var(--app-heading)' }}
+            >
+              Need help?
+            </div>
+            <div
+              className="text-[10.5px] leading-snug mb-2"
+              style={{ color: 'var(--app-text)' }}
+            >
+              Ask our AI assistant or talk to a real accountant.
+            </div>
+            <button
+              type="button"
+              className="w-full rounded-md py-1.5 text-[11px] font-semibold text-white shadow-sm"
+              style={{ background: 'var(--app-accent-gradient)' }}
+            >
+              Open Assistant
+            </button>
+          </div>
+        </div>
+      )}
+    </motion.aside>
   )
 }
 

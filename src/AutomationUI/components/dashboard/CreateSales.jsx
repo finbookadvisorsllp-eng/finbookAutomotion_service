@@ -62,15 +62,15 @@ const CreateSales = ({ isDark, onBack }) => {
   };
 
   const theme = {
-    bg: isDark ? 'transparent' : '#f8fafc',
-    panel: isDark ? 'rgba(8, 21, 46, 0.4)' : '#fff',
-    border: isDark ? 'rgba(9, 182, 185, 0.15)' : '#e2e8f0',
-    headerBg: isDark ? 'rgba(11, 23, 54, 0.6)' : '#fcfdfe',
-    text: isDark ? 'rgba(255, 255, 255, 0.82)' : '#1e293b',
-    inputBg: isDark ? 'rgba(8, 21, 46, 0.6)' : '#fff',
-    mutedText: isDark ? 'rgba(255, 255, 255, 0.58)' : '#64748b',
-    accent: isDark ? '#09B6B9' : '#4f46e5',
-    accentSoft: isDark ? 'rgba(9, 182, 185, 0.15)' : '#eef2ff',
+    bg: 'var(--app-content-bg)',
+    panel: 'var(--app-panel-bg)',
+    border: 'var(--app-border)',
+    headerBg: 'var(--app-table-head-bg)',
+    text: 'var(--app-heading)',
+    inputBg: 'var(--app-control-bg)',
+    mutedText: 'var(--app-muted)',
+    accent: 'var(--app-accent)',
+    accentSoft: 'var(--app-accent-soft)',
     scrollbarThumb: isDark ? 'rgba(9, 182, 185, 0.3)' : '#cbd5e1',
     scrollbarTrack: isDark ? 'transparent' : '#f1f5f9'
   };

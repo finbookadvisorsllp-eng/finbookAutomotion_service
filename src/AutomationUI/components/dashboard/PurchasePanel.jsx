@@ -49,6 +49,7 @@ import {
   FileSpreadsheet,
   ShoppingCart
 } from 'lucide-react';
+import { motion } from 'motion/react';
 import VoucherEntryEngine from './VoucherEntryEngine';
 
 const PurchasePanel = ({ mode, isDark }) => {
@@ -106,48 +107,41 @@ const PurchasePanel = ({ mode, isDark }) => {
   };
 
   const IconButton = ({ icon: Icon, color, onClick, label, isPrimary }) => {
-    const getColor = () => {
-      switch (color) {
-        case 'red': return '#ef4444';
-        case 'purple': return '#8b5cf6';
-        case 'blue': return '#3b82f6';
-        case 'emerald': return '#10b981';
-        case 'indigo': return '#4f46e5';
-        default: return '#64748b';
-      }
+    const toneMap = {
+      red: '#EF4444', purple: '#8B5CF6', blue: '#3B82F6',
+      emerald: '#10B981', indigo: '#6366F1', slate: 'var(--app-text)',
     };
-    const activeColor = getColor();
+    const tone = toneMap[color] || 'var(--app-text)';
 
     if (label) {
       return (
-        <button
+        <motion.button
+          whileTap={{ scale: 0.96 }}
+          whileHover={{ y: -1 }}
           onClick={onClick}
-          className={`h-9 px-4 rounded-xl flex items-center gap-2 font-bold text-[12px] transition-all hover:scale-[1.02] active:scale-95 shadow-sm ${isPrimary ? 'text-white shadow-lg' : 'border'}`}
-          style={{
-            borderColor: isPrimary ? 'transparent' : activeColor + '40',
-            color: isPrimary ? '#fff' : activeColor,
-            backgroundColor: isPrimary ? activeColor : (isDark ? 'var(--app-control-bg)' : '#fff'),
-            boxShadow: isPrimary ? `0 4px 12px ${activeColor}40` : undefined
-          }}
+          className="h-9 px-3.5 rounded-lg flex items-center gap-1.5 font-semibold text-[12px] transition-shadow shadow-sm focus-ring"
+          style={
+            isPrimary
+              ? { color: '#fff', background: 'var(--app-accent-gradient)', borderColor: 'transparent' }
+              : { border: '1px solid var(--app-border)', color: tone, backgroundColor: 'var(--app-control-bg)' }
+          }
         >
-          <Icon size={14} strokeWidth={2.5} />
+          <Icon size={14} strokeWidth={2.2} />
           {label}
-        </button>
-      )
+        </motion.button>
+      );
     }
 
     return (
-      <button
+      <motion.button
+        whileTap={{ scale: 0.94 }}
+        whileHover={{ y: -1 }}
         onClick={onClick}
-        className={`w-9 h-9 rounded-xl border flex items-center justify-center transition-all hover:scale-110 active:scale-95 shadow-sm bg-white/50 backdrop-blur-sm`}
-        style={{
-          borderColor: activeColor + '40',
-          color: activeColor,
-          backgroundColor: isDark ? 'var(--app-control-bg)' : 'rgba(255,255,255,0.7)'
-        }}
+        className="h-9 w-9 rounded-lg border flex items-center justify-center transition-colors focus-ring hover:bg-[var(--app-control-hover)]"
+        style={{ borderColor: 'var(--app-border)', color: tone, backgroundColor: 'var(--app-control-bg)' }}
       >
-        <Icon size={15} strokeWidth={2.5} />
-      </button>
+        <Icon size={14} strokeWidth={2.2} />
+      </motion.button>
     );
   };
 
@@ -193,10 +187,21 @@ const PurchasePanel = ({ mode, isDark }) => {
   );
 
   return (
-    <div className="flex flex-col gap-2 h-full animate-in fade-in duration-500 overflow-hidden relative">
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+      className="flex flex-col gap-4 h-full overflow-hidden relative"
+    >
       {isLoading && (
-        <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-50 flex items-center justify-center animate-in fade-in duration-300">
-          <Loader2 className="text-blue-600 animate-spin" size={32} />
+        <div className="absolute inset-0 z-50 flex items-center justify-center rounded-xl backdrop-blur-md" style={{ backgroundColor: 'rgba(0,0,0,0.05)' }}>
+          <div className="flex flex-col items-center gap-3 px-5 py-4 rounded-xl glass-surface">
+            <div className="relative h-10 w-10 flex items-center justify-center">
+              <div className="absolute inset-0 rounded-full border-2 animate-spin" style={{ borderColor: 'var(--app-accent-soft)', borderTopColor: 'var(--app-accent)' }} />
+              <Loader2 size={16} style={{ color: 'var(--app-accent)' }} />
+            </div>
+            <span className="text-[11px] font-semibold tracking-wide" style={{ color: 'var(--app-heading)' }}>Processing…</span>
+          </div>
         </div>
       )}
 
@@ -217,40 +222,29 @@ const PurchasePanel = ({ mode, isDark }) => {
         />
       )}
 
-      {/* Premium Top Action Bar */}
-      <div className="flex flex-col gap-3 shrink-0 p-3 rounded-2xl border shadow-sm backdrop-blur-md relative overflow-hidden" 
-        style={{ 
-          borderColor: isDark ? 'rgba(9, 182, 185, 0.2)' : 'rgba(255,255,255,0.5)', 
-          background: isDark ? 'linear-gradient(180deg, rgba(8, 21, 46, 0.7) 0%, rgba(11, 23, 54, 0.9) 100%)' : 'linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(248,250,252,0.8) 100%)',
-          boxShadow: isDark ? '0 0 30px -10px rgba(0, 94, 217, 0.2), inset 0 0 0 1px rgba(9, 182, 185, 0.1)' : undefined
-        }}>
-        {isDark && (
-          <>
-            <div className="absolute -top-24 -right-24 w-48 h-48 bg-[#09B6B9]/20 rounded-full blur-[50px] pointer-events-none"></div>
-            <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-[#005ED9]/20 rounded-full blur-[50px] pointer-events-none"></div>
-          </>
-        )}
-        {!isDark && (
-          <>
-            <div className="absolute -top-24 -right-24 w-48 h-48 bg-indigo-500/20 rounded-full blur-[40px] pointer-events-none"></div>
-            <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-purple-500/20 rounded-full blur-[40px] pointer-events-none"></div>
-          </>
-        )}
-        
-        <div className="flex items-center justify-between relative z-10">
+      <div
+        className="rounded-xl border p-3.5 shrink-0"
+        style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-panel-bg)' }}
+      >
+        <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20 text-white">
-              <ShoppingCart size={20} strokeWidth={2.5} />
+            <div
+              className="h-10 w-10 rounded-xl flex items-center justify-center text-white shadow-sm"
+              style={{ background: 'var(--app-accent-gradient)' }}
+            >
+              <ShoppingCart size={18} strokeWidth={2.2} />
             </div>
             <div>
-              <h1 className="text-[18px] font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400">
+              <h1 className="text-[17px] font-semibold tracking-tight leading-tight" style={{ color: 'var(--app-heading)' }}>
                 {getTitle()}
               </h1>
-              <p className="text-[11px] font-bold text-slate-500">Manage and process all purchase entries efficiently</p>
+              <p className="text-[11.5px] mt-0.5" style={{ color: 'var(--app-muted)' }}>
+                Manage and process all purchase entries efficiently.
+              </p>
             </div>
           </div>
           
-          <div className="flex gap-2 items-center">
+          <div className="flex gap-2 items-center flex-wrap">
             {mode === 'Inbox' && (
               <>
                 {excelMode ? (
@@ -269,7 +263,7 @@ const PurchasePanel = ({ mode, isDark }) => {
                     <IconButton icon={ScanLine} color="purple" label="OCR Upload" onClick={() => setViewMode('ocr')} />
                     <IconButton icon={FileSpreadsheet} color="emerald" label="CSV Upload" onClick={() => setViewMode('csv')} />
                     <IconButton icon={Plus} color="indigo" label="Create Entry" isPrimary onClick={() => setViewMode('transaction')} />
-                    <div className="w-[1px] h-8 bg-slate-200 dark:bg-slate-700 mx-1"></div>
+                    <div className="w-px h-7 mx-1" style={{ backgroundColor: 'var(--app-border)' }} />
                     <IconButton icon={CheckCircle2} color="emerald" />
                     <IconButton icon={Trash2} color="red" />
                   </>
@@ -313,35 +307,49 @@ const PurchasePanel = ({ mode, isDark }) => {
           </div>
         </div>
 
-        <div className="flex items-center justify-between relative z-10 mt-1">
-          {/* Left Side: Search Bar OR Excel Features */}
-          <div className="flex-1 flex items-center gap-3">
+        <div className="flex items-center justify-between gap-3 mt-3 flex-wrap">
+          <div className="flex-1 min-w-[240px] flex items-center gap-3 flex-wrap">
             {!excelMode ? (
-              <div className="w-full max-w-[400px]">
+              <div className="w-full max-w-[420px]">
                 <div className="relative group">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-indigo-500" size={14} strokeWidth={3} />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--app-muted)' }} size={14} />
                   <input
                     type="text"
-                    placeholder="Search on Party Name, Invoice No..."
-                    className="w-full h-10 rounded-xl border px-10 text-[12px] font-bold outline-none transition-all shadow-sm focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10"
-                    style={{ backgroundColor: isDark ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.7)', borderColor: isDark ? '#334155' : '#e2e8f0', color: isDark ? '#f1f5f9' : '#475569' }}
+                    placeholder="Search on Party Name, Invoice No…"
+                    className="w-full h-9 rounded-lg border pl-9 pr-3 text-[12.5px] outline-none transition-all focus-ring"
+                    style={{
+                      backgroundColor: 'var(--app-control-bg)',
+                      borderColor: 'var(--app-border)',
+                      color: 'var(--app-heading)',
+                    }}
                   />
                 </div>
               </div>
             ) : (
-              <div className="flex items-center gap-3" style={{ borderColor: isDark ? '#334155' : '#e2e8f0' }}>
-                <select className="h-10 w-40 rounded-xl border px-3 text-[12px] font-bold outline-none shadow-sm transition-colors hover:border-indigo-400" style={{ backgroundColor: isDark ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.7)', color: isDark ? '#f1f5f9' : '#475569', borderColor: isDark ? '#334155' : '#e2e8f0' }}>
+              <div className="flex items-center gap-3 flex-wrap">
+                <select
+                  className="h-9 w-40 rounded-lg border px-3 text-[12.5px] outline-none focus-ring"
+                  style={{
+                    backgroundColor: 'var(--app-control-bg)',
+                    color: 'var(--app-heading)',
+                    borderColor: 'var(--app-border)',
+                  }}
+                >
                   <option>Select File</option>
                 </select>
                 {mode === 'Inbox' && (
                   <>
-                    <label className="flex items-center gap-2 cursor-pointer ml-2">
-                      <input type="checkbox" className="w-4 h-4 rounded accent-indigo-600 cursor-pointer shadow-sm" style={{ borderColor: isDark ? '#475569' : '#cbd5e1' }} />
-                      <span className="text-[11px] font-bold uppercase tracking-widest" style={{ color: isDark ? '#94a3b8' : '#64748b' }}>Not Selected Ledger</span>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" className="w-4 h-4 rounded accent-[var(--app-accent)]" />
+                      <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--app-muted)' }}>
+                        Not Selected Ledger
+                      </span>
                     </label>
-                    <label className="flex items-center gap-2 cursor-pointer ml-2">
-                      <input type="checkbox" className="w-4 h-4 rounded accent-indigo-600 cursor-pointer shadow-sm" style={{ borderColor: isDark ? '#475569' : '#cbd5e1' }} />
-                      <span className="text-[11px] font-bold uppercase tracking-widest" style={{ color: isDark ? '#94a3b8' : '#64748b' }}>Selected Ledger</span>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" className="w-4 h-4 rounded accent-[var(--app-accent)]" />
+                      <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--app-muted)' }}>
+                        Selected Ledger
+                      </span>
                     </label>
                   </>
                 )}
@@ -349,14 +357,34 @@ const PurchasePanel = ({ mode, isDark }) => {
             )}
           </div>
 
-          {/* Right Side: Excel Mode & Filters */}
-          <div className="flex items-center gap-4 ml-auto">
-            <div className="flex items-center gap-3 cursor-pointer select-none px-3 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onClick={handleToggleExcel}>
-              <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: excelMode ? '#4f46e5' : '#64748b' }}>Excel Mode</span>
-              <div className={`relative inline-flex h-5 w-10 items-center rounded-full transition-all duration-300 ${excelMode ? 'bg-indigo-600 shadow-lg shadow-indigo-500/30' : 'bg-slate-300 dark:bg-slate-700 shadow-inner'}`}>
-                <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-md transition-transform duration-300 ${excelMode ? 'translate-x-5.5' : 'translate-x-1'}`} />
-              </div>
-            </div>
+          <div className="flex items-center gap-3 ml-auto">
+            <button
+              type="button"
+              onClick={handleToggleExcel}
+              className="flex items-center gap-2.5 px-3 h-9 rounded-lg border focus-ring transition-colors hover:bg-[var(--app-control-hover)]"
+              style={{
+                borderColor: excelMode ? 'var(--app-accent)' : 'var(--app-border)',
+                backgroundColor: 'var(--app-control-bg)',
+              }}
+            >
+              <span
+                className="text-[11px] font-semibold uppercase tracking-wider"
+                style={{ color: excelMode ? 'var(--app-accent)' : 'var(--app-muted)' }}
+              >
+                Excel mode
+              </span>
+              <span
+                className="relative inline-flex h-4 w-7 items-center rounded-full transition-colors"
+                style={{ background: excelMode ? 'var(--app-accent-gradient)' : 'var(--app-border)' }}
+              >
+                <motion.span
+                  layout
+                  transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                  className="inline-block h-3 w-3 rounded-full bg-white shadow"
+                  style={{ marginLeft: excelMode ? 14 : 2 }}
+                />
+              </span>
+            </button>
 
             <div className="flex gap-2">
               {excelMode && (
@@ -372,12 +400,12 @@ const PurchasePanel = ({ mode, isDark }) => {
         </div>
       </div>
 
-
-
       {/* Table Section */}
-      <div className="flex-1 overflow-hidden rounded-xl border shadow-sm flex flex-col mt-1"
-        style={{ borderColor: '#e2e8f0', backgroundColor: isDark ? 'var(--app-panel-bg)' : '#fff' }}>
-        <div className="overflow-x-auto h-full custom-scrollbar">
+      <div
+        className="flex-1 overflow-hidden rounded-xl border flex flex-col"
+        style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-panel-bg)' }}
+      >
+        <div className="overflow-x-auto h-full themed-scrollbar">
           <table className="w-full text-left border-collapse min-w-[1400px]">
             <thead className="sticky top-0 z-10">
               {excelMode && (
@@ -477,8 +505,14 @@ const PurchasePanel = ({ mode, isDark }) => {
                 </tr>
               ) : (
                 <tr>
-                  <td colSpan={20} className="p-3 border-b text-[11px] font-bold text-slate-500" style={{ borderColor: '#f1f5f9' }}>
-                    No Inbox Data found.
+                  <td colSpan={20} className="p-10">
+                    <div className="flex flex-col items-center justify-center gap-2 text-center" style={{ color: 'var(--app-muted)' }}>
+                      <span className="h-10 w-10 rounded-full flex items-center justify-center" style={{ backgroundColor: 'var(--app-accent-soft)', color: 'var(--app-accent)' }}>
+                        <ShoppingCart size={18} />
+                      </span>
+                      <p className="text-[13px] font-medium" style={{ color: 'var(--app-heading)' }}>No Inbox Data found</p>
+                      <p className="text-[11.5px]">Create or upload a purchase entry to get started.</p>
+                    </div>
                   </td>
                 </tr>
               )}
@@ -486,12 +520,12 @@ const PurchasePanel = ({ mode, isDark }) => {
           </table>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 
 const TableHead = ({ label, sortable, center, width, borderRight }) => (
-  <th className={`p-3 border-b text-[10px] font-black uppercase tracking-tight ${center ? 'text-center' : ''} ${borderRight ? 'border-r' : ''}`} style={{ borderColor: '#e2e8f0', color: '#475569', width: width }}>
+  <th className={`px-3 py-2.5 border-b text-[10.5px] font-semibold uppercase tracking-wider ${center ? 'text-center' : 'text-left'} ${borderRight ? 'border-r' : ''}`} style={{ borderColor: 'var(--app-row-border)', color: 'var(--app-muted)', backgroundColor: 'var(--app-table-head-bg)', width: width }}>
     <div className={`flex items-center gap-1.5 ${center ? 'justify-center' : ''} ${sortable ? 'cursor-pointer hover:opacity-80 transition' : ''}`}>
       {label} {sortable && <ArrowUpDown size={11} className="opacity-30" />}
     </div>

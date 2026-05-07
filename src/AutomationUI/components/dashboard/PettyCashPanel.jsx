@@ -30,8 +30,10 @@ import {
   Minus,
   FileText,
   CloudUpload,
-  Wrench
+  Wrench,
+  Wallet
 } from 'lucide-react';
+import { motion } from 'motion/react';
 
 const PettyCashPanel = ({ mode, isDark }) => {
   const [excelMode, setExcelMode] = useState(false);
@@ -93,40 +95,39 @@ const PettyCashPanel = ({ mode, isDark }) => {
     }
   };
 
-  const IconButton = ({ icon: Icon, color, onClick, shadow }) => {
-    const getColor = () => {
-      switch (color) {
-        case 'red': return '#ef4444';
-        case 'purple': return '#8b5cf6';
-        case 'blue': return '#3b82f6';
-        case 'emerald': return '#10b981';
-        case 'indigo': return '#4f46e5';
-        case 'light-blue': return '#0ea5e9';
-        default: return '#64748b';
-      }
+  const IconButton = ({ icon: Icon, color, onClick }) => {
+    const toneMap = {
+      red: '#EF4444', purple: '#8B5CF6', blue: '#3B82F6',
+      emerald: '#10B981', indigo: '#6366F1', 'light-blue': '#0EA5E9',
+      slate: 'var(--app-text)',
     };
-    const activeColor = getColor();
-
+    const tone = toneMap[color] || 'var(--app-text)';
     return (
-      <button
+      <motion.button
+        whileTap={{ scale: 0.94 }}
+        whileHover={{ y: -1 }}
         onClick={onClick}
-        className={`w-8 h-8 rounded-full border flex items-center justify-center transition-all hover:scale-110 active:scale-95 ${shadow ? 'shadow-md' : 'shadow-sm'}`}
-        style={{
-          borderColor: activeColor + '30',
-          color: activeColor,
-          backgroundColor: isDark ? 'var(--app-control-bg)' : '#fff'
-        }}
+        className="h-8 w-8 rounded-lg border flex items-center justify-center transition-colors focus-ring hover:bg-[var(--app-control-hover)]"
+        style={{ borderColor: 'var(--app-border)', color: tone, backgroundColor: 'var(--app-control-bg)' }}
       >
-        <Icon size={14} strokeWidth={2.5} />
-      </button>
+        <Icon size={13} strokeWidth={2.2} />
+      </motion.button>
     );
   };
 
   return (
-    <div className="flex flex-col gap-2 h-full animate-in fade-in duration-500 overflow-hidden relative">
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+      className="flex flex-col gap-4 h-full overflow-hidden relative"
+    >
       {isLoading && (
-        <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-50 flex items-center justify-center animate-in fade-in duration-300">
-          <Loader2 className="text-blue-600 animate-spin" size={32} />
+        <div className="absolute inset-0 z-50 flex items-center justify-center rounded-xl backdrop-blur-md" style={{ backgroundColor: 'rgba(0,0,0,0.05)' }}>
+          <div className="flex flex-col items-center gap-3 px-5 py-4 rounded-xl glass-surface">
+            <Loader2 className="animate-spin" size={20} style={{ color: 'var(--app-accent)' }} />
+            <span className="text-[11px] font-semibold tracking-wide" style={{ color: 'var(--app-heading)' }}>Processing…</span>
+          </div>
         </div>
       )}
 
@@ -144,10 +145,23 @@ const PettyCashPanel = ({ mode, isDark }) => {
       {isUploadOpen && <UploadPopup isExcel={excelMode} onClose={() => setIsUploadOpen(false)} />}
 
       {/* Header */}
-      <div className="flex items-center justify-between px-2 py-2 shrink-0 border-b bg-white backdrop-blur-sm" style={{ borderColor: 'rgba(226, 232, 240, 0.5)' }}>
-        <div className="flex items-center gap-3">
-          <h1 className="text-[15px] font-black tracking-tight" style={{ color: '#4f46e5' }}>{getTitle()}</h1>
-          <div className="flex gap-2 ml-2 items-center">
+      <div
+        className="rounded-xl border p-3.5 shrink-0"
+        style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-panel-bg)' }}
+      >
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-3 flex-wrap">
+          <div
+            className="h-10 w-10 rounded-xl flex items-center justify-center text-white shadow-sm shrink-0"
+            style={{ background: 'var(--app-accent-gradient)' }}
+          >
+            <Wallet size={18} strokeWidth={2.2} />
+          </div>
+          <div>
+            <h1 className="text-[17px] font-semibold tracking-tight leading-tight" style={{ color: 'var(--app-heading)' }}>{getTitle()}</h1>
+            <p className="text-[11.5px] mt-0.5" style={{ color: 'var(--app-muted)' }}>Track petty-cash and fund-flow movement.</p>
+          </div>
+          <div className="flex gap-2 ml-2 items-center flex-wrap">
             {!excelMode ? (
               // Non-Excel Mode Icons
               <>
@@ -190,52 +204,60 @@ const PettyCashPanel = ({ mode, isDark }) => {
                 {mode === 'Inbox' && <IconButton icon={Download} color="purple" />}
                 
                 <div className="ml-2 relative min-w-[200px]">
-                  <select className="w-full h-8 pl-3 pr-8 rounded-lg border text-[11px] font-bold appearance-none bg-white outline-none focus:border-indigo-400 transition-all cursor-pointer shadow-sm" style={{ borderColor: '#e2e8f0', color: '#475569' }}>
+                  <select
+                    className="w-full h-8 pl-3 pr-8 rounded-lg border text-[12px] appearance-none outline-none focus-ring cursor-pointer"
+                    style={{ borderColor: 'var(--app-border)', color: 'var(--app-heading)', backgroundColor: 'var(--app-control-bg)' }}
+                  >
                     <option>Select File</option>
                   </select>
-                  <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+                  <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--app-muted)' }} size={14} />
                 </div>
               </>
             )}
           </div>
         </div>
 
-        {/* Conditional Search Bar (Only in non-excel mode) */}
         {!excelMode && (
-          <div className="flex-1 max-w-[400px] px-4">
+          <div className="flex-1 min-w-[220px] max-w-[400px] px-4">
             <div className="relative group">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 transition-colors group-focus-within:text-indigo-500" size={13} strokeWidth={3} />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--app-muted)' }} size={13} />
               <input
                 type="text"
-                placeholder="Search on Party Name..."
-                className="w-full h-8 rounded-lg border px-9 text-[11px] font-bold outline-none transition-all shadow-sm focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/5"
-                style={{ backgroundColor: isDark ? 'var(--app-control-bg)' : '#fff', borderColor: '#e2e8f0', color: isDark ? '#f1f5f9' : '#475569' }}
+                placeholder="Search on Party Name…"
+                className="w-full h-9 rounded-lg border pl-9 pr-3 text-[12.5px] outline-none transition-all focus-ring"
+                style={{ backgroundColor: 'var(--app-control-bg)', borderColor: 'var(--app-border)', color: 'var(--app-heading)' }}
               />
             </div>
           </div>
         )}
 
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-3 cursor-pointer select-none" onClick={handleToggleExcel}>
-            <div className={`relative inline-flex h-5 w-10 items-center rounded-full transition-all duration-300 ${excelMode ? 'bg-indigo-600' : 'bg-slate-200 shadow-inner'}`}>
-              <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-md transition-transform duration-300 ${excelMode ? 'translate-x-5.5' : 'translate-x-1'}`} />
-            </div>
-            <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: '#475569' }}>Excel Mode</span>
-          </div>
+        <div className="flex items-center gap-3 ml-auto flex-wrap">
+          <button
+            type="button"
+            onClick={handleToggleExcel}
+            className="flex items-center gap-2.5 px-3 h-9 rounded-lg border focus-ring transition-colors hover:bg-[var(--app-control-hover)]"
+            style={{ borderColor: excelMode ? 'var(--app-accent)' : 'var(--app-border)', backgroundColor: 'var(--app-control-bg)' }}
+          >
+            <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: excelMode ? 'var(--app-accent)' : 'var(--app-muted)' }}>Excel mode</span>
+            <span className="relative inline-flex h-4 w-7 items-center rounded-full" style={{ background: excelMode ? 'var(--app-accent-gradient)' : 'var(--app-border)' }}>
+              <motion.span layout transition={{ type: 'spring', stiffness: 500, damping: 30 }} className="inline-block h-3 w-3 rounded-full bg-white shadow" style={{ marginLeft: excelMode ? 14 : 2 }} />
+            </span>
+          </button>
 
-          <div className="flex gap-2.5 items-center">
-            {excelMode && mode === 'Inbox' && <IconButton icon={FileText} color="blue" shadow onClick={() => setIsLedgerOpen(true)} />}
-            <IconButton icon={HelpCircle} color="purple" shadow />
-            {excelMode && <IconButton icon={Settings} color="light-blue" shadow onClick={() => setIsConfigOpen(true)} />}
-            <IconButton icon={Filter} color="blue" shadow onClick={() => setIsFilterOpen(true)} />
+          <div className="flex gap-2 items-center">
+            {excelMode && mode === 'Inbox' && <IconButton icon={FileText} color="blue" onClick={() => setIsLedgerOpen(true)} />}
+            <IconButton icon={HelpCircle} color="purple" />
+            {excelMode && <IconButton icon={Settings} color="light-blue" onClick={() => setIsConfigOpen(true)} />}
+            <IconButton icon={Filter} color="blue" onClick={() => setIsFilterOpen(true)} />
           </div>
+        </div>
         </div>
       </div>
 
       {/* Table Section */}
-      <div className="flex-1 overflow-hidden rounded-xl border shadow-sm flex flex-col mt-1"
-        style={{ borderColor: '#e2e8f0', backgroundColor: isDark ? 'var(--app-panel-bg)' : '#fff' }}>
-        <div className="overflow-x-auto h-full custom-scrollbar">
+      <div className="flex-1 overflow-hidden rounded-xl border flex flex-col"
+        style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-panel-bg)' }}>
+        <div className="overflow-x-auto h-full themed-scrollbar">
           <table className="w-full text-left border-collapse min-w-[1400px]">
             <thead className="sticky top-0 z-10">
               {excelMode && (
@@ -337,7 +359,7 @@ const PettyCashPanel = ({ mode, isDark }) => {
               <tr>
                 <td colSpan={40} className="p-32 text-center">
                   <div className="flex flex-col items-center justify-center">
-                    <p className="text-[11px] font-black uppercase tracking-widest text-slate-300 animate-pulse">No Inbox Data found.</p>
+                    <p className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--app-muted)' }}>No Inbox Data found.</p>
                   </div>
                 </td>
               </tr>
@@ -345,7 +367,7 @@ const PettyCashPanel = ({ mode, isDark }) => {
           </table>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 
@@ -757,9 +779,9 @@ const FilterInput = ({ placeholder, icon: Icon }) => (
 );
 
 const TableHead = ({ label, sortable, center, width, borderRight }) => (
-  <th className={`p-3 border-b text-[10px] font-black uppercase tracking-tight ${center ? 'text-center' : ''} ${borderRight ? 'border-r' : ''}`} style={{ borderColor: 'var(--app-row-border)', color: '#475569', width: width }}>
+  <th className={`px-3 py-2.5 border-b text-[10.5px] font-semibold uppercase tracking-wider ${center ? 'text-center' : 'text-left'} ${borderRight ? 'border-r' : ''}`} style={{ borderColor: 'var(--app-row-border)', color: 'var(--app-muted)', backgroundColor: 'var(--app-table-head-bg)', width: width }}>
     <div className={`flex items-center gap-1.5 ${center ? 'justify-center' : ''} ${sortable ? 'cursor-pointer hover:opacity-80 transition' : ''}`}>
-      {label} {sortable && <ArrowUpDown size={11} className="opacity-30" />}
+      {label} {sortable && <ArrowUpDown size={11} className="opacity-50" />}
     </div>
   </th>
 );

@@ -44,13 +44,13 @@ const FundFlowVoucher = ({ isDark, defaultType = 'Payment', onBack }) => {
   });
 
   const theme = {
-    bg: isDark ? '#041021' : '#f8fafc',
-    panelBg: isDark ? 'rgba(8, 21, 46, 0.6)' : 'rgba(255, 255, 255, 0.8)',
-    border: isDark ? 'rgba(9, 182, 185, 0.15)' : 'rgba(226, 232, 240, 0.8)',
-    text: isDark ? '#f1f5f9' : '#0f172a',
-    mutedText: isDark ? '#94a3b8' : '#64748b',
-    primary: isDark ? '#09B6B9' : '#4f46e5',
-    inputBg: isDark ? 'rgba(4, 16, 33, 0.5)' : '#ffffff',
+    bg: 'var(--app-content-bg)',
+    panelBg: 'var(--app-panel-bg)',
+    border: 'var(--app-border)',
+    text: 'var(--app-heading)',
+    mutedText: 'var(--app-muted)',
+    primary: 'var(--app-accent)',
+    inputBg: 'var(--app-control-bg)',
     cardGradient: isDark 
       ? 'linear-gradient(145deg, rgba(8,21,46,0.7) 0%, rgba(11,23,54,0.9) 100%)' 
       : 'linear-gradient(145deg, rgba(255,255,255,1) 0%, rgba(248,250,252,0.6) 100%)',

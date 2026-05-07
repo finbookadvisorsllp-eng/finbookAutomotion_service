@@ -25,8 +25,10 @@ import {
   CloudUpload,
   FileText,
   ClipboardList,
-  Check
+  Check,
+  Landmark
 } from 'lucide-react';
+import { motion } from 'motion/react';
 
 /* --- Dummy Data --- */
 const BANKS = ['HDFC Bank', 'ICICI Bank', 'State Bank of India', 'Axis Bank', 'Kotak Mahindra Bank', 'Punjab National Bank', 'HSBC', 'Standard Chartered', 'DBS Bank', 'Yes Bank'];
@@ -91,47 +93,38 @@ const BankPanel = ({ mode: propMode, isDark }) => {
     }
   }, [propMode]);
 
-  const IconButton = ({ icon: Icon, color, onClick, shadow }) => {
-    const getColor = () => {
-      switch (color) {
-        case 'red': return '#ef4444';
-        case 'purple': return '#8b5cf6';
-        case 'blue': return '#3b82f6';
-        case 'emerald': return '#10b981';
-        case 'indigo': return '#4f46e5';
-        case 'light-blue': return '#0ea5e9';
-        default: return '#64748b';
-      }
+  const IconButton = ({ icon: Icon, color, onClick }) => {
+    const toneMap = {
+      red: '#EF4444', purple: '#8B5CF6', blue: '#3B82F6',
+      emerald: '#10B981', indigo: '#6366F1', 'light-blue': '#0EA5E9',
+      slate: 'var(--app-text)',
     };
-    const activeColor = getColor();
-
+    const tone = toneMap[color] || 'var(--app-text)';
     return (
-      <button
+      <motion.button
+        whileTap={{ scale: 0.94 }}
+        whileHover={{ y: -1 }}
         onClick={onClick}
-        className={`w-8 h-8 rounded-full border flex items-center justify-center transition-all hover:scale-110 active:scale-95 ${shadow ? 'shadow-md' : 'shadow-sm'}`}
-        style={{
-          borderColor: activeColor + '30',
-          color: activeColor,
-          backgroundColor: isDark ? 'var(--app-control-bg)' : '#fff'
-        }}
+        className="h-8 w-8 rounded-lg border flex items-center justify-center transition-colors focus-ring hover:bg-[var(--app-control-hover)]"
+        style={{ borderColor: 'var(--app-border)', color: tone, backgroundColor: 'var(--app-control-bg)' }}
       >
-        <Icon size={14} strokeWidth={2.5} />
-      </button>
+        <Icon size={13} strokeWidth={2.2} />
+      </motion.button>
     );
   };
 
   const TableHead = ({ label, sortable, center, width, borderRight, input }) => (
-    <th className={`p-3 border-b text-[10px] font-black uppercase tracking-tight ${center ? 'text-center' : ''} ${borderRight ? 'border-r' : ''}`} style={{ borderColor: 'var(--app-row-border)', color: '#475569', width: width }}>
+    <th className={`px-3 py-2.5 border-b text-[10.5px] font-semibold uppercase tracking-wider ${center ? 'text-center' : 'text-left'} ${borderRight ? 'border-r' : ''}`} style={{ borderColor: 'var(--app-row-border)', color: 'var(--app-muted)', backgroundColor: 'var(--app-table-head-bg)', width: width }}>
       <div className={`flex flex-col gap-1.5 ${center ? 'items-center' : ''}`}>
         <div className={`flex items-center gap-1.5 ${sortable ? 'cursor-pointer hover:opacity-80 transition' : ''}`}>
-          {label} {sortable && <ArrowUpDown size={11} className="opacity-30" />}
+          {label} {sortable && <ArrowUpDown size={11} className="opacity-50" />}
         </div>
         {input && (
           <div className="w-full px-1">
             <input
               type="text"
-              className="w-full h-7 border rounded px-2 text-[10px] font-medium focus:border-blue-400 outline-none transition-all"
-              style={{ borderColor: '#e2e8f0' }}
+              className="w-full h-7 border rounded-md px-2 text-[10.5px] outline-none transition-all focus-ring"
+              style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-control-bg)', color: 'var(--app-heading)' }}
             />
           </div>
         )}
@@ -351,7 +344,12 @@ const BankPanel = ({ mode: propMode, isDark }) => {
   };
 
   return (
-    <div className="flex flex-col gap-2 h-full animate-in fade-in duration-500 overflow-hidden relative">
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+      className="flex flex-col gap-4 h-full overflow-hidden relative"
+    >
       <style>{`
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -401,9 +399,13 @@ const BankPanel = ({ mode: propMode, isDark }) => {
       </FilterDrawer>}
 
       {/* Header */}
-      <div className="flex items-center justify-between px-2 py-2 shrink-0 border-b bg-white backdrop-blur-sm" style={{ borderColor: 'rgba(226, 232, 240, 0.5)' }}>
-        <div className="flex items-center gap-3">
-          <h1 className="text-[15px] font-black tracking-tight" style={{ color: '#4f46e5' }}>
+      <div className="rounded-xl border p-3.5 shrink-0" style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-panel-bg)' }}>
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="h-10 w-10 rounded-xl flex items-center justify-center text-white shadow-sm shrink-0" style={{ background: 'var(--app-accent-gradient)' }}>
+            <Landmark size={18} strokeWidth={2.2} />
+          </div>
+          <h1 className="text-[17px] font-semibold tracking-tight" style={{ color: 'var(--app-heading)' }}>
             {activeTab === 'Manage Bank' ? 'Bank Main' :
               activeTab === 'Manage Rule' ? 'Bank Rule' :
                 activeTab === 'Inbox' ? 'Bank Inbox' :
@@ -415,94 +417,91 @@ const BankPanel = ({ mode: propMode, isDark }) => {
             {getHeaderIcons()}
 
             {(activeTab === 'Inbox' || activeTab === 'Review' || activeTab === 'Archive') && (
-              <div className="flex items-center gap-2 ml-2">
+              <div className="flex items-center gap-2 ml-2 flex-wrap">
                 <div className="relative min-w-[140px]">
                   <select
-                    className="w-full h-8 pl-3 pr-8 rounded-lg border text-[11px] font-bold appearance-none bg-white outline-none focus:border-blue-400 transition-all cursor-pointer shadow-sm"
-                    style={{ borderColor: '#e2e8f0', color: '#475569' }}
+                    className="w-full h-8 pl-3 pr-8 rounded-lg border text-[12px] appearance-none outline-none focus-ring cursor-pointer"
+                    style={{ borderColor: 'var(--app-border)', color: 'var(--app-heading)', backgroundColor: 'var(--app-control-bg)' }}
                     value={selectedBank}
                     onChange={(e) => setSelectedBank(e.target.value)}
                   >
                     <option value="">Select Bank</option>
                     {BANKS.map(b => <option key={b} value={b}>{b}</option>)}
                   </select>
-                  <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+                  <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--app-muted)' }} size={14} />
                 </div>
                 <div className="relative min-w-[180px]">
                   <select
-                    className="w-full h-8 pl-3 pr-8 rounded-lg border text-[11px] font-bold appearance-none bg-white outline-none focus:border-blue-400 transition-all cursor-pointer shadow-sm"
-                    style={{ borderColor: '#e2e8f0', color: '#475569' }}
+                    className="w-full h-8 pl-3 pr-8 rounded-lg border text-[12px] appearance-none outline-none focus-ring cursor-pointer"
+                    style={{ borderColor: 'var(--app-border)', color: 'var(--app-heading)', backgroundColor: 'var(--app-control-bg)' }}
                   >
                     <option value="">Select Bank Statement</option>
                     {BANK_LEDGERS.map(l => <option key={l} value={l}>{l}</option>)}
                   </select>
-                  <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+                  <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--app-muted)' }} size={14} />
                 </div>
               </div>
             )}
           </div>
 
           {activeTab === 'Inbox' && (
-            <div className="flex items-center gap-4 ml-4">
-              <label className="flex items-center gap-2 cursor-pointer group">
-                <input type="checkbox" className="w-4 h-4 rounded border-gray-300 accent-blue-600 shadow-sm" />
-                <span className="text-[10px] font-bold text-slate-500 group-hover:text-blue-600 transition-colors whitespace-nowrap">Not Selected Ledger</span>
+            <div className="flex items-center gap-4 ml-2 flex-wrap">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" className="w-4 h-4 rounded accent-[var(--app-accent)]" />
+                <span className="text-[11px] font-semibold uppercase tracking-wider whitespace-nowrap" style={{ color: 'var(--app-muted)' }}>Not Selected Ledger</span>
               </label>
-              <label className="flex items-center gap-2 cursor-pointer group">
-                <input type="checkbox" className="w-4 h-4 rounded border-gray-300 accent-blue-600 shadow-sm" />
-                <span className="text-[10px] font-bold text-slate-500 group-hover:text-blue-600 transition-colors whitespace-nowrap">Selected Ledger</span>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" className="w-4 h-4 rounded accent-[var(--app-accent)]" />
+                <span className="text-[11px] font-semibold uppercase tracking-wider whitespace-nowrap" style={{ color: 'var(--app-muted)' }}>Selected Ledger</span>
               </label>
             </div>
           )}
         </div>
 
-        {/* Search Bar for Manage Views */}
         {(activeTab === 'Manage Bank' || activeTab === 'Manage Rule') && (
-          <div className="flex-1 max-w-[300px] px-4">
+          <div className="flex-1 min-w-[200px] max-w-[300px] px-2">
             <div className="relative group">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 transition-colors group-focus-within:text-blue-500" size={13} strokeWidth={3} />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--app-muted)' }} size={13} />
               <input
                 type="text"
-                placeholder="Search..."
-                className="w-full h-8 rounded-lg border px-9 text-[11px] font-bold outline-none transition-all shadow-sm focus:border-blue-400 focus:ring-4 focus:ring-blue-500/5"
-                style={{ backgroundColor: isDark ? 'var(--app-control-bg)' : '#fff', borderColor: '#e2e8f0', color: isDark ? '#f1f5f9' : '#475569' }}
+                placeholder="Search…"
+                className="w-full h-9 rounded-lg border pl-9 pr-3 text-[12.5px] outline-none transition-all focus-ring"
+                style={{ backgroundColor: 'var(--app-control-bg)', borderColor: 'var(--app-border)', color: 'var(--app-heading)' }}
               />
             </div>
           </div>
         )}
 
-        <div className="flex items-center gap-4">
-          <div className="flex gap-2.5 items-center">
-            {activeTab === 'Manage Bank' && <IconButton icon={FileText} color="blue" shadow onClick={() => setIsAddBankLedgerOpen(true)} />}
-            {activeTab === 'Manage Rule' && <IconButton icon={FileText} color="blue" shadow onClick={() => setIsAddPartyLedgerOpen(true)} />}
+        <div className="flex items-center gap-2 ml-auto">
+          {activeTab === 'Manage Bank' && <IconButton icon={FileText} color="blue" onClick={() => setIsAddBankLedgerOpen(true)} />}
+          {activeTab === 'Manage Rule' && <IconButton icon={FileText} color="blue" onClick={() => setIsAddPartyLedgerOpen(true)} />}
 
-            {(activeTab === 'Inbox' || activeTab === 'Review' || activeTab === 'Archive') && (
-              <>
-                <IconButton icon={Layout} color="blue" shadow onClick={() => setIsColumnConfigOpen(true)} />
-                <IconButton icon={Settings} color="blue" shadow onClick={() => setIsColumnConfigOpen(true)} />
-              </>
-            )}
+          {(activeTab === 'Inbox' || activeTab === 'Review' || activeTab === 'Archive') && (
+            <>
+              <IconButton icon={Layout} color="blue" onClick={() => setIsColumnConfigOpen(true)} />
+              <IconButton icon={Settings} color="blue" onClick={() => setIsColumnConfigOpen(true)} />
+            </>
+          )}
 
-            <IconButton icon={HelpCircle} color="purple" shadow />
-            <IconButton icon={Filter} color="blue" shadow onClick={() => {
-              if (activeTab === 'Manage Bank') setIsBankFilterOpen(true);
-              else if (activeTab === 'Manage Rule') setIsRuleFilterOpen(true);
-              else setIsInboxFilterOpen(true);
-            }} />
-          </div>
+          <IconButton icon={HelpCircle} color="purple" />
+          <IconButton icon={Filter} color="blue" onClick={() => {
+            if (activeTab === 'Manage Bank') setIsBankFilterOpen(true);
+            else if (activeTab === 'Manage Rule') setIsRuleFilterOpen(true);
+            else setIsInboxFilterOpen(true);
+          }} />
+        </div>
         </div>
       </div>
 
-      {/* Main Panel Content */}
-      <div className="flex-1 overflow-hidden rounded-xl border shadow-sm flex flex-col mt-1"
-        style={{ borderColor: '#e2e8f0', backgroundColor: isDark ? 'var(--app-panel-bg)' : '#fff' }}>
+      <div className="flex-1 overflow-hidden rounded-xl border flex flex-col"
+        style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-panel-bg)' }}>
         {activeTab === 'Manage Bank' && renderManageBank()}
         {activeTab === 'Manage Rule' && renderManageRule()}
         {activeTab === 'Inbox' && renderInbox()}
         {activeTab === 'Review' && renderReviewArchive()}
         {activeTab === 'Archive' && renderReviewArchive()}
       </div>
-    </div>
+    </motion.div>
   );
 };
 

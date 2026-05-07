@@ -129,8 +129,8 @@ function AddCompanyModal({ open, onClose, formValues, onFieldChange, onSave }) {
             <button
               type="button"
               onClick={onSave}
-              className="rounded-md px-5 py-1.5 text-sm font-semibold text-white"
-              style={{ backgroundColor: '#2f49d8' }}
+              className="rounded-lg px-5 py-2 text-sm font-semibold text-white shadow-sm focus-ring"
+              style={{ background: 'var(--app-accent-gradient)' }}
             >
               Save
             </button>

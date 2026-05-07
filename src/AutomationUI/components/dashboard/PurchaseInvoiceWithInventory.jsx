@@ -4,8 +4,8 @@ import VoucherEntryEngine from './VoucherEntryEngine';
 
 const PurchaseInvoiceWithInventory = ({ isDark, onBack }) => {
   const theme = {
-    border: isDark ? '#334155' : '#e2e8f0',
-    text: isDark ? '#f1f5f9' : '#1e293b',
+    border: 'var(--app-border)',
+    text: 'var(--app-heading)',
   };
 
   return (

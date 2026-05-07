@@ -83,60 +83,60 @@ function CompaniesPanel({ onIconAction }) {
   }
 
   return (
-    <section className="rounded-md border" style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-panel-bg)' }}>
-      <div className="flex items-center justify-between border-b px-2.5 py-1.5" style={{ borderColor: 'var(--app-border)' }}>
+    <section className="rounded-xl border overflow-hidden rise-in" style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-panel-bg)' }}>
+      <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: 'var(--app-border)' }}>
         <div className="flex items-center gap-3">
-          <h2 className="text-[15px] font-semibold" style={{ color: '#2f49d8' }}>
+          <h2 className="text-[15px] font-semibold tracking-tight" style={{ color: 'var(--app-heading)' }}>
             Companies
           </h2>
           <button
             type="button"
             onClick={() => setIsModalOpen(true)}
-            className="inline-flex h-5 w-5 items-center justify-center rounded-full border"
-            style={{ borderColor: 'var(--app-border)', color: 'var(--app-accent)' }}
+            className="inline-flex h-7 items-center gap-1 rounded-md px-2.5 text-[11.5px] font-semibold text-white shadow-sm focus-ring"
+            style={{ background: 'var(--app-accent-gradient)' }}
             aria-label="Add company"
           >
-            <Plus size={12} />
+            <Plus size={12} /> New company
           </button>
           <button
             type="button"
             onClick={() => handleIconClick('add-document', null)}
-            className="inline-flex h-5 w-5 items-center justify-center rounded-full border"
-            style={{ borderColor: 'var(--app-border)', color: '#8b8ea8' }}
+            className="inline-flex h-7 items-center gap-1 rounded-md border px-2.5 text-[11.5px] font-medium focus-ring"
+            style={{ borderColor: 'var(--app-border)', color: 'var(--app-text)', backgroundColor: 'var(--app-control-bg)' }}
             aria-label="Add document"
           >
-            <FilePlus2 size={11} />
+            <FilePlus2 size={11} /> Document
           </button>
         </div>
 
         <div className="flex items-center gap-2">
           <div className="relative">
-            <Search size={13} className="absolute left-2 top-1/2 -translate-y-1/2" style={{ color: 'var(--app-text)' }} />
+            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--app-muted)' }} />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search..."
-              className="h-6 w-[180px] rounded border pl-7 pr-2 text-[11px] outline-none"
+              placeholder="Search…"
+              className="h-8 w-[220px] rounded-lg border pl-8 pr-2.5 text-[12px] outline-none focus-ring"
               style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-control-bg)', color: 'var(--app-heading)' }}
             />
           </div>
           <button
             type="button"
             onClick={() => handleIconClick('sync', null)}
-            className="inline-flex h-5 w-5 items-center justify-center rounded-full border"
-            style={{ borderColor: 'var(--app-border)', color: '#6e79aa' }}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border focus-ring transition-colors hover:bg-[var(--app-control-hover)]"
+            style={{ borderColor: 'var(--app-border)', color: 'var(--app-text)', backgroundColor: 'var(--app-control-bg)' }}
             aria-label="Sync"
           >
-            <RefreshCw size={10} />
+            <RefreshCw size={13} />
           </button>
           <button
             type="button"
             onClick={() => handleIconClick('settings', null)}
-            className="inline-flex h-5 w-5 items-center justify-center rounded-full border"
-            style={{ borderColor: 'var(--app-border)', color: '#6e79aa' }}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border focus-ring transition-colors hover:bg-[var(--app-control-hover)]"
+            style={{ borderColor: 'var(--app-border)', color: 'var(--app-text)', backgroundColor: 'var(--app-control-bg)' }}
             aria-label="Settings"
           >
-            <Settings2 size={10} />
+            <Settings2 size={13} />
           </button>
         </div>
       </div>

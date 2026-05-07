@@ -3,13 +3,13 @@ import { Save, Send, ArrowLeft, Plus, Settings, ChevronDown, CheckCircle2, Chevr
 
 const PaymentVoucher = ({ isDark, onBack }) => {
   const theme = {
-    bg: isDark ? '#0f172a' : '#f8fafc',
-    panel: isDark ? '#1e293b' : '#fff',
-    border: isDark ? '#334155' : '#e2e8f0',
-    headerBg: isDark ? '#1e293b' : '#fcfdfe',
-    text: isDark ? '#f1f5f9' : '#1e293b',
-    inputBg: isDark ? '#0f172a' : '#fff',
-    mutedText: isDark ? '#94a3b8' : '#64748b',
+    bg: 'var(--app-content-bg)',
+    panel: 'var(--app-panel-bg)',
+    border: 'var(--app-border)',
+    headerBg: 'var(--app-table-head-bg)',
+    text: 'var(--app-heading)',
+    inputBg: 'var(--app-control-bg)',
+    mutedText: 'var(--app-muted)',
     accent: '#f43f5e', // Rose for payment
     accentSoft: isDark ? 'rgba(244, 63, 94, 0.2)' : '#fff1f2',
   };

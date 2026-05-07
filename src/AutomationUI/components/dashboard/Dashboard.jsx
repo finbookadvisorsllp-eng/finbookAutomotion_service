@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { AnimatePresence, motion } from 'motion/react'
 import Navbar from './Navbar'
 import Sidebar from './Sidebar'
 import CompaniesPanel from './CompaniesPanel'
@@ -25,46 +26,51 @@ import PurchaseInvoiceWithoutInventory from './PurchaseInvoiceWithoutInventory'
 import DebitNote from './DebitNote'
 import FundFlowVoucher from './FundFlowVoucher'
 import VoucherEntryEngine from './VoucherEntryEngine'
+
+// Modern SaaS design tokens — Linear / Vercel inspired.
+// Light mode: warm neutrals, indigo→violet brand. Dark mode: deep cool slate.
 const brandTheme = {
   light: {
-    appBg: '#F0F2F5',
+    appBg: '#FAFAFB',
     panelBg: '#FFFFFF',
-    contentBg: '#F8FAFC',
+    contentBg: '#F6F7F9',
     sidebarBg: '#FFFFFF',
-    border: '#E2E8F0',
-    heading: '#0F172A',
-    text: '#475569',
-    tableHeadBg: '#F8FAFF',
-    rowBorder: '#F1F5F9',
-    rowHover: '#F1F5F9',
-    accent: '#10B981',
-    accentSoft: '#ECFDF5',
-    accentGradient: 'linear-gradient(135deg, #10B981 0%, #3B82F6 100%)',
+    border: '#ECEEF2',
+    heading: '#0B0B12',
+    text: '#5B6478',
+    muted: '#8A93A6',
+    tableHeadBg: '#F6F7F9',
+    rowBorder: '#F1F2F5',
+    rowHover: '#F6F7F9',
+    accent: '#2563EB',
+    accentSoft: 'rgba(37, 99, 235, 0.08)',
+    accentGradient: 'linear-gradient(135deg, #1D4ED8 0%, #2563EB 50%, #38BDF8 100%)',
     controlBg: '#FFFFFF',
-    controlHover: '#F8FAFC',
+    controlHover: '#F6F7F9',
     dangerBg: '#FEF2F2',
     dangerBorder: '#FECACA',
-    dangerText: '#991B1B',
+    dangerText: '#B91C1C',
   },
   dark: {
-    appBg: '#09090B',
-    panelBg: '#121214',
-    contentBg: '#0C0C0E',
-    sidebarBg: '#111113',
-    border: '#1E1E22',
-    heading: '#FAFAFA',
-    text: '#94949E',
-    tableHeadBg: '#18181B',
-    rowBorder: '#1E1E22',
-    rowHover: '#1A1A1E',
-    accent: '#00DC82',
-    accentSoft: 'rgba(0, 220, 130, 0.15)',
-    accentGradient: 'linear-gradient(135deg, #00DC82 0%, #36E4DA 100%)',
-    controlBg: '#18181B',
-    controlHover: '#212126',
-    dangerBg: '#2D1616',
-    dangerBorder: '#7F1D1D',
-    dangerText: '#F87171',
+    appBg: '#07070A',
+    panelBg: 'rgba(15, 16, 22, 0.72)',
+    contentBg: '#0A0A0F',
+    sidebarBg: 'rgba(13, 14, 20, 0.72)',
+    border: 'rgba(255, 255, 255, 0.08)',
+    heading: '#F4F4F7',
+    text: '#9CA3B5',
+    muted: '#6B7388',
+    tableHeadBg: 'rgba(255, 255, 255, 0.03)',
+    rowBorder: 'rgba(255, 255, 255, 0.06)',
+    rowHover: 'rgba(255, 255, 255, 0.04)',
+    accent: '#60A5FA',
+    accentSoft: 'rgba(96, 165, 250, 0.14)',
+    accentGradient: 'linear-gradient(135deg, #3B82F6 0%, #60A5FA 50%, #7DD3FC 100%)',
+    controlBg: 'rgba(255, 255, 255, 0.03)',
+    controlHover: 'rgba(255, 255, 255, 0.06)',
+    dangerBg: 'rgba(239, 68, 68, 0.12)',
+    dangerBorder: 'rgba(239, 68, 68, 0.30)',
+    dangerText: '#FCA5A5',
   },
 }
 
@@ -77,132 +83,58 @@ function Dashboard({
 }) {
   const [activeItem, setActiveItem] = useState('User Data')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-  const [mode, setMode] = useState('dark')
+  const [mode, setMode] = useState('light')
   const [selectedCompany, setSelectedCompany] = useState(companies[0] ?? '')
   const theme = brandTheme[mode]
   const isDark = mode === 'dark'
 
   const renderContent = () => {
-    if (activeItem === 'Manage Company') {
-      return <CompaniesPanel />
-    }
-    if (activeItem === 'Manage Business User') {
-      return (
-        <EntityPanel
-          title="Business Owner"
-          nameColumn="Business Owner Name"
-          emptyText="No Account Data Found."
-        />
-      )
-    }
-    if (activeItem === 'Allocate Accountant') {
-      return (
-        <EntityPanel
-          title="Accountants"
-          nameColumn="Accountant Name"
-          emptyText="No Account Data Found."
-        />
-      )
-    }
-    if (activeItem === 'Quotation Inbox') {
-      return <QuotationInbox isDark={isDark} onAdd={() => setActiveItem('Create Quotation')} />
-    }
-    if (activeItem === 'Create Quotation') {
-      return <CreateQuotation isDark={isDark} onBack={() => setActiveItem('Quotation Inbox')} />
-    }
-    if (activeItem === 'Invoice Inbox') {
-      return <InvoiceInbox isDark={isDark} onAdd={() => setActiveItem('Create Invoice')} />
-    }
-    if (activeItem === 'Create Invoice') {
-      return <CreateInvoice isDark={isDark} onBack={() => setActiveItem('Invoice Inbox')} />
-    }
-    if (activeItem === 'Sales Inbox') {
-      return <SalesPanel mode="Inbox" isDark={isDark} onAdd={() => setActiveItem('Create Sales')} />
-    }
-    if (activeItem === 'Sales Review') {
-      return <SalesPanel mode="Review" isDark={isDark} />
-    }
-    if (activeItem === 'Sales Archive') {
-      return <SalesPanel mode="Archive" isDark={isDark} />
-    }
-    if (activeItem === 'Create Sales') {
-      return <CreateSales isDark={isDark} onBack={() => setActiveItem('Sales Inbox')} />
-    }
-    if (activeItem === 'Sales Order') {
-      return <SalesOrder isDark={isDark} onBack={() => setActiveItem('Sales Inbox')} />
-    }
-    if (activeItem === 'Sales Invoice') {
-      return <SalesInvoice isDark={isDark} onBack={() => setActiveItem('Sales Inbox')} />
-    }
-    if (activeItem === 'Credit Note (Sales Return)') {
-      return <CreditNote isDark={isDark} onBack={() => setActiveItem('Sales Inbox')} />
-    }
-    if (activeItem === 'Purchase Inbox') {
-      return <PurchasePanel mode="Inbox" isDark={isDark} />
-    }
-    if (activeItem === 'Purchase Review') {
-      return <PurchasePanel mode="Review" isDark={isDark} />
-    }
-    if (activeItem === 'Purchase Archive') {
-      return <PurchasePanel mode="Archive" isDark={isDark} />
-    }
-    if (activeItem === 'Purchase Order') {
-      return <PurchaseOrder isDark={isDark} onBack={() => setActiveItem('Purchase Inbox')} />
-    }
-    if (activeItem === 'Purchase Invoice') {
-      return <VoucherEntryEngine isDark={isDark} defaultMode="manual" onBack={() => setActiveItem('Purchase Inbox')} voucherType="purchase_invoice" />
-    }
-    if (activeItem === 'Debit Note (Purchase Return)') {
-      return <DebitNote isDark={isDark} onBack={() => setActiveItem('Purchase Inbox')} />
-    }
-    if (activeItem === 'Fund Flow Inbox') {
-      return <PettyCashPanel mode="Inbox" isDark={isDark} />
-    }
-    if (activeItem === 'Fund Flow Review') {
-      return <PettyCashPanel mode="Review" isDark={isDark} />
-    }
-    if (activeItem === 'Fund Flow Archive') {
-      return <PettyCashPanel mode="Archive" isDark={isDark} />
-    }
-    if (activeItem === 'Voucher Entry') {
-      return <FundFlowVoucher isDark={isDark} defaultType="Payment" onBack={() => setActiveItem('Fund Flow Inbox')} />
-    }
-    if (activeItem === 'Manage Bank') {
-      return <BankPanel mode="Manage Bank" isDark={isDark} />
-    }
-    if (activeItem === 'Manage Rule') {
-      return <BankPanel mode="Manage Rule" isDark={isDark} />
-    }
-    if (activeItem === 'Inbox' || activeItem === 'Review' || activeItem === 'Archive') {
-      // Check if it's the bank version (no prefix in activeItem)
-      return <BankPanel mode={activeItem} isDark={isDark} />
-    }
-    if (activeItem === 'Manage Roles' || activeItem === 'Manage User Permission') {
-      return <RolePanel mode={activeItem} isDark={isDark} />
-    }
-    if (activeItem === 'My Documents') {
-      return <MyDocumentsPanel isDark={isDark} />
-    }
-    if (activeItem === 'Party Ledger' || activeItem === 'Stock Ledger') {
-      return <MasterDataPanel mode={activeItem} isDark={isDark} />
-    }
-    if (activeItem === 'User Data' || activeItem === 'Dashboard') {
-      return <DashboardTable isDark={isDark} />
-    }
+    if (activeItem === 'Manage Company') return <CompaniesPanel />
+    if (activeItem === 'Manage Business User') return <EntityPanel title="Business Owner" nameColumn="Business Owner Name" emptyText="No Account Data Found." />
+    if (activeItem === 'Allocate Accountant') return <EntityPanel title="Accountants" nameColumn="Accountant Name" emptyText="No Account Data Found." />
+    if (activeItem === 'Quotation Inbox') return <QuotationInbox isDark={isDark} onAdd={() => setActiveItem('Create Quotation')} />
+    if (activeItem === 'Create Quotation') return <CreateQuotation isDark={isDark} onBack={() => setActiveItem('Quotation Inbox')} />
+    if (activeItem === 'Invoice Inbox') return <InvoiceInbox isDark={isDark} onAdd={() => setActiveItem('Create Invoice')} />
+    if (activeItem === 'Create Invoice') return <CreateInvoice isDark={isDark} onBack={() => setActiveItem('Invoice Inbox')} />
+    if (activeItem === 'Sales Inbox') return <SalesPanel mode="Inbox" isDark={isDark} onAdd={() => setActiveItem('Create Sales')} />
+    if (activeItem === 'Sales Review') return <SalesPanel mode="Review" isDark={isDark} />
+    if (activeItem === 'Sales Archive') return <SalesPanel mode="Archive" isDark={isDark} />
+    if (activeItem === 'Create Sales') return <CreateSales isDark={isDark} onBack={() => setActiveItem('Sales Inbox')} />
+    if (activeItem === 'Sales Order') return <SalesOrder isDark={isDark} onBack={() => setActiveItem('Sales Inbox')} />
+    if (activeItem === 'Sales Invoice') return <SalesInvoice isDark={isDark} onBack={() => setActiveItem('Sales Inbox')} />
+    if (activeItem === 'Credit Note (Sales Return)') return <CreditNote isDark={isDark} onBack={() => setActiveItem('Sales Inbox')} />
+    if (activeItem === 'Purchase Inbox') return <PurchasePanel mode="Inbox" isDark={isDark} />
+    if (activeItem === 'Purchase Review') return <PurchasePanel mode="Review" isDark={isDark} />
+    if (activeItem === 'Purchase Archive') return <PurchasePanel mode="Archive" isDark={isDark} />
+    if (activeItem === 'Purchase Order') return <PurchaseOrder isDark={isDark} onBack={() => setActiveItem('Purchase Inbox')} />
+    if (activeItem === 'Purchase Invoice') return <VoucherEntryEngine isDark={isDark} defaultMode="manual" onBack={() => setActiveItem('Purchase Inbox')} voucherType="purchase_invoice" />
+    if (activeItem === 'Debit Note (Purchase Return)') return <DebitNote isDark={isDark} onBack={() => setActiveItem('Purchase Inbox')} />
+    if (activeItem === 'Fund Flow Inbox') return <PettyCashPanel mode="Inbox" isDark={isDark} />
+    if (activeItem === 'Fund Flow Review') return <PettyCashPanel mode="Review" isDark={isDark} />
+    if (activeItem === 'Fund Flow Archive') return <PettyCashPanel mode="Archive" isDark={isDark} />
+    if (activeItem === 'Voucher Entry') return <FundFlowVoucher isDark={isDark} defaultType="Payment" onBack={() => setActiveItem('Fund Flow Inbox')} />
+    if (activeItem === 'Manage Bank') return <BankPanel mode="Manage Bank" isDark={isDark} />
+    if (activeItem === 'Manage Rule') return <BankPanel mode="Manage Rule" isDark={isDark} />
+    if (activeItem === 'Inbox' || activeItem === 'Review' || activeItem === 'Archive') return <BankPanel mode={activeItem} isDark={isDark} />
+    if (activeItem === 'Manage Roles' || activeItem === 'Manage User Permission') return <RolePanel mode={activeItem} isDark={isDark} />
+    if (activeItem === 'My Documents') return <MyDocumentsPanel isDark={isDark} />
+    if (activeItem === 'Party Ledger' || activeItem === 'Stock Ledger') return <MasterDataPanel mode={activeItem} isDark={isDark} />
     return <DashboardTable isDark={isDark} />
   }
 
   return (
     <div
-      className="min-h-screen p-3 relative overflow-hidden"
+      className={`min-h-screen p-3 sm:p-4 relative overflow-hidden ${isDark ? 'dark' : ''}`}
       style={{
         backgroundColor: theme.appBg,
+        color: theme.heading,
         '--app-panel-bg': theme.panelBg,
         '--app-content-bg': theme.contentBg,
         '--app-sidebar-bg': theme.sidebarBg,
         '--app-border': theme.border,
         '--app-heading': theme.heading,
         '--app-text': theme.text,
+        '--app-muted': theme.muted,
         '--app-accent': theme.accent,
         '--app-accent-soft': theme.accentSoft,
         '--app-accent-gradient': theme.accentGradient,
@@ -216,15 +148,48 @@ function Dashboard({
         '--app-danger-text': theme.dangerText,
       }}
     >
-      {/* Animated Mesh Gradient Background */}
+      {/* Ambient background — subtle grid + soft brand orbs */}
       <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900/10 via-slate-900/5 to-transparent dark:from-[rgba(0,94,217,0.15)] dark:via-[#08152E]/80 dark:to-transparent"></div>
-        <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] bg-purple-500/10 dark:bg-[#005ED9]/20 blur-[140px] rounded-full mix-blend-multiply dark:mix-blend-screen animate-pulse duration-[10000ms]"></div>
-        <div className="absolute top-[20%] -right-[10%] w-[40%] h-[60%] bg-emerald-500/10 dark:bg-[#09B6B9]/15 blur-[140px] rounded-full mix-blend-multiply dark:mix-blend-screen animate-pulse duration-[12000ms]"></div>
-        <div className="absolute -bottom-[20%] left-[20%] w-[60%] h-[50%] bg-indigo-500/10 dark:bg-[#13F287]/10 blur-[140px] rounded-full mix-blend-multiply dark:mix-blend-screen animate-pulse duration-[8000ms]"></div>
+        <div className="absolute inset-0 app-grid-bg opacity-60" />
+        <div
+          className="absolute -top-32 -left-24 h-[520px] w-[520px] rounded-full blur-[120px]"
+          style={{
+            background: 'radial-gradient(circle, rgba(37,99,235,0.18) 0%, transparent 70%)',
+            animation: 'softPulse 14s ease-in-out infinite',
+          }}
+        />
+        <div
+          className="absolute top-[10%] right-[-8%] h-[480px] w-[480px] rounded-full blur-[120px]"
+          style={{
+            background: isDark
+              ? 'radial-gradient(circle, rgba(56,189,248,0.18) 0%, transparent 70%)'
+              : 'radial-gradient(circle, rgba(56,189,248,0.14) 0%, transparent 70%)',
+            animation: 'softPulse 18s ease-in-out infinite reverse',
+          }}
+        />
+        <div
+          className="absolute bottom-[-15%] left-[20%] h-[420px] w-[420px] rounded-full blur-[120px]"
+          style={{
+            background: isDark
+              ? 'radial-gradient(circle, rgba(96,165,250,0.16) 0%, transparent 70%)'
+              : 'radial-gradient(circle, rgba(29,78,216,0.10) 0%, transparent 70%)',
+            animation: 'softPulse 16s ease-in-out infinite',
+          }}
+        />
       </div>
 
-      <div className="overflow-hidden rounded-xl border shadow-[0_1px_2px_rgba(16,24,40,0.06)] relative z-10 backdrop-blur-xl" style={{ backgroundColor: isDark ? 'rgba(8, 21, 46, 0.4)' : 'rgba(255, 255, 255, 0.8)', borderColor: theme.border, boxShadow: isDark ? '0 0 40px -10px rgba(9, 182, 185, 0.15)' : '0 1px 2px rgba(16,24,40,0.06)' }}>
+      <motion.div
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+        className="overflow-hidden rounded-2xl border relative z-10 glass-surface"
+        style={{
+          borderColor: theme.border,
+          boxShadow: isDark
+            ? '0 30px 80px -20px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.04)'
+            : '0 24px 60px -24px rgba(15,23,42,0.18), 0 1px 0 rgba(15,23,42,0.02)',
+        }}
+      >
         <Navbar
           isDark={isDark}
           mode={mode}
@@ -236,7 +201,7 @@ function Dashboard({
           credits={credits}
         />
 
-        <div className="flex h-[calc(100vh-100px)]">
+        <div className="flex h-[calc(100vh-104px)]">
           <Sidebar
             activeItem={activeItem}
             onItemClick={setActiveItem}
@@ -245,13 +210,26 @@ function Dashboard({
             isDark={isDark}
           />
 
-          <main className="flex-1 overflow-hidden p-4" style={{ backgroundColor: theme.contentBg }}>
-            {renderContent()}
+          <main
+            className="flex-1 overflow-auto themed-scrollbar p-5"
+            style={{ backgroundColor: 'transparent' }}
+          >
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeItem}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+              >
+                {renderContent()}
+              </motion.div>
+            </AnimatePresence>
           </main>
         </div>
-      </div>
+      </motion.div>
     </div>
-  );
+  )
 }
 
 export default Dashboard

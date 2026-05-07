@@ -21,13 +21,13 @@ const VoucherEntryEngine = ({ isDark, defaultMode = 'manual', voucherType = 'sal
   const [activeMode, setActiveMode] = useState(defaultMode);
   
   const theme = {
-    bg: isDark ? '#0f172a' : '#f8fafc',
-    panel: isDark ? '#1e293b' : '#ffffff',
-    border: isDark ? '#334155' : '#e2e8f0',
-    headerBg: isDark ? '#0f172a' : '#f8fafc',
-    text: isDark ? '#f1f5f9' : '#0f172a',
-    mutedText: isDark ? '#94a3b8' : '#64748b',
-    inputBg: isDark ? '#0f172a' : '#ffffff',
+    bg: 'var(--app-content-bg)',
+    panel: 'var(--app-panel-bg)',
+    border: 'var(--app-border)',
+    headerBg: 'var(--app-table-head-bg)',
+    text: 'var(--app-heading)',
+    mutedText: 'var(--app-muted)',
+    inputBg: 'var(--app-control-bg)',
     accent: '#4f46e5',
     accentHover: '#4338ca',
     accentSoft: isDark ? 'rgba(79, 70, 229, 0.15)' : '#eef2ff',
