@@ -23,8 +23,8 @@ import PurchaseOrder from './PurchaseOrder'
 import PurchaseInvoiceWithInventory from './PurchaseInvoiceWithInventory'
 import PurchaseInvoiceWithoutInventory from './PurchaseInvoiceWithoutInventory'
 import DebitNote from './DebitNote'
-import PaymentVoucher from './PaymentVoucher'
-import ReceiptVoucher from './ReceiptVoucher'
+import FundFlowVoucher from './FundFlowVoucher'
+import VoucherEntryEngine from './VoucherEntryEngine'
 const brandTheme = {
   light: {
     appBg: '#F0F2F5',
@@ -149,29 +149,23 @@ function Dashboard({
     if (activeItem === 'Purchase Order') {
       return <PurchaseOrder isDark={isDark} onBack={() => setActiveItem('Purchase Inbox')} />
     }
-    if (activeItem === 'Purchase Invoice — With Inventory') {
-      return <PurchaseInvoiceWithInventory isDark={isDark} onBack={() => setActiveItem('Purchase Inbox')} />
-    }
-    if (activeItem === 'Purchase Invoice — Without Inventory') {
-      return <PurchaseInvoiceWithoutInventory isDark={isDark} onBack={() => setActiveItem('Purchase Inbox')} />
+    if (activeItem === 'Purchase Invoice') {
+      return <VoucherEntryEngine isDark={isDark} defaultMode="manual" onBack={() => setActiveItem('Purchase Inbox')} voucherType="purchase_invoice" />
     }
     if (activeItem === 'Debit Note (Purchase Return)') {
       return <DebitNote isDark={isDark} onBack={() => setActiveItem('Purchase Inbox')} />
     }
-    if (activeItem === 'Petty Cash Inbox') {
+    if (activeItem === 'Fund Flow Inbox') {
       return <PettyCashPanel mode="Inbox" isDark={isDark} />
     }
-    if (activeItem === 'Petty Cash Review') {
+    if (activeItem === 'Fund Flow Review') {
       return <PettyCashPanel mode="Review" isDark={isDark} />
     }
-    if (activeItem === 'Petty Cash Archive') {
+    if (activeItem === 'Fund Flow Archive') {
       return <PettyCashPanel mode="Archive" isDark={isDark} />
     }
-    if (activeItem === 'Payment Voucher') {
-      return <PaymentVoucher isDark={isDark} onBack={() => setActiveItem('Petty Cash Inbox')} />
-    }
-    if (activeItem === 'Receipt Voucher') {
-      return <ReceiptVoucher isDark={isDark} onBack={() => setActiveItem('Petty Cash Inbox')} />
+    if (activeItem === 'Voucher Entry') {
+      return <FundFlowVoucher isDark={isDark} defaultType="Payment" onBack={() => setActiveItem('Fund Flow Inbox')} />
     }
     if (activeItem === 'Manage Bank') {
       return <BankPanel mode="Manage Bank" isDark={isDark} />

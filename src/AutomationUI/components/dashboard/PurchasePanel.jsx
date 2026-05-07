@@ -42,9 +42,14 @@ import {
   LayoutList,
   Menu,
   Info,
-  History
+  History,
+  ScanLine,
+  BarChart3,
+  AlertCircle,
+  FileSpreadsheet,
+  ShoppingCart
 } from 'lucide-react';
-import CreatePurchase from './CreatePurchase';
+import VoucherEntryEngine from './VoucherEntryEngine';
 
 const PurchasePanel = ({ mode, isDark }) => {
   const [excelMode, setExcelMode] = useState(false);
@@ -100,7 +105,7 @@ const PurchasePanel = ({ mode, isDark }) => {
     }
   };
 
-  const IconButton = ({ icon: Icon, color, onClick }) => {
+  const IconButton = ({ icon: Icon, color, onClick, label, isPrimary }) => {
     const getColor = () => {
       switch (color) {
         case 'red': return '#ef4444';
@@ -113,24 +118,79 @@ const PurchasePanel = ({ mode, isDark }) => {
     };
     const activeColor = getColor();
 
+    if (label) {
+      return (
+        <button
+          onClick={onClick}
+          className={`h-9 px-4 rounded-xl flex items-center gap-2 font-bold text-[12px] transition-all hover:scale-[1.02] active:scale-95 shadow-sm ${isPrimary ? 'text-white shadow-lg' : 'border'}`}
+          style={{
+            borderColor: isPrimary ? 'transparent' : activeColor + '40',
+            color: isPrimary ? '#fff' : activeColor,
+            backgroundColor: isPrimary ? activeColor : (isDark ? 'var(--app-control-bg)' : '#fff'),
+            boxShadow: isPrimary ? `0 4px 12px ${activeColor}40` : undefined
+          }}
+        >
+          <Icon size={14} strokeWidth={2.5} />
+          {label}
+        </button>
+      )
+    }
+
     return (
       <button
         onClick={onClick}
-        className={`w-8 h-8 rounded-full border flex items-center justify-center transition-all hover:scale-110 active:scale-95 shadow-sm`}
+        className={`w-9 h-9 rounded-xl border flex items-center justify-center transition-all hover:scale-110 active:scale-95 shadow-sm bg-white/50 backdrop-blur-sm`}
         style={{
           borderColor: activeColor + '40',
           color: activeColor,
-          backgroundColor: isDark ? 'var(--app-control-bg)' : '#fff'
+          backgroundColor: isDark ? 'var(--app-control-bg)' : 'rgba(255,255,255,0.7)'
         }}
       >
-        <Icon size={14} strokeWidth={2.5} />
+        <Icon size={15} strokeWidth={2.5} />
       </button>
     );
   };
 
   if (viewMode === 'transaction') {
-    return <CreatePurchase isDark={isDark} onBack={() => setViewMode('inbox')} />;
+    return <VoucherEntryEngine isDark={isDark} defaultMode="manual" onBack={() => setViewMode('inbox')} voucherType="purchase" />;
   }
+  if (viewMode === 'ocr') {
+    return <VoucherEntryEngine isDark={isDark} defaultMode="ocr" onBack={() => setViewMode('inbox')} voucherType="purchase" />;
+  }
+  if (viewMode === 'csv') {
+    return <VoucherEntryEngine isDark={isDark} defaultMode="csv" onBack={() => setViewMode('inbox')} voucherType="purchase" />;
+  }
+
+  const SummaryCard = ({ title, value, count, icon: Icon, color, trend }) => (
+    <div className="flex flex-col p-4 rounded-2xl border shadow-sm relative overflow-hidden transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 group" 
+      style={{ 
+        borderColor: isDark ? 'rgba(9, 182, 185, 0.15)' : 'rgba(255,255,255,0.1)', 
+        background: isDark ? 'linear-gradient(145deg, rgba(8, 21, 46, 0.8) 0%, rgba(4, 16, 33, 0.9) 100%)' : 'linear-gradient(145deg, rgba(255,255,255,0.9) 0%, rgba(248,250,252,0.6) 100%)',
+        backdropFilter: 'blur(10px)',
+        boxShadow: isDark ? '0 4px 20px -5px rgba(0, 94, 217, 0.15), inset 0 0 0 1px rgba(9, 182, 185, 0.1)' : undefined
+      }}>
+      <div className="flex items-start justify-between mb-2">
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110 shadow-sm" style={{ backgroundColor: `${color}15`, color }}>
+          <Icon size={18} strokeWidth={2.5} />
+        </div>
+        {trend && (
+          <div className="px-2 py-0.5 rounded-full text-[10px] font-black tracking-wider shadow-sm" style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#10b981' }}>
+            ↑ {trend}
+          </div>
+        )}
+      </div>
+      <div className="mt-1">
+        <div className="text-[10px] font-black uppercase tracking-widest mb-1 opacity-70" style={{ color: isDark ? '#94a3b8' : '#64748b' }}>{title}</div>
+        <div className="flex items-baseline gap-2">
+          <div className="text-[18px] font-black tracking-tight" style={{ color: isDark ? '#f1f5f9' : '#0f172a' }}>{value}</div>
+          {count && <div className="text-[11px] font-bold" style={{ color: isDark ? '#64748b' : '#94a3b8' }}>({count})</div>}
+        </div>
+      </div>
+      <div className="absolute -right-4 -bottom-4 opacity-5 pointer-events-none transition-transform duration-500 group-hover:scale-125 group-hover:-rotate-12">
+        <Icon size={80} strokeWidth={1} style={{ color }} />
+      </div>
+    </div>
+  );
 
   return (
     <div className="flex flex-col gap-2 h-full animate-in fade-in duration-500 overflow-hidden relative">
@@ -157,11 +217,40 @@ const PurchasePanel = ({ mode, isDark }) => {
         />
       )}
 
-      {/* Header */}
-      <div className="flex items-center justify-between px-2 py-2 shrink-0 border-b bg-white/50 backdrop-blur-sm" style={{ borderColor: 'rgba(226, 232, 240, 0.5)' }}>
-        <div className="flex items-center gap-3">
-          <h1 className="text-[15px] font-black tracking-tight" style={{ color: '#4f46e5' }}>{getTitle()}</h1>
-          <div className="flex gap-2 ml-2">
+      {/* Premium Top Action Bar */}
+      <div className="flex flex-col gap-3 shrink-0 p-3 rounded-2xl border shadow-sm backdrop-blur-md relative overflow-hidden" 
+        style={{ 
+          borderColor: isDark ? 'rgba(9, 182, 185, 0.2)' : 'rgba(255,255,255,0.5)', 
+          background: isDark ? 'linear-gradient(180deg, rgba(8, 21, 46, 0.7) 0%, rgba(11, 23, 54, 0.9) 100%)' : 'linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(248,250,252,0.8) 100%)',
+          boxShadow: isDark ? '0 0 30px -10px rgba(0, 94, 217, 0.2), inset 0 0 0 1px rgba(9, 182, 185, 0.1)' : undefined
+        }}>
+        {isDark && (
+          <>
+            <div className="absolute -top-24 -right-24 w-48 h-48 bg-[#09B6B9]/20 rounded-full blur-[50px] pointer-events-none"></div>
+            <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-[#005ED9]/20 rounded-full blur-[50px] pointer-events-none"></div>
+          </>
+        )}
+        {!isDark && (
+          <>
+            <div className="absolute -top-24 -right-24 w-48 h-48 bg-indigo-500/20 rounded-full blur-[40px] pointer-events-none"></div>
+            <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-purple-500/20 rounded-full blur-[40px] pointer-events-none"></div>
+          </>
+        )}
+        
+        <div className="flex items-center justify-between relative z-10">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20 text-white">
+              <ShoppingCart size={20} strokeWidth={2.5} />
+            </div>
+            <div>
+              <h1 className="text-[18px] font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400">
+                {getTitle()}
+              </h1>
+              <p className="text-[11px] font-bold text-slate-500">Manage and process all purchase entries efficiently</p>
+            </div>
+          </div>
+          
+          <div className="flex gap-2 items-center">
             {mode === 'Inbox' && (
               <>
                 {excelMode ? (
@@ -174,29 +263,15 @@ const PurchasePanel = ({ mode, isDark }) => {
                     <IconButton icon={Archive} color="red" />
                     <IconButton icon={FolderOpen} color="purple" onClick={() => setIsUploadFilesOpen(true)} />
                     <IconButton icon={Download} color="purple" />
-                    
-                    <div className="flex items-center gap-3 ml-2 border-l pl-4" style={{ borderColor: isDark ? '#334155' : '#e2e8f0' }}>
-                      <select className="h-8 w-32 rounded-lg border px-2 text-[11px] font-bold outline-none shadow-sm transition-colors hover:border-indigo-400" style={{ backgroundColor: isDark ? '#0f172a' : '#fff', color: isDark ? '#f1f5f9' : '#475569', borderColor: isDark ? '#334155' : '#e2e8f0' }}>
-                        <option>Select File</option>
-                      </select>
-                      <label className="flex items-center gap-1.5 cursor-pointer ml-2">
-                        <input type="checkbox" className="w-3.5 h-3.5 rounded accent-indigo-600 cursor-pointer" style={{ borderColor: isDark ? '#475569' : '#cbd5e1' }} />
-                        <span className="text-[11px] font-bold" style={{ color: isDark ? '#94a3b8' : '#64748b' }}>Not Selected Ledger</span>
-                      </label>
-                      <label className="flex items-center gap-1.5 cursor-pointer ml-2">
-                        <input type="checkbox" className="w-3.5 h-3.5 rounded accent-indigo-600 cursor-pointer" style={{ borderColor: isDark ? '#475569' : '#cbd5e1' }} />
-                        <span className="text-[11px] font-bold" style={{ color: isDark ? '#94a3b8' : '#64748b' }}>Selected Ledger</span>
-                      </label>
-                    </div>
                   </>
                 ) : (
                   <>
-                    <IconButton icon={Upload} color="emerald" onClick={() => setIsUploadOpen(true)} />
-                    <IconButton icon={Plus} color="emerald" onClick={() => setViewMode('transaction')} />
-                    <IconButton icon={ChevronsRight} color="purple" />
+                    <IconButton icon={ScanLine} color="purple" label="OCR Upload" onClick={() => setViewMode('ocr')} />
+                    <IconButton icon={FileSpreadsheet} color="emerald" label="CSV Upload" onClick={() => setViewMode('csv')} />
+                    <IconButton icon={Plus} color="indigo" label="Create Entry" isPrimary onClick={() => setViewMode('transaction')} />
+                    <div className="w-[1px] h-8 bg-slate-200 dark:bg-slate-700 mx-1"></div>
                     <IconButton icon={CheckCircle2} color="emerald" />
                     <IconButton icon={Trash2} color="red" />
-                    <IconButton icon={RefreshCw} color="emerald" />
                   </>
                 )}
               </>
@@ -209,17 +284,10 @@ const PurchasePanel = ({ mode, isDark }) => {
                     <IconButton icon={CheckCircle2} color="emerald" />
                     <IconButton icon={Trash2} color="red" />
                     <IconButton icon={FolderOpen} color="purple" onClick={() => setIsUploadFilesOpen(true)} />
-                    
-                    <div className="flex items-center gap-3 ml-2 border-l pl-4" style={{ borderColor: isDark ? '#334155' : '#e2e8f0' }}>
-                      <select className="h-8 w-32 rounded-lg border px-2 text-[11px] font-bold outline-none shadow-sm transition-colors hover:border-indigo-400" style={{ backgroundColor: isDark ? '#0f172a' : '#fff', color: isDark ? '#f1f5f9' : '#475569', borderColor: isDark ? '#334155' : '#e2e8f0' }}>
-                        <option>Select File</option>
-                      </select>
-                    </div>
                   </>
                 ) : (
                   <>
-                    <IconButton icon={ChevronsLeft} color="purple" />
-                    <IconButton icon={CheckCircle2} color="emerald" />
+                    <IconButton icon={CheckCircle2} color="emerald" label="Approve Selected" isPrimary />
                     <IconButton icon={Trash2} color="red" />
                     <IconButton icon={RefreshCw} color="emerald" />
                   </>
@@ -232,19 +300,12 @@ const PurchasePanel = ({ mode, isDark }) => {
                   <>
                     <IconButton icon={Trash2} color="red" />
                     <IconButton icon={FolderOpen} color="purple" onClick={() => setIsUploadFilesOpen(true)} />
-                    
-                    <div className="flex items-center gap-3 ml-2 border-l pl-4" style={{ borderColor: isDark ? '#334155' : '#e2e8f0' }}>
-                      <select className="h-8 w-32 rounded-lg border px-2 text-[11px] font-bold outline-none shadow-sm transition-colors hover:border-indigo-400" style={{ backgroundColor: isDark ? '#0f172a' : '#fff', color: isDark ? '#f1f5f9' : '#475569', borderColor: isDark ? '#334155' : '#e2e8f0' }}>
-                        <option>Select File</option>
-                      </select>
-                    </div>
                   </>
                 ) : (
                   <>
+                    <IconButton icon={Download} color="purple" label="Export Data" />
                     <IconButton icon={Trash2} color="red" />
-                    <IconButton icon={Download} color="purple" />
                     <IconButton icon={RefreshCw} color="emerald" />
-                    <IconButton icon={FileText} color="blue" />
                   </>
                 )}
               </>
@@ -252,41 +313,66 @@ const PurchasePanel = ({ mode, isDark }) => {
           </div>
         </div>
 
-        {!excelMode && (
-          <div className="flex-1 max-w-[400px] px-4">
-            <div className="relative group">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 transition-colors group-focus-within:text-indigo-500" size={13} strokeWidth={3} />
-              <input
-                type="text"
-                placeholder="Search on Party Name..."
-                className="w-full h-8 rounded-lg border px-9 text-[11px] font-bold outline-none transition-all shadow-sm focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/5"
-                style={{ backgroundColor: isDark ? 'var(--app-control-bg)' : '#fff', borderColor: '#e2e8f0', color: isDark ? '#f1f5f9' : '#475569' }}
-              />
-            </div>
-          </div>
-        )}
-
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-3 cursor-pointer select-none" onClick={handleToggleExcel}>
-            <div className={`relative inline-flex h-5 w-10 items-center rounded-full transition-all duration-300 ${excelMode ? 'bg-indigo-600' : 'bg-slate-200 shadow-inner'}`}>
-              <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-md transition-transform duration-300 ${excelMode ? 'translate-x-5.5' : 'translate-x-1'}`} />
-            </div>
-            <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: excelMode ? '#4f46e5' : '#64748b' }}>Excel Mode</span>
-          </div>
-
-          <div className="flex gap-2">
-            {excelMode && (
-              <>
-                <IconButton icon={LayoutList} color="slate" onClick={() => setIsLedgerModalOpen(true)} />
-                <IconButton icon={Menu} color="slate" onClick={() => setIsStockModalOpen(true)} />
-              </>
+        <div className="flex items-center justify-between relative z-10 mt-1">
+          {/* Left Side: Search Bar OR Excel Features */}
+          <div className="flex-1 flex items-center gap-3">
+            {!excelMode ? (
+              <div className="w-full max-w-[400px]">
+                <div className="relative group">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-indigo-500" size={14} strokeWidth={3} />
+                  <input
+                    type="text"
+                    placeholder="Search on Party Name, Invoice No..."
+                    className="w-full h-10 rounded-xl border px-10 text-[12px] font-bold outline-none transition-all shadow-sm focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10"
+                    style={{ backgroundColor: isDark ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.7)', borderColor: isDark ? '#334155' : '#e2e8f0', color: isDark ? '#f1f5f9' : '#475569' }}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3" style={{ borderColor: isDark ? '#334155' : '#e2e8f0' }}>
+                <select className="h-10 w-40 rounded-xl border px-3 text-[12px] font-bold outline-none shadow-sm transition-colors hover:border-indigo-400" style={{ backgroundColor: isDark ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.7)', color: isDark ? '#f1f5f9' : '#475569', borderColor: isDark ? '#334155' : '#e2e8f0' }}>
+                  <option>Select File</option>
+                </select>
+                {mode === 'Inbox' && (
+                  <>
+                    <label className="flex items-center gap-2 cursor-pointer ml-2">
+                      <input type="checkbox" className="w-4 h-4 rounded accent-indigo-600 cursor-pointer shadow-sm" style={{ borderColor: isDark ? '#475569' : '#cbd5e1' }} />
+                      <span className="text-[11px] font-bold uppercase tracking-widest" style={{ color: isDark ? '#94a3b8' : '#64748b' }}>Not Selected Ledger</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer ml-2">
+                      <input type="checkbox" className="w-4 h-4 rounded accent-indigo-600 cursor-pointer shadow-sm" style={{ borderColor: isDark ? '#475569' : '#cbd5e1' }} />
+                      <span className="text-[11px] font-bold uppercase tracking-widest" style={{ color: isDark ? '#94a3b8' : '#64748b' }}>Selected Ledger</span>
+                    </label>
+                  </>
+                )}
+              </div>
             )}
-            <IconButton icon={HelpCircle} color="blue" />
-            <IconButton icon={Settings} color="indigo" onClick={() => setIsConfigOpen(true)} />
-            <IconButton icon={Filter} color="emerald" onClick={() => setIsFilterOpen(true)} />
+          </div>
+
+          {/* Right Side: Excel Mode & Filters */}
+          <div className="flex items-center gap-4 ml-auto">
+            <div className="flex items-center gap-3 cursor-pointer select-none px-3 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onClick={handleToggleExcel}>
+              <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: excelMode ? '#4f46e5' : '#64748b' }}>Excel Mode</span>
+              <div className={`relative inline-flex h-5 w-10 items-center rounded-full transition-all duration-300 ${excelMode ? 'bg-indigo-600 shadow-lg shadow-indigo-500/30' : 'bg-slate-300 dark:bg-slate-700 shadow-inner'}`}>
+                <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-md transition-transform duration-300 ${excelMode ? 'translate-x-5.5' : 'translate-x-1'}`} />
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              {excelMode && (
+                <>
+                  <IconButton icon={LayoutList} color="indigo" onClick={() => setIsLedgerModalOpen(true)} />
+                  <IconButton icon={Menu} color="indigo" onClick={() => setIsStockModalOpen(true)} />
+                </>
+              )}
+              <IconButton icon={Settings} color="slate" onClick={() => setIsConfigOpen(true)} />
+              <IconButton icon={Filter} color="indigo" onClick={() => setIsFilterOpen(true)} />
+            </div>
           </div>
         </div>
       </div>
+
+
 
       {/* Table Section */}
       <div className="flex-1 overflow-hidden rounded-xl border shadow-sm flex flex-col mt-1"

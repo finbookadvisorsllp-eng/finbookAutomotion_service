@@ -86,10 +86,10 @@ const PettyCashPanel = ({ mode, isDark }) => {
 
   const getTitle = () => {
     switch (mode) {
-      case 'Inbox': return 'Petty Cash Inbox';
-      case 'Review': return 'Petty Cash Review';
-      case 'Archive': return 'Petty Cash Archive';
-      default: return 'Petty Cash Inbox';
+      case 'Inbox': return 'Fund Flow Inbox';
+      case 'Review': return 'Fund Flow Review';
+      case 'Archive': return 'Fund Flow Archive';
+      default: return 'Fund Flow Inbox';
     }
   };
 

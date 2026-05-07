@@ -12,7 +12,17 @@ import {
   X,
   Search,
   BookText,
-  List
+  List,
+  FileText,
+  Clock,
+  MessageSquare,
+  Paperclip,
+  Activity,
+  User,
+  History,
+  Link as LinkIcon,
+  CheckCircle,
+  AlertCircle
 } from 'lucide-react';
 
 const CreatePurchase = ({ isDark, onBack }) => {
@@ -674,6 +684,132 @@ const CreatePurchase = ({ isDark, onBack }) => {
             style={{ backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.text }}
           />
         </FormSection>
+
+        {/* --- Advanced Purchase Inbox Details --- */}
+        <div className="mt-8 mb-4 px-2">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-indigo-500/20 to-transparent"></div>
+            <h2 className="text-[12px] font-black uppercase tracking-widest text-indigo-500 px-4">Advanced Purchase Details</h2>
+            <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-indigo-500/20 to-transparent"></div>
+          </div>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {/* Left Column: Data & Logs */}
+            <div className="lg:col-span-2 space-y-4">
+              {/* OCR / CSV Data Preview */}
+              <FormSection title="Data Source Preview" zIndex={9}>
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-indigo-50/50 border border-indigo-100" style={{ backgroundColor: isDark ? 'rgba(79,70,229,0.05)' : '#eef2ff', borderColor: isDark ? 'rgba(79,70,229,0.1)' : '#e0e7ff' }}>
+                    <FileText size={14} className="text-indigo-500" />
+                    <span className="text-[11px] font-bold text-indigo-600">Source: OCR Scan (Invoice_901.pdf)</span>
+                    <span className="ml-auto text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-emerald-100 text-emerald-600">98% Match</span>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[10px]">
+                    <div className="p-2 rounded border border-slate-100" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>
+                      <div className="font-bold opacity-60 mb-1" style={{ color: theme.mutedText }}>Extracted Total</div>
+                      <div className="font-black" style={{ color: theme.text }}>₹45,000.00</div>
+                    </div>
+                    <div className="p-2 rounded border border-slate-100" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>
+                      <div className="font-bold opacity-60 mb-1" style={{ color: theme.mutedText }}>Extracted GSTIN</div>
+                      <div className="font-black" style={{ color: theme.text }}>27AADCB2230M1Z2</div>
+                    </div>
+                    <div className="p-2 rounded border border-slate-100" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>
+                      <div className="font-bold opacity-60 mb-1" style={{ color: theme.mutedText }}>Invoice Date</div>
+                      <div className="font-black" style={{ color: theme.text }}>04-May-2026</div>
+                    </div>
+                    <div className="p-2 rounded border border-slate-100" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>
+                      <div className="font-bold opacity-60 mb-1" style={{ color: theme.mutedText }}>Invoice No</div>
+                      <div className="font-black" style={{ color: theme.text }}>INV-2026-901</div>
+                    </div>
+                  </div>
+                </div>
+              </FormSection>
+
+              {/* Activity & Comments */}
+              <FormSection title="Activity & Remarks" zIndex={8}>
+                <div className="flex flex-col gap-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
+                      <User size={14} />
+                    </div>
+                    <div className="flex-1 bg-slate-50 rounded-xl p-3 border border-slate-100 relative" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>
+                      <div className="flex justify-between items-start mb-1">
+                        <span className="text-[11px] font-bold" style={{ color: theme.text }}>Rahul Sharma</span>
+                        <span className="text-[9px] font-bold opacity-50" style={{ color: theme.mutedText }}>2 hours ago</span>
+                      </div>
+                      <p className="text-[11px] opacity-80" style={{ color: theme.text }}>Please verify the TDS deduction for this invoice. It seems the limit has crossed.</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 mt-2">
+                    <input type="text" placeholder="Add a remark..." className="flex-1 h-9 rounded-lg border px-3 text-[11px] font-bold outline-none transition-all focus:border-indigo-400 shadow-sm" style={{ backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.text }} />
+                    <button className="h-9 px-4 rounded-lg bg-indigo-600 text-white text-[11px] font-black uppercase tracking-widest shadow-sm hover:bg-indigo-700 transition-colors">Post</button>
+                  </div>
+                </div>
+              </FormSection>
+            </div>
+
+            {/* Right Column: Status & Timeline */}
+            <div className="space-y-4">
+              {/* Approval Timeline */}
+              <FormSection title="Approval Workflow" zIndex={7}>
+                <div className="flex flex-col gap-0 relative">
+                  <div className="absolute left-3 top-2 bottom-2 w-[2px] bg-slate-100" style={{ backgroundColor: theme.border }}></div>
+                  <div className="flex items-start gap-3 relative mb-4">
+                    <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 border-2 border-white shadow-sm z-10" style={{ borderColor: theme.panel }}>
+                      <CheckCircle size={10} strokeWidth={3} />
+                    </div>
+                    <div className="flex-1 pt-1">
+                      <div className="text-[11px] font-bold text-emerald-600">Created & Scanned</div>
+                      <div className="text-[9px] font-bold opacity-50" style={{ color: theme.mutedText }}>04-May-2026, 10:30 AM</div>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 relative mb-4">
+                    <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 border-2 border-white shadow-sm z-10" style={{ borderColor: theme.panel }}>
+                      <CheckCircle size={10} strokeWidth={3} />
+                    </div>
+                    <div className="flex-1 pt-1">
+                      <div className="text-[11px] font-bold text-emerald-600">Verified by Maker</div>
+                      <div className="text-[9px] font-bold opacity-50" style={{ color: theme.mutedText }}>04-May-2026, 11:45 AM</div>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 relative">
+                    <div className="w-6 h-6 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center shrink-0 border-2 border-white shadow-sm z-10" style={{ borderColor: theme.panel }}>
+                      <Clock size={10} strokeWidth={3} />
+                    </div>
+                    <div className="flex-1 pt-1">
+                      <div className="text-[11px] font-bold text-amber-600">Pending Checker Approval</div>
+                      <div className="text-[9px] font-bold opacity-50" style={{ color: theme.mutedText }}>Current Step</div>
+                    </div>
+                  </div>
+                </div>
+              </FormSection>
+
+              {/* Attachments & References */}
+              <FormSection title="Attachments & Links" zIndex={6}>
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-3 p-2 rounded-lg border hover:border-indigo-300 transition-colors cursor-pointer group" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>
+                    <div className="w-8 h-8 rounded bg-red-100 text-red-500 flex items-center justify-center shrink-0">
+                      <FileText size={14} />
+                    </div>
+                    <div className="flex-1 overflow-hidden">
+                      <div className="text-[11px] font-bold truncate group-hover:text-indigo-600 transition-colors" style={{ color: theme.text }}>Invoice_901_Original.pdf</div>
+                      <div className="text-[9px] font-bold opacity-50" style={{ color: theme.mutedText }}>245 KB • Uploaded by System</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 p-2 rounded-lg border hover:border-indigo-300 transition-colors cursor-pointer group" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>
+                    <div className="w-8 h-8 rounded bg-indigo-100 text-indigo-500 flex items-center justify-center shrink-0">
+                      <LinkIcon size={14} />
+                    </div>
+                    <div className="flex-1 overflow-hidden">
+                      <div className="text-[11px] font-bold truncate group-hover:text-indigo-600 transition-colors" style={{ color: theme.text }}>Purchase Order #PO-2026-45</div>
+                      <div className="text-[9px] font-bold opacity-50" style={{ color: theme.mutedText }}>Linked Document</div>
+                    </div>
+                  </div>
+                </div>
+              </FormSection>
+            </div>
+          </div>
+        </div>
       </div>
 
       {renderLedgerModal()}
