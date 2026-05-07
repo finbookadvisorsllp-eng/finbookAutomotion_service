@@ -167,9 +167,10 @@ const SalesPanel = ({ mode, isDark, onAdd }) => {
     return (
       <div className="relative overflow-hidden rounded-2xl border p-4 flex flex-col gap-3 group transition-all duration-300 hover:shadow-lg hover:-translate-y-1"
         style={{ 
-          borderColor: 'rgba(255,255,255,0.1)', 
-          background: isDark ? 'linear-gradient(145deg, rgba(30,41,59,0.7) 0%, rgba(15,23,42,0.9) 100%)' : 'linear-gradient(145deg, rgba(255,255,255,0.9) 0%, rgba(248,250,252,0.6) 100%)',
-          backdropFilter: 'blur(10px)'
+          borderColor: isDark ? 'rgba(9, 182, 185, 0.15)' : 'rgba(255,255,255,0.1)', 
+          background: isDark ? 'linear-gradient(145deg, rgba(8, 21, 46, 0.8) 0%, rgba(4, 16, 33, 0.9) 100%)' : 'linear-gradient(145deg, rgba(255,255,255,0.9) 0%, rgba(248,250,252,0.6) 100%)',
+          backdropFilter: 'blur(10px)',
+          boxShadow: isDark ? '0 4px 20px -5px rgba(0, 94, 217, 0.15), inset 0 0 0 1px rgba(9, 182, 185, 0.1)' : undefined
         }}>
         <div className="absolute top-0 right-0 p-4 opacity-10 transform group-hover:scale-110 transition-transform duration-500">
           <Icon size={64} color={color} />
@@ -221,24 +222,26 @@ const SalesPanel = ({ mode, isDark, onAdd }) => {
           onClose={() => setIsConfigOpen(false)}
         />
       )}
-      {/* Sticky Summary Cards */}
-      {!excelMode && mode === 'Inbox' && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 shrink-0">
-          <SummaryCard title="Total Sales" value="₹ 24,50,000" count="156" icon={BarChart3} color="#4f46e5" trend="+12.5%" />
-          <SummaryCard title="Pending Approval" value="₹ 4,20,000" count="24" icon={List} color="#f59e0b" />
-          <SummaryCard title="OCR Processed" value="₹ 18,30,000" count="98" icon={ScanLine} color="#8b5cf6" trend="+8.2%" />
-          <SummaryCard title="Failed Imports" value="₹ 0.00" count="0" icon={AlertCircle} color="#ef4444" />
-        </div>
-      )}
 
       {/* Premium Top Action Bar */}
       <div className="flex flex-col gap-3 shrink-0 p-3 rounded-2xl border shadow-sm backdrop-blur-md relative overflow-hidden" 
         style={{ 
-          borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.5)', 
-          background: isDark ? 'linear-gradient(180deg, rgba(30,41,59,0.8) 0%, rgba(15,23,42,0.9) 100%)' : 'linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(248,250,252,0.8) 100%)'
+          borderColor: isDark ? 'rgba(9, 182, 185, 0.2)' : 'rgba(255,255,255,0.5)', 
+          background: isDark ? 'linear-gradient(180deg, rgba(8, 21, 46, 0.7) 0%, rgba(11, 23, 54, 0.9) 100%)' : 'linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(248,250,252,0.8) 100%)',
+          boxShadow: isDark ? '0 0 30px -10px rgba(0, 94, 217, 0.2), inset 0 0 0 1px rgba(9, 182, 185, 0.1)' : undefined
         }}>
-        <div className="absolute -top-24 -right-24 w-48 h-48 bg-indigo-500/20 rounded-full blur-[40px] pointer-events-none"></div>
-        <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-purple-500/20 rounded-full blur-[40px] pointer-events-none"></div>
+        {isDark && (
+          <>
+            <div className="absolute -top-24 -right-24 w-48 h-48 bg-[#09B6B9]/20 rounded-full blur-[50px] pointer-events-none"></div>
+            <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-[#005ED9]/20 rounded-full blur-[50px] pointer-events-none"></div>
+          </>
+        )}
+        {!isDark && (
+          <>
+            <div className="absolute -top-24 -right-24 w-48 h-48 bg-indigo-500/20 rounded-full blur-[40px] pointer-events-none"></div>
+            <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-purple-500/20 rounded-full blur-[40px] pointer-events-none"></div>
+          </>
+        )}
         
         <div className="flex items-center justify-between relative z-10">
           <div className="flex items-center gap-3">

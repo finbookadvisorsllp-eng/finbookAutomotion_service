@@ -198,6 +198,7 @@ function Dashboard({
     return <DashboardTable isDark={isDark} />
   }
 
+  return (
     <div
       className="min-h-screen p-3 relative overflow-hidden"
       style={{
@@ -223,13 +224,13 @@ function Dashboard({
     >
       {/* Animated Mesh Gradient Background */}
       <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900/10 via-slate-900/5 to-transparent dark:from-indigo-900/20 dark:via-slate-900/10"></div>
-        <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] bg-purple-500/10 dark:bg-purple-600/10 blur-[120px] rounded-full mix-blend-multiply dark:mix-blend-screen animate-pulse duration-[10000ms]"></div>
-        <div className="absolute top-[20%] -right-[10%] w-[40%] h-[60%] bg-emerald-500/10 dark:bg-emerald-600/10 blur-[120px] rounded-full mix-blend-multiply dark:mix-blend-screen animate-pulse duration-[12000ms]"></div>
-        <div className="absolute -bottom-[20%] left-[20%] w-[60%] h-[50%] bg-indigo-500/10 dark:bg-indigo-600/10 blur-[120px] rounded-full mix-blend-multiply dark:mix-blend-screen animate-pulse duration-[8000ms]"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900/10 via-slate-900/5 to-transparent dark:from-[rgba(0,94,217,0.15)] dark:via-[#08152E]/80 dark:to-transparent"></div>
+        <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] bg-purple-500/10 dark:bg-[#005ED9]/20 blur-[140px] rounded-full mix-blend-multiply dark:mix-blend-screen animate-pulse duration-[10000ms]"></div>
+        <div className="absolute top-[20%] -right-[10%] w-[40%] h-[60%] bg-emerald-500/10 dark:bg-[#09B6B9]/15 blur-[140px] rounded-full mix-blend-multiply dark:mix-blend-screen animate-pulse duration-[12000ms]"></div>
+        <div className="absolute -bottom-[20%] left-[20%] w-[60%] h-[50%] bg-indigo-500/10 dark:bg-[#13F287]/10 blur-[140px] rounded-full mix-blend-multiply dark:mix-blend-screen animate-pulse duration-[8000ms]"></div>
       </div>
 
-      <div className="overflow-hidden rounded-xl border shadow-[0_1px_2px_rgba(16,24,40,0.06)] relative z-10 backdrop-blur-md" style={{ backgroundColor: isDark ? 'rgba(18, 18, 20, 0.8)' : 'rgba(255, 255, 255, 0.8)', borderColor: theme.border }}>
+      <div className="overflow-hidden rounded-xl border shadow-[0_1px_2px_rgba(16,24,40,0.06)] relative z-10 backdrop-blur-xl" style={{ backgroundColor: isDark ? 'rgba(8, 21, 46, 0.4)' : 'rgba(255, 255, 255, 0.8)', borderColor: theme.border, boxShadow: isDark ? '0 0 40px -10px rgba(9, 182, 185, 0.15)' : '0 1px 2px rgba(16,24,40,0.06)' }}>
         <Navbar
           isDark={isDark}
           mode={mode}
@@ -256,7 +257,7 @@ function Dashboard({
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 export default Dashboard

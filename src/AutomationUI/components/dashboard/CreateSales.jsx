@@ -62,17 +62,17 @@ const CreateSales = ({ isDark, onBack }) => {
   };
 
   const theme = {
-    bg: isDark ? '#0f172a' : '#f8fafc',
-    panel: isDark ? '#1e293b' : '#fff',
-    border: isDark ? '#334155' : '#e2e8f0',
-    headerBg: isDark ? '#1e293b' : '#fcfdfe',
-    text: isDark ? '#f1f5f9' : '#1e293b',
-    inputBg: isDark ? '#0f172a' : '#fff',
-    mutedText: isDark ? '#94a3b8' : '#64748b',
-    accent: '#4f46e5',
-    accentSoft: isDark ? 'rgba(79, 70, 229, 0.2)' : '#eef2ff',
-    scrollbarThumb: isDark ? '#475569' : '#cbd5e1',
-    scrollbarTrack: isDark ? '#1e293b' : '#f1f5f9'
+    bg: isDark ? 'transparent' : '#f8fafc',
+    panel: isDark ? 'rgba(8, 21, 46, 0.4)' : '#fff',
+    border: isDark ? 'rgba(9, 182, 185, 0.15)' : '#e2e8f0',
+    headerBg: isDark ? 'rgba(11, 23, 54, 0.6)' : '#fcfdfe',
+    text: isDark ? 'rgba(255, 255, 255, 0.82)' : '#1e293b',
+    inputBg: isDark ? 'rgba(8, 21, 46, 0.6)' : '#fff',
+    mutedText: isDark ? 'rgba(255, 255, 255, 0.58)' : '#64748b',
+    accent: isDark ? '#09B6B9' : '#4f46e5',
+    accentSoft: isDark ? 'rgba(9, 182, 185, 0.15)' : '#eef2ff',
+    scrollbarThumb: isDark ? 'rgba(9, 182, 185, 0.3)' : '#cbd5e1',
+    scrollbarTrack: isDark ? 'transparent' : '#f1f5f9'
   };
 
   const SummaryItem = ({ label, value, isLast }) => (
@@ -87,7 +87,7 @@ const CreateSales = ({ isDark, onBack }) => {
     const [isOpen, setIsOpen] = useState(defaultOpen);
 
     return (
-      <div className="mb-3 rounded-xl border shadow-sm transition-all duration-300" style={{ borderColor: theme.border, backgroundColor: theme.panel, zIndex: isOpen ? zIndex : 1, position: 'relative' }}>
+      <div className="mb-3 rounded-xl border shadow-sm transition-all duration-300" style={{ borderColor: theme.border, backgroundColor: theme.panel, backdropFilter: isDark ? 'blur(16px)' : undefined, zIndex: isOpen ? zIndex : 1, position: 'relative' }}>
         <div className="px-3 py-1.5 flex items-center justify-between border-b" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>
           <h3 className="text-[10px] font-black uppercase tracking-widest" style={{ color: theme.text }}>{title}</h3>
           <div className="flex gap-2 items-center">
@@ -141,7 +141,7 @@ const CreateSales = ({ isDark, onBack }) => {
           <div className="relative flex-1">
             <div
               onClick={() => setIsOpen(!isOpen)}
-              className={`w-full ${compact ? 'h-8' : 'h-9'} rounded-lg border px-3 flex items-center justify-between cursor-pointer transition-all hover:border-indigo-400 focus-within:border-indigo-400 shadow-sm`}
+              className={`w-full ${compact ? 'h-8' : 'h-9'} rounded-lg border px-3 flex items-center justify-between cursor-pointer transition-all ${isDark ? 'hover:border-[#09B6B9] focus-within:border-[#09B6B9] focus-within:shadow-[0_0_8px_rgba(9,182,185,0.4),inset_0_0_4px_rgba(0,0,0,0.5)] shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)]' : 'hover:border-indigo-400 focus-within:border-indigo-400 shadow-sm'}`}
               style={{ borderColor: isOpen ? theme.accent : theme.border, backgroundColor: theme.inputBg }}
             >
               <span className={`text-[11px] font-bold truncate ${value ? 'text-indigo-500' : 'text-slate-400'}`}>
@@ -218,7 +218,7 @@ const CreateSales = ({ isDark, onBack }) => {
           onChange={(e) => onChange && onChange(e.target.value)}
           readOnly={readOnly}
           placeholder={placeholder}
-          className={`w-full ${compact ? 'h-8 px-2' : 'h-9 px-3'} rounded-lg border text-[11px] font-bold outline-none transition-all focus:border-indigo-400 shadow-sm ${align === 'right' ? 'text-right' : ''} ${readOnly ? 'cursor-not-allowed bg-slate-50/50' : ''}`}
+          className={`w-full ${compact ? 'h-8 px-2' : 'h-9 px-3'} rounded-lg border text-[11px] font-bold outline-none transition-all ${isDark ? 'focus:border-[#09B6B9] focus:shadow-[0_0_8px_rgba(9,182,185,0.4),inset_0_0_4px_rgba(0,0,0,0.5)] shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)] placeholder:text-white/20' : 'focus:border-indigo-400 shadow-sm placeholder:text-slate-400'} ${align === 'right' ? 'text-right' : ''} ${readOnly ? (isDark ? 'cursor-not-allowed opacity-60' : 'cursor-not-allowed bg-slate-50/50') : ''}`}
           style={{ backgroundColor: readOnly ? theme.headerBg : theme.inputBg, borderColor: theme.border, color: readOnly ? theme.accent : theme.text }}
         />
         {Icon && <Icon className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={13} />}

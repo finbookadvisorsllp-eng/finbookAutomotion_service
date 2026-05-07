@@ -53,24 +53,28 @@ const SidebarItem = ({ item, activeItem, onItemClick, collapsed, isDark, openMen
       <button
         type="button"
         onClick={handleMenuClick}
-        className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[12px] transition-all duration-300 ${
+        className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[12px] transition-all duration-300 relative overflow-hidden ${
           isActive
-            ? 'font-bold shadow-[0_4px_12px_rgba(0,0,0,0.08)] scale-[1.02]'
+            ? 'font-bold shadow-md scale-[1.02]'
             : 'hover:translate-x-1'
         }`}
         style={{
-          color: isActive ? (isDark ? '#fff' : 'var(--app-heading)') : '#71717a',
+          color: isActive ? (isDark ? '#fff' : 'var(--app-heading)') : (isDark ? 'rgba(255,255,255,0.6)' : '#71717a'),
           background: isActive 
-            ? (isDark ? 'linear-gradient(135deg, #18181b 0%, #27272a 100%)' : 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)')
+            ? (isDark ? 'linear-gradient(135deg, rgba(0, 94, 217, 0.4) 0%, rgba(9, 182, 185, 0.1) 100%)' : 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)')
             : 'transparent',
+          boxShadow: isActive && isDark ? '0 0 20px -5px rgba(9, 182, 185, 0.3), inset 0 0 0 1px rgba(9, 182, 185, 0.2)' : undefined,
         }}
       >
-        <Icon size={16} strokeWidth={isActive ? 2.5 : 2} style={{ color: isActive ? 'var(--app-accent)' : '#94949e' }} />
+        {isActive && isDark && (
+          <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-[#09B6B9] to-[#005ED9] shadow-[0_0_8px_#09B6B9]"></div>
+        )}
+        <Icon size={16} strokeWidth={isActive ? 2.5 : 2} style={{ color: isActive ? (isDark ? '#09B6B9' : 'var(--app-accent)') : (isDark ? 'rgba(255,255,255,0.4)' : '#94949e') }} className="relative z-10" />
         {!collapsed && (
           <>
-            <span className="truncate flex-1">{key}</span>
+            <span className="truncate flex-1 relative z-10">{key}</span>
             {hasChildren && (
-              <span className={`ml-auto transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} style={{ color: '#94949e' }}>
+              <span className={`ml-auto transition-transform duration-300 relative z-10 ${isOpen ? 'rotate-180' : ''}`} style={{ color: isDark ? 'rgba(255,255,255,0.4)' : '#94949e' }}>
                 <ChevronDown size={14} />
               </span>
             )}
@@ -79,7 +83,7 @@ const SidebarItem = ({ item, activeItem, onItemClick, collapsed, isDark, openMen
       </button>
 
       {hasChildren && isOpen && !collapsed && (
-        <div className="ml-7 mt-1 space-y-1 border-l-2" style={{ borderColor: isDark ? '#1e1e22' : '#f1f5f9' }}>
+        <div className="ml-7 mt-1.5 space-y-1 border-l" style={{ borderColor: isDark ? 'rgba(255,255,255,0.05)' : '#f1f5f9' }}>
           {children.map((child) => {
             const isChildActive = activeItem === child
             return (
@@ -87,13 +91,16 @@ const SidebarItem = ({ item, activeItem, onItemClick, collapsed, isDark, openMen
                 type="button"
                 key={child}
                 onClick={() => { onItemClick(child); setOpenMenu(key); }}
-                className={`flex w-full items-center gap-3 rounded-lg px-3 py-1.5 text-left text-[11px] transition-all duration-200 ${isChildActive ? 'font-semibold' : 'hover:translate-x-1'}`}
+                className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-[11px] transition-all duration-300 relative group ${isChildActive ? 'font-semibold' : 'hover:translate-x-1'}`}
                 style={{
-                  color: isChildActive ? 'var(--app-accent)' : '#71717a',
-                  backgroundColor: isChildActive ? 'var(--app-accent-soft)' : 'transparent',
+                  color: isChildActive ? (isDark ? '#09B6B9' : 'var(--app-accent)') : (isDark ? 'rgba(255,255,255,0.5)' : '#71717a'),
+                  backgroundColor: isChildActive ? (isDark ? 'rgba(9, 182, 185, 0.1)' : 'var(--app-accent-soft)') : 'transparent',
                 }}
               >
-                <div className={`h-1.5 w-1.5 rounded-full transition-all duration-300 ${isChildActive ? 'scale-125' : 'scale-100 opacity-40'}`} style={{ backgroundColor: isChildActive ? 'var(--app-accent)' : '#94949e' }} />
+                {isChildActive && isDark && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-1/2 bg-[#09B6B9] rounded-r-full shadow-[0_0_4px_#09B6B9]"></div>
+                )}
+                <div className={`h-1.5 w-1.5 rounded-full transition-all duration-300 ${isChildActive ? 'scale-125' : 'scale-100 opacity-40 group-hover:opacity-100'}`} style={{ backgroundColor: isChildActive ? (isDark ? '#09B6B9' : 'var(--app-accent)') : (isDark ? 'rgba(255,255,255,0.3)' : '#94949e'), boxShadow: isChildActive && isDark ? '0 0 5px #09B6B9' : undefined }} />
                 {child}
               </button>
             )
@@ -118,27 +125,27 @@ function Sidebar({ activeItem, onItemClick, collapsed, onToggle, isDark }) {
 
   return (
     <aside
-      className={`border-r px-2.5 py-2 transition-all duration-200 flex flex-col h-full shrink-0 ${
-        collapsed ? 'w-[76px]' : 'w-[250px]'
+      className={`border-r px-3 py-3 transition-all duration-300 flex flex-col h-full shrink-0 relative ${
+        collapsed ? 'w-[80px]' : 'w-[260px]'
       }`}
       style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-sidebar-bg)' }}
     >
       <style>{`
         .sidebar-scrollbar::-webkit-scrollbar { width: 4px; }
         .sidebar-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .sidebar-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 4px; }
-        .sidebar-scrollbar::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
+        .sidebar-scrollbar::-webkit-scrollbar-thumb { background: ${isDark ? 'rgba(255,255,255,0.1)' : '#e2e8f0'}; border-radius: 4px; }
+        .sidebar-scrollbar::-webkit-scrollbar-thumb:hover { background: ${isDark ? 'rgba(255,255,255,0.2)' : '#cbd5e1'}; }
       `}</style>
       
-      <div className="mb-1 flex items-center justify-end shrink-0">
+      <div className="mb-2 flex items-center justify-end shrink-0">
         <button
           type="button"
           onClick={onToggle}
-          className="inline-flex h-6 w-6 items-center justify-center rounded-md border transition hover:bg-slate-50"
+          className="inline-flex h-7 w-7 items-center justify-center rounded-lg border transition-all hover:bg-slate-50 dark:hover:bg-white/5"
           style={{
             borderColor: 'var(--app-border)',
-            color: 'var(--app-heading)',
-            backgroundColor: isDark ? 'var(--app-control-bg)' : '#ffffff',
+            color: isDark ? '#fff' : 'var(--app-heading)',
+            backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : '#ffffff',
           }}
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
