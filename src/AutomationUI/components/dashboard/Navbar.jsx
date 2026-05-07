@@ -4,11 +4,11 @@ import {
   Bell,
   ChevronDown,
   Command,
+  Menu,
   Moon,
   Search,
   Sparkles,
   Sun,
-  UserCircle2,
 } from 'lucide-react'
 
 function Navbar({
@@ -20,6 +20,7 @@ function Navbar({
   onCompanyChange,
   subscriptionMessage,
   credits,
+  onMobileNavToggle,
 }) {
   const [isCompanyOpen, setIsCompanyOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -50,13 +51,28 @@ function Navbar({
 
   return (
     <header
-      className="flex items-center justify-between gap-4 px-5 py-3 border-b"
+      className="flex items-center justify-between gap-2 sm:gap-4 px-3 sm:px-5 py-2.5 sm:py-3 border-b"
       style={{ borderColor: 'var(--app-border)', backgroundColor: 'transparent' }}
     >
+      {/* Mobile hamburger */}
+      <button
+        type="button"
+        onClick={onMobileNavToggle}
+        className="md:hidden inline-flex h-9 w-9 items-center justify-center rounded-lg border focus-ring shrink-0"
+        style={{
+          borderColor: 'var(--app-border)',
+          color: 'var(--app-heading)',
+          backgroundColor: 'var(--app-control-bg)',
+        }}
+        aria-label="Open navigation"
+      >
+        <Menu size={16} />
+      </button>
+
       {/* Brand */}
       <motion.div
         whileHover={{ scale: 1.01 }}
-        className="flex min-w-[170px] items-center gap-2.5 cursor-pointer select-none"
+        className="flex items-center gap-2 sm:gap-2.5 cursor-pointer select-none shrink-0"
       >
         <div
           className="relative h-9 w-9 rounded-xl flex items-center justify-center text-white font-black text-base shadow-lg"
@@ -65,11 +81,11 @@ function Navbar({
           <span className="relative z-10">f</span>
           <div className="absolute inset-0 rounded-xl bg-white/10 mix-blend-overlay" />
         </div>
-        <div className="leading-none">
-          <div className="text-[18px] font-semibold tracking-tight" style={{ color: 'var(--app-heading)' }}>
+        <div className="leading-none hidden xs:block">
+          <div className="text-[16px] sm:text-[18px] font-semibold tracking-tight" style={{ color: 'var(--app-heading)' }}>
             finbook<span style={{ color: 'var(--app-accent)' }}>.ai</span>
           </div>
-          <div className="text-[10px] mt-1 font-medium" style={{ color: 'var(--app-muted)' }}>
+          <div className="text-[10px] mt-1 font-medium hidden sm:block" style={{ color: 'var(--app-muted)' }}>
             Customer workspace
           </div>
         </div>
@@ -107,10 +123,10 @@ function Navbar({
       </div>
 
       {/* Right cluster */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5 sm:gap-2 ml-auto">
         {/* Subscription marquee */}
         <div
-          className="hidden lg:flex relative w-[200px] overflow-hidden rounded-lg border px-2.5 py-1 text-[10.5px] font-medium"
+          className="hidden xl:flex relative w-[200px] overflow-hidden rounded-lg border px-2.5 py-1 text-[10.5px] font-medium"
           style={{
             borderColor: 'var(--app-danger-border)',
             backgroundColor: 'var(--app-danger-bg)',
@@ -158,7 +174,7 @@ function Navbar({
             whileTap={{ scale: 0.98 }}
             type="button"
             onClick={() => setIsCompanyOpen((p) => !p)}
-            className="inline-flex h-8 min-w-[170px] items-center justify-between gap-2 rounded-lg border px-2.5 text-[12px] font-medium focus-ring"
+            className="inline-flex h-8 max-w-[140px] sm:max-w-none sm:min-w-[170px] items-center justify-between gap-2 rounded-lg border px-2.5 text-[12px] font-medium focus-ring"
             style={{
               borderColor: 'var(--app-border)',
               color: 'var(--app-heading)',
@@ -238,7 +254,7 @@ function Navbar({
 
         {/* Credits */}
         <span
-          className="hidden sm:inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-[11px] font-semibold"
+          className="hidden lg:inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-[11px] font-semibold"
           style={{
             borderColor: 'var(--app-border)',
             backgroundColor: 'var(--app-accent-soft)',
@@ -252,7 +268,7 @@ function Navbar({
         {/* Notifications */}
         <button
           type="button"
-          className="relative inline-flex h-8 w-8 items-center justify-center rounded-lg border focus-ring"
+          className="hidden sm:inline-flex relative h-8 w-8 items-center justify-center rounded-lg border focus-ring"
           style={{
             borderColor: 'var(--app-border)',
             color: 'var(--app-heading)',

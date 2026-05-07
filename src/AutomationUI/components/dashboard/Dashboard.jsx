@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import Navbar from './Navbar'
 import Sidebar from './Sidebar'
@@ -83,10 +83,25 @@ function Dashboard({
 }) {
   const [activeItem, setActiveItem] = useState('User Data')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [mode, setMode] = useState('light')
   const [selectedCompany, setSelectedCompany] = useState(companies[0] ?? '')
   const theme = brandTheme[mode]
   const isDark = mode === 'dark'
+
+  // Close mobile drawer when navigating
+  useEffect(() => {
+    setMobileNavOpen(false)
+  }, [activeItem])
+
+  // Lock body scroll when mobile drawer is open
+  useEffect(() => {
+    if (mobileNavOpen) {
+      const prev = document.body.style.overflow
+      document.body.style.overflow = 'hidden'
+      return () => { document.body.style.overflow = prev }
+    }
+  }, [mobileNavOpen])
 
   const renderContent = () => {
     if (activeItem === 'Manage Company') return <CompaniesPanel />
@@ -124,7 +139,7 @@ function Dashboard({
 
   return (
     <div
-      className={`min-h-screen p-3 sm:p-4 relative overflow-hidden ${isDark ? 'dark' : ''}`}
+      className={`min-h-screen p-2 sm:p-3 md:p-4 relative overflow-hidden ${isDark ? 'dark' : ''}`}
       style={{
         backgroundColor: theme.appBg,
         color: theme.heading,
@@ -182,7 +197,7 @@ function Dashboard({
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-        className="overflow-hidden rounded-2xl border relative z-10 glass-surface"
+        className="overflow-hidden rounded-xl md:rounded-2xl border relative z-10 glass-surface"
         style={{
           borderColor: theme.border,
           boxShadow: isDark
@@ -199,19 +214,56 @@ function Dashboard({
           onCompanyChange={setSelectedCompany}
           subscriptionMessage={subscriptionMessage}
           credits={credits}
+          onMobileNavToggle={() => setMobileNavOpen((p) => !p)}
         />
 
-        <div className="flex h-[calc(100vh-104px)]">
-          <Sidebar
-            activeItem={activeItem}
-            onItemClick={setActiveItem}
-            collapsed={sidebarCollapsed}
-            onToggle={() => setSidebarCollapsed((prev) => !prev)}
-            isDark={isDark}
-          />
+        <div className="flex h-[calc(100dvh-92px)] md:h-[calc(100vh-104px)] relative">
+          {/* Desktop sidebar */}
+          <div className="hidden md:flex h-full">
+            <Sidebar
+              activeItem={activeItem}
+              onItemClick={setActiveItem}
+              collapsed={sidebarCollapsed}
+              onToggle={() => setSidebarCollapsed((prev) => !prev)}
+              isDark={isDark}
+            />
+          </div>
+
+          {/* Mobile drawer */}
+          <AnimatePresence>
+            {mobileNavOpen && (
+              <>
+                <motion.div
+                  key="mobile-nav-scrim"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  onClick={() => setMobileNavOpen(false)}
+                  className="absolute inset-0 z-30 bg-black/30 md:hidden backdrop-blur-sm"
+                />
+                <motion.div
+                  key="mobile-nav-drawer"
+                  initial={{ x: '-100%' }}
+                  animate={{ x: 0 }}
+                  exit={{ x: '-100%' }}
+                  transition={{ type: 'spring', stiffness: 380, damping: 36 }}
+                  className="absolute left-0 top-0 bottom-0 z-40 md:hidden h-full"
+                >
+                  <Sidebar
+                    activeItem={activeItem}
+                    onItemClick={setActiveItem}
+                    collapsed={false}
+                    onToggle={() => setMobileNavOpen(false)}
+                    isDark={isDark}
+                  />
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
 
           <main
-            className="flex-1 overflow-auto themed-scrollbar p-5"
+            className="flex-1 overflow-auto themed-scrollbar p-3 sm:p-4 md:p-5"
             style={{ backgroundColor: 'transparent' }}
           >
             <AnimatePresence mode="wait">
