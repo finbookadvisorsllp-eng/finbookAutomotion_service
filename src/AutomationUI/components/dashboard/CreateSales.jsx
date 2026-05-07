@@ -16,7 +16,8 @@ import {
   MoreVertical,
   Check,
   ChevronUp,
-  RefreshCw
+  RefreshCw,
+  Bot
 } from 'lucide-react';
 
 const CreateSales = ({ isDark, onBack }) => {
@@ -257,10 +258,9 @@ const CreateSales = ({ isDark, onBack }) => {
         .no-scrollbar::-webkit-scrollbar { display: none; }
       `}</style>
 
-      {/* Top Header */}
+      {/* Top Action Bar (Save/Approve) */}
       <div className="flex items-center justify-between px-2 py-1 shrink-0">
         <div className="flex items-center gap-4">
-          <h1 className="text-[15px] font-black tracking-tight" style={{ color: '#4f46e5' }}>Sales - Transaction mode</h1>
           <div className="flex gap-2">
             <button className="flex items-center gap-2 px-4 py-1.5 rounded-full border text-[10px] font-black shadow-sm transition-all hover:scale-105 active:scale-95" style={{ borderColor: '#4f46e5', color: '#4f46e5', backgroundColor: theme.panel }}>
               <Save size={12} strokeWidth={3} /> Save Changes
@@ -275,7 +275,6 @@ const CreateSales = ({ isDark, onBack }) => {
         </div>
         <div className="flex gap-2">
           <button className="p-1.5 rounded-lg border text-slate-400 hover:text-indigo-600 transition-colors" style={{ borderColor: theme.border, backgroundColor: theme.panel }}><Layout size={14} /></button>
-          <button onClick={onBack} className="p-1.5 rounded-lg border text-slate-400 hover:text-red-500 transition-colors" style={{ borderColor: theme.border, backgroundColor: theme.panel }}><X size={14} /></button>
         </div>
       </div>
 
@@ -583,6 +582,98 @@ const CreateSales = ({ isDark, onBack }) => {
             style={{ backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.text }}
           />
         </FormSection>
+
+        {/* ADVANCED SALES INBOX DETAILS */}
+        <div className="mt-8">
+          <div className="flex items-center gap-3 mb-4 px-2">
+            <div className="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-600 flex items-center justify-center">
+              <Bot size={16} />
+            </div>
+            <h2 className="text-[14px] font-black tracking-tight" style={{ color: theme.text }}>Sales Inbox Details</h2>
+            <div className="h-[1px] flex-1 ml-4 opacity-20" style={{ backgroundColor: theme.text }}></div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div className="lg:col-span-2 space-y-4">
+              <FormSection title="AI-OCR Extracted Data" defaultOpen>
+                <div className="grid grid-cols-2 gap-4">
+                  <InputField label="Confidence Score" value="98.5%" readOnly />
+                  <InputField label="Extracted Invoice No" value="INV-2024-8892" readOnly />
+                  <InputField label="Extracted Date" value="05-May-2026" readOnly />
+                  <InputField label="Extracted Total" value="₹14,750.00" readOnly />
+                </div>
+                <div className="mt-4 p-3 rounded-lg border text-[10px] font-bold text-slate-500" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>
+                  Original Document: <a href="#" className="text-indigo-600 hover:underline">Scan_05052026.pdf</a>
+                </div>
+              </FormSection>
+              
+              <FormSection title="Linked References" defaultOpen>
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between p-2 rounded-lg border" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>
+                    <div className="flex items-center gap-2">
+                      <Layout size={14} className="text-indigo-500" />
+                      <span className="text-[11px] font-bold">Sales Order: SO-2026-004</span>
+                    </div>
+                    <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded">Fulfilled</span>
+                  </div>
+                  <div className="flex items-center justify-between p-2 rounded-lg border" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>
+                    <div className="flex items-center gap-2">
+                      <Layout size={14} className="text-purple-500" />
+                      <span className="text-[11px] font-bold">Quotation: QT-2026-012</span>
+                    </div>
+                    <span className="text-[10px] font-bold text-slate-500 bg-slate-500/10 px-2 py-0.5 rounded">Approved</span>
+                  </div>
+                </div>
+              </FormSection>
+            </div>
+
+            <div className="space-y-4">
+              <FormSection title="Transaction Tracking" defaultOpen>
+                <div className="flex flex-col gap-4 relative before:absolute before:inset-0 before:ml-3 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-200 before:to-transparent">
+                  <div className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                    <div className="flex items-center justify-center w-6 h-6 rounded-full border border-white bg-emerald-500 text-slate-50 shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 shadow">
+                      <Check size={12} />
+                    </div>
+                    <div className="w-[calc(100%-2.5rem)] md:w-[calc(50%-1.5rem)] p-2 rounded-lg border" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>
+                      <div className="flex items-center justify-between space-x-2 mb-1">
+                        <div className="font-bold text-slate-700 text-[10px]">Data Extracted</div>
+                        <time className="text-[9px] font-medium text-slate-500">10:00 AM</time>
+                      </div>
+                      <div className="text-[9px] text-slate-500">System Auto-OCR</div>
+                    </div>
+                  </div>
+                  <div className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                    <div className="flex items-center justify-center w-6 h-6 rounded-full border border-white bg-indigo-500 text-slate-50 shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 shadow">
+                      <RefreshCw size={12} />
+                    </div>
+                    <div className="w-[calc(100%-2.5rem)] md:w-[calc(50%-1.5rem)] p-2 rounded-lg border" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>
+                      <div className="flex items-center justify-between space-x-2 mb-1">
+                        <div className="font-bold text-slate-700 text-[10px]">Verification Pending</div>
+                        <time className="text-[9px] font-medium text-slate-500">10:05 AM</time>
+                      </div>
+                      <div className="text-[9px] text-slate-500">Awaiting user review</div>
+                    </div>
+                  </div>
+                </div>
+              </FormSection>
+
+              <FormSection title="Activity Logs & Comments" defaultOpen>
+                <div className="flex flex-col gap-3">
+                  <div className="flex gap-2">
+                    <div className="w-6 h-6 rounded-full bg-slate-200 shrink-0"></div>
+                    <div className="flex-1 bg-slate-50 rounded-lg p-2 text-[10px] text-slate-600">
+                      <span className="font-bold text-slate-700">Aman:</span> Please verify the HSN code for item 2.
+                    </div>
+                  </div>
+                  <div className="flex gap-2 items-center mt-2">
+                    <input type="text" placeholder="Add a comment..." className="flex-1 h-8 rounded-lg border px-2 text-[10px] outline-none" />
+                    <button className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center"><Send size={12} /></button>
+                  </div>
+                </div>
+              </FormSection>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

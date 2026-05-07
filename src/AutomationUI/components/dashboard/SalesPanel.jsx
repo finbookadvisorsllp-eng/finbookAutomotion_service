@@ -36,6 +36,8 @@ import {
   FileOutput
 } from 'lucide-react';
 import CreateSales from './CreateSales';
+import VoucherEntryEngine from './VoucherEntryEngine';
+import { AlertCircle, Bot, BarChart3, ScanLine, FileSpreadsheet } from 'lucide-react';
 
 const SalesPanel = ({ mode, isDark, onAdd }) => {
   const [excelMode, setExcelMode] = useState(false);
@@ -75,14 +77,11 @@ const SalesPanel = ({ mode, isDark, onAdd }) => {
   const activeTDS = excelTDSDetails.filter(item => optionalColumns[item]);
   const activeTCS = !!optionalColumns['TCS Details'];
 
-  // Logic to show '+' icon only if at least one column from the group is selected in Configure
   const canExpandBasic = activeBasic.length > 0;
   const canExpandItem = activeItem.length > 0;
   const canExpandTDS = activeTDS.length > 0;
   const canExpandTCS = activeTCS;
 
-  // Calculate dynamic colspans
-  // Summary Counts: Basic=3 (InvDate, InvNo, PartyName), Item=1 (Sales), TDS=2 (SubTotal, TDSAmount), TCS=1 (TCSAmount)
   const basicColSpan = 3 + (expandedGroups.basic ? activeBasic.length : 0);
   const itemColSpan = 1 + (expandedGroups.item ? activeItem.length : 0);
   const tdsColSpan = 2 + (expandedGroups.tds ? activeTDS.length : 0);
@@ -97,7 +96,9 @@ const SalesPanel = ({ mode, isDark, onAdd }) => {
   };
 
   const getTitle = () => {
-    if (viewMode === 'transaction') return 'Sales - Transaction mode';
+    if (viewMode === 'transaction') return 'Sales Entry';
+    if (viewMode === 'ocr') return 'Sales OCR Engine';
+    if (viewMode === 'csv') return 'Bulk CSV Import';
     switch (mode) {
       case 'Inbox': return 'Sales Inbox';
       case 'Review': return 'Sales Review';
@@ -106,7 +107,7 @@ const SalesPanel = ({ mode, isDark, onAdd }) => {
     }
   };
 
-  const IconButton = ({ icon: Icon, color, onClick, border = true }) => {
+  const IconButton = ({ icon: Icon, color, onClick, label, isPrimary }) => {
     const getColor = () => {
       switch (color) {
         case 'red': return '#ef4444';
@@ -119,37 +120,97 @@ const SalesPanel = ({ mode, isDark, onAdd }) => {
     };
     const activeColor = getColor();
 
+    if (label) {
+      return (
+        <button
+          onClick={onClick}
+          className={`h-9 px-4 rounded-xl flex items-center gap-2 font-bold text-[12px] transition-all hover:scale-[1.02] active:scale-95 shadow-sm ${isPrimary ? 'text-white shadow-lg' : 'border'}`}
+          style={{
+            borderColor: isPrimary ? 'transparent' : activeColor + '40',
+            color: isPrimary ? '#fff' : activeColor,
+            backgroundColor: isPrimary ? activeColor : (isDark ? 'var(--app-control-bg)' : '#fff'),
+            boxShadow: isPrimary ? `0 4px 12px ${activeColor}40` : undefined
+          }}
+        >
+          <Icon size={14} strokeWidth={2.5} />
+          {label}
+        </button>
+      )
+    }
+
     return (
       <button
         onClick={onClick}
-        className={`w-8 h-8 rounded-full border flex items-center justify-center transition-all hover:scale-110 active:scale-95 shadow-sm`}
+        className={`w-9 h-9 rounded-xl border flex items-center justify-center transition-all hover:scale-110 active:scale-95 shadow-sm bg-white/50 backdrop-blur-sm`}
         style={{
           borderColor: activeColor + '40',
           color: activeColor,
-          backgroundColor: isDark ? 'var(--app-control-bg)' : '#fff'
+          backgroundColor: isDark ? 'var(--app-control-bg)' : 'rgba(255,255,255,0.7)'
         }}
       >
-        <Icon size={14} strokeWidth={2.5} />
+        <Icon size={15} strokeWidth={2.5} />
       </button>
     );
   };
 
   if (viewMode === 'transaction') {
-    return <CreateSales isDark={isDark} onBack={() => setViewMode('inbox')} />;
+    return <VoucherEntryEngine isDark={isDark} defaultMode="manual" onBack={() => setViewMode('inbox')} voucherType="sales" />;
+  }
+  if (viewMode === 'ocr') {
+    return <VoucherEntryEngine isDark={isDark} defaultMode="ocr" onBack={() => setViewMode('inbox')} voucherType="sales" />;
+  }
+  if (viewMode === 'csv') {
+    return <VoucherEntryEngine isDark={isDark} defaultMode="csv" onBack={() => setViewMode('inbox')} voucherType="sales" />;
   }
 
+  const SummaryCard = ({ title, value, count, icon: Icon, color, trend }) => {
+    return (
+      <div className="relative overflow-hidden rounded-2xl border p-4 flex flex-col gap-3 group transition-all duration-300 hover:shadow-lg hover:-translate-y-1"
+        style={{ 
+          borderColor: 'rgba(255,255,255,0.1)', 
+          background: isDark ? 'linear-gradient(145deg, rgba(30,41,59,0.7) 0%, rgba(15,23,42,0.9) 100%)' : 'linear-gradient(145deg, rgba(255,255,255,0.9) 0%, rgba(248,250,252,0.6) 100%)',
+          backdropFilter: 'blur(10px)'
+        }}>
+        <div className="absolute top-0 right-0 p-4 opacity-10 transform group-hover:scale-110 transition-transform duration-500">
+          <Icon size={64} color={color} />
+        </div>
+        <div className="flex items-center justify-between z-10">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-sm" style={{ backgroundColor: `${color}15`, color: color }}>
+            <Icon size={18} strokeWidth={2.5} />
+          </div>
+          {trend && (
+            <div className="flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-full" style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#10b981' }}>
+              <ArrowUpDown size={10} /> {trend}
+            </div>
+          )}
+        </div>
+        <div className="z-10">
+          <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-500 mb-1">{title}</h4>
+          <div className="flex items-end gap-2">
+            <span className="text-2xl font-black tracking-tight" style={{ color: isDark ? '#fff' : '#0f172a' }}>{value}</span>
+            <span className="text-[12px] font-bold text-slate-400 mb-1">({count})</span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
-    <div className="flex flex-col gap-2 h-full animate-in fade-in duration-500 overflow-hidden relative">
+    <div className="flex flex-col gap-4 h-full animate-in fade-in duration-500 overflow-hidden relative">
       {isLoading && (
-        <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-50 flex items-center justify-center animate-in fade-in duration-300">
-          <Loader2 className="text-blue-600 animate-spin" size={32} />
+        <div className="absolute inset-0 bg-white/60 backdrop-blur-md z-50 flex items-center justify-center animate-in fade-in duration-300 rounded-xl">
+          <div className="flex flex-col items-center gap-4">
+            <div className="relative w-16 h-16 flex items-center justify-center">
+              <div className="absolute inset-0 rounded-full border-4 border-indigo-100 dark:border-indigo-900/30"></div>
+              <div className="absolute inset-0 rounded-full border-4 border-indigo-600 border-t-transparent animate-spin"></div>
+              <Bot size={24} className="text-indigo-600 animate-pulse" />
+            </div>
+            <span className="text-sm font-black text-indigo-600 tracking-widest uppercase animate-pulse">Processing...</span>
+          </div>
         </div>
       )}
 
       {/* Modals & Popups */}
-      {isUploadOpen && <UploadInvoiceModal onClose={() => setIsUploadOpen(false)} isDark={isDark} />}
-      {isBulkUploadOpen && <BulkUploadInvoiceModal onClose={() => setIsBulkUploadOpen(false)} isDark={isDark} />}
-      {isUploadFilesOpen && <UploadFilesModal onClose={() => setIsUploadFilesOpen(false)} isDark={isDark} />}
       {isLedgerModalOpen && <AddLedgerModal onClose={() => setIsLedgerModalOpen(false)} />}
       {isStockModalOpen && <AddStockModal onClose={() => setIsStockModalOpen(false)} />}
       {isConfigOpen && (
@@ -160,103 +221,100 @@ const SalesPanel = ({ mode, isDark, onAdd }) => {
           onClose={() => setIsConfigOpen(false)}
         />
       )}
-      {isFilterOpen && <FilterPopup isExcel={excelMode} onClose={() => setIsFilterOpen(false)} />}
+      {/* Sticky Summary Cards */}
+      {!excelMode && mode === 'Inbox' && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 shrink-0">
+          <SummaryCard title="Total Sales" value="₹ 24,50,000" count="156" icon={BarChart3} color="#4f46e5" trend="+12.5%" />
+          <SummaryCard title="Pending Approval" value="₹ 4,20,000" count="24" icon={List} color="#f59e0b" />
+          <SummaryCard title="OCR Processed" value="₹ 18,30,000" count="98" icon={ScanLine} color="#8b5cf6" trend="+8.2%" />
+          <SummaryCard title="Failed Imports" value="₹ 0.00" count="0" icon={AlertCircle} color="#ef4444" />
+        </div>
+      )}
 
-      {/* Pixel Perfect Header */}
-      <div className="flex items-center justify-between px-2 py-2 shrink-0 border-b bg-white/50 backdrop-blur-sm" style={{ borderColor: 'rgba(226, 232, 240, 0.5)' }}>
-        <div className="flex items-center gap-3">
-          <h1 className="text-[15px] font-black tracking-tight" style={{ color: '#4f46e5' }}>{getTitle()}</h1>
-          <div className="flex gap-2 ml-2">
+      {/* Premium Top Action Bar */}
+      <div className="flex flex-col gap-3 shrink-0 p-3 rounded-2xl border shadow-sm backdrop-blur-md relative overflow-hidden" 
+        style={{ 
+          borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.5)', 
+          background: isDark ? 'linear-gradient(180deg, rgba(30,41,59,0.8) 0%, rgba(15,23,42,0.9) 100%)' : 'linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(248,250,252,0.8) 100%)'
+        }}>
+        <div className="absolute -top-24 -right-24 w-48 h-48 bg-indigo-500/20 rounded-full blur-[40px] pointer-events-none"></div>
+        <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-purple-500/20 rounded-full blur-[40px] pointer-events-none"></div>
+        
+        <div className="flex items-center justify-between relative z-10">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20 text-white">
+              <BarChart3 size={20} strokeWidth={2.5} />
+            </div>
+            <div>
+              <h1 className="text-[18px] font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400">
+                {getTitle()}
+              </h1>
+              <p className="text-[11px] font-bold text-slate-500">Manage and process all sales entries efficiently</p>
+            </div>
+          </div>
+          
+          <div className="flex gap-2 items-center">
             {mode === 'Inbox' && (
               <>
-                {excelMode ? (
-                  <>
-                    <IconButton icon={Upload} color="emerald" onClick={() => setIsBulkUploadOpen(true)} />
-                    <IconButton icon={Edit3} color="emerald" />
-                    <IconButton icon={Paperclip} color="emerald" />
-                    <IconButton icon={ChevronsRight} color="purple" />
-                    <IconButton icon={CheckCircle2} color="emerald" />
-                    <IconButton icon={Trash2} color="red" />
-                    <IconButton icon={FolderOpen} color="purple" onClick={() => setIsUploadFilesOpen(true)} />
-                    <IconButton icon={Download} color="purple" />
-                    
-                    <div className="flex items-center gap-3 ml-2 border-l pl-4" style={{ borderColor: isDark ? '#334155' : '#e2e8f0' }}>
-                      <select className="h-8 w-32 rounded-lg border px-2 text-[11px] font-bold outline-none shadow-sm transition-colors hover:border-indigo-400" style={{ backgroundColor: isDark ? '#0f172a' : '#fff', color: isDark ? '#f1f5f9' : '#475569', borderColor: isDark ? '#334155' : '#e2e8f0' }}>
-                        <option>Select File</option>
-                      </select>
-                      <label className="flex items-center gap-1.5 cursor-pointer ml-2">
-                        <input type="checkbox" className="w-3.5 h-3.5 rounded accent-indigo-600 cursor-pointer" />
-                        <span className="text-[11px] font-bold" style={{ color: isDark ? '#94a3b8' : '#64748b' }}>Not Selected Ledger</span>
-                      </label>
-                      <label className="flex items-center gap-1.5 cursor-pointer ml-2">
-                        <input type="checkbox" className="w-3.5 h-3.5 rounded accent-indigo-600 cursor-pointer" />
-                        <span className="text-[11px] font-bold" style={{ color: isDark ? '#94a3b8' : '#64748b' }}>Selected Ledger</span>
-                      </label>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <IconButton icon={Upload} color="emerald" onClick={() => setIsUploadOpen(true)} />
-                    <IconButton icon={Plus} color="emerald" onClick={() => setViewMode('transaction')} />
-                    <IconButton icon={ChevronsRight} color="purple" />
-                    <IconButton icon={CheckCircle2} color="emerald" />
-                    <IconButton icon={Trash2} color="red" />
-                    <IconButton icon={RefreshCw} color="emerald" />
-                  </>
-                )}
+                <IconButton icon={ScanLine} color="purple" label="OCR Upload" onClick={() => setViewMode('ocr')} />
+                <IconButton icon={FileSpreadsheet} color="emerald" label="CSV Upload" onClick={() => setViewMode('csv')} />
+                <IconButton icon={Plus} color="indigo" label="Create Entry" isPrimary onClick={() => setViewMode('transaction')} />
+                <div className="w-[1px] h-8 bg-slate-200 dark:bg-slate-700 mx-1"></div>
+                <IconButton icon={CheckCircle2} color="emerald" />
+                <IconButton icon={Trash2} color="red" />
               </>
             )}
             {mode === 'Review' && (
               <>
-                <IconButton icon={ChevronsLeft} color="purple" />
-                <IconButton icon={CheckCircle2} color="emerald" />
+                <IconButton icon={CheckCircle2} color="emerald" label="Approve Selected" isPrimary />
                 <IconButton icon={Trash2} color="red" />
                 <IconButton icon={RefreshCw} color="emerald" />
               </>
             )}
             {mode === 'Archive' && (
               <>
+                <IconButton icon={Download} color="purple" label="Export Data" />
                 <IconButton icon={Trash2} color="red" />
-                <IconButton icon={Download} color="purple" />
                 <IconButton icon={RefreshCw} color="emerald" />
               </>
             )}
           </div>
         </div>
 
-        {/* Centered Search Bar — hidden in Excel Mode */}
-        {!excelMode && (
-          <div className="flex-1 max-w-[400px] px-4">
-            <div className="relative group">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 transition-colors group-focus-within:text-indigo-500" size={13} strokeWidth={3} />
-              <input
-                type="text"
-                placeholder="Search on Party Name..."
-                className="w-full h-8 rounded-lg border px-9 text-[11px] font-bold outline-none transition-all shadow-sm focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/5"
-                style={{ backgroundColor: isDark ? 'var(--app-control-bg)' : '#fff', borderColor: '#e2e8f0', color: isDark ? '#f1f5f9' : '#475569' }}
-              />
+        <div className="flex items-center justify-between relative z-10 mt-1">
+          {/* Centered Search Bar */}
+          {!excelMode && (
+            <div className="flex-1 max-w-[400px]">
+              <div className="relative group">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-indigo-500" size={14} strokeWidth={3} />
+                <input
+                  type="text"
+                  placeholder="Search on Party Name, Invoice No..."
+                  className="w-full h-10 rounded-xl border px-10 text-[12px] font-bold outline-none transition-all shadow-sm focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10"
+                  style={{ backgroundColor: isDark ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.7)', borderColor: isDark ? '#334155' : '#e2e8f0', color: isDark ? '#f1f5f9' : '#475569' }}
+                />
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-3 cursor-pointer select-none" onClick={handleToggleExcel}>
-            <div className={`relative inline-flex h-5 w-10 items-center rounded-full transition-all duration-300 ${excelMode ? 'bg-indigo-600' : 'bg-slate-200 shadow-inner'}`}>
-              <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-md transition-transform duration-300 ${excelMode ? 'translate-x-5.5' : 'translate-x-1'}`} />
+          <div className="flex items-center gap-4 ml-auto">
+            <div className="flex items-center gap-3 cursor-pointer select-none px-3 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onClick={handleToggleExcel}>
+              <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: excelMode ? '#4f46e5' : '#64748b' }}>Excel Mode</span>
+              <div className={`relative inline-flex h-5 w-10 items-center rounded-full transition-all duration-300 ${excelMode ? 'bg-indigo-600 shadow-lg shadow-indigo-500/30' : 'bg-slate-300 dark:bg-slate-700 shadow-inner'}`}>
+                <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-md transition-transform duration-300 ${excelMode ? 'translate-x-5.5' : 'translate-x-1'}`} />
+              </div>
             </div>
-            <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: excelMode ? '#4f46e5' : '#64748b' }}>Excel Mode</span>
-          </div>
 
-          <div className="flex gap-2">
-            {excelMode && (
-              <>
-                <IconButton icon={LayoutList} color="slate" onClick={() => setIsLedgerModalOpen(true)} />
-                <IconButton icon={Menu} color="slate" onClick={() => setIsStockModalOpen(true)} />
-              </>
-            )}
-            <IconButton icon={HelpCircle} color="blue" />
-            <IconButton icon={Settings} color="indigo" onClick={() => setIsConfigOpen(true)} />
-            <IconButton icon={Filter} color="emerald" onClick={() => setIsFilterOpen(true)} />
+            <div className="flex gap-2">
+              {excelMode && (
+                <>
+                  <IconButton icon={LayoutList} color="indigo" onClick={() => setIsLedgerModalOpen(true)} />
+                  <IconButton icon={Menu} color="indigo" onClick={() => setIsStockModalOpen(true)} />
+                </>
+              )}
+              <IconButton icon={Settings} color="slate" onClick={() => setIsConfigOpen(true)} />
+              <IconButton icon={Filter} color="indigo" onClick={() => setIsFilterOpen(true)} />
+            </div>
           </div>
         </div>
       </div>
