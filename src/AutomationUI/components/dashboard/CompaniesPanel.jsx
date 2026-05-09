@@ -143,7 +143,7 @@ function CompaniesPanel({ onIconAction }) {
 
       <div className="flex-1 themed-scrollbar overflow-auto">
         <table className="min-w-[1180px] w-full border-collapse text-[11px]">
-          <thead style={{ backgroundColor: 'var(--app-table-head-bg)', color: 'var(--app-heading)' }}>
+          <thead style={{ backgroundColor: 'var(--app-table-head-bg)', color: '#e3e3ed' }}>
             <tr>
               <th className="w-8 border-b border-r px-2 py-1.5" style={{ borderColor: 'var(--app-row-border)' }}>
                 <input type="checkbox" />
@@ -166,7 +166,7 @@ function CompaniesPanel({ onIconAction }) {
                 <td className="border-b border-r px-2 py-1.5 text-center" style={{ borderColor: 'var(--app-row-border)' }}>
                   <input type="checkbox" />
                 </td>
-                <td className="border-b border-r px-2 py-1.5 text-center" style={{ borderColor: 'var(--app-row-border)', color: 'var(--app-heading)' }}>
+                <td className="border-b border-r px-2 py-1.5 text-center" style={{ borderColor: 'var(--app-row-border)', color: '#e3e3ed' }}>
                   {row.id}
                 </td>
                 <td className="border-b border-r px-2 py-1.5" style={{ borderColor: 'var(--app-row-border)' }}>
@@ -176,13 +176,13 @@ function CompaniesPanel({ onIconAction }) {
                     ))}
                   </span>
                 </td>
-                <td className="border-b border-r px-2 py-1.5" style={{ borderColor: 'var(--app-row-border)', color: 'var(--app-heading)' }}>{row.businessName}</td>
-                <td className="border-b border-r px-2 py-1.5" style={{ borderColor: 'var(--app-row-border)', color: 'var(--app-heading)' }}>{row.gstNumber}</td>
-                <td className="border-b border-r px-2 py-1.5" style={{ borderColor: 'var(--app-row-border)', color: 'var(--app-heading)' }}>{row.state}</td>
-                <td className="border-b border-r px-2 py-1.5" style={{ borderColor: 'var(--app-row-border)', color: 'var(--app-heading)' }}>{row.accountants}</td>
-                <td className="border-b border-r px-2 py-1.5" style={{ borderColor: 'var(--app-row-border)', color: 'var(--app-heading)' }}>{row.owner}</td>
-                <td className="border-b border-r px-2 py-1.5" style={{ borderColor: 'var(--app-row-border)', color: 'var(--app-heading)' }}>{row.credits}</td>
-                <td className="border-b border-r px-2 py-1.5" style={{ borderColor: 'var(--app-row-border)', color: 'var(--app-heading)' }}>{row.status}</td>
+                <td className="border-b border-r px-2 py-1.5" style={{ borderColor: 'var(--app-row-border)', color: 'var(--app-muted)' }}>{row.businessName}</td>
+                <td className="border-b border-r px-2 py-1.5" style={{ borderColor: 'var(--app-row-border)', color: 'var(--app-muted)' }}>{row.gstNumber}</td>
+                <td className="border-b border-r px-2 py-1.5" style={{ borderColor: 'var(--app-row-border)', color: 'var(--app-muted)' }}>{row.state}</td>
+                <td className="border-b border-r px-2 py-1.5" style={{ borderColor: 'var(--app-row-border)', color: 'var(--app-muted)' }}>{row.accountants}</td>
+                <td className="border-b border-r px-2 py-1.5" style={{ borderColor: 'var(--app-row-border)', color: 'var(--app-muted)' }}>{row.owner}</td>
+                <td className="border-b border-r px-2 py-1.5" style={{ borderColor: 'var(--app-row-border)', color: 'var(--app-muted)' }}>{row.credits}</td>
+                <td className="border-b border-r px-2 py-1.5" style={{ borderColor: 'var(--app-row-border)', color: 'var(--app-muted)' }}>{row.status}</td>
                 <td className="border-b px-2 py-1.5" style={{ borderColor: 'var(--app-row-border)' }}>
                   <div className="flex items-center gap-1.5">
                     <button type="button" onClick={() => handleIconClick('download', row)} className="inline-flex h-5 w-5 items-center justify-center rounded-full border" style={{ borderColor: '#cbeedc', color: '#22a566' }}><ArrowDownToLine size={10} /></button>
@@ -204,7 +204,7 @@ function CompaniesPanel({ onIconAction }) {
         <select
           defaultValue="10"
           className="rounded border px-2 py-0.5 text-xs outline-none"
-          style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-control-bg)', color: 'var(--app-heading)' }}
+          style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-control-bg)', color: 'var(--app-muted)' }}
         >
           <option value="10">10</option>
           <option value="20">20</option>
