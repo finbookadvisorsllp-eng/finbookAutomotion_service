@@ -34,8 +34,10 @@ import {
   Wallet
 } from 'lucide-react';
 import { motion } from 'motion/react';
+import VoucherEntryEngine from './VoucherEntryEngine';
 
-const PettyCashPanel = ({ mode, isDark }) => {
+const PettyCashPanel = ({ mode, isDark, voucherType, title: customTitle }) => {
+  const [createMode, setCreateMode] = useState(false);
   const [excelMode, setExcelMode] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isConfigOpen, setIsConfigOpen] = useState(false);
@@ -87,6 +89,7 @@ const PettyCashPanel = ({ mode, isDark }) => {
   };
 
   const getTitle = () => {
+    if (customTitle && mode === 'Inbox') return customTitle;
     switch (mode) {
       case 'Inbox': return 'Fund Flow Inbox';
       case 'Review': return 'Fund Flow Review';
@@ -131,6 +134,13 @@ const PettyCashPanel = ({ mode, isDark }) => {
         </div>
       )}
 
+      {/* VoucherEntryEngine overlay for Create mode */}
+      {createMode && voucherType && (
+        <div className="absolute inset-0 z-40">
+          <VoucherEntryEngine isDark={isDark} voucherType={voucherType} onBack={() => setCreateMode(false)} />
+        </div>
+      )}
+
       {/* Popups */}
       {isConfigOpen && (
         <ColumnConfigPopup
@@ -159,8 +169,20 @@ const PettyCashPanel = ({ mode, isDark }) => {
           </div>
           <div>
             <h1 className="text-[17px] font-semibold tracking-tight leading-tight" style={{ color: 'var(--app-heading)' }}>{getTitle()}</h1>
-            <p className="text-[11.5px] mt-0.5" style={{ color: 'var(--app-muted)' }}>Track petty-cash and fund-flow movement.</p>
+            <p className="text-[11.5px] mt-0.5" style={{ color: 'var(--app-muted)' }}>
+              {customTitle ? `Manage ${customTitle.toLowerCase()} transactions.` : 'Track petty-cash and fund-flow movement.'}
+            </p>
           </div>
+          {mode === 'Inbox' && voucherType && (
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setCreateMode(true)}
+              className="ml-2 flex items-center gap-2 px-4 h-9 rounded-lg text-white text-[11px] font-bold uppercase tracking-widest shadow-md transition-all hover:scale-[1.02]"
+              style={{ background: 'var(--app-accent-gradient)' }}
+            >
+              <Plus size={14} strokeWidth={3} /> Create
+            </motion.button>
+          )}
           <div className="flex gap-2 ml-2 items-center flex-wrap">
             {!excelMode ? (
               // Non-Excel Mode Icons

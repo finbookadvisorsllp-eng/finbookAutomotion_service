@@ -4,7 +4,7 @@ function AddCompanyModal({ open, onClose, formValues, onFieldChange, onSave }) {
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/30 px-4">
+    <div className="fixed inset-0 z-40 flex items-center justify-center  backdrop-blur-[2px] px-4">
       <div
         className="w-full max-w-[760px] rounded-xl border shadow-[0_20px_40px_rgba(15,23,42,0.22)]"
         style={{ backgroundColor: 'var(--app-panel-bg)', borderColor: 'var(--app-border)' }}

@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import CreateSales from './CreateSales';
 import CreatePurchase from './CreatePurchase';
+import CreateFundFlow from './CreateFundFlow';
 
 const VoucherEntryEngine = ({ isDark, defaultMode = 'manual', voucherType = 'sales', onBack }) => {
   const [activeMode, setActiveMode] = useState(defaultMode);
@@ -107,9 +108,11 @@ const VoucherEntryEngine = ({ isDark, defaultMode = 'manual', voucherType = 'sal
       <div className="flex-1 overflow-hidden relative">
         {/* MANUAL ENTRY SECTION */}
         {activeMode === 'manual' && (
-          (voucherType === 'purchase' || voucherType === 'purchase_invoice') 
-            ? <CreatePurchase isDark={isDark} onBack={onBack} />
-            : <CreateSales isDark={isDark} onBack={onBack} />
+          (voucherType === 'cash_payment' || voucherType === 'bank_payment' || voucherType === 'contra')
+            ? <CreateFundFlow isDark={isDark} onBack={onBack} voucherType={voucherType} />
+            : (voucherType === 'purchase' || voucherType === 'purchase_invoice' || voucherType === 'purchase_order' || voucherType === 'debit_note') 
+              ? <CreatePurchase isDark={isDark} onBack={onBack} voucherType={voucherType} />
+              : <CreateSales isDark={isDark} onBack={onBack} voucherType={voucherType} />
         )}
 
       {/* CSV UPLOAD SECTION */}

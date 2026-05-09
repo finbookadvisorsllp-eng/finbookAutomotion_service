@@ -83,7 +83,7 @@ function CompaniesPanel({ onIconAction }) {
   }
 
   return (
-    <section className="rounded-xl border overflow-hidden rise-in" style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-panel-bg)' }}>
+    <section className="rounded-xl border flex flex-col h-full overflow-hidden rise-in" style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-panel-bg)' }}>
       <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: 'var(--app-border)' }}>
         <div className="flex items-center gap-3">
           <h2 className="text-[15px] font-semibold tracking-tight" style={{ color: 'var(--app-heading)' }}>
@@ -141,7 +141,7 @@ function CompaniesPanel({ onIconAction }) {
         </div>
       </div>
 
-      <div className="themed-scrollbar overflow-x-auto">
+      <div className="flex-1 themed-scrollbar overflow-auto">
         <table className="min-w-[1180px] w-full border-collapse text-[11px]">
           <thead style={{ backgroundColor: 'var(--app-table-head-bg)', color: 'var(--app-heading)' }}>
             <tr>

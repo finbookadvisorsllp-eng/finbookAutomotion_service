@@ -3,15 +3,15 @@
 :root {
   --primary: #5e5ce6;
   --primary-hover: #4e4cb6;
-  --primary-light: #f1f0ff;
-  --bg-main: #f8fafd;
+  --primary-light: #25215b;
+  --bg-main: #1469e9;
   --bg-sidebar: #ffffff;
   --text-main: #2c3345;
   --text-muted: #5b647b;
   --text-light: #8b92a3;
   --border: #eef2f6;
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 14px;
@@ -173,8 +173,15 @@ body {
   transform: translateY(-1px);
 }
 
-.icon-btn.add { color: #10b981; border-color: #d1fae5; }
-.icon-btn.delete { color: #ef4444; border-color: #fee2e2; }
+.icon-btn.add {
+  color: #10b981;
+  border-color: #d1fae5;
+}
+
+.icon-btn.delete {
+  color: #ef4444;
+  border-color: #fee2e2;
+}
 
 .header-center {
   flex: 1;

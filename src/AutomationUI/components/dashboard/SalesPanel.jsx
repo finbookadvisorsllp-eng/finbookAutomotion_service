@@ -40,7 +40,8 @@ import VoucherEntryEngine from './VoucherEntryEngine';
 import { AlertCircle, Bot, BarChart3, ScanLine, FileSpreadsheet } from 'lucide-react';
 import { motion } from 'motion/react';
 
-const SalesPanel = ({ mode, isDark, onAdd }) => {
+const SalesPanel = ({ mode, isDark, onAdd, title: customTitle, description: customDescription, voucherType = "sales", emptyText, icon: CustomIcon }) => {
+  const Icon = CustomIcon || BarChart3;
   const [excelMode, setExcelMode] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isLedgerModalOpen, setIsLedgerModalOpen] = useState(false);
@@ -97,9 +98,10 @@ const SalesPanel = ({ mode, isDark, onAdd }) => {
   };
 
   const getTitle = () => {
-    if (viewMode === 'transaction') return 'Sales Entry';
-    if (viewMode === 'ocr') return 'Sales OCR Engine';
-    if (viewMode === 'csv') return 'Bulk CSV Import';
+    if (viewMode === 'transaction') return `${customTitle || 'Sales'} Entry`;
+    if (viewMode === 'ocr') return `${customTitle || 'Sales'} OCR Engine`;
+    if (viewMode === 'csv') return `Bulk ${customTitle || 'Sales'} CSV Import`;
+    if (customTitle) return `${customTitle} ${mode || 'Inbox'}`;
     switch (mode) {
       case 'Inbox': return 'Sales Inbox';
       case 'Review': return 'Sales Review';
@@ -164,44 +166,45 @@ const SalesPanel = ({ mode, isDark, onAdd }) => {
   };
 
   if (viewMode === 'transaction') {
-    return <VoucherEntryEngine isDark={isDark} defaultMode="manual" onBack={() => setViewMode('inbox')} voucherType="sales" />;
+    return <VoucherEntryEngine isDark={isDark} defaultMode="manual" onBack={() => setViewMode('inbox')} voucherType={voucherType} />;
   }
   if (viewMode === 'ocr') {
-    return <VoucherEntryEngine isDark={isDark} defaultMode="ocr" onBack={() => setViewMode('inbox')} voucherType="sales" />;
+    return <VoucherEntryEngine isDark={isDark} defaultMode="ocr" onBack={() => setViewMode('inbox')} voucherType={voucherType} />;
   }
   if (viewMode === 'csv') {
-    return <VoucherEntryEngine isDark={isDark} defaultMode="csv" onBack={() => setViewMode('inbox')} voucherType="sales" />;
+    return <VoucherEntryEngine isDark={isDark} defaultMode="csv" onBack={() => setViewMode('inbox')} voucherType={voucherType} />;
   }
 
   const SummaryCard = ({ title, value, count, icon: Icon, color, trend }) => {
     return (
-      <div className="relative overflow-hidden rounded-2xl border p-4 flex flex-col gap-3 group transition-all duration-300 hover:shadow-lg hover:-translate-y-1"
+      <div className="relative overflow-hidden rounded-[24px] border p-5 flex flex-col gap-4 group transition-all duration-500 hover:shadow-xl hover:-translate-y-1.5"
         style={{ 
-          borderColor: isDark ? 'rgba(9, 182, 185, 0.15)' : 'rgba(255,255,255,0.1)', 
-          background: isDark ? 'linear-gradient(145deg, rgba(8, 21, 46, 0.8) 0%, rgba(4, 16, 33, 0.9) 100%)' : 'linear-gradient(145deg, rgba(255,255,255,0.9) 0%, rgba(248,250,252,0.6) 100%)',
-          backdropFilter: 'blur(10px)',
-          boxShadow: isDark ? '0 4px 20px -5px rgba(0, 94, 217, 0.15), inset 0 0 0 1px rgba(9, 182, 185, 0.1)' : undefined
+          borderColor: isDark ? 'rgba(9, 182, 185, 0.15)' : 'rgba(255,255,255,0.8)', 
+          background: isDark ? 'linear-gradient(145deg, rgba(8, 21, 46, 0.9) 0%, rgba(4, 16, 33, 0.95) 100%)' : 'linear-gradient(145deg, rgba(255,255,255,1) 0%, rgba(241,245,249,0.7) 100%)',
+          backdropFilter: 'blur(12px)',
+          boxShadow: isDark ? '0 10px 30px -10px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(9, 182, 185, 0.1)' : '0 10px 25px -10px rgba(0,0,0,0.05)'
         }}>
-        <div className="absolute top-0 right-0 p-4 opacity-10 transform group-hover:scale-110 transition-transform duration-500">
-          <Icon size={64} color={color} />
+        <div className="absolute -top-4 -right-4 p-4 opacity-[0.03] group-hover:opacity-[0.08] transform group-hover:scale-125 transition-all duration-700 ease-out" style={{ color: color }}>
+          <Icon size={120} strokeWidth={1} />
         </div>
         <div className="flex items-center justify-between z-10">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-sm" style={{ backgroundColor: `${color}15`, color: color }}>
-            <Icon size={18} strokeWidth={2.5} />
+          <div className="w-11 h-11 rounded-2xl flex items-center justify-center shadow-inner transition-transform group-hover:scale-110 duration-500" style={{ backgroundColor: `${color}15`, color: color }}>
+            <Icon size={20} strokeWidth={2.5} />
           </div>
           {trend && (
-            <div className="flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-full" style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#10b981' }}>
+            <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full shadow-sm" style={{ backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
               <ArrowUpDown size={10} /> {trend}
             </div>
           )}
         </div>
         <div className="z-10">
-          <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-500 mb-1">{title}</h4>
-          <div className="flex items-end gap-2">
-            <span className="text-2xl font-black tracking-tight" style={{ color: isDark ? '#fff' : '#0f172a' }}>{value}</span>
-            <span className="text-[12px] font-bold text-slate-400 mb-1">({count})</span>
+          <h4 className="text-[10px] font-black uppercase tracking-[0.2em] opacity-50 mb-1" style={{ color: isDark ? '#94a3b8' : '#64748b' }}>{title}</h4>
+          <div className="flex items-baseline gap-2">
+            <span className="text-3xl font-black tracking-tight" style={{ color: isDark ? '#fff' : '#0f172a' }}>{value}</span>
+            <span className="text-[13px] font-bold opacity-40" style={{ color: isDark ? '#cbd5e1' : '#475569' }}>{count} items</span>
           </div>
         </div>
+        <div className="absolute bottom-0 left-0 h-[3px] w-0 group-hover:w-full transition-all duration-700 ease-out rounded-full" style={{ backgroundColor: color, opacity: 0.4 }}></div>
       </div>
     );
   };
@@ -250,29 +253,31 @@ const SalesPanel = ({ mode, isDark, onAdd }) => {
 
       {/* Header */}
       <div
-        className="rounded-xl border p-3.5 shrink-0"
+        className="rounded-[20px] border p-4 shadow-sm transition-all duration-500"
         style={{
           borderColor: 'var(--app-border)',
           backgroundColor: 'var(--app-panel-bg)',
+          backdropFilter: 'blur(10px)'
         }}
       >
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-4">
             <div
-              className="h-10 w-10 rounded-xl flex items-center justify-center text-white shadow-sm"
+              className="h-12 w-12 rounded-2xl flex items-center justify-center text-white shadow-lg transition-transform hover:rotate-3 duration-300"
               style={{ background: 'var(--app-accent-gradient)' }}
             >
-              <BarChart3 size={18} strokeWidth={2.2} />
+              <Icon size={22} strokeWidth={2.2} />
             </div>
             <div>
               <h1
-                className="text-[17px] font-semibold tracking-tight leading-tight"
+                className="text-[20px] font-black tracking-tight leading-tight flex items-center gap-2"
                 style={{ color: 'var(--app-heading)' }}
               >
                 {getTitle()}
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
               </h1>
-              <p className="text-[11.5px] mt-0.5" style={{ color: 'var(--app-muted)' }}>
-                Manage and process all sales entries efficiently.
+              <p className="text-[12px] mt-0.5 font-medium opacity-60" style={{ color: 'var(--app-muted)' }}>
+                {customDescription || `Real-time management for all ${voucherType.replace('_', ' ')} transactions and reporting.`}
               </p>
             </div>
           </div>
@@ -497,12 +502,12 @@ const SalesPanel = ({ mode, isDark, onAdd }) => {
                       className="h-10 w-10 rounded-full flex items-center justify-center"
                       style={{ backgroundColor: 'var(--app-accent-soft)', color: 'var(--app-accent)' }}
                     >
-                      <BarChart3 size={18} />
+                      <Icon size={18} />
                     </span>
                     <p className="text-[13px] font-medium" style={{ color: 'var(--app-heading)' }}>
-                      No Inbox Data found
+                      {emptyText || `No ${mode || 'Inbox'} Data found`}
                     </p>
-                    <p className="text-[11.5px]">Create or upload a sales entry to get started.</p>
+                    <p className="text-[11.5px]">Create or upload a {voucherType.replace('_', ' ')} entry to get started.</p>
                   </div>
                 </td>
               </tr>

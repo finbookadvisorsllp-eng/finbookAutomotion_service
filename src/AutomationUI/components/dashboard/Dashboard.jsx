@@ -5,8 +5,6 @@ import Sidebar from './Sidebar'
 import CompaniesPanel from './CompaniesPanel'
 import DashboardTable from './DashboardTable'
 import EntityPanel from './EntityPanel'
-import QuotationInbox from './QuotationInbox'
-import CreateQuotation from './CreateQuotation'
 import InvoiceInbox from './InvoiceInbox'
 import CreateInvoice from './CreateInvoice'
 import SalesPanel from './SalesPanel'
@@ -21,8 +19,7 @@ import SalesOrder from './SalesOrder'
 import SalesInvoice from './SalesInvoice'
 import CreditNote from './CreditNote'
 import PurchaseOrder from './PurchaseOrder'
-import PurchaseInvoiceWithInventory from './PurchaseInvoiceWithInventory'
-import PurchaseInvoiceWithoutInventory from './PurchaseInvoiceWithoutInventory'
+import PurchaseInvoice from './PurchaseInvoice'
 import DebitNote from './DebitNote'
 import FundFlowVoucher from './FundFlowVoucher'
 import VoucherEntryEngine from './VoucherEntryEngine'
@@ -57,7 +54,7 @@ const brandTheme = {
     contentBg: '#0A0A0F',
     sidebarBg: 'rgba(13, 14, 20, 0.72)',
     border: 'rgba(255, 255, 255, 0.08)',
-    heading: '#F4F4F7',
+    heading: '#e2bf22ff',
     text: '#9CA3B5',
     muted: '#6B7388',
     tableHeadBg: 'rgba(255, 255, 255, 0.03)',
@@ -107,30 +104,33 @@ function Dashboard({
     if (activeItem === 'Manage Company') return <CompaniesPanel />
     if (activeItem === 'Manage Business User') return <EntityPanel title="Business Owner" nameColumn="Business Owner Name" emptyText="No Account Data Found." />
     if (activeItem === 'Allocate Accountant') return <EntityPanel title="Accountants" nameColumn="Accountant Name" emptyText="No Account Data Found." />
-    if (activeItem === 'Quotation Inbox') return <QuotationInbox isDark={isDark} onAdd={() => setActiveItem('Create Quotation')} />
-    if (activeItem === 'Create Quotation') return <CreateQuotation isDark={isDark} onBack={() => setActiveItem('Quotation Inbox')} />
+
     if (activeItem === 'Invoice Inbox') return <InvoiceInbox isDark={isDark} onAdd={() => setActiveItem('Create Invoice')} />
     if (activeItem === 'Create Invoice') return <CreateInvoice isDark={isDark} onBack={() => setActiveItem('Invoice Inbox')} />
     if (activeItem === 'Sales Inbox') return <SalesPanel mode="Inbox" isDark={isDark} onAdd={() => setActiveItem('Create Sales')} />
     if (activeItem === 'Sales Review') return <SalesPanel mode="Review" isDark={isDark} />
     if (activeItem === 'Sales Archive') return <SalesPanel mode="Archive" isDark={isDark} />
     if (activeItem === 'Create Sales') return <CreateSales isDark={isDark} onBack={() => setActiveItem('Sales Inbox')} />
-    if (activeItem === 'Sales Order') return <SalesOrder isDark={isDark} onBack={() => setActiveItem('Sales Inbox')} />
-    if (activeItem === 'Sales Invoice') return <SalesInvoice isDark={isDark} onBack={() => setActiveItem('Sales Inbox')} />
-    if (activeItem === 'Credit Note (Sales Return)') return <CreditNote isDark={isDark} onBack={() => setActiveItem('Sales Inbox')} />
+    if (activeItem === 'Sales Order') return <SalesOrder isDark={isDark} />
+    if (activeItem === 'Sales Invoice') return <SalesInvoice isDark={isDark} />
+    if (activeItem === 'Credit Note (Sales Return)') return <CreditNote isDark={isDark} />
     if (activeItem === 'Purchase Inbox') return <PurchasePanel mode="Inbox" isDark={isDark} />
     if (activeItem === 'Purchase Review') return <PurchasePanel mode="Review" isDark={isDark} />
     if (activeItem === 'Purchase Archive') return <PurchasePanel mode="Archive" isDark={isDark} />
-    if (activeItem === 'Purchase Order') return <PurchaseOrder isDark={isDark} onBack={() => setActiveItem('Purchase Inbox')} />
-    if (activeItem === 'Purchase Invoice') return <VoucherEntryEngine isDark={isDark} defaultMode="manual" onBack={() => setActiveItem('Purchase Inbox')} voucherType="purchase_invoice" />
-    if (activeItem === 'Debit Note (Purchase Return)') return <DebitNote isDark={isDark} onBack={() => setActiveItem('Purchase Inbox')} />
-    if (activeItem === 'Fund Flow Inbox') return <PettyCashPanel mode="Inbox" isDark={isDark} />
-    if (activeItem === 'Fund Flow Review') return <PettyCashPanel mode="Review" isDark={isDark} />
-    if (activeItem === 'Fund Flow Archive') return <PettyCashPanel mode="Archive" isDark={isDark} />
-    if (activeItem === 'Voucher Entry') return <FundFlowVoucher isDark={isDark} defaultType="Payment" onBack={() => setActiveItem('Fund Flow Inbox')} />
+    if (activeItem === 'Purchase Order') return <PurchaseOrder isDark={isDark} />
+    if (activeItem === 'Purchase Invoice') return <PurchaseInvoice isDark={isDark} />
+    if (activeItem === 'Debit Note (Purchase Return)') return <DebitNote isDark={isDark} />
+    if (activeItem === 'Cash Payment') return <PettyCashPanel mode="Inbox" isDark={isDark} voucherType="cash_payment" title="Cash Payment" />;
+    if (activeItem === 'Bank Payment') return <PettyCashPanel mode="Inbox" isDark={isDark} voucherType="bank_payment" title="Bank Payment" />;
+    if (activeItem === 'Contra') return <PettyCashPanel mode="Inbox" isDark={isDark} voucherType="contra" title="Contra" />;
+    if (activeItem === 'Fund Flow Review') return <PettyCashPanel mode="Review" isDark={isDark} />;
+    if (activeItem === 'Fund Flow Archive') return <PettyCashPanel mode="Archive" isDark={isDark} />;
     if (activeItem === 'Manage Bank') return <BankPanel mode="Manage Bank" isDark={isDark} />
     if (activeItem === 'Manage Rule') return <BankPanel mode="Manage Rule" isDark={isDark} />
-    if (activeItem === 'Inbox' || activeItem === 'Review' || activeItem === 'Archive') return <BankPanel mode={activeItem} isDark={isDark} />
+    if (activeItem === 'Inbox' || activeItem === 'Bank Review' || activeItem === 'Bank Archive') {
+      const mode = activeItem === 'Bank Review' ? 'Review' : (activeItem === 'Bank Archive' ? 'Archive' : activeItem);
+      return <BankPanel mode={mode} isDark={isDark} />
+    }
     if (activeItem === 'Manage Roles' || activeItem === 'Manage User Permission') return <RolePanel mode={activeItem} isDark={isDark} />
     if (activeItem === 'My Documents') return <MyDocumentsPanel isDark={isDark} />
     if (activeItem === 'Party Ledger' || activeItem === 'Stock Ledger') return <MasterDataPanel mode={activeItem} isDark={isDark} />
@@ -139,7 +139,7 @@ function Dashboard({
 
   return (
     <div
-      className={`min-h-screen p-2 sm:p-3 md:p-4 relative overflow-hidden ${isDark ? 'dark' : ''}`}
+      className={`min-h-screen  relative overflow-hidden ${isDark ? 'dark' : ''}`}
       style={{
         backgroundColor: theme.appBg,
         color: theme.heading,
@@ -197,7 +197,7 @@ function Dashboard({
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-        className="overflow-hidden rounded-xl md:rounded-2xl border relative z-10 glass-surface"
+        className="overflow-hidden rounded-xl h-screen flex flex-col md:rounded-2xl border relative z-10 glass-surface"
         style={{
           borderColor: theme.border,
           boxShadow: isDark
@@ -217,7 +217,7 @@ function Dashboard({
           onMobileNavToggle={() => setMobileNavOpen((p) => !p)}
         />
 
-        <div className="flex h-[calc(100dvh-92px)] md:h-[calc(100vh-104px)] relative">
+        <div className="flex flex-1 relative overflow-hidden">
           {/* Desktop sidebar */}
           <div className="hidden md:flex h-full">
             <Sidebar
@@ -262,22 +262,36 @@ function Dashboard({
             )}
           </AnimatePresence>
 
-          <main
-            className="flex-1 overflow-auto themed-scrollbar p-3 sm:p-4 md:p-5"
-            style={{ backgroundColor: 'transparent' }}
-          >
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={activeItem}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4 }}
-                transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-              >
-                {renderContent()}
-              </motion.div>
-            </AnimatePresence>
-          </main>
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <main
+              className="flex-1 flex flex-col overflow-hidden p-3 sm:p-4 md:p-5"
+              style={{ backgroundColor: 'transparent' }}
+            >
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={activeItem}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+                  className="h-full flex flex-col"
+                >
+                  {renderContent()}
+                </motion.div>
+              </AnimatePresence>
+            </main>
+
+            <footer
+              className="px-4 py-2.5 text-[11.5px] font-semibold text-center border-t"
+              style={{
+                borderColor: theme.border,
+                color: theme.muted,
+                backgroundColor: 'transparent',
+              }}
+            >
+              © {new Date().getFullYear()} Finbook Advisors. All rights reserved.
+            </footer>
+          </div>
         </div>
       </motion.div>
     </div>

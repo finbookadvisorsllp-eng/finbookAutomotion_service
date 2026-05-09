@@ -1,7 +1,6 @@
 import {
   LayoutDashboard,
   Settings2,
-  FileText,
   ReceiptText,
   BarChart3,
   ShoppingCart,
@@ -13,6 +12,8 @@ import {
   ChevronsLeft,
   ChevronsRight,
   ChevronRight,
+  History,
+  Archive,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
@@ -20,12 +21,13 @@ import { AnimatePresence, motion } from 'motion/react'
 const menuItems = [
   { key: 'Dashboard', icon: LayoutDashboard, children: ['User Data'] },
   { key: 'Manage', icon: Settings2, children: ['Manage Company', 'Manage Business User', 'Allocate Accountant'] },
-  { key: 'Quotation', icon: FileText, children: ['Quotation Inbox'] },
   { key: 'Invoice', icon: ReceiptText, children: ['Invoice Inbox'] },
-  { key: 'Sales', icon: BarChart3, children: ['Sales Inbox', 'Sales Order', 'Sales Invoice', 'Credit Note (Sales Return)', 'Sales Review', 'Sales Archive'] },
-  { key: 'Purchase/Expense', icon: ShoppingCart, children: ['Purchase Inbox', 'Purchase Order', 'Purchase Invoice', 'Debit Note (Purchase Return)', 'Purchase Review', 'Purchase Archive'] },
-  { key: 'Fund Flow', icon: Wallet, children: ['Fund Flow Inbox', 'Voucher Entry', 'Fund Flow Review', 'Fund Flow Archive'] },
-  { key: 'Bank', icon: Landmark, children: ['Manage Bank', 'Manage Rule', 'Inbox', 'Review', 'Archive'] },
+  { key: 'Sales', icon: BarChart3, children: ['Sales Order', 'Sales Invoice', 'Credit Note (Sales Return)'] },
+  { key: 'Purchase/Expense', icon: ShoppingCart, children: ['Purchase Order', 'Purchase Invoice', 'Debit Note (Purchase Return)'] },
+  { key: 'Fund Flow', icon: Wallet, children: ['Cash Payment', 'Bank Payment', 'Contra'] },
+  { key: 'Bank', icon: Landmark, children: ['Manage Bank', 'Manage Rule', 'Inbox'] },
+  { key: 'Review', icon: History, children: ['Sales Review', 'Purchase Review', 'Fund Flow Review', 'Bank Review'] },
+  { key: 'Archive', icon: Archive, children: ['Sales Archive', 'Purchase Archive', 'Fund Flow Archive', 'Bank Archive'] },
   { key: 'Role Management', icon: ShieldCheck, children: ['Manage Roles', 'Manage User Permission'] },
   { key: 'My Documents', icon: FolderOpen },
   { key: 'Master Data', icon: Boxes, children: ['Party Ledger', 'Stock Ledger'] },

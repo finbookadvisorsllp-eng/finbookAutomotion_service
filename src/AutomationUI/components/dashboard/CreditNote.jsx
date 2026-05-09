@@ -1,63 +1,18 @@
-import React, { useState } from 'react';
-import { Save, Send, ArrowLeft, Plus, Settings, ChevronDown, CheckCircle2, ChevronUp, Trash2, Calendar, Layout, Search, FileMinus } from 'lucide-react';
-import VoucherEntryEngine from './VoucherEntryEngine';
+import React from 'react';
+import SalesPanel from './SalesPanel';
+import { FileMinus } from 'lucide-react';
 
-const CreditNote = ({ isDark, onBack }) => {
-  const theme = {
-    bg: 'var(--app-content-bg)',
-    panel: 'var(--app-panel-bg)',
-    border: 'var(--app-border)',
-    headerBg: 'var(--app-table-head-bg)',
-    text: 'var(--app-heading)',
-    inputBg: 'var(--app-control-bg)',
-    mutedText: 'var(--app-muted)',
-    accent: '#4f46e5',
-    accentSoft: isDark ? 'rgba(79, 70, 229, 0.2)' : '#eef2ff',
-  };
-
-  const InputField = ({ label, placeholder, type = "text", value }) => (
-    <div className="flex flex-col gap-1 flex-1 min-w-[140px]">
-      <label className="text-[10px] font-semibold opacity-60 truncate" style={{ color: theme.text }}>{label}</label>
-      <input 
-        type={type}
-        defaultValue={value}
-        placeholder={placeholder}
-        className="w-full h-8 rounded-md border px-2 text-[11px] outline-none transition-all focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100"
-        style={{ backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.text }}
-      />
-    </div>
-  );
-
+const CreditNote = ({ isDark }) => {
   return (
-    <div className="flex flex-col h-full overflow-hidden animate-in fade-in duration-500">
-      <div className="flex items-center justify-between px-4 py-2 border-b shrink-0 bg-white/50 backdrop-blur-sm" style={{ borderColor: theme.border }}>
-        <div className="flex items-center gap-3">
-          <button onClick={onBack} className="p-1 rounded-md hover:bg-slate-100 transition-colors" style={{ color: theme.text }}>
-            <ArrowLeft size={16} />
-          </button>
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-md flex items-center justify-center bg-rose-100 text-rose-600">
-              <FileMinus size={12} strokeWidth={2.5} />
-            </div>
-            <h1 className="text-[14px] font-black tracking-tight" style={{ color: theme.text }}>Credit Note (Sales Return)</h1>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-[11px] font-bold hover:bg-slate-50 transition-colors" style={{ borderColor: theme.border, color: theme.text }}>
-            <Save size={12} /> Save Draft
-          </button>
-          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-white text-[11px] font-bold hover:bg-rose-700 transition-colors bg-rose-600 shadow-sm">
-            <CheckCircle2 size={12} /> Save Return
-          </button>
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-4 custom-scrollbar relative">
-        <div className="max-w-6xl mx-auto">
-          <VoucherEntryEngine isDark={isDark} defaultMode="manual" />
-        </div>
-      </div>
-    </div>
+    <SalesPanel 
+      mode="Inbox" 
+      isDark={isDark} 
+      voucherType="credit_note" 
+      title="Credit Note (Sales Return)" 
+      icon={FileMinus}
+      description="Manage and process all sales return entries efficiently."
+      emptyText="No Credit Note found"
+    />
   );
 };
 
