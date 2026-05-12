@@ -1,7 +1,8 @@
-import { Dashboard } from './AutomationUI/components/dashboard'
+import { RouterProvider } from 'react-router-dom'
+import { router } from './routes'
 
 function App() {
-  return <Dashboard />
+  return <RouterProvider router={router} />
 }
 
 export default App

@@ -34,7 +34,7 @@ import {
   Wallet
 } from 'lucide-react';
 import { motion } from 'motion/react';
-import VoucherEntryEngine from './VoucherEntryEngine';
+import VoucherEntryEngine from '../vouchers/VoucherEntryEngine';
 
 const PettyCashPanel = ({ mode, isDark, voucherType, title: customTitle }) => {
   const [createMode, setCreateMode] = useState(false);

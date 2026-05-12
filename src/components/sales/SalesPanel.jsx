@@ -36,7 +36,7 @@ import {
   FileOutput
 } from 'lucide-react';
 import CreateSales from './CreateSales';
-import VoucherEntryEngine from './VoucherEntryEngine';
+import VoucherEntryEngine from '../vouchers/VoucherEntryEngine';
 import { AlertCircle, Bot, BarChart3, ScanLine, FileSpreadsheet } from 'lucide-react';
 import { motion } from 'motion/react';
 

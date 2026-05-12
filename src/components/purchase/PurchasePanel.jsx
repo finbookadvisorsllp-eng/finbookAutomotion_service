@@ -50,7 +50,7 @@ import {
   ShoppingCart
 } from 'lucide-react';
 import { motion } from 'motion/react';
-import VoucherEntryEngine from './VoucherEntryEngine';
+import VoucherEntryEngine from '../vouchers/VoucherEntryEngine';
 
 const PurchasePanel = ({ mode, isDark, onAdd, title: customTitle, description: customDescription, voucherType = "purchase", emptyText, icon: CustomIcon }) => {
   const Icon = CustomIcon || ShoppingCart;

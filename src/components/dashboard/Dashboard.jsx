@@ -1,28 +1,10 @@
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import Navbar from './Navbar'
-import Sidebar from './Sidebar'
-import CompaniesPanel from './CompaniesPanel'
-import DashboardTable from './DashboardTable'
-import EntityPanel from './EntityPanel'
-import InvoiceInbox from './InvoiceInbox'
-import CreateInvoice from './CreateInvoice'
-import SalesPanel from './SalesPanel'
-import CreateSales from './CreateSales'
-import PurchasePanel from './PurchasePanel'
-import PettyCashPanel from './PettyCashPanel'
-import BankPanel from './BankPanel'
-import RolePanel from './RolePanel'
-import MyDocumentsPanel from './MyDocumentsPanel'
-import MasterDataPanel from './MasterDataPanel'
-import SalesOrder from './SalesOrder'
-import SalesInvoice from './SalesInvoice'
-import CreditNote from './CreditNote'
-import PurchaseOrder from './PurchaseOrder'
-import PurchaseInvoice from './PurchaseInvoice'
-import DebitNote from './DebitNote'
-import FundFlowVoucher from './FundFlowVoucher'
-import VoucherEntryEngine from './VoucherEntryEngine'
+import { Outlet, useLocation, useNavigate } from 'react-router-dom'
+import Navbar from '../layout/Navbar'
+import Sidebar from '../layout/Sidebar'
+import { LABEL_TO_PATH, PATH_TO_LABEL } from '../../routes/routePaths'
+import { useAppStore } from '../../stores/useAppStore'
 
 // Modern SaaS design tokens — Linear / Vercel inspired.
 // Light mode: warm neutrals, indigo→violet brand. Dark mode: deep cool slate.
@@ -71,25 +53,35 @@ const brandTheme = {
   },
 }
 
-const defaultCompanies = ['Data Uncyclable', 'Finolax Advisors', 'Greenline Ventures', 'Apex Holdings']
-
 function Dashboard({
-  companies = defaultCompanies,
   subscriptionMessage = 'Your subscription expires in 8 days',
   credits = 372,
 }) {
-  const [activeItem, setActiveItem] = useState('User Data')
+  const location = useLocation()
+  const navigate = useNavigate()
+  const activeItem = PATH_TO_LABEL[location.pathname] ?? 'User Data'
+  const handleItemClick = (label) => {
+    const path = LABEL_TO_PATH[label]
+    if (path) navigate(path)
+  }
+
+  // Theme + tenant scope live in the global store so any feature can read them
+  // without prop-drilling, and axios picks up the selected company automatically.
+  const mode = useAppStore((s) => s.mode)
+  const toggleMode = useAppStore((s) => s.toggleMode)
+  const companies = useAppStore((s) => s.companies)
+  const selectedCompany = useAppStore((s) => s.selectedCompany)
+  const setSelectedCompany = useAppStore((s) => s.setSelectedCompany)
+
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
-  const [mode, setMode] = useState('light')
-  const [selectedCompany, setSelectedCompany] = useState(companies[0] ?? '')
   const theme = brandTheme[mode]
   const isDark = mode === 'dark'
 
   // Close mobile drawer when navigating
   useEffect(() => {
     setMobileNavOpen(false)
-  }, [activeItem])
+  }, [location.pathname])
 
   // Lock body scroll when mobile drawer is open
   useEffect(() => {
@@ -99,43 +91,6 @@ function Dashboard({
       return () => { document.body.style.overflow = prev }
     }
   }, [mobileNavOpen])
-
-  const renderContent = () => {
-    if (activeItem === 'Manage Company') return <CompaniesPanel />
-    if (activeItem === 'Manage Business User') return <EntityPanel title="Business Owner" nameColumn="Business Owner Name" emptyText="No Account Data Found." />
-    if (activeItem === 'Allocate Accountant') return <EntityPanel title="Accountants" nameColumn="Accountant Name" emptyText="No Account Data Found." />
-
-    if (activeItem === 'Invoice Inbox') return <InvoiceInbox isDark={isDark} onAdd={() => setActiveItem('Create Invoice')} />
-    if (activeItem === 'Create Invoice') return <CreateInvoice isDark={isDark} onBack={() => setActiveItem('Invoice Inbox')} />
-    if (activeItem === 'Sales Inbox') return <SalesPanel mode="Inbox" isDark={isDark} onAdd={() => setActiveItem('Create Sales')} />
-    if (activeItem === 'Sales Review') return <SalesPanel mode="Review" isDark={isDark} />
-    if (activeItem === 'Sales Archive') return <SalesPanel mode="Archive" isDark={isDark} />
-    if (activeItem === 'Create Sales') return <CreateSales isDark={isDark} onBack={() => setActiveItem('Sales Inbox')} />
-    if (activeItem === 'Sales Order') return <SalesOrder isDark={isDark} />
-    if (activeItem === 'Sales Invoice') return <SalesInvoice isDark={isDark} />
-    if (activeItem === 'Credit Note (Sales Return)') return <CreditNote isDark={isDark} />
-    if (activeItem === 'Purchase Inbox') return <PurchasePanel mode="Inbox" isDark={isDark} />
-    if (activeItem === 'Purchase Review') return <PurchasePanel mode="Review" isDark={isDark} />
-    if (activeItem === 'Purchase Archive') return <PurchasePanel mode="Archive" isDark={isDark} />
-    if (activeItem === 'Purchase Order') return <PurchaseOrder isDark={isDark} />
-    if (activeItem === 'Purchase Invoice') return <PurchaseInvoice isDark={isDark} />
-    if (activeItem === 'Debit Note (Purchase Return)') return <DebitNote isDark={isDark} />
-    if (activeItem === 'Cash Payment') return <PettyCashPanel mode="Inbox" isDark={isDark} voucherType="cash_payment" title="Cash Payment" />;
-    if (activeItem === 'Bank Payment') return <PettyCashPanel mode="Inbox" isDark={isDark} voucherType="bank_payment" title="Bank Payment" />;
-    if (activeItem === 'Contra') return <PettyCashPanel mode="Inbox" isDark={isDark} voucherType="contra" title="Contra" />;
-    if (activeItem === 'Fund Flow Review') return <PettyCashPanel mode="Review" isDark={isDark} />;
-    if (activeItem === 'Fund Flow Archive') return <PettyCashPanel mode="Archive" isDark={isDark} />;
-    if (activeItem === 'Manage Bank') return <BankPanel mode="Manage Bank" isDark={isDark} />
-    if (activeItem === 'Manage Rule') return <BankPanel mode="Manage Rule" isDark={isDark} />
-    if (activeItem === 'Inbox' || activeItem === 'Bank Review' || activeItem === 'Bank Archive') {
-      const mode = activeItem === 'Bank Review' ? 'Review' : (activeItem === 'Bank Archive' ? 'Archive' : activeItem);
-      return <BankPanel mode={mode} isDark={isDark} />
-    }
-    if (activeItem === 'Manage Roles' || activeItem === 'Manage User Permission') return <RolePanel mode={activeItem} isDark={isDark} />
-    if (activeItem === 'My Documents') return <MyDocumentsPanel isDark={isDark} />
-    if (activeItem === 'Party Ledger' || activeItem === 'Stock Ledger') return <MasterDataPanel mode={activeItem} isDark={isDark} />
-    return <DashboardTable isDark={isDark} />
-  }
 
   return (
     <div
@@ -208,7 +163,7 @@ function Dashboard({
         <Navbar
           isDark={isDark}
           mode={mode}
-          onModeToggle={() => setMode((prev) => (prev === 'dark' ? 'light' : 'dark'))}
+          onModeToggle={toggleMode}
           companies={companies}
           selectedCompany={selectedCompany}
           onCompanyChange={setSelectedCompany}
@@ -222,7 +177,7 @@ function Dashboard({
           <div className="hidden md:flex h-full">
             <Sidebar
               activeItem={activeItem}
-              onItemClick={setActiveItem}
+              onItemClick={handleItemClick}
               collapsed={sidebarCollapsed}
               onToggle={() => setSidebarCollapsed((prev) => !prev)}
               isDark={isDark}
@@ -252,7 +207,7 @@ function Dashboard({
                 >
                   <Sidebar
                     activeItem={activeItem}
-                    onItemClick={setActiveItem}
+                    onItemClick={handleItemClick}
                     collapsed={false}
                     onToggle={() => setMobileNavOpen(false)}
                     isDark={isDark}
@@ -276,7 +231,9 @@ function Dashboard({
                   transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
                   className="h-full flex flex-col"
                 >
-                  {renderContent()}
+                  <Suspense fallback={<div className="h-full flex items-center justify-center text-xs font-semibold uppercase tracking-widest" style={{ color: theme.muted }}>Loading…</div>}>
+                    <Outlet context={{ isDark }} />
+                  </Suspense>
                 </motion.div>
               </AnimatePresence>
             </main>

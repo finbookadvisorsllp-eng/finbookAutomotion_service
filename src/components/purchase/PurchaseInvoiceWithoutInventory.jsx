@@ -1,6 +1,6 @@
 import React from 'react';
 import { ArrowLeft, FileText } from 'lucide-react';
-import VoucherEntryEngine from './VoucherEntryEngine';
+import VoucherEntryEngine from '../vouchers/VoucherEntryEngine';
 
 const PurchaseInvoiceWithoutInventory = ({ isDark, onBack }) => {
   const theme = {

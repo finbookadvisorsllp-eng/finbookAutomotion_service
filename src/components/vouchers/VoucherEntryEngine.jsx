@@ -14,8 +14,8 @@ import {
   Camera,
   Bot
 } from 'lucide-react';
-import CreateSales from './CreateSales';
-import CreatePurchase from './CreatePurchase';
+import CreateSales from '../sales/CreateSales';
+import CreatePurchase from '../purchase/CreatePurchase';
 import CreateFundFlow from './CreateFundFlow';
 
 const VoucherEntryEngine = ({ isDark, defaultMode = 'manual', voucherType = 'sales', onBack }) => {
