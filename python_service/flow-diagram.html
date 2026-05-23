@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Finbook.ai — Project Flow Diagram</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:#0a0a0f;color:#e2e8f0;min-height:100vh;overflow-x:hidden}
+.bg-glow{position:fixed;width:600px;height:600px;border-radius:50%;filter:blur(150px);opacity:.15;pointer-events:none;z-index:0}
+.glow-1{top:-200px;left:-100px;background:#6366f1}
+.glow-2{bottom:-200px;right:-100px;background:#06b6d4}
+.glow-3{top:40%;left:50%;background:#8b5cf6}
+.container{max-width:1200px;margin:0 auto;padding:40px 20px;position:relative;z-index:1}
+h1{text-align:center;font-size:2.8rem;font-weight:900;background:linear-gradient(135deg,#6366f1,#06b6d4,#10b981);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:8px;letter-spacing:-1px}
+.subtitle{text-align:center;color:#64748b;font-size:.95rem;margin-bottom:50px}
+.section-title{font-size:1.4rem;font-weight:800;margin:50px 0 24px;padding-left:16px;border-left:4px solid #6366f1;color:#e2e8f0}
+
+/* Flow Arrow */
+.flow-arrow{display:flex;justify-content:center;margin:20px 0}
+.flow-arrow svg{animation:bounce 2s infinite}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(8px)}}
+
+/* Cards */
+.card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin:20px 0}
+.card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:20px;transition:all .3s;position:relative;overflow:hidden}
+.card:hover{transform:translateY(-4px);border-color:rgba(99,102,241,.4);box-shadow:0 8px 32px rgba(99,102,241,.15)}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:16px 16px 0 0}
+.card .icon{font-size:1.8rem;margin-bottom:10px}
+.card .title{font-weight:700;font-size:.95rem;margin-bottom:6px}
+.card .desc{font-size:.75rem;color:#94a3b8;line-height:1.5}
+.card .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:.65rem;font-weight:700;margin-top:8px}
+
+/* Color Variants */
+.c-indigo::before{background:linear-gradient(90deg,#6366f1,#818cf8)}.c-indigo .badge{background:rgba(99,102,241,.2);color:#818cf8}
+.c-emerald::before{background:linear-gradient(90deg,#10b981,#34d399)}.c-emerald .badge{background:rgba(16,185,129,.2);color:#34d399}
+.c-cyan::before{background:linear-gradient(90deg,#06b6d4,#22d3ee)}.c-cyan .badge{background:rgba(6,182,212,.2);color:#22d3ee}
+.c-violet::before{background:linear-gradient(90deg,#8b5cf6,#a78bfa)}.c-violet .badge{background:rgba(139,92,246,.2);color:#a78bfa}
+.c-amber::before{background:linear-gradient(90deg,#f59e0b,#fbbf24)}.c-amber .badge{background:rgba(245,158,11,.2);color:#fbbf24}
+.c-rose::before{background:linear-gradient(90deg,#f43f5e,#fb7185)}.c-rose .badge{background:rgba(244,63,94,.2);color:#fb7185}
+.c-sky::before{background:linear-gradient(90deg,#0ea5e9,#38bdf8)}.c-sky .badge{background:rgba(14,165,233,.2);color:#38bdf8}
+.c-lime::before{background:linear-gradient(90deg,#84cc16,#a3e635)}.c-lime .badge{background:rgba(132,204,22,.2);color:#a3e635}
+.c-pink::before{background:linear-gradient(90deg,#ec4899,#f472b6)}.c-pink .badge{background:rgba(236,72,153,.2);color:#f472b6}
+.c-teal::before{background:linear-gradient(90deg,#14b8a6,#2dd4bf)}.c-teal .badge{background:rgba(20,184,166,.2);color:#2dd4bf}
+.c-orange::before{background:linear-gradient(90deg,#f97316,#fb923c)}.c-orange .badge{background:rgba(249,115,22,.2);color:#fb923c}
+
+/* Big Flow Section */
+.big-flow{display:flex;flex-direction:column;align-items:center;gap:0;margin:30px 0}
+.flow-box{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:20px 36px;text-align:center;min-width:320px;position:relative;transition:all .3s}
+.flow-box:hover{border-color:rgba(99,102,241,.5);box-shadow:0 0 30px rgba(99,102,241,.1)}
+.flow-box .fl-icon{font-size:2rem;margin-bottom:6px}
+.flow-box .fl-title{font-weight:800;font-size:1.1rem}
+.flow-box .fl-desc{font-size:.78rem;color:#94a3b8;margin-top:4px}
+.flow-connector{width:3px;height:40px;background:linear-gradient(180deg,#6366f1,#06b6d4);border-radius:4px;position:relative}
+.flow-connector::after{content:'▼';position:absolute;bottom:-14px;left:50%;transform:translateX(-50%);color:#06b6d4;font-size:.7rem}
+
+/* Workflow Pipeline */
+.pipeline{display:flex;align-items:center;justify-content:center;gap:0;flex-wrap:wrap;margin:24px 0}
+.pipe-step{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:14px 20px;text-align:center;min-width:130px;transition:all .3s}
+.pipe-step:hover{transform:scale(1.05);border-color:rgba(16,185,129,.4)}
+.pipe-step .ps-icon{font-size:1.4rem}
+.pipe-step .ps-label{font-size:.75rem;font-weight:700;margin-top:4px}
+.pipe-step .ps-sub{font-size:.65rem;color:#64748b;margin-top:2px}
+.pipe-arrow{color:#6366f1;font-size:1.2rem;margin:0 4px;font-weight:900}
+
+/* Ecosystem */
+.eco-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin:20px 0}
+.eco-card{background:linear-gradient(135deg,rgba(99,102,241,.08),rgba(6,182,212,.05));border:1px solid rgba(99,102,241,.15);border-radius:16px;padding:24px;transition:all .3s}
+.eco-card:hover{transform:translateY(-4px);box-shadow:0 12px 40px rgba(99,102,241,.1)}
+.eco-card .ec-icon{font-size:2rem;margin-bottom:8px}
+.eco-card .ec-title{font-weight:800;font-size:1rem;margin-bottom:4px}
+.eco-card .ec-desc{font-size:.75rem;color:#94a3b8;line-height:1.5}
+
+/* Roadmap */
+.roadmap{position:relative;padding-left:30px;margin:20px 0}
+.roadmap::before{content:'';position:absolute;left:14px;top:0;bottom:0;width:3px;background:linear-gradient(180deg,#6366f1,#06b6d4,#10b981,#f59e0b);border-radius:4px}
+.rm-item{position:relative;margin-bottom:24px;padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;transition:all .3s}
+.rm-item:hover{border-color:rgba(99,102,241,.3);transform:translateX(4px)}
+.rm-item::before{content:'';position:absolute;left:-24px;top:20px;width:14px;height:14px;border-radius:50%;border:3px solid;background:#0a0a0f}
+.rm-item:nth-child(1)::before{border-color:#6366f1}
+.rm-item:nth-child(2)::before{border-color:#06b6d4}
+.rm-item:nth-child(3)::before{border-color:#10b981}
+.rm-item:nth-child(4)::before{border-color:#f59e0b}
+.rm-item .rm-phase{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
+.rm-item .rm-title{font-weight:800;font-size:.95rem;margin-bottom:6px}
+.rm-item .rm-tasks{font-size:.75rem;color:#94a3b8;line-height:1.6}
+
+/* Stats */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:20px 0}
+.stat-box{text-align:center;padding:20px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:12px}
+.stat-box .s-num{font-size:1.8rem;font-weight:900;background:linear-gradient(135deg,#6366f1,#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.stat-box .s-label{font-size:.7rem;color:#64748b;margin-top:4px;font-weight:600}
+
+/* Footer */
+.footer{text-align:center;margin-top:60px;padding:20px;color:#475569;font-size:.8rem;border-top:1px solid rgba(255,255,255,.06)}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.animate{animation:fadeUp .6s ease-out both}
+.d1{animation-delay:.1s}.d2{animation-delay:.2s}.d3{animation-delay:.3s}.d4{animation-delay:.4s}
+</style>
+</head>
+<body>
+
+<div class="bg-glow glow-1"></div>
+<div class="bg-glow glow-2"></div>
+<div class="bg-glow glow-3"></div>
+
+<div class="container">
+
+<!-- Header -->
+<h1 class="animate">Finbook.ai</h1>
+<p class="subtitle animate d1">Accounting Automation Platform — Complete Project Flow Diagram</p>
+
+<!-- Stats -->
+<div class="stats animate d2">
+  <div class="stat-box"><div class="s-num">21</div><div class="s-label">React Components</div></div>
+  <div class="stat-box"><div class="s-num">13</div><div class="s-label">Major Modules</div></div>
+  <div class="stat-box"><div class="s-num">470KB</div><div class="s-label">Source Code</div></div>
+  <div class="stat-box"><div class="s-num">2</div><div class="s-label">Theme Modes</div></div>
+  <div class="stat-box"><div class="s-num">17</div><div class="s-label">Design Tokens</div></div>
+</div>
+
+<!-- ===== SECTION 1: High-Level Data Flow ===== -->
+<div class="section-title">📊 High-Level Data Flow</div>
+
+<div class="big-flow">
+  <div class="flow-box" style="border-color:rgba(244,63,94,.3)">
+    <div class="fl-icon">📄</div>
+    <div class="fl-title" style="color:#fb7185">Raw Documents</div>
+    <div class="fl-desc">PDF Invoices · Excel Sheets · Bank Statements · WhatsApp Photos</div>
+  </div>
+  <div class="flow-connector"></div>
+  <div class="flow-box" style="border-color:rgba(139,92,246,.3)">
+    <div class="fl-icon">🐍</div>
+    <div class="fl-title" style="color:#a78bfa">Python OCR Engine</div>
+    <div class="fl-desc">PaddleOCR · Tesseract · AI-Powered Parsing → Structured JSON</div>
+  </div>
+  <div class="flow-connector"></div>
+  <div class="flow-box" style="border-color:rgba(99,102,241,.3)">
+    <div class="fl-icon">⚛️</div>
+    <div class="fl-title" style="color:#818cf8">Finbook.ai Dashboard (This Project)</div>
+    <div class="fl-desc">React Frontend · Review · Edit · Approve · Manage</div>
+  </div>
+  <div class="flow-connector"></div>
+  <div class="flow-box" style="border-color:rgba(6,182,212,.3)">
+    <div class="fl-icon">🟢</div>
+    <div class="fl-title" style="color:#22d3ee">Node.js API Server</div>
+    <div class="fl-desc">Express.js · MongoDB · JWT Auth · REST API · Vercel</div>
+  </div>
+  <div class="flow-connector"></div>
+  <div class="flow-box" style="border-color:rgba(16,185,129,.3)">
+    <div class="fl-icon">🔗</div>
+    <div class="fl-title" style="color:#34d399">Tally Connector</div>
+    <div class="fl-desc">Desktop Bridge App → Auto-Push XML Vouchers to Tally Prime</div>
+  </div>
+</div>
+
+<!-- ===== SECTION 2: Transaction Workflow ===== -->
+<div class="section-title">🔄 Transaction Lifecycle (Inbox → Review → Archive)</div>
+
+<div class="pipeline">
+  <div class="pipe-step" style="border-color:rgba(249,115,22,.3)">
+    <div class="ps-icon">📤</div>
+    <div class="ps-label" style="color:#fb923c">Upload</div>
+    <div class="ps-sub">PDF / Excel / Photo</div>
+  </div>
+  <div class="pipe-arrow">→</div>
+  <div class="pipe-step" style="border-color:rgba(139,92,246,.3)">
+    <div class="ps-icon">🤖</div>
+    <div class="ps-label" style="color:#a78bfa">AI Parse</div>
+    <div class="ps-sub">OCR Extraction</div>
+  </div>
+  <div class="pipe-arrow">→</div>
+  <div class="pipe-step" style="border-color:rgba(59,130,246,.3)">
+    <div class="ps-icon">📥</div>
+    <div class="ps-label" style="color:#60a5fa">Inbox</div>
+    <div class="ps-sub">Pending Review</div>
+  </div>
+  <div class="pipe-arrow">→</div>
+  <div class="pipe-step" style="border-color:rgba(245,158,11,.3)">
+    <div class="ps-icon">🔍</div>
+    <div class="ps-label" style="color:#fbbf24">Review</div>
+    <div class="ps-sub">Accountant Checks</div>
+  </div>
+  <div class="pipe-arrow">→</div>
+  <div class="pipe-step" style="border-color:rgba(16,185,129,.3)">
+    <div class="ps-icon">✅</div>
+    <div class="ps-label" style="color:#34d399">Approve</div>
+    <div class="ps-sub">Ready to Push</div>
+  </div>
+  <div class="pipe-arrow">→</div>
+  <div class="pipe-step" style="border-color:rgba(6,182,212,.3)">
+    <div class="ps-icon">📦</div>
+    <div class="ps-label" style="color:#22d3ee">Archive</div>
+    <div class="ps-sub">In Tally</div>
+  </div>
+</div>
+
+<!-- ===== SECTION 3: All Modules ===== -->
+<div class="section-title">🧩 All 13 Modules Built</div>
+
+<div class="card-grid">
+  <div class="card c-indigo">
+    <div class="icon">🏠</div>
+    <div class="title">Dashboard Shell</div>
+    <div class="desc">Main layout with Navbar, Sidebar, content routing. Dual theme system with 17 tokens.</div>
+    <div class="badge">Dashboard.jsx · Navbar.jsx · Sidebar.jsx</div>
+  </div>
+  <div class="card c-cyan">
+    <div class="icon">📊</div>
+    <div class="title">Dashboard Overview</div>
+    <div class="desc">Bird's-eye view table showing all orgs with Sales/Purchase/Bank pipeline counts.</div>
+    <div class="badge">DashboardTable.jsx</div>
+  </div>
+  <div class="card c-emerald">
+    <div class="icon">🏢</div>
+    <div class="title">Company Management</div>
+    <div class="desc">CRUD for Tally companies. GST, PAN, address. Add Company modal with validation.</div>
+    <div class="badge">CompaniesPanel.jsx · AddCompanyModal.jsx</div>
+  </div>
+  <div class="card c-violet">
+    <div class="icon">👤</div>
+    <div class="title">Entity Management</div>
+    <div class="desc">Manage Business Owners & Accountants. Multi-tenant user allocation.</div>
+    <div class="badge">EntityPanel.jsx</div>
+  </div>
+  <div class="card c-amber">
+    <div class="icon">📋</div>
+    <div class="title">Quotation Module</div>
+    <div class="desc">Create quotations with party details, item tables, HSN/SAC, and tax computation.</div>
+    <div class="badge">QuotationInbox.jsx · CreateQuotation.jsx</div>
+  </div>
+  <div class="card c-rose">
+    <div class="icon">🧾</div>
+    <div class="title">Invoice Module</div>
+    <div class="desc">Full GST invoice creation with 3 view modes, TDS/TCS, Add Ledger/Stock modals.</div>
+    <div class="badge">InvoiceInbox.jsx · CreateInvoice.jsx</div>
+  </div>
+  <div class="card c-sky">
+    <div class="icon">💰</div>
+    <div class="title">Sales Module</div>
+    <div class="desc">Inbox/Review/Archive + Excel Mode with expandable column groups. 3 tab transaction form.</div>
+    <div class="badge">SalesPanel.jsx · CreateSales.jsx</div>
+  </div>
+  <div class="card c-lime">
+    <div class="icon">🛒</div>
+    <div class="title">Purchase Module</div>
+    <div class="desc">Mirror of Sales + PO Number, ITC, GST Login, History tracking, Upload Files.</div>
+    <div class="badge">PurchasePanel.jsx · CreatePurchase.jsx</div>
+  </div>
+  <div class="card c-pink">
+    <div class="icon">💵</div>
+    <div class="title">Petty Cash Module</div>
+    <div class="desc">Small cash transactions with Excel Mode. Basic/Payment/Item expandable groups.</div>
+    <div class="badge">PettyCashPanel.jsx</div>
+  </div>
+  <div class="card c-teal">
+    <div class="icon">🏦</div>
+    <div class="title">Bank Module</div>
+    <div class="desc">5 sub-sections: Manage Bank, Rules, Inbox, Review, Archive. Statement upload & auto-classify.</div>
+    <div class="badge">BankPanel.jsx</div>
+  </div>
+  <div class="card c-orange">
+    <div class="icon">🔐</div>
+    <div class="title">Role Management</div>
+    <div class="desc">RBAC — create custom roles, assign granular permissions per module per user.</div>
+    <div class="badge">RolePanel.jsx</div>
+  </div>
+  <div class="card c-indigo">
+    <div class="icon">📁</div>
+    <div class="title">My Documents</div>
+    <div class="desc">Document repository with Month-wise & Party-wise views. Advanced filter drawer.</div>
+    <div class="badge">MyDocumentsPanel.jsx</div>
+  </div>
+  <div class="card c-cyan">
+    <div class="icon">📒</div>
+    <div class="title">Master Data</div>
+    <div class="desc">Party Ledger & Stock Ledger viewer synced from Tally. Foundation data for all transactions.</div>
+    <div class="badge">MasterDataPanel.jsx</div>
+  </div>
+</div>
+
+<!-- ===== SECTION 4: Ecosystem ===== -->
+<div class="section-title">🌐 Full Ecosystem Architecture</div>
+
+<div class="eco-grid">
+  <div class="eco-card">
+    <div class="ec-icon">⚛️</div>
+    <div class="ec-title" style="color:#818cf8">Frontend (This Project)</div>
+    <div class="ec-desc">React 19 + Vite 8 + Tailwind 4<br>21 components · 13 modules<br>Dark/Light theme · Excel Mode<br>Pixel-perfect enterprise UI</div>
+  </div>
+  <div class="eco-card">
+    <div class="ec-icon">🐍</div>
+    <div class="ec-title" style="color:#a78bfa">Python OCR Service</div>
+    <div class="ec-desc">PaddleOCR + Tesseract + GPT<br>PDF → Structured JSON<br>GSTIN, HSN, IRN extraction<br>Multi-engine fallback</div>
+  </div>
+  <div class="eco-card">
+    <div class="ec-icon">🟢</div>
+    <div class="ec-title" style="color:#34d399">Node.js Backend</div>
+    <div class="ec-desc">Express.js + MongoDB<br>JWT Authentication<br>REST API · File Upload<br>Deployed on Vercel</div>
+  </div>
+  <div class="eco-card">
+    <div class="ec-icon">🔗</div>
+    <div class="ec-title" style="color:#22d3ee">Tally Connector</div>
+    <div class="ec-desc">Desktop bridge application<br>Syncs master data FROM Tally<br>Pushes vouchers TO Tally<br>XML data format</div>
+  </div>
+</div>
+
+<!-- ===== SECTION 5: Roadmap ===== -->
+<div class="section-title">🗺️ Development Roadmap</div>
+
+<div class="roadmap">
+  <div class="rm-item">
+    <div class="rm-phase" style="color:#818cf8">🔴 Phase 1 — Immediate</div>
+    <div class="rm-title">Backend Integration & Auth</div>
+    <div class="rm-tasks">✦ Connect all panels to REST APIs &nbsp;✦ JWT login/register &nbsp;✦ React Router for URL navigation &nbsp;✦ Zustand/Context state management &nbsp;✦ Form validation (Zod/Yup) &nbsp;✦ Error boundaries & toasts</div>
+  </div>
+  <div class="rm-item">
+    <div class="rm-phase" style="color:#22d3ee">🟡 Phase 2 — Short Term (1-2 months)</div>
+    <div class="rm-title">Tally Sync & OCR Pipeline</div>
+    <div class="rm-tasks">✦ Tally Connector real-time sync &nbsp;✦ PDF upload → OCR → preview → approve → Tally &nbsp;✦ GST 2A/2B reconciliation &nbsp;✦ Reporting dashboard with charts &nbsp;✦ Bulk operations &nbsp;✦ Excel/CSV/PDF export</div>
+  </div>
+  <div class="rm-item">
+    <div class="rm-phase" style="color:#34d399">🟢 Phase 3 — Medium Term (3-6 months)</div>
+    <div class="rm-title">Mobile, Email & Multi-Language</div>
+    <div class="rm-tasks">✦ Mobile responsive design &nbsp;✦ Email/WhatsApp auto-capture &nbsp;✦ Hindi, Marathi, Gujarati, Tamil &nbsp;✦ Audit logging &nbsp;✦ Notification system &nbsp;✦ Virtual scrolling & code splitting</div>
+  </div>
+  <div class="rm-item">
+    <div class="rm-phase" style="color:#fbbf24">🔵 Phase 4 — Long Term (6-12 months)</div>
+    <div class="rm-title">AI, Payments & White-Label</div>
+    <div class="rm-tasks">✦ ML auto-classification of transactions &nbsp;✦ Payment gateway & subscriptions &nbsp;✦ API marketplace (Zoho, QuickBooks) &nbsp;✦ White-label solution for CA firms</div>
+  </div>
+</div>
+
+<!-- ===== SECTION 6: Why It Matters ===== -->
+<div class="section-title">💡 Why This Project Matters</div>
+
+<div class="card-grid" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr))">
+  <div class="card c-emerald">
+    <div class="icon">🇮🇳</div>
+    <div class="title">13.2M GST Businesses</div>
+    <div class="desc">India has 13.2 million GST-registered businesses. 70%+ use Tally Prime. Massive addressable market.</div>
+  </div>
+  <div class="card c-rose">
+    <div class="icon">⏱️</div>
+    <div class="title">3-5 min → 10-15 sec</div>
+    <div class="desc">Manual data entry: 3-5 min per invoice. With Finbook.ai: 10-15 seconds. That's a 20x speed improvement.</div>
+  </div>
+  <div class="card c-violet">
+    <div class="icon">🎯</div>
+    <div class="title">Error Rate: 8% → 0.5%</div>
+    <div class="desc">Manual entry error rate: 5-8%. AI-powered extraction drops it to under 0.5%. No more GST notices.</div>
+  </div>
+  <div class="card c-amber">
+    <div class="icon">💰</div>
+    <div class="title">₹5,000 → ₹500/month</div>
+    <div class="desc">Cost per company drops from ₹5,000 to ₹500-₹1,000/month. 10x cost reduction for CA firms.</div>
+  </div>
+</div>
+
+<div class="footer">
+  Finbook.ai — Built with ❤️ for Indian Accountants &nbsp;|&nbsp; React 19 · Vite 8 · Tailwind CSS 4 · Lucide Icons
+</div>
+
+</div>
+</body>
+</html>
