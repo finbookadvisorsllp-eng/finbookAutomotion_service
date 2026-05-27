@@ -30,12 +30,12 @@ const CreateSales = ({ isDark, voucherType, onBack }) => {
     }
   }, []);
 
-  const [activeTab, setActiveTab] = useState('With Item');
-  
+  const [activeTab, setActiveTab] = useState('Without Item');
+
   // Sync tab from store
   useEffect(() => {
     if (form.entryTab) {
-      setActiveTab(form.entryTab === 'with_item' ? 'With Item' : 'Without Item');
+      setActiveTab(form.entryTab === 'with_item' ? 'with_item' : 'Without Item');
     }
   }, [form.entryTab]);
 
@@ -333,7 +333,7 @@ const CreateSales = ({ isDark, voucherType, onBack }) => {
       </div>
 
       <div className={`flex-1 overflow-hidden ${isOcrReview ? 'grid grid-cols-1 lg:grid-cols-2' : 'flex flex-col'}`}>
-        
+
         {/* Left Side: Document Preview (OCR Review Mode Only) */}
         {isOcrReview && (
           <div className="h-full border-r overflow-hidden flex flex-col bg-slate-50/50" style={{ borderColor: theme.border }}>
@@ -385,255 +385,255 @@ const CreateSales = ({ isDark, voucherType, onBack }) => {
             <SummaryItem label="Grand Total" value={form.grandTotal || "0.00"} isLast />
           </div>
 
-      {/* Tabs */}
-      <div className="flex items-center border-b shrink-0 px-2 mt-1" style={{ borderColor: theme.border, backgroundColor: theme.panel }}>
-        {['Without Item', 'With Item'].map(tab => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`flex-1 py-3 text-[11px] font-black tracking-tight transition-all relative ${activeTab === tab ? 'text-indigo-600' : 'text-slate-400 hover:text-indigo-600'}`}
-          >
-            {tab}
-            {activeTab === tab && <div className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-indigo-600 rounded-t-full" />}
-          </button>
-        ))}
-      </div>
+          {/* Tabs */}
+          <div className="flex items-center border-b shrink-0 px-2 mt-1" style={{ borderColor: theme.border, backgroundColor: theme.panel }}>
+            {['Without Item', 'With Item'].map(tab => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`flex-1 py-3 text-[11px] font-black tracking-tight transition-all relative ${activeTab === tab ? 'text-indigo-600' : 'text-slate-400 hover:text-indigo-600'}`}
+              >
+                {tab}
+                {activeTab === tab && <div className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-indigo-600 rounded-t-full" />}
+              </button>
+            ))}
+          </div>
 
-      {/* Content Area */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 px-2 pb-10 mt-2">
+          {/* Content Area */}
+          <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 px-2 pb-10 mt-2">
             {/* Basic Details */}
             <FormSection title="Basic Details" zIndex={100}>
               <div className={`grid grid-cols-1 ${isOcrReview ? 'sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3' : 'sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5'} gap-x-4 gap-y-6`}>
-            <InputField label="Invoice Date" icon={Calendar} type="date" value={form.invoiceDate} onChange={(v) => setFormField('invoiceDate', v)} />
-            <InputField label="Voucher Date" icon={Calendar} type="date" value={form.voucherDate} onChange={(v) => setFormField('voucherDate', v)} />
-            <SearchableDropdown label="Voucher Type" placeholder="Sales" options={['sales_invoice', 'sales_order', 'credit_note']} value={form.voucherType} onChange={(v) => setFormField('voucherType', v)} />
-            <SearchableDropdown label="Voucher Number Series" placeholder="Default" options={['Default', 'Manual']} value={form.voucherNumberSeries} onChange={(v) => setFormField('voucherNumberSeries', v)} />
-            <InputField label="Voucher Number" placeholder="Auto-generated" value={form.voucherNumber} readOnly />
-            <InputField label="Invoice Number" placeholder="Invoice Number" value={form.invoiceNumber} onChange={(v) => setFormField('invoiceNumber', v)} />
-            <SearchableDropdown label="Sales Ledger" placeholder="Sales Ledger" options={['General Sales', 'Service Sales']} value={form.salesLedger} onChange={(v) => setFormField('salesLedger', v)} />
-            <SearchableDropdown label="GST Registration" placeholder="GST Registration" options={['Madhya Pradesh Registration', 'Maharashtra Registration']} value={form.gstRegistration} onChange={(v) => setFormField('gstRegistration', v)} />
-            <InputField label="Party GSTIN" placeholder="Party GSTIN" value={form.partyGstin} onChange={(v) => setFormField('partyGstin', v)} />
-            <SearchableDropdown label="Party Ledger" placeholder="Party Ledger" hasAdd options={['HDFC Bank', 'Cash', 'Sundry Debtor A']} value={form.partyLedger} onChange={(v) => setFormField('partyLedger', v)} />
-            <SearchableDropdown label="Consignee Ledger" placeholder="Consignee Ledger" options={['Same as Party', 'Branch A']} value={form.consigneeLedger} onChange={(v) => setFormField('consigneeLedger', v)} />
-          </div>
-        </FormSection>
-
-        {/* Dynamic Table Section based on Tab */}
-        {activeTab === 'Without Item' && (
-          <FormSection title="Sales Details" zIndex={90} headerAction={<button onClick={() => addSalesLine()} className="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex items-center justify-center hover:bg-emerald-500 hover:text-white transition-all"><Plus size={12} strokeWidth={3} /></button>}>
-            <div className="overflow-x-auto custom-scrollbar pb-32">
-              <table className="w-full text-left text-[10px] border-separate border-spacing-y-2 min-w-[800px]">
-                <thead>
-                  <tr className="font-black uppercase tracking-tight" style={{ color: theme.mutedText }}>
-                    <th className="px-2 w-10"></th>
-                    <th className="px-2 w-16 text-center">Sr. No.</th>
-                    <th className="px-2">Sales Ledger</th>
-                    <th className="px-2">Description</th>
-                    <th className="px-2">HSN/SAC Code</th>
-                    <th className="px-2">GST Rate</th>
-                    <th className="px-2 text-right pr-10">Amount</th>
-                    <th className="px-2 w-10"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {form.salesLines.map((row) => (
-                    <tr key={row.id} className="animate-in fade-in slide-in-from-left-2 duration-300">
-                      <td className="px-2"><div className="w-7 h-7 rounded-full border border-indigo-200 bg-indigo-50 text-indigo-600 flex items-center justify-center shadow-sm"><Layout size={12} /></div></td>
-                      <td className="px-2"><div className="h-9 w-full rounded-lg border flex items-center justify-center font-bold" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>{row.srNo}</div></td>
-                      <td className="px-2"><SearchableDropdown placeholder="Select Sales Ledger" compact options={['General Sales']} value={row.salesLedger} onChange={(v) => updateSalesLine(row.id, 'salesLedger', v)} /></td>
-                      <td className="px-2"><InputField placeholder="Description" compact value={row.description} onChange={(v) => updateSalesLine(row.id, 'description', v)} /></td>
-                      <td className="px-2"><InputField placeholder="HSN/SAC" compact value={row.hsnSacCode} onChange={(v) => updateSalesLine(row.id, 'hsnSacCode', v)} /></td>
-                      <td className="px-2"><SearchableDropdown placeholder="18%" value={row.gstRate ? `${row.gstRate}%` : '0%'} compact options={['0%', '5%', '12%', '18%', '28%']} onChange={(v) => updateSalesLine(row.id, 'gstRate', parseFloat(v) || 0)} /></td>
-                      <td className="px-2"><InputField value={row.amount} align="right" compact onChange={(v) => updateSalesLine(row.id, 'amount', parseFloat(v) || 0)} /></td>
-                      <td className="px-2"><button onClick={() => removeSalesLine(row.id)} className="w-8 h-8 rounded-lg bg-red-500/10 text-red-500 border border-red-500/10 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all"><Minus size={14} /></button></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <SummaryBar 
-              entries={form.salesLines.length} 
-              base={form.baseTotal} 
-              cgst={form.cgstTotal} 
-              sgst={form.sgstTotal} 
-              igst={form.igstTotal} 
-              total={form.subTotal} 
-            />
-          </FormSection>
-        )}
-
-        {activeTab === 'With Item' && (
-          <FormSection title="Product Details" zIndex={90} headerAction={<button onClick={() => addProductLine()} className="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex items-center justify-center hover:bg-emerald-500 hover:text-white transition-all"><Plus size={12} strokeWidth={3} /></button>}>
-            <div className="overflow-x-auto custom-scrollbar pb-32">
-              <table className="w-full text-left text-[10px] border-separate border-spacing-y-2 min-w-[1200px] mb-20">
-                <thead>
-                  <tr className="font-black uppercase tracking-tight" style={{ color: theme.mutedText }}>
-                    <th className="px-2 w-10"></th>
-                    <th className="px-2 w-16 text-center">Sr. No.</th>
-                    <th className="px-2 min-w-[200px]">Stock Item</th>
-                    <th className="px-2 min-w-[150px]">Description</th>
-                    <th className="px-2">HSN/SAC Code</th>
-                    <th className="px-2">Bill Quantity</th>
-                    <th className="px-2">Bill Rate</th>
-                    <th className="px-2">Discount</th>
-                    <th className="px-2 text-right">Amount</th>
-                    <th className="px-2">RCM</th>
-                    <th className="px-2">Taxability Type</th>
-                    <th className="px-2">GST Rate</th>
-                    <th className="px-2 w-10"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {form.productLines.map((row) => (
-                    <tr key={row.id} className="animate-in fade-in slide-in-from-left-2 duration-300">
-                      <td className="px-2"><div className="w-7 h-7 rounded-full border border-purple-200 bg-purple-50 text-purple-600 flex items-center justify-center shadow-sm"><Layout size={12} /></div></td>
-                      <td className="px-2"><div className="h-8 w-full rounded-lg border flex items-center justify-center font-bold" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>{row.srNo}</div></td>
-                      <td className="px-2"><SearchableDropdown placeholder="Stock Item" hasAdd compact options={['Monitor', 'Keyboard']} value={row.stockItem} onChange={(v) => updateProductLine(row.id, 'stockItem', v)} /></td>
-                      <td className="px-2"><InputField placeholder="Description" compact value={row.description} onChange={(v) => updateProductLine(row.id, 'description', v)} /></td>
-                      <td className="px-2"><InputField placeholder="HSN/SAC" compact value={row.hsnSacCode} onChange={(v) => updateProductLine(row.id, 'hsnSacCode', v)} /></td>
-                      <td className="px-2"><InputField value={row.billQuantity} align="right" compact onChange={(v) => updateProductLine(row.id, 'billQuantity', parseFloat(v) || 0)} /></td>
-                      <td className="px-2"><InputField value={row.billRate} align="right" compact onChange={(v) => updateProductLine(row.id, 'billRate', parseFloat(v) || 0)} /></td>
-                      <td className="px-2"><InputField value={row.discountPercent} align="right" compact onChange={(v) => updateProductLine(row.id, 'discountPercent', parseFloat(v) || 0)} /></td>
-                      <td className="px-2"><InputField value={(row.billQuantity * row.billRate * (1 - (row.discountPercent / 100))).toFixed(2)} align="right" readOnly compact /></td>
-                      <td className="px-2 text-center"><input type="checkbox" checked={row.rcm} onChange={(e) => updateProductLine(row.id, 'rcm', e.target.checked)} className="w-4 h-4 rounded border-slate-200 accent-indigo-600" /></td>
-                      <td className="px-2"><SearchableDropdown placeholder="Taxable" value={row.taxabilityType} compact options={['Taxable', 'Exempt']} onChange={(v) => updateProductLine(row.id, 'taxabilityType', v)} /></td>
-                      <td className="px-2"><SearchableDropdown placeholder="18%" value={row.gstRate ? `${row.gstRate}%` : '0%'} compact options={['0%', '5%', '12%', '18%', '28%']} onChange={(v) => updateProductLine(row.id, 'gstRate', parseFloat(v) || 0)} /></td>
-                      <td className="px-2"><button onClick={() => removeProductLine(row.id)} className="w-8 h-8 rounded-lg bg-red-500/10 text-red-500 border border-red-500/10 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all"><Minus size={14} /></button></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <SummaryBar 
-              entries={form.productLines.length} 
-              base={form.baseTotal} 
-              cgst={form.cgstTotal} 
-              sgst={form.sgstTotal} 
-              igst={form.igstTotal} 
-              total={form.subTotal} 
-            />
-          </FormSection>
-        )}
-
-
-
-        {/* Additional Item Details */}
-        <FormSection title="Additional Item Details" zIndex={80} headerAction={<button onClick={() => addRow('additional')} className="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex items-center justify-center hover:bg-emerald-500 hover:text-white transition-all"><Plus size={12} strokeWidth={3} /></button>}>
-          <div className="overflow-x-auto custom-scrollbar pb-32">
-            <table className="w-full text-left text-[10px] border-separate border-spacing-y-2 min-w-[600px] mb-20">
-              <thead>
-                <tr className="font-black uppercase tracking-tight" style={{ color: theme.mutedText }}>
-                  <th className="px-2 w-10 text-center"><input type="checkbox" className="w-4 h-4 rounded border-slate-200 accent-indigo-600 shadow-sm" /></th>
-                  <th className="px-2">Taxable Value</th>
-                  <th className="px-2">Ledger Name</th>
-                  <th className="px-2 text-right pr-10">Amount</th>
-                  <th className="px-2 w-10"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {form.additionalCharges.map((row) => (
-                  <tr key={row.id} className="animate-in fade-in slide-in-from-left-2 duration-300">
-                    <td className="px-2 text-center"><input type="checkbox" className="w-4 h-4 rounded border-slate-200 accent-indigo-600 shadow-sm" /></td>
-                    <td className="px-2"><InputField placeholder="Taxable Value" compact value={row.taxableValue} onChange={(v) => updateAdditionalCharge(row.id, 'taxableValue', v)} /></td>
-                    <td className="px-2"><SearchableDropdown placeholder="Select Ledger" compact options={['Freight Charges']} value={row.ledgerName} onChange={(v) => updateAdditionalCharge(row.id, 'ledgerName', v)} /></td>
-                    <td className="px-2"><div className="flex items-center gap-2"><InputField value={row.amount} align="right" compact onChange={(v) => updateAdditionalCharge(row.id, 'amount', parseFloat(v) || 0)} /><button onClick={() => removeAdditionalCharge(row.id)} className="w-8 h-8 rounded-lg bg-red-500/10 text-red-500 border border-red-500/10 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all"><Minus size={14} /></button></div></td>
-                    <td className="px-2 w-10"></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <SummaryBar entries={form.additionalCharges.length} base="0.00" cgst="0.00" sgst="0.00" igst="0.00" total={form.additionalCharges.reduce((acc, l) => acc + (l.amount || 0), 0).toFixed(2)} />
-        </FormSection>
-
-        {/* GST Details */}
-        <FormSection title="GST Details" zIndex={70}>
-          <div className="border rounded-xl overflow-hidden shadow-sm" style={{ borderColor: theme.border, backgroundColor: theme.panel }}>
-            {(!form.gstDetails || form.gstDetails.length === 0) ? (
-              <div className="p-6 text-center text-[10px] font-black uppercase tracking-widest" style={{ backgroundColor: theme.headerBg, color: theme.mutedText }}>
-                No Entries Are Available
+                <InputField label="Invoice Date" icon={Calendar} type="date" value={form.invoiceDate} onChange={(v) => setFormField('invoiceDate', v)} />
+                <InputField label="Voucher Date" icon={Calendar} type="date" value={form.voucherDate} onChange={(v) => setFormField('voucherDate', v)} />
+                <SearchableDropdown label="Voucher Type" placeholder="Sales" options={['sales_invoice', 'sales_order', 'credit_note']} value={form.voucherType} onChange={(v) => setFormField('voucherType', v)} />
+                <SearchableDropdown label="Voucher Number Series" placeholder="Default" options={['Default', 'Manual']} value={form.voucherNumberSeries} onChange={(v) => setFormField('voucherNumberSeries', v)} />
+                <InputField label="Voucher Number" placeholder="Auto-generated" value={form.voucherNumber} readOnly />
+                <InputField label="Invoice Number" placeholder="Invoice Number" value={form.invoiceNumber} onChange={(v) => setFormField('invoiceNumber', v)} />
+                <SearchableDropdown label="Sales Ledger" placeholder="Sales Ledger" options={['General Sales', 'Service Sales']} value={form.salesLedger} onChange={(v) => setFormField('salesLedger', v)} />
+                <SearchableDropdown label="GST Registration" placeholder="GST Registration" options={['Madhya Pradesh Registration', 'Maharashtra Registration']} value={form.gstRegistration} onChange={(v) => setFormField('gstRegistration', v)} />
+                <InputField label="Party GSTIN" placeholder="Party GSTIN" value={form.partyGstin} onChange={(v) => setFormField('partyGstin', v)} />
+                <SearchableDropdown label="Party Ledger" placeholder="Party Ledger" hasAdd options={['HDFC Bank', 'Cash', 'Sundry Debtor A']} value={form.partyLedger} onChange={(v) => setFormField('partyLedger', v)} />
+                <SearchableDropdown label="Consignee Ledger" placeholder="Consignee Ledger" options={['Same as Party', 'Branch A']} value={form.consigneeLedger} onChange={(v) => setFormField('consigneeLedger', v)} />
               </div>
-            ) : (
-              <table className="w-full text-left text-[10px]">
-                <thead className="border-y" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>
-                  <tr className="font-black uppercase tracking-tight" style={{ color: theme.mutedText }}>
-                    <th className="p-3">GST Type</th>
-                    <th className="p-3">Ledger Name</th>
-                    <th className="p-3 text-right">Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {form.gstDetails.map((row, idx) => (
-                    <tr key={idx} className="border-b" style={{ borderColor: theme.border }}>
-                      <td className="p-3 font-bold text-slate-700">{row.gstType}</td>
-                      <td className="p-3 font-semibold text-slate-500">{row.ledgerName}</td>
-                      <td className="p-3 text-right text-indigo-600 font-black">₹{parseFloat(row.amount).toFixed(2)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            </FormSection>
+
+            {/* Dynamic Table Section based on Tab */}
+            {activeTab === 'Without Item' && (
+              <FormSection title="Sales Details" zIndex={90} headerAction={<button onClick={() => addSalesLine()} className="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex items-center justify-center hover:bg-emerald-500 hover:text-white transition-all"><Plus size={12} strokeWidth={3} /></button>}>
+                <div className="overflow-x-auto custom-scrollbar pb-32">
+                  <table className="w-full text-left text-[10px] border-separate border-spacing-y-2 min-w-[800px]">
+                    <thead>
+                      <tr className="font-black uppercase tracking-tight" style={{ color: theme.mutedText }}>
+                        <th className="px-2 w-10"></th>
+                        <th className="px-2 w-16 text-center">Sr. No.</th>
+                        <th className="px-2">Sales Ledger</th>
+                        <th className="px-2">Description</th>
+                        <th className="px-2">HSN/SAC Code</th>
+                        <th className="px-2">GST Rate</th>
+                        <th className="px-2 text-right pr-10">Amount</th>
+                        <th className="px-2 w-10"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {form.salesLines.map((row) => (
+                        <tr key={row.id} className="animate-in fade-in slide-in-from-left-2 duration-300">
+                          <td className="px-2"><div className="w-7 h-7 rounded-full border border-indigo-200 bg-indigo-50 text-indigo-600 flex items-center justify-center shadow-sm"><Layout size={12} /></div></td>
+                          <td className="px-2"><div className="h-9 w-full rounded-lg border flex items-center justify-center font-bold" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>{row.srNo}</div></td>
+                          <td className="px-2"><SearchableDropdown placeholder="Select Sales Ledger" compact options={['General Sales']} value={row.salesLedger} onChange={(v) => updateSalesLine(row.id, 'salesLedger', v)} /></td>
+                          <td className="px-2"><InputField placeholder="Description" compact value={row.description} onChange={(v) => updateSalesLine(row.id, 'description', v)} /></td>
+                          <td className="px-2"><InputField placeholder="HSN/SAC" compact value={row.hsnSacCode} onChange={(v) => updateSalesLine(row.id, 'hsnSacCode', v)} /></td>
+                          <td className="px-2"><SearchableDropdown placeholder="18%" value={row.gstRate ? `${row.gstRate}%` : '0%'} compact options={['0%', '5%', '12%', '18%', '28%']} onChange={(v) => updateSalesLine(row.id, 'gstRate', parseFloat(v) || 0)} /></td>
+                          <td className="px-2"><InputField value={row.amount} align="right" compact onChange={(v) => updateSalesLine(row.id, 'amount', parseFloat(v) || 0)} /></td>
+                          <td className="px-2"><button onClick={() => removeSalesLine(row.id)} className="w-8 h-8 rounded-lg bg-red-500/10 text-red-500 border border-red-500/10 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all"><Minus size={14} /></button></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <SummaryBar
+                  entries={form.salesLines.length}
+                  base={form.baseTotal}
+                  cgst={form.cgstTotal}
+                  sgst={form.sgstTotal}
+                  igst={form.igstTotal}
+                  total={form.subTotal}
+                />
+              </FormSection>
             )}
-          </div>
-        </FormSection>
 
-        {/* TDS & TCS */}
-        <div className="grid grid-cols-1 gap-4">
-          <FormSection title="TCS Details" zIndex={60}>
-            <div className="overflow-x-auto custom-scrollbar pb-32">
-              <table className="w-full text-left text-[10px] border-separate border-spacing-y-2 min-w-[400px] mb-20">
-                <thead>
-                  <tr className="font-black uppercase tracking-tight" style={{ color: theme.mutedText }}>
-                    <th className="px-2">Ledger Name</th>
-                    <th className="px-2">Assessable Value</th>
-                    <th className="px-2">Rate</th>
-                    <th className="px-2">Amount</th>
-                    <th className="px-2 w-10 text-right">
-                      <button onClick={() => addRow('tcs')} className="w-7 h-7 rounded-full border border-emerald-200 bg-white shadow-sm flex items-center justify-center text-emerald-500 hover:bg-emerald-50 transition-all">
-                        <Plus size={14} strokeWidth={3} />
-                      </button>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {form.tcsDetails.map((row) => (
-                    <tr key={row.id} className="animate-in fade-in slide-in-from-left-2 duration-300">
-                      <td className="px-1"><SearchableDropdown placeholder="TCS Ledger" compact options={['TCS on Sales']} value={row.ledgerName} onChange={(v) => updateTcsDetail(row.id, 'ledgerName', v)} /></td>
-                      <td className="px-1"><InputField value={row.assessableValue} align="right" compact onChange={(v) => updateTcsDetail(row.id, 'assessableValue', parseFloat(v) || 0)} /></td>
-                      <td className="px-1"><InputField value={row.rate} align="right" compact onChange={(v) => updateTcsDetail(row.id, 'rate', parseFloat(v) || 0)} /></td>
-                      <td className="px-1"><InputField value={(row.assessableValue * row.rate / 100).toFixed(2)} align="right" readOnly compact /></td>
-                      <td className="px-1 text-right">
-                        <button onClick={() => removeTcsDetail(row.id)} className="w-7 h-7 rounded-full border border-red-200 bg-white shadow-sm flex items-center justify-center text-red-500 hover:bg-red-50 transition-all">
-                          <Minus size={14} strokeWidth={3} />
-                        </button>
-                      </td>
+            {activeTab === 'With Item' && (
+              <FormSection title="Product Details" zIndex={90} headerAction={<button onClick={() => addProductLine()} className="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex items-center justify-center hover:bg-emerald-500 hover:text-white transition-all"><Plus size={12} strokeWidth={3} /></button>}>
+                <div className="overflow-x-auto custom-scrollbar pb-32">
+                  <table className="w-full text-left text-[10px] border-separate border-spacing-y-2 min-w-[1200px] mb-20">
+                    <thead>
+                      <tr className="font-black uppercase tracking-tight" style={{ color: theme.mutedText }}>
+                        <th className="px-2 w-10"></th>
+                        <th className="px-2 w-16 text-center">Sr. No.</th>
+                        <th className="px-2 min-w-[200px]">Stock Item</th>
+                        <th className="px-2 min-w-[150px]">Description</th>
+                        <th className="px-2">HSN/SAC Code</th>
+                        <th className="px-2">Bill Quantity</th>
+                        <th className="px-2">Bill Rate</th>
+                        <th className="px-2">Discount</th>
+                        <th className="px-2 text-right">Amount</th>
+                        <th className="px-2">RCM</th>
+                        <th className="px-2">Taxability Type</th>
+                        <th className="px-2">GST Rate</th>
+                        <th className="px-2 w-10"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {form.productLines.map((row) => (
+                        <tr key={row.id} className="animate-in fade-in slide-in-from-left-2 duration-300">
+                          <td className="px-2"><div className="w-7 h-7 rounded-full border border-purple-200 bg-purple-50 text-purple-600 flex items-center justify-center shadow-sm"><Layout size={12} /></div></td>
+                          <td className="px-2"><div className="h-8 w-full rounded-lg border flex items-center justify-center font-bold" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>{row.srNo}</div></td>
+                          <td className="px-2"><SearchableDropdown placeholder="Stock Item" hasAdd compact options={['Monitor', 'Keyboard']} value={row.stockItem} onChange={(v) => updateProductLine(row.id, 'stockItem', v)} /></td>
+                          <td className="px-2"><InputField placeholder="Description" compact value={row.description} onChange={(v) => updateProductLine(row.id, 'description', v)} /></td>
+                          <td className="px-2"><InputField placeholder="HSN/SAC" compact value={row.hsnSacCode} onChange={(v) => updateProductLine(row.id, 'hsnSacCode', v)} /></td>
+                          <td className="px-2"><InputField value={row.billQuantity} align="right" compact onChange={(v) => updateProductLine(row.id, 'billQuantity', parseFloat(v) || 0)} /></td>
+                          <td className="px-2"><InputField value={row.billRate} align="right" compact onChange={(v) => updateProductLine(row.id, 'billRate', parseFloat(v) || 0)} /></td>
+                          <td className="px-2"><InputField value={row.discountPercent} align="right" compact onChange={(v) => updateProductLine(row.id, 'discountPercent', parseFloat(v) || 0)} /></td>
+                          <td className="px-2"><InputField value={(row.billQuantity * row.billRate * (1 - (row.discountPercent / 100))).toFixed(2)} align="right" readOnly compact /></td>
+                          <td className="px-2 text-center"><input type="checkbox" checked={row.rcm} onChange={(e) => updateProductLine(row.id, 'rcm', e.target.checked)} className="w-4 h-4 rounded border-slate-200 accent-indigo-600" /></td>
+                          <td className="px-2"><SearchableDropdown placeholder="Taxable" value={row.taxabilityType} compact options={['Taxable', 'Exempt']} onChange={(v) => updateProductLine(row.id, 'taxabilityType', v)} /></td>
+                          <td className="px-2"><SearchableDropdown placeholder="18%" value={row.gstRate ? `${row.gstRate}%` : '0%'} compact options={['0%', '5%', '12%', '18%', '28%']} onChange={(v) => updateProductLine(row.id, 'gstRate', parseFloat(v) || 0)} /></td>
+                          <td className="px-2"><button onClick={() => removeProductLine(row.id)} className="w-8 h-8 rounded-lg bg-red-500/10 text-red-500 border border-red-500/10 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all"><Minus size={14} /></button></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <SummaryBar
+                  entries={form.productLines.length}
+                  base={form.baseTotal}
+                  cgst={form.cgstTotal}
+                  sgst={form.sgstTotal}
+                  igst={form.igstTotal}
+                  total={form.subTotal}
+                />
+              </FormSection>
+            )}
+
+
+
+            {/* Additional Item Details */}
+            <FormSection title="Additional Item Details" zIndex={80} headerAction={<button onClick={() => addRow('additional')} className="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex items-center justify-center hover:bg-emerald-500 hover:text-white transition-all"><Plus size={12} strokeWidth={3} /></button>}>
+              <div className="overflow-x-auto custom-scrollbar pb-32">
+                <table className="w-full text-left text-[10px] border-separate border-spacing-y-2 min-w-[600px] mb-20">
+                  <thead>
+                    <tr className="font-black uppercase tracking-tight" style={{ color: theme.mutedText }}>
+                      <th className="px-2 w-10 text-center"><input type="checkbox" className="w-4 h-4 rounded border-slate-200 accent-indigo-600 shadow-sm" /></th>
+                      <th className="px-2">Taxable Value</th>
+                      <th className="px-2">Ledger Name</th>
+                      <th className="px-2 text-right pr-10">Amount</th>
+                      <th className="px-2 w-10"></th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {form.additionalCharges.map((row) => (
+                      <tr key={row.id} className="animate-in fade-in slide-in-from-left-2 duration-300">
+                        <td className="px-2 text-center"><input type="checkbox" className="w-4 h-4 rounded border-slate-200 accent-indigo-600 shadow-sm" /></td>
+                        <td className="px-2"><InputField placeholder="Taxable Value" compact value={row.taxableValue} onChange={(v) => updateAdditionalCharge(row.id, 'taxableValue', v)} /></td>
+                        <td className="px-2"><SearchableDropdown placeholder="Select Ledger" compact options={['Freight Charges']} value={row.ledgerName} onChange={(v) => updateAdditionalCharge(row.id, 'ledgerName', v)} /></td>
+                        <td className="px-2"><div className="flex items-center gap-2"><InputField value={row.amount} align="right" compact onChange={(v) => updateAdditionalCharge(row.id, 'amount', parseFloat(v) || 0)} /><button onClick={() => removeAdditionalCharge(row.id)} className="w-8 h-8 rounded-lg bg-red-500/10 text-red-500 border border-red-500/10 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all"><Minus size={14} /></button></div></td>
+                        <td className="px-2 w-10"></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <SummaryBar entries={form.additionalCharges.length} base="0.00" cgst="0.00" sgst="0.00" igst="0.00" total={form.additionalCharges.reduce((acc, l) => acc + (l.amount || 0), 0).toFixed(2)} />
+            </FormSection>
+
+            {/* GST Details */}
+            <FormSection title="GST Details" zIndex={70}>
+              <div className="border rounded-xl overflow-hidden shadow-sm" style={{ borderColor: theme.border, backgroundColor: theme.panel }}>
+                {(!form.gstDetails || form.gstDetails.length === 0) ? (
+                  <div className="p-6 text-center text-[10px] font-black uppercase tracking-widest" style={{ backgroundColor: theme.headerBg, color: theme.mutedText }}>
+                    No Entries Are Available
+                  </div>
+                ) : (
+                  <table className="w-full text-left text-[10px]">
+                    <thead className="border-y" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>
+                      <tr className="font-black uppercase tracking-tight" style={{ color: theme.mutedText }}>
+                        <th className="p-3">GST Type</th>
+                        <th className="p-3">Ledger Name</th>
+                        <th className="p-3 text-right">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {form.gstDetails.map((row, idx) => (
+                        <tr key={idx} className="border-b" style={{ borderColor: theme.border }}>
+                          <td className="p-3 font-bold text-slate-700">{row.gstType}</td>
+                          <td className="p-3 font-semibold text-slate-500">{row.ledgerName}</td>
+                          <td className="p-3 text-right text-indigo-600 font-black">₹{parseFloat(row.amount).toFixed(2)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </FormSection>
+
+            {/* TDS & TCS */}
+            <div className="grid grid-cols-1 gap-4">
+              <FormSection title="TCS Details" zIndex={60}>
+                <div className="overflow-x-auto custom-scrollbar pb-32">
+                  <table className="w-full text-left text-[10px] border-separate border-spacing-y-2 min-w-[400px] mb-20">
+                    <thead>
+                      <tr className="font-black uppercase tracking-tight" style={{ color: theme.mutedText }}>
+                        <th className="px-2">Ledger Name</th>
+                        <th className="px-2">Assessable Value</th>
+                        <th className="px-2">Rate</th>
+                        <th className="px-2">Amount</th>
+                        <th className="px-2 w-10 text-right">
+                          <button onClick={() => addRow('tcs')} className="w-7 h-7 rounded-full border border-emerald-200 bg-white shadow-sm flex items-center justify-center text-emerald-500 hover:bg-emerald-50 transition-all">
+                            <Plus size={14} strokeWidth={3} />
+                          </button>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {form.tcsDetails.map((row) => (
+                        <tr key={row.id} className="animate-in fade-in slide-in-from-left-2 duration-300">
+                          <td className="px-1"><SearchableDropdown placeholder="TCS Ledger" compact options={['TCS on Sales']} value={row.ledgerName} onChange={(v) => updateTcsDetail(row.id, 'ledgerName', v)} /></td>
+                          <td className="px-1"><InputField value={row.assessableValue} align="right" compact onChange={(v) => updateTcsDetail(row.id, 'assessableValue', parseFloat(v) || 0)} /></td>
+                          <td className="px-1"><InputField value={row.rate} align="right" compact onChange={(v) => updateTcsDetail(row.id, 'rate', parseFloat(v) || 0)} /></td>
+                          <td className="px-1"><InputField value={(row.assessableValue * row.rate / 100).toFixed(2)} align="right" readOnly compact /></td>
+                          <td className="px-1 text-right">
+                            <button onClick={() => removeTcsDetail(row.id)} className="w-7 h-7 rounded-full border border-red-200 bg-white shadow-sm flex items-center justify-center text-red-500 hover:bg-red-50 transition-all">
+                              <Minus size={14} strokeWidth={3} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="mt-3 flex justify-between font-black text-[9px] uppercase rounded-lg border px-3 py-1.5 shadow-sm" style={{ backgroundColor: theme.accentSoft, borderColor: theme.border, color: theme.accent }}>
+                  <span>Number Of Entries: {form.tcsDetails.length}</span>
+                  <span>Total: {form.tcsDetails.reduce((acc, l) => acc + (l.amount || 0), 0).toFixed(2)}</span>
+                </div>
+              </FormSection>
             </div>
-            <div className="mt-3 flex justify-between font-black text-[9px] uppercase rounded-lg border px-3 py-1.5 shadow-sm" style={{ backgroundColor: theme.accentSoft, borderColor: theme.border, color: theme.accent }}>
-              <span>Number Of Entries: {form.tcsDetails.length}</span>
-              <span>Total: {form.tcsDetails.reduce((acc, l) => acc + (l.amount || 0), 0).toFixed(2)}</span>
+
+            {/* Narration */}
+            <FormSection title="Narration" zIndex={10}>
+              <textarea
+                value={form.narration || ''}
+                onChange={(e) => setFormField('narration', e.target.value)}
+                className="w-full h-20 rounded-xl border p-4 text-[11px] font-bold outline-none transition-all focus:border-indigo-400 resize-none shadow-sm placeholder:text-slate-300"
+                placeholder="Enter narration here..."
+                style={{ backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.text }}
+              />
+            </FormSection>
+
+            <div className="text-center py-4 text-[10px] font-black uppercase tracking-widest opacity-30" style={{ color: theme.mutedText }}>
+              Please Select Sundry Ledger
             </div>
-        </FormSection>
-      </div>
 
-      {/* Narration */}
-        <FormSection title="Narration" zIndex={10}>
-          <textarea
-            value={form.narration || ''}
-            onChange={(e) => setFormField('narration', e.target.value)}
-            className="w-full h-20 rounded-xl border p-4 text-[11px] font-bold outline-none transition-all focus:border-indigo-400 resize-none shadow-sm placeholder:text-slate-300"
-            placeholder="Enter narration here..."
-            style={{ backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.text }}
-          />
-        </FormSection>
-
-        <div className="text-center py-4 text-[10px] font-black uppercase tracking-widest opacity-30" style={{ color: theme.mutedText }}>
-          Please Select Sundry Ledger
-        </div>
-
-        {/* <div className="mt-8">
+            {/* <div className="mt-8">
           <div className="flex items-center gap-3 mb-4 px-2">
             <div className="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-600 flex items-center justify-center">
               <Bot size={16} />
@@ -723,11 +723,11 @@ const CreateSales = ({ isDark, voucherType, onBack }) => {
             </div>
           </div>
         </div> */ }
+          </div>
+        </div>
       </div>
     </div>
-  </div>
-</div>
-);
+  );
 };
 
 export default CreateSales;
