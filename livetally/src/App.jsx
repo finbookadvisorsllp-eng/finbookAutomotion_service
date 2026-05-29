@@ -49,12 +49,22 @@ import "./index.css"
 function AppShell({ children }) {
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [isDarkMode, setIsDarkMode] = useState(true)
   const location = useLocation()
 
   // Close mobile sidebar on route change
   useEffect(() => {
     setMobileOpen(false)
   }, [location.pathname])
+
+  // Apply dark mode class to body
+  useEffect(() => {
+    if (isDarkMode) {
+      document.body.classList.add('dark')
+    } else {
+      document.body.classList.remove('dark')
+    }
+  }, [isDarkMode])
 
   return (
     <div className="app-layout">
@@ -79,6 +89,8 @@ function AppShell({ children }) {
               setCollapsed(c => !c)
             }
           }}
+          isDarkMode={isDarkMode}
+          toggleTheme={() => setIsDarkMode(!isDarkMode)}
         />
         <main className="content-area">
           {children}

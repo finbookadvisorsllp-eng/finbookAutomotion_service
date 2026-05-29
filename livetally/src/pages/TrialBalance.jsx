@@ -40,18 +40,18 @@ export default function TrialBalance() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-white rounded-2xl border border-slate-100 p-5">
+        <div className="glass-card p-5">
           <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Total Debit</p>
           <p className="text-2xl font-extrabold text-slate-900">{formatINR(totalDebit)}</p>
         </div>
-        <div className="bg-white rounded-2xl border border-slate-100 p-5">
+        <div className="glass-card p-5">
           <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Total Credit</p>
           <p className="text-2xl font-extrabold text-slate-900">{formatINR(totalCredit)}</p>
         </div>
-        <div className={`rounded-2xl border p-5 ${isMatch ? 'bg-emerald-50 border-emerald-100' : 'bg-red-50 border-red-100'}`}>
-          <p className={`text-xs font-bold uppercase tracking-wider mb-1 ${isMatch ? 'text-emerald-600' : 'text-red-600'}`}>Difference</p>
-          <p className={`text-2xl font-extrabold ${isMatch ? 'text-emerald-700' : 'text-red-700'}`}>{formatINR(Math.abs(totalDebit - totalCredit))}</p>
-          <p className={`text-xs font-semibold mt-1 ${isMatch ? 'text-emerald-600' : 'text-red-600'}`}>
+        <div className={`rounded-2xl border p-5 ${isMatch ? 'bg-emerald-50 border-emerald-100 dark:bg-[#B6FF00]/10 dark:border-[#B6FF00]/30' : 'bg-red-50 border-red-100 dark:bg-red-500/10 dark:border-red-500/30'}`}>
+          <p className={`text-xs font-bold uppercase tracking-wider mb-1 ${isMatch ? 'text-emerald-600 dark:text-[#B6FF00]' : 'text-red-600 dark:text-red-400'}`}>Difference</p>
+          <p className={`text-2xl font-extrabold ${isMatch ? 'text-emerald-700 dark:text-[#B6FF00]' : 'text-red-700 dark:text-red-500'}`}>{formatINR(Math.abs(totalDebit - totalCredit))}</p>
+          <p className={`text-xs font-semibold mt-1 ${isMatch ? 'text-emerald-600 dark:text-[#B6FF00]' : 'text-red-600 dark:text-red-400'}`}>
             {isMatch ? '✓ Balances match perfectly' : '⚠ Mismatch detected!'}
           </p>
         </div>

@@ -22,7 +22,7 @@ const monthly = [
 const fmt = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-lg text-xs">
+    <div className="glass-card p-3 shadow-lg dark:shadow-[0_0_15px_rgba(182,255,0,0.15)] text-xs">
       <p className="font-semibold text-slate-600 mb-2">{label}</p>
       {payload.map(p => (
         <div key={p.dataKey} className="flex items-center gap-2 mb-0.5">
@@ -48,18 +48,18 @@ export default function CashFlow() {
           <h1 className="text-xl font-black text-slate-900">Cash Flow Statement</h1>
           <p className="text-sm text-slate-400 mt-0.5">FY 2024-25 · Inflows, Outflows & Net Position</p>
         </div>
-        <button className="px-4 py-2 border border-slate-200 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50">⬇ Export PDF</button>
+        <button className="px-4 py-2 border border-slate-200 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">⬇ Export PDF</button>
       </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 mb-5">
         {[
-          { label:'Total Inflows',     value:formatINR(totalInflow),    bg:'bg-emerald-50', border:'border-emerald-100', color:'text-emerald-700' },
-          { label:'Total Outflows',    value:formatINR(totalOutflow),   bg:'bg-red-50',     border:'border-red-100',     color:'text-red-600' },
-          { label:'Net Cash Flow',     value:formatINR(netCashFlow),    bg:'bg-blue-50',    border:'border-blue-100',    color:'text-blue-700' },
-          { label:'Closing Balance',   value:formatINR(closingBalance), bg:'bg-indigo-50',  border:'border-indigo-100',  color:'text-indigo-700' },
+          { label:'Total Inflows',     value:formatINR(totalInflow),    bg:'bg-emerald-50 dark:bg-[#B6FF00]/10', border:'border-emerald-100 dark:border-[#B6FF00]/20', color:'text-emerald-700 dark:text-[#B6FF00]' },
+          { label:'Total Outflows',    value:formatINR(totalOutflow),   bg:'bg-red-50 dark:bg-red-500/10',     border:'border-red-100 dark:border-red-500/20',     color:'text-red-600 dark:text-red-400' },
+          { label:'Net Cash Flow',     value:formatINR(netCashFlow),    bg:'bg-blue-50 dark:bg-blue-500/10',    border:'border-blue-100 dark:border-blue-500/20',    color:'text-blue-700 dark:text-blue-400' },
+          { label:'Closing Balance',   value:formatINR(closingBalance), bg:'bg-indigo-50 dark:bg-indigo-500/10',  border:'border-indigo-100 dark:border-indigo-500/20',  color:'text-indigo-700 dark:text-indigo-400' },
         ].map(s => (
-          <div key={s.label} className={`${s.bg} ${s.border} border rounded-2xl p-4`}>
+          <div key={s.label} className={`${s.bg} ${s.border} border rounded-2xl p-4 transition-colors`}>
             <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">{s.label}</p>
             <p className={`text-xl font-extrabold ${s.color}`}>{s.value}</p>
           </div>
@@ -67,7 +67,7 @@ export default function CashFlow() {
       </div>
 
       {/* Charts */}
-      <div className="bg-white rounded-2xl border border-slate-100 p-5 mb-4">
+      <div className="glass-card p-5 mb-4">
         <h2 className="text-sm font-bold text-slate-800 mb-4">Monthly Cash Flow — Inflow vs Outflow</h2>
         <ResponsiveContainer width="100%" height={260}>
           <BarChart data={monthly} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
@@ -84,7 +84,7 @@ export default function CashFlow() {
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-4">
         {/* Net Cash + Running Balance */}
-        <div className="bg-white rounded-2xl border border-slate-100 p-5">
+        <div className="glass-card p-5">
           <h2 className="text-sm font-bold text-slate-800 mb-4">Net Cash Flow & Cumulative Balance</h2>
           <ResponsiveContainer width="100%" height={220}>
             <ComposedChart data={monthly}>
@@ -100,8 +100,8 @@ export default function CashFlow() {
         </div>
 
         {/* Operating CF Breakdown */}
-        <div className="bg-white rounded-2xl border border-slate-100 p-5">
-          <h2 className="text-sm font-bold text-slate-800 mb-4">Cash Flow by Activity (Last 6M)</h2>
+        <div className="glass-card p-5">
+          <h2 className="text-sm font-bold text-slate-800 mb-4">Cash Position Overview</h2>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={cashFlowData} layout="vertical" margin={{left:10}}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false}/>
@@ -117,7 +117,7 @@ export default function CashFlow() {
       </div>
 
       {/* Monthly Table */}
-      <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
+      <div className="glass-card overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-100">
           <h2 className="text-sm font-bold text-slate-800">Monthly Summary</h2>
         </div>
@@ -130,9 +130,9 @@ export default function CashFlow() {
                 ))}
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-slate-50">
               {monthly.map((row,i)=>(
-                <tr key={i} className="border-b border-slate-50 hover:bg-slate-50/60 transition-colors">
+                <tr key={i} className="hover:bg-slate-50/60 transition-colors">
                   <td className="px-5 py-3 font-semibold text-slate-800">{row.month} '25</td>
                   <td className="px-5 py-3 text-emerald-600 font-semibold">{formatINR(row.inflow)}</td>
                   <td className="px-5 py-3 text-red-500 font-semibold">{formatINR(row.outflow)}</td>

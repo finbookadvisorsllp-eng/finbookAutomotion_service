@@ -7,7 +7,7 @@ import { monthlyTrend, budgetVsActual, cashFlowData, formatINR } from '../data/m
 const tooltipFmt = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-lg text-xs">
+    <div className="glass-card p-3 shadow-lg dark:shadow-[0_0_15px_rgba(182,255,0,0.15)] text-xs">
       <p className="font-semibold text-slate-600 mb-2">{label}</p>
       {payload.map(p => (
         <div key={p.dataKey} className="flex items-center gap-2 mb-0.5">
@@ -28,11 +28,11 @@ export default function Analytics() {
           <h1 className="text-xl font-black text-slate-900">Analytics & Trends</h1>
           <p className="text-sm text-slate-400 mt-0.5">Business performance insights · FY 2024-25</p>
         </div>
-        <button className="px-4 py-2 border border-slate-200 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50">⬇ Export Report</button>
+        <button className="px-4 py-2 border border-slate-200 rounded-xl text-sm font-medium text-slate-600 transition-colors">⬇ Export Report</button>
       </div>
 
       {/* Revenue Trend */}
-      <div className="bg-white rounded-2xl border border-slate-100 p-5 mb-4">
+      <div className="glass-card p-5 mb-4">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-sm font-bold text-slate-800">Revenue, Expense & Profit Trend</h2>
@@ -69,7 +69,7 @@ export default function Analytics() {
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-4">
         {/* Budget vs Actual */}
-        <div className="bg-white rounded-2xl border border-slate-100 p-5">
+        <div className="glass-card p-5">
           <h2 className="text-sm font-bold text-slate-800 mb-4">Budget vs Actual</h2>
           <ResponsiveContainer width="100%" height={240}>
             <BarChart data={budgetVsActual} layout="vertical" margin={{ left: 10 }}>
@@ -89,7 +89,7 @@ export default function Analytics() {
         </div>
 
         {/* Cash Flow */}
-        <div className="bg-white rounded-2xl border border-slate-100 p-5">
+        <div className="glass-card p-5">
           <h2 className="text-sm font-bold text-slate-800 mb-4">Cash Flow — Last 6 Months</h2>
           <ResponsiveContainer width="100%" height={240}>
             <ComposedChart data={cashFlowData}>
@@ -107,7 +107,7 @@ export default function Analytics() {
       </div>
 
       {/* Variance Table */}
-      <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
+      <div className="glass-card overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-100">
           <h2 className="text-sm font-bold text-slate-800">Budget Variance Analysis</h2>
         </div>
@@ -120,19 +120,19 @@ export default function Analytics() {
                 ))}
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-slate-50">
               {budgetVsActual.map((row, i) => {
                 const fav = row.variance <= 0
                 return (
-                  <tr key={i} className="border-b border-slate-50 hover:bg-slate-50/60 transition-colors">
+                  <tr key={i} className="hover:bg-slate-50/60 transition-colors">
                     <td className="px-5 py-3 font-semibold text-slate-800">{row.category}</td>
                     <td className="px-5 py-3 text-slate-600">{formatINR(row.budget)}</td>
                     <td className="px-5 py-3 font-semibold text-slate-800">{formatINR(row.actual)}</td>
-                    <td className={`px-5 py-3 font-bold ${fav?'text-emerald-600':'text-red-500'}`}>
+                    <td className={`px-5 py-3 font-bold ${fav?'text-emerald-600 dark:text-[#B6FF00]':'text-red-500 dark:text-red-400'}`}>
                       {fav ? '' : '+'}{formatINR(Math.abs(row.variance))} {fav ? 'Saving' : 'Overshoot'}
                     </td>
                     <td className="px-5 py-3">
-                      <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${fav?'bg-emerald-100 text-emerald-700':'bg-red-100 text-red-700'}`}>
+                      <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${fav?'bg-emerald-100 dark:bg-[#B6FF00]/10 text-emerald-700 dark:text-[#B6FF00]':'bg-red-100 dark:bg-red-500/10 text-red-700 dark:text-red-400'}`}>
                         {fav ? '✓ On Track' : '⚠ Over Budget'}
                       </span>
                     </td>

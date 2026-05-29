@@ -1,50 +1,161 @@
-/* @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap'); */
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;0,14..32,900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 
+@custom-variant dark (&:is(.dark *));
 @theme {
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-sidebar: 'Nunito', 'Inter', system-ui, sans-serif;
 
-  /* Brand Palette */
-  --color-sidebar: #0f172a;
-  --color-sidebar-hover: rgba(255, 255, 255, 0.06);
-  --color-sidebar-active: rgba(59, 130, 246, 0.15);
-  --color-sidebar-text: #94a3b8;
-  --color-sidebar-border: rgba(255, 255, 255, 0.08);
+  /* Sidebar Brand Colors — Bisque + Blue Light Palette */
+  --color-sidebar-text: #0e2240;
+  /* deep navy — primary text */
+  --color-sidebar-text-muted: #2c5282;
+  /* strong blue — secondary text */
+  --color-sidebar-text-label: #1a56a8;
+  /* bright cobalt — section labels */
+  --color-sidebar-hover: rgba(37, 99, 235, 0.11);
+  --color-sidebar-active-bg: rgba(37, 99, 235, 0.16);
+  --color-sidebar-active-text: #1741c8;
+  /* vivid royal blue — active label */
+  --color-sidebar-border: rgba(100, 160, 230, 0.40);
 
-  /* Layout - Micro Scale Down */
-  --sidebar-width: 220px;
-  --sidebar-collapsed-width: 74px;
-  --header-height: 48px;
+  /* Layout — Compact Scale */
+  --sidebar-width: 228px;
+  --sidebar-collapsed-width: 58px;
+  --header-height: 50px;
 
-  /* Micro Font Scale */
-  --text-xs: 0.55rem;
-  /* 8.8px */
-  --text-sm: 0.625rem;
-  /* 10px */
-  --text-base: 0.6875rem;
-  /* 11px */
-  --text-lg: 0.75rem;
-  /* 12px */
-  --text-xl: 0.85rem;
-  /* 13.6px */
-  --text-2xl: 0.95rem;
-  /* 15.2px */
-  --text-3xl: 1.1rem;
-  /* 17.6px */
-  --text-4xl: 1.25rem;
-  /* 20px */
+  /* Refined Border Radii */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.625rem;
+  --radius-2xl: 0.75rem;
+  --radius-3xl: 1rem;
+}
 
-  /* Minimalist Border Radii (Sharper corners) */
-  --radius-lg: 0.375rem;
-  --radius-xl: 0.5rem;
-  --radius-2xl: 0.625rem;
-  --radius-3xl: 0.75rem;
+:root {
+  /* ── Light Theme Variables ── */
+  --theme-bg: linear-gradient(135deg, #ffe4c4 0%, #d4e9f7 55%, #add8e6 100%);
+  --theme-sidebar-bg: linear-gradient(160deg, rgba(255, 220, 180, 0.88) 0%, rgba(200, 228, 252, 0.82) 52%, rgba(173, 216, 230, 0.85) 100%);
+  --theme-sidebar-glow: linear-gradient(170deg, rgba(255, 255, 255, 0.38) 0%, rgba(255, 255, 255, 0.10) 50%, rgba(173, 216, 230, 0.12) 100%);
+  --theme-header-bg: rgba(255, 228, 196, 0.78);
+  --theme-card-bg: rgba(255, 255, 255, 0.95);
+  --theme-card-border: rgba(226, 232, 240, 0.8);
+  --theme-text-main: #0f172a;
+  --theme-text-muted: #64748b;
+  --theme-text-light: #94a3b8;
+  --theme-kpi-bg: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  --theme-kpi-border: rgba(186, 230, 253, 0.5);
+  --theme-kpi-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), inset 0 1px 8px rgba(255, 220, 180, 0.35), inset 0 -1px 8px rgba(173, 216, 230, 0.28);
+  --theme-kpi-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.08), inset 0 1px 8px rgba(255, 220, 180, 0.40), inset 0 -1px 8px rgba(173, 216, 230, 0.35);
+
+  --color-sidebar-text: #0e2240;
+  --color-sidebar-text-muted: #2c5282;
+  --color-sidebar-text-label: #1a56a8;
+  --color-sidebar-hover: rgba(37, 99, 235, 0.11);
+  --color-sidebar-active-bg: rgba(37, 99, 235, 0.16);
+  --color-sidebar-active-text: #1741c8;
+
+  --color-slate-50: #f8fafc;
+  --color-slate-100: #f1f5f9;
+  --color-slate-200: #e2e8f0;
+  --color-slate-300: #cbd5e1;
+  --color-white: #ffffff;
+  --color-emerald-500: #10b981;
+  --color-emerald-400: #34d399;
+  --color-blue-500: #3b82f6;
+  --color-blue-600: #2563eb;
+  --color-amber-500: #f59e0b;
+  --color-red-500: #ef4444;
+
+  /* Chart Variables */
+  --chart-rev-stroke: #2563eb;
+  --chart-exp-stroke: #ef4444;
+  --chart-prof-stroke: #10b981;
+  --chart-cf-op: #2563eb;
+  --chart-cf-net: #10b981;
+  --chart-grad-opacity-top: 0;
+  --chart-grad-opacity-bottom: 0;
+  --chart-stroke-width: 1.5;
+  --chart-grid-stroke: #f1f5f9;
+  --chart-tooltip-bg: #ffffff;
+  --chart-tooltip-border: #e2e8f0;
+  --chart-tooltip-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --chart-fill-opacity: 0;
+  --chart-active-dot-r: 3;
+  --chart-active-dot-stroke-width: 0;
+  --chart-active-dot-fill: var(--chart-rev-stroke);
+}
+
+.dark {
+  /* ── Dark Neon Theme Variables ── */
+  --theme-bg: #050505;
+  --theme-sidebar-bg: #0b0b0f;
+  --theme-sidebar-glow: linear-gradient(170deg, rgba(182, 255, 0, 0.05) 0%, rgba(30, 123, 255, 0.02) 50%, rgba(182, 255, 0, 0.05) 100%);
+  --theme-header-bg: rgba(11, 11, 15, 0.85);
+  --theme-card-bg: #121218;
+  --theme-card-border: rgba(182, 255, 0, 0.25);
+  --theme-text-main: #ffffff;
+  --theme-text-muted: #a0a0a8;
+  --theme-text-light: #5a5a62;
+  --theme-kpi-bg: linear-gradient(135deg, #121218 0%, #1a1a22 100%);
+  --theme-kpi-border: rgba(182, 255, 0, 0.25);
+  --theme-kpi-shadow: 0 1px 4px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(182, 255, 0, 0.05);
+  --theme-kpi-shadow-hover: 0 0 25px rgba(182, 255, 0, 0.18), inset 0 1px 0 rgba(182, 255, 0, 0.1);
+
+  /* Override Sidebar specific colors for dark mode */
+  --color-sidebar-text: #ffffff;
+  --color-sidebar-text-muted: #a0a0a8;
+  --color-sidebar-text-label: #b6ff00;
+  --color-sidebar-hover: rgba(182, 255, 0, 0.06);
+  --color-sidebar-active-bg: rgba(182, 255, 0, 0.15);
+  --color-sidebar-active-text: #b6ff00;
+
+  /* ── Tailwind V4 Color Overrides for Dark Mode ── */
+  --color-slate-900: var(--theme-text-main);
+  --color-slate-800: var(--theme-text-main);
+  --color-slate-700: var(--theme-text-muted);
+  --color-slate-600: var(--theme-text-muted);
+  --color-slate-500: var(--theme-text-light);
+  --color-slate-400: var(--theme-text-light);
+
+  --color-slate-50: #121218;
+  --color-slate-100: #1a1a22;
+  --color-slate-200: rgba(182, 255, 0, 0.25);
+  --color-slate-300: rgba(182, 255, 0, 0.45);
+  --color-white: #121218;
+  
+  --color-blue-400: #1e7bff;
+  --color-blue-500: #1e7bff;
+  --color-blue-600: #1e7bff;
+  --color-emerald-400: #b6ff00;
+  --color-emerald-500: #b6ff00;
+  --color-emerald-800: #b6ff00;
+  --color-red-500: #ff3366;
+  --color-amber-500: #fff200;
+
+  /* Chart Variables */
+  --chart-rev-stroke: #b6ff00;
+  --chart-exp-stroke: #1e7bff;
+  --chart-prof-stroke: #fff200;
+  --chart-cf-op: #1e7bff;
+  --chart-cf-net: #b6ff00;
+  --chart-grad-opacity-top: 0.4;
+  --chart-grad-opacity-bottom: 0;
+  --chart-stroke-width: 3;
+  --chart-grid-stroke: rgba(182, 255, 0, 0.15);
+  --chart-tooltip-bg: #121218;
+  --chart-tooltip-border: rgba(182, 255, 0, 0.25);
+  --chart-tooltip-shadow: 0 0 15px rgba(182, 255, 0, 0.15);
+  --chart-fill-opacity: 1;
+  --chart-active-dot-r: 4;
+  --chart-active-dot-stroke-width: 2;
+  --chart-active-dot-fill: #050505;
 }
 
 /*
  * ── ALL custom base styles go inside @layer base ──
- * This ensures Tailwind utility classes (in @layer utilities)
- * always take priority over these base/reset styles.
  */
 @layer base {
 
@@ -56,8 +167,9 @@
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    background: #ffffff;
-    color: #0f172a;
+    background: var(--theme-bg);
+    background-attachment: fixed;
+    color: var(--theme-text-main);
   }
 
   #root {
@@ -67,8 +179,8 @@
 
   /* ── Scrollbars ── */
   ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 4px;
+    height: 4px;
   }
 
   ::-webkit-scrollbar-track {
@@ -76,28 +188,26 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
+    background: #1a1a22;
+    border: 1px solid rgba(182, 255, 0, 0.15);
     border-radius: 8px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
+    background: rgba(182, 255, 0, 0.25);
   }
 }
 
-/*
- * ── Component-level styles go inside @layer components ──
- * These sit between base and utilities in the cascade,
- * so Tailwind utility classes still override them if needed.
- */
 @layer components {
 
-  /* ── App Layout (Responsive AppShell) ── */
+  /* ── App Layout ── */
   .app-layout {
     display: flex;
     min-height: 100vh;
     position: relative;
     overflow: hidden;
+    background: var(--theme-bg);
+    background-attachment: fixed;
   }
 
   /* ── Sidebar ── */
@@ -107,16 +217,31 @@
     left: 0;
     height: 100vh;
     width: var(--sidebar-width);
-    background: var(--color-sidebar);
+    font-family: var(--font-sidebar);
+    /* Dynamic Theme Gradient */
+    background: var(--theme-sidebar-bg);
+    backdrop-filter: blur(20px) saturate(2.0);
+    -webkit-backdrop-filter: blur(20px) saturate(2.0);
     display: flex;
     flex-direction: column;
     z-index: 100;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+      transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     overflow: hidden;
-    border-right: 1px solid var(--color-sidebar-border);
-    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.1);
-    /* Mobile default: offscreen */
+    border-right: none;
+    box-shadow: none;
     transform: translateX(-100%);
+  }
+
+
+  /* Subtle white inner sheen */
+  .sidebar::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--theme-sidebar-glow);
+    pointer-events: none;
+    z-index: 0;
   }
 
   .sidebar.mobile-open {
@@ -139,8 +264,7 @@
     min-width: 0;
     display: flex;
     flex-direction: column;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    /* Mobile default: full width */
+    transition: margin-left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     margin-left: 0;
   }
 
@@ -161,13 +285,13 @@
     right: 0;
     left: 0;
     height: var(--header-height);
-    background: rgba(255, 255, 255, 0.85);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border-bottom: 1px solid #e2e8f0;
+    background: var(--theme-header-bg);
+    backdrop-filter: blur(20px) saturate(1.8);
+    -webkit-backdrop-filter: blur(20px) saturate(1.8);
+    border-bottom: 1px solid var(--theme-card-border);
+    box-shadow: none;
     z-index: 90;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+    transition: left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   @media (min-width: 1024px) {
@@ -180,28 +304,29 @@
     }
   }
 
-  /* ── Content ── */
+  /* ── Content Area — Ultra Compact ── */
   .content-area {
     margin-top: var(--header-height);
-    padding: 20px;
+    padding: 10px 12px;
     flex: 1;
     overflow-y: auto;
     min-height: calc(100vh - var(--header-height));
     width: 100%;
-    max-width: 1600px;
+    max-width: 1700px;
     margin-left: auto;
     margin-right: auto;
+    background: transparent;
   }
 
   @media (min-width: 768px) {
     .content-area {
-      padding: 32px;
+      padding: 12px 16px;
     }
   }
 
   @media (min-width: 1280px) {
     .content-area {
-      padding: 40px;
+      padding: 14px 20px;
     }
   }
 
@@ -209,12 +334,12 @@
   .mobile-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(15, 23, 42, 0.5);
+    background: rgba(10, 15, 30, 0.6);
     backdrop-filter: blur(4px);
     z-index: 90;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.3s ease;
+    transition: opacity 0.25s ease;
   }
 
   .mobile-overlay.active {
@@ -222,66 +347,65 @@
     pointer-events: auto;
   }
 
-  /* ── KPI Card accent bars ── */
-  .kpi-bar-sales {
-    background: linear-gradient(135deg, #3b82f6, #0ea5e9);
-  }
 
-  .kpi-bar-purchase {
-    background: linear-gradient(135deg, #8b5cf6, #d946ef);
-  }
-
-  .kpi-bar-receivables {
-    background: linear-gradient(135deg, #f59e0b, #fbbf24);
-  }
-
-  .kpi-bar-payables {
-    background: linear-gradient(135deg, #ef4444, #f97316);
-  }
-
-  .kpi-bar-cash {
-    background: linear-gradient(135deg, #10b981, #14b8a6);
-  }
-
-  .kpi-bar-profit {
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
-  }
-
-  /* ── Table hover ── */
+  /* ── Table row ── */
   .table-row-hover:hover {
-    background: #f1f5f9;
+    background: var(--color-slate-100);
   }
 
   .row-overdue {
-    background: #fef2f2;
+    background: rgba(255, 51, 102, 0.1);
   }
 
   .row-overdue:hover {
-    background: #fee2e2;
+    background: rgba(255, 51, 102, 0.15);
   }
 
   /* ── Nav active indicator ── */
   .nav-active-bar {
     position: absolute;
     left: 0;
-    top: 8px;
-    bottom: 8px;
-    width: 4px;
-    background: #3b82f6;
+    top: 5px;
+    bottom: 5px;
+    width: 3px;
+    background: #b6ff00;
     border-radius: 0 4px 4px 0;
-    box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+    box-shadow: 0 0 10px rgba(182, 255, 0, 0.5);
   }
 
-  /* ── Card Styles ── */
+  /* ── Dashboard Glass Card ── */
   .glass-card {
-    background: white;
-    border: 1px solid rgba(226, 232, 240, 0.8);
-    border-radius: 16px;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.01);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    background: var(--theme-card-bg);
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--theme-card-border);
+    box-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  /* Sidebar collapsed visibility overrides */
+  .glass-card:hover {
+    box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(182, 255, 0, 0.1), 0 0 15px rgba(182, 255, 0, 0.1);
+    transform: translateY(-2px);
+  }
+
+  .card-header {
+    padding: 12px 14px 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--theme-card-border);
+  }
+
+  .card-header h2 {
+    color: var(--theme-text-main);
+  }
+
+  .card-header p {
+    color: var(--theme-text-muted);
+  }
+
+  /* ── Sidebar Collapsed Visibility ── */
   @media (min-width: 1024px) {
 
     .sidebar.collapsed .nav-group-label,
@@ -301,7 +425,7 @@
 
   /* ── Login Gradient ── */
   .login-gradient {
-    background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+    background: linear-gradient(135deg, #0a0f1e 0%, #1e293b 50%, #0a0f1e 100%);
   }
 
   /* ── Scrollbar Hide ── */
@@ -315,26 +439,26 @@
   }
 }
 
-/*
- * ── Custom utility-level styles go inside @layer utilities ──
- * These have the same priority as Tailwind utilities.
- */
 @layer utilities {
 
   .animate-fade-in {
-    animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1) both;
+    animation: fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) both;
   }
 
   .animate-slide-up {
-    animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1) both;
+    animation: slideUp 0.35s cubic-bezier(0.4, 0, 0.2, 1) both;
   }
 
   .sync-dot-pulse {
     animation: pulse 2s infinite cubic-bezier(0.4, 0, 0.6, 1);
   }
+
+  .animate-marquee {
+    animation: marquee 35s linear infinite;
+  }
 }
 
-/* ── Keyframes (these are global, not layer-specific) ── */
+/* ── Keyframes ── */
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -348,7 +472,7 @@
 @keyframes slideUp {
   from {
     opacity: 0;
-    transform: translateY(16px);
+    transform: translateY(10px);
   }
 
   to {
@@ -374,5 +498,15 @@
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0%);
+  }
+
+  100% {
+    transform: translateX(-50%);
   }
 }

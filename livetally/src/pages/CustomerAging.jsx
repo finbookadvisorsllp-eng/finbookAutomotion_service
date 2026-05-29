@@ -8,7 +8,7 @@ export default function CustomerAging() {
     { key: 'amount0', label: '0-30 Days', align: 'right', render: v => v > 0 ? formatINR(v) : '-' },
     { key: 'amount31', label: '31-60 Days', align: 'right', render: v => v > 0 ? formatINR(v) : '-' },
     { key: 'amount61', label: '61-90 Days', align: 'right', render: v => v > 0 ? formatINR(v) : '-' },
-    { key: 'amount90', label: '> 90 Days', align: 'right', render: v => v > 0 ? <span className="text-red-500 font-bold">{formatINR(v)}</span> : '-' },
+    { key: 'amount90', label: '> 90 Days', align: 'right', render: v => v > 0 ? <span className="text-red-500 dark:text-red-400 font-bold">{formatINR(v)}</span> : '-' },
     { key: 'outstanding', label: 'Total Due', align: 'right', sortable: true, render: v => <span className="font-black text-slate-800">{formatINR(v)}</span> },
   ]
 
@@ -36,7 +36,7 @@ export default function CustomerAging() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {receivablesAging.map(bucket => (
-          <div key={bucket.bucket} className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+          <div key={bucket.bucket} className="glass-card p-5 hover:shadow-md dark:hover:shadow-[0_0_15px_rgba(182,255,0,0.15)] transition-all relative overflow-hidden group">
             <div className="absolute top-0 left-0 w-full h-1" style={{ backgroundColor: bucket.color }} />
             <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">{bucket.bucket}</p>
             <p className="text-2xl font-black text-slate-900">{formatINR(bucket.amount)}</p>

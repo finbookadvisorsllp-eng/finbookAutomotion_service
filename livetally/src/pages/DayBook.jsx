@@ -43,27 +43,15 @@ export default function DayBook() {
             type="date" 
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100"
+            className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 transition-colors"
           />
         </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-2xl border border-slate-100 p-4">
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Total Sales</p>
-          <p className="text-lg font-black text-blue-600">{formatINR(totalSales)}</p>
-        </div>
-        <div className="bg-white rounded-2xl border border-slate-100 p-4">
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Total Purchase</p>
-          <p className="text-lg font-black text-purple-600">{formatINR(totalPurchase)}</p>
-        </div>
-        <div className="bg-white rounded-2xl border border-slate-100 p-4">
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Total Receipts</p>
-          <p className="text-lg font-black text-emerald-600">{formatINR(totalReceipts)}</p>
-        </div>
-        <div className="bg-white rounded-2xl border border-slate-100 p-4">
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Total Payments</p>
-          <p className="text-lg font-black text-red-600">{formatINR(totalPayments)}</p>
+        <div className="glass-card p-4">
+          <p className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Total Payments</p>
+          <p className="text-lg font-black text-red-600 dark:text-red-400">{formatINR(totalPayments)}</p>
         </div>
       </div>
 

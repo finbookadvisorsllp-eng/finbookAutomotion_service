@@ -16,7 +16,7 @@ export default function BillsDue() {
     { key: 'total', label: 'Amount Due', align: 'right', sortable: true, render: v => <span className="font-black text-slate-800">{formatINR(v)}</span> },
     { key: 'status', label: 'Status', render: v => (
       <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
-        v === 'overdue' ? 'bg-red-100 text-red-700 flex items-center w-fit gap-1' : 'bg-amber-100 text-amber-700 flex items-center w-fit gap-1'
+        v === 'overdue' ? 'bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400 flex items-center w-fit gap-1' : 'bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 flex items-center w-fit gap-1'
       }`}>
         {v === 'overdue' ? <AlertCircle size={10}/> : <CheckCircle2 size={10}/>} {v.toUpperCase()}
       </span>
@@ -33,30 +33,30 @@ export default function BillsDue() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <div className="bg-red-50 border border-red-100 rounded-2xl p-5">
+        <div className="bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 rounded-2xl p-5">
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-xs font-bold text-red-600 uppercase tracking-wider mb-1">Overdue Bills</p>
-              <p className="text-3xl font-black text-red-700">{formatINR(overdue.reduce((a,b)=>a+b.total, 0))}</p>
+              <p className="text-xs font-bold text-red-600 dark:text-red-400 uppercase tracking-wider mb-1">Overdue Bills</p>
+              <p className="text-3xl font-black text-red-700 dark:text-red-400">{formatINR(overdue.reduce((a,b)=>a+b.total, 0))}</p>
             </div>
-            <div className="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400 flex items-center justify-center">
               <AlertCircle size={20} />
             </div>
           </div>
-          <p className="text-sm font-semibold text-red-600 mt-3">{overdue.length} bills require immediate attention.</p>
+          <p className="text-sm font-semibold text-red-600 dark:text-red-400 mt-3">{overdue.length} bills require immediate attention.</p>
         </div>
 
-        <div className="bg-amber-50 border border-amber-100 rounded-2xl p-5">
+        <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-100 dark:border-amber-500/20 rounded-2xl p-5">
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-1">Due Next 7 Days</p>
-              <p className="text-3xl font-black text-amber-700">{formatINR(dueThisWeek.reduce((a,b)=>a+b.total, 0))}</p>
+              <p className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider mb-1">Due Next 7 Days</p>
+              <p className="text-3xl font-black text-amber-700 dark:text-amber-400">{formatINR(dueThisWeek.reduce((a,b)=>a+b.total, 0))}</p>
             </div>
-            <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center">
               <Calendar size={20} />
             </div>
           </div>
-          <p className="text-sm font-semibold text-amber-600 mt-3">{dueThisWeek.length} bills approaching due date.</p>
+          <p className="text-sm font-semibold text-amber-600 dark:text-amber-400 mt-3">{dueThisWeek.length} bills approaching due date.</p>
         </div>
       </div>
 

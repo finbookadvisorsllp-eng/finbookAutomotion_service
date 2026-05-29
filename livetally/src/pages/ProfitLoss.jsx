@@ -21,20 +21,20 @@ export default function ProfitLoss() {
           <p className="text-sm text-slate-400 mt-0.5">FY 2024-25 · Apr 2024 — Mar 2025</p>
         </div>
         <div className="flex gap-2">
-          <button className="px-4 py-2 border border-slate-200 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50">⬇ Export PDF</button>
-          <button className="px-4 py-2 border border-slate-200 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50">📊 Excel</button>
+          <button className="px-4 py-2 border border-slate-200 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">⬇ Export PDF</button>
+          <button className="px-4 py-2 border border-slate-200 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">📊 Excel</button>
         </div>
       </div>
 
       {/* Summary KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 mb-5">
         {[
-          { label: 'Total Income',   value: totalIncome,  color: 'text-blue-600',    bg: 'bg-blue-50',    border: 'border-blue-100' },
-          { label: 'Gross Profit',   value: grossProfit,  color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100', sub: `GP Margin: ${gpMargin}%` },
-          { label: 'Total Expenses', value: totalDirect+totalIndirect, color:'text-red-500', bg:'bg-red-50', border:'border-red-100' },
-          { label: 'Net Profit',     value: netProfit,    color: 'text-indigo-600',  bg: 'bg-indigo-50',  border: 'border-indigo-100', sub: `NP Margin: ${npMargin}%` },
+          { label: 'Total Income',   value: totalIncome,  color: 'text-blue-600 dark:text-blue-400',    bg: 'bg-blue-50 dark:bg-blue-500/10',    border: 'border-blue-100 dark:border-blue-500/20' },
+          { label: 'Gross Profit',   value: grossProfit,  color: 'text-emerald-600 dark:text-[#B6FF00]', bg: 'bg-emerald-50 dark:bg-[#B6FF00]/10', border: 'border-emerald-100 dark:border-[#B6FF00]/20', sub: `GP Margin: ${gpMargin}%` },
+          { label: 'Total Expenses', value: totalDirect+totalIndirect, color:'text-red-500 dark:text-red-400', bg:'bg-red-50 dark:bg-red-500/10', border:'border-red-100 dark:border-red-500/20' },
+          { label: 'Net Profit',     value: netProfit,    color: 'text-indigo-600 dark:text-indigo-400',  bg: 'bg-indigo-50 dark:bg-indigo-500/10',  border: 'border-indigo-100 dark:border-indigo-500/20', sub: `NP Margin: ${npMargin}%` },
         ].map(s => (
-          <div key={s.label} className={`${s.bg} ${s.border} border rounded-2xl p-4`}>
+          <div key={s.label} className={`${s.bg} ${s.border} border rounded-2xl p-4 transition-colors`}>
             <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">{s.label}</p>
             <p className={`text-xl font-extrabold ${s.color}`}>{formatINR(s.value)}</p>
             {s.sub && <p className="text-[11px] text-slate-500 mt-0.5 font-medium">{s.sub}</p>}
@@ -44,7 +44,7 @@ export default function ProfitLoss() {
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 mb-5">
-        <div className="xl:col-span-2 bg-white rounded-2xl border border-slate-100 p-5">
+        <div className="xl:col-span-2 glass-card p-5">
           <h2 className="text-sm font-bold text-slate-800 mb-4">Monthly Profit Trend</h2>
           <ResponsiveContainer width="100%" height={240}>
             <AreaChart data={monthlyTrend}>
@@ -63,7 +63,7 @@ export default function ProfitLoss() {
           </ResponsiveContainer>
         </div>
 
-        <div className="bg-white rounded-2xl border border-slate-100 p-5">
+        <div className="glass-card p-5">
           <h2 className="text-sm font-bold text-slate-800 mb-4">Expense Breakdown</h2>
           <ResponsiveContainer width="100%" height={140}>
             <PieChart>
@@ -86,7 +86,7 @@ export default function ProfitLoss() {
       </div>
 
       {/* P&L Statement */}
-      <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
+      <div className="glass-card overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-100">
           <h2 className="text-sm font-bold text-slate-800">Profit & Loss Statement</h2>
         </div>

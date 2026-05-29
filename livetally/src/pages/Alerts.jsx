@@ -35,8 +35,8 @@ export default function Alerts() {
       </div>
 
       {filteredAlerts.length === 0 ? (
-        <div className="flex flex-col items-center justify-center bg-white rounded-2xl border border-slate-100 p-12">
-          <div className="w-16 h-16 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center mb-4">
+        <div className="glass-card flex flex-col items-center justify-center p-12">
+          <div className="w-16 h-16 rounded-full bg-emerald-50 dark:bg-[#B6FF00]/10 text-emerald-500 dark:text-[#B6FF00] flex items-center justify-center mb-4">
             <AlertCircle size={32} />
           </div>
           <h3 className="text-lg font-bold text-slate-800">All caught up!</h3>
@@ -45,23 +45,23 @@ export default function Alerts() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredAlerts.map(alert => (
-            <div key={alert.id} className="bg-white rounded-2xl border border-slate-100 p-5 hover:-translate-y-1 hover:shadow-lg transition-all">
+            <div key={alert.id} className="glass-card p-5 hover:-translate-y-1 hover:shadow-lg dark:hover:shadow-[0_0_15px_rgba(182,255,0,0.15)] transition-all">
               <div className="flex items-start gap-4">
                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl shrink-0 ${
-                  alert.type === 'danger' ? 'bg-red-50 text-red-500' :
-                  alert.type === 'warning' ? 'bg-amber-50 text-amber-500' :
-                  alert.type === 'info' ? 'bg-blue-50 text-blue-500' :
-                  'bg-emerald-50 text-emerald-500'
+                  alert.type === 'danger' ? 'bg-red-50 dark:bg-red-500/10 text-red-500' :
+                  alert.type === 'warning' ? 'bg-amber-50 dark:bg-amber-500/10 text-amber-500' :
+                  alert.type === 'info' ? 'bg-blue-50 dark:bg-blue-500/10 text-blue-500' :
+                  'bg-emerald-50 dark:bg-[#B6FF00]/10 text-emerald-500 dark:text-[#B6FF00]'
                 }`}>
                   {alert.icon}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                      alert.type === 'danger' ? 'bg-red-100 text-red-700' :
-                      alert.type === 'warning' ? 'bg-amber-100 text-amber-700' :
-                      alert.type === 'info' ? 'bg-blue-100 text-blue-700' :
-                      'bg-emerald-100 text-emerald-700'
+                      alert.type === 'danger' ? 'bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400' :
+                      alert.type === 'warning' ? 'bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400' :
+                      alert.type === 'info' ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400' :
+                      'bg-emerald-100 dark:bg-[#B6FF00]/20 text-emerald-700 dark:text-[#B6FF00]'
                     }`}>
                       {alert.type}
                     </span>
@@ -70,7 +70,7 @@ export default function Alerts() {
                   <div className="mt-2 text-lg font-black text-slate-900">{alert.value}</div>
                   <p className="text-xs text-slate-500 mt-1">{alert.subtext}</p>
                   
-                  <button className="mt-4 flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-700 transition-colors">
+                  <button className="mt-4 flex items-center gap-1.5 text-sm font-semibold text-blue-600 dark:text-[#B6FF00] hover:text-blue-700 dark:hover:text-[#90cc00] transition-colors">
                     {alert.action} <ArrowRight size={16} />
                   </button>
                 </div>

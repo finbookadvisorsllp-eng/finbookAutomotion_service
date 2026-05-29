@@ -1,85 +1,113 @@
-import {
-  LineChart, Line, ResponsiveContainer, Tooltip
-} from 'recharts'
 import { formatINR } from '../data/mockData'
+import { TrendingUp, TrendingDown } from 'lucide-react'
 
-const VARIANT_CONFIG = {
-  sales:       { bar: 'kpi-bar-sales',       iconBg: 'bg-blue-50',   iconColor: 'text-blue-600' },
-  purchase:    { bar: 'kpi-bar-purchase',    iconBg: 'bg-purple-50', iconColor: 'text-purple-600' },
-  receivables: { bar: 'kpi-bar-receivables', iconBg: 'bg-amber-50',  iconColor: 'text-amber-600' },
-  payables:    { bar: 'kpi-bar-payables',    iconBg: 'bg-red-50',    iconColor: 'text-red-500' },
-  cash:        { bar: 'kpi-bar-cash',        iconBg: 'bg-emerald-50',iconColor: 'text-emerald-600' },
-  profit:      { bar: 'kpi-bar-profit',      iconBg: 'bg-indigo-50', iconColor: 'text-indigo-600' },
-}
-
-const SPARK_COLORS = {
-  sales: '#2563eb', purchase: '#7c3aed', receivables: '#f59e0b',
-  payables: '#ef4444', cash: '#10b981', profit: '#6366f1',
+// Per-variant classes
+const VARIANT = {
+  sales: { colorClass: 'bg-blue-100 text-blue-600 dark:bg-[rgba(182,255,0,0.1)] dark:text-[#B6FF00]' },
+  purchase: { colorClass: 'bg-indigo-100 text-indigo-600 dark:bg-[rgba(30,123,255,0.1)] dark:text-[#1E7BFF]' },
+  receivables: { colorClass: 'bg-amber-100 text-amber-600 dark:bg-[rgba(255,242,0,0.1)] dark:text-[#FFF200]' },
+  payables: { colorClass: 'bg-red-100 text-red-600 dark:bg-[rgba(255,51,102,0.1)] dark:text-[#FF3366]' },
+  cash: { colorClass: 'bg-emerald-100 text-emerald-600 dark:bg-[rgba(182,255,0,0.1)] dark:text-[#B6FF00]' },
+  profit: { colorClass: 'bg-indigo-100 text-indigo-600 dark:bg-[rgba(30,123,255,0.1)] dark:text-[#1E7BFF]' },
 }
 
 export default function KPICard({ data, onClick }) {
-  const { label, current, change, trend, icon, variant, subtitle, warning, sparkData } = data
-  const cfg = VARIANT_CONFIG[variant] || VARIANT_CONFIG.sales
-  const lineColor = SPARK_COLORS[variant] || '#2563eb'
-  const sparkPoints = sparkData.map((v, i) => ({ i, v }))
+  const { label, current, change, trend, icon, variant, warning } = data
+  const cfg = VARIANT[variant] ?? VARIANT.sales
 
-  const isPositiveTrend = (variant === 'receivables' || variant === 'payables')
+  // Green = good: sales/purchase/profit up, receivables/payables down
+  const isGood = (variant === 'receivables' || variant === 'payables')
     ? trend === 'down'
     : trend === 'up'
+
+  const TrendIcon = isGood ? TrendingUp : TrendingDown
+  const trendClass = isGood
+    ? 'text-emerald-600 bg-emerald-50 dark:text-[#B6FF00] dark:bg-[rgba(182,255,0,0.15)]'
+    : 'text-red-600 bg-red-50 dark:text-[#FF3366] dark:bg-[rgba(255,51,102,0.15)]'
 
   return (
     <div
       onClick={onClick}
-      className="relative bg-white rounded-xl border border-slate-100 p-4 sm:p-5 cursor-pointer hover:-translate-y-1 hover:shadow-lg hover:border-slate-200 transition-all duration-200 overflow-hidden animate-slide-up group"
+      className="animate-slide-up cursor-pointer group transition-all duration-200"
+      style={{
+        background: 'var(--theme-kpi-bg)',
+        borderRadius: 8,
+        padding: '6px 8px',
+        border: '1px solid var(--theme-kpi-border)',
+        boxShadow: 'var(--theme-kpi-shadow)',
+        minHeight: 46, // ~33% reduction from 68px
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        gap: 3,
+      }}
+      onMouseEnter={e => {
+        e.currentTarget.style.boxShadow = 'var(--theme-kpi-shadow-hover)'
+        e.currentTarget.style.transform = 'translateY(-1px)'
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.boxShadow = 'var(--theme-kpi-shadow)'
+        e.currentTarget.style.transform = 'translateY(0)'
+      }}
     >
-      {/* Accent bar */}
-      <div className={`absolute top-0 left-0 right-0 h-0.5 ${cfg.bar}`} />
+      {/* ── Top row: icon + label + warning ── */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          {/* Icon circle */}
+          <div
+            className={`w-[18px] h-[18px] rounded flex items-center justify-center shrink-0 text-[10px] ${cfg.colorClass}`}
+          >
+            {icon}
+          </div>
 
-      {/* Top row */}
-      <div className="flex items-start justify-between mb-3">
-        <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest leading-tight">{label}</p>
-        <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm ${cfg.iconBg} ${cfg.iconColor} shrink-0`}>
-          {icon}
+          {/* Label */}
+          <p
+            style={{
+              fontSize: 9.5,
+              fontWeight: 700,
+              color: 'var(--theme-text-muted)',
+              lineHeight: 1,
+              fontFamily: "'Nunito','Inter',system-ui,sans-serif",
+              letterSpacing: '0.01em',
+            }}
+          >
+            {label}
+          </p>
         </div>
-      </div>
 
-      {/* Value */}
-      <div className="text-[22px] font-extrabold text-slate-900 tracking-tight mb-2 leading-none">
-        {formatINR(current)}
-      </div>
-
-      {/* Change + period */}
-      <div className="flex items-center gap-3 mb-4">
-        <span className={`flex items-center gap-1 text-[12px] font-bold ${isPositiveTrend ? 'text-emerald-600' : 'text-red-500'}`}>
-          {isPositiveTrend ? '↑' : '↓'} {Math.abs(change)}%
-        </span>
-        <span className="text-[12px] text-slate-400 font-medium">{subtitle}</span>
         {warning && (
-          <span className="ml-auto text-[11px] font-semibold bg-amber-100 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full whitespace-nowrap">
-            ⚠ {warning}
+          <span
+              className="text-[8px] font-extrabold text-amber-700 bg-amber-100 dark:text-[#050505] dark:bg-[#FFF200] rounded-full px-1 py-[1px] font-sans"
+            >
+              ⚠
           </span>
         )}
       </div>
 
-      {/* Sparkline */}
-      <div className="h-12 -mx-1 mt-2">
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={sparkPoints}>
-            <Line
-              type="monotone" dataKey="v"
-              stroke={lineColor} strokeWidth={2.5}
-              dot={false} activeDot={{ r: 4, fill: lineColor }}
-            />
-            <Tooltip
-              cursor={false}
-              content={({ active, payload }) => active && payload?.length ? (
-                <div className="bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-[12px] font-bold text-slate-700 shadow-md">
-                  {payload[0].value}
-                </div>
-              ) : null}
-            />
-          </LineChart>
-        </ResponsiveContainer>
+      {/* ── Bottom row: Value + Trend ── */}
+      <div className="flex items-end justify-between">
+        {/* Value */}
+        <p
+          style={{
+            fontSize: 13,
+            fontWeight: 900,
+            color: 'var(--theme-text-main)',
+            lineHeight: 1,
+            letterSpacing: '-0.01em',
+            fontFamily: "'Nunito','Inter',system-ui,sans-serif",
+          }}
+        >
+          {formatINR(current)}
+        </p>
+
+        {/* Trend badge */}
+        <span
+          className={`flex items-center justify-center rounded-sm font-extrabold px-1 py-0.5 ${trendClass}`}
+          style={{ fontSize: 9 }}
+        >
+          <TrendIcon size={9} strokeWidth={3} className="mr-0.5" />
+          {Math.abs(change)}%
+        </span>
       </div>
     </div>
   )

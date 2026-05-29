@@ -45,7 +45,7 @@ export default function DataTable({
   })
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden flex flex-col">
+    <div className="bg-white dark:bg-[#121218] rounded-2xl border border-slate-200/80 dark:border-[#B6FF00]/25 shadow-sm dark:shadow-[0_0_25px_rgba(182,255,0,0.05)] overflow-hidden flex flex-col">
       {/* Table Controls */}
       <div className="flex items-center gap-4 px-5 py-3 border-b border-slate-100 flex-wrap bg-white/50">
         {title && <h3 className="text-sm font-black text-slate-800 mr-2">{title}</h3>}
@@ -145,7 +145,7 @@ export default function DataTable({
               className={`min-w-[32px] h-8 flex items-center justify-center px-2 text-[13px] font-bold border rounded-lg transition-all shadow-sm ${
                 page === n
                   ? 'bg-blue-600 text-white border-blue-600 shadow-blue-500/20'
-                  : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-600'
+                  : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-slate-800'
               }`}
             >{n}</button>
           ))}

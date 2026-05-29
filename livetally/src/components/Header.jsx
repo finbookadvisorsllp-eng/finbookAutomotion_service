@@ -1,14 +1,14 @@
 import { useState } from 'react'
-import { Menu, Bell, Download, Plug, Calendar, ChevronDown, CheckCircle2, Building2, Plus } from 'lucide-react'
+import { Menu, Bell, Download, Plug, Calendar, ChevronDown, CheckCircle2, Plus, Moon, Sun } from 'lucide-react'
 import { company, notifications } from '../data/mockData'
 
-export default function Header({ collapsed, onToggleSidebar }) {
+export default function Header({ collapsed, onToggleSidebar, isDarkMode, toggleTheme }) {
   const [notifOpen, setNotifOpen] = useState(false)
   const [companyOpen, setCompanyOpen] = useState(false)
   const unreadCount = notifications.filter(n => !n.read).length
 
   const syncTimeAgo = () => {
-    const now = new Date()
+    const now  = new Date()
     const sync = new Date(company.lastSync)
     const diffH = Math.round((now - sync) / 36e5)
     if (diffH < 1) return 'Just now'
@@ -16,46 +16,91 @@ export default function Header({ collapsed, onToggleSidebar }) {
     return `${diffH}h ago`
   }
 
+  // Theme aware accent colors
+  const accentColor = isDarkMode ? '#B6FF00' : '#2563eb'
+  const accentLight = isDarkMode ? 'rgba(182, 255, 0, 0.1)' : 'rgba(37, 99, 235, 0.1)'
+  const accentHover = isDarkMode ? 'rgba(182, 255, 0, 0.2)' : 'rgba(37, 99, 235, 0.15)'
+  const hoverBg = isDarkMode ? 'rgba(182, 255, 0, 0.12)' : 'rgba(0, 0, 0, 0.04)'
+
+  // Shared glass-button style (theme aware)
+  const glassBtn = {
+    bg: 'var(--theme-card-bg)',
+    border: '1px solid var(--theme-card-border)',
+    hover: hoverBg,
+    text: 'var(--theme-text-main)',
+    muted: 'var(--theme-text-muted)',
+  }
+
   return (
-    <header className={`app-header flex items-center gap-3 lg:gap-4 px-4 lg:px-6 ${collapsed ? 'collapsed' : ''}`}>
+    <header
+      className={`app-header flex items-center gap-3 lg:gap-4 px-4 lg:px-6 ${collapsed ? 'collapsed' : ''}`}
+      style={{ fontFamily: "'Nunito', 'Inter', system-ui, sans-serif" }}
+    >
       {/* Sidebar Toggle */}
       <button
         onClick={onToggleSidebar}
-        className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100/80 transition-all shrink-0 active:scale-95"
+        className="w-8 h-8 flex items-center justify-center rounded-xl shrink-0 transition-all duration-150 active:scale-95"
+        style={{ background: glassBtn.bg, border: glassBtn.border, color: glassBtn.text }}
+        onMouseEnter={e => e.currentTarget.style.background = glassBtn.hover}
+        onMouseLeave={e => e.currentTarget.style.background = glassBtn.bg}
         title="Toggle sidebar"
       >
-        <Menu size={18} strokeWidth={2.5} />
+        <Menu size={18} strokeWidth={2.2} />
       </button>
 
       {/* Company Switcher */}
       <div className="relative">
         <button
           onClick={() => setCompanyOpen(!companyOpen)}
-          className="flex items-center gap-2 px-2.5 py-1.5 border border-slate-200/80 bg-white rounded-lg hover:border-blue-300 hover:bg-blue-50/50 hover:shadow-sm transition-all max-w-[160px] sm:max-w-[220px]"
+          className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl transition-all duration-150 max-w-[160px] sm:max-w-[220px]"
+          style={{ background: glassBtn.bg, border: glassBtn.border, color: glassBtn.text }}
+          onMouseEnter={e => e.currentTarget.style.background = glassBtn.hover}
+          onMouseLeave={e => e.currentTarget.style.background = glassBtn.bg}
         >
-          <div className="w-5 h-5 rounded flex items-center justify-center text-[9px] font-bold text-white shrink-0 shadow-sm"
-            style={{ background: 'linear-gradient(135deg,#f59e0b,#ef4444)' }}>
+          <div
+            className="w-5 h-5 rounded-md flex items-center justify-center text-[9px] font-black text-white shrink-0"
+            style={{ background: 'linear-gradient(135deg,#f59e0b,#ef4444)', fontFamily: 'inherit' }}
+          >
             SE
           </div>
-          <span className="text-xs font-semibold text-slate-700 truncate hidden sm:block">{company.shortName}</span>
-          <span className="text-xs font-semibold text-slate-700 truncate sm:hidden">SE</span>
-          <ChevronDown size={14} className="text-slate-400" />
+          <span className="text-xs font-bold truncate hidden sm:block" style={{ color: glassBtn.text }}>
+            {company.shortName}
+          </span>
+          <span className="text-xs font-bold truncate sm:hidden" style={{ color: glassBtn.text }}>SE</span>
+          <ChevronDown size={13} style={{ color: glassBtn.muted }} />
         </button>
+
         {companyOpen && (
-          <div className="absolute top-full left-0 mt-2 w-64 bg-white border border-slate-100 rounded-2xl shadow-xl z-50 py-2 animate-fade-in">
+          <div
+            className="absolute top-full left-0 mt-2 w-64 rounded-2xl z-50 py-2 animate-fade-in overflow-hidden"
+            style={{
+              background: 'var(--theme-card-bg)',
+              backdropFilter: 'blur(16px)',
+              border: '1px solid var(--theme-card-border)',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
+            }}
+          >
             {company.companies.map(c => (
               <button key={c.id} onClick={() => setCompanyOpen(false)}
-                className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-50 transition-colors text-left group">
-                <div className="w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-bold text-white shrink-0 shadow-sm"
+                className="w-full flex items-center gap-3 px-4 py-2 transition-colors text-left group"
+                style={{ color: 'var(--theme-text-main)' }}
+                onMouseEnter={e => e.currentTarget.style.background = hoverBg}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              >
+                <div className="w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-black text-white shrink-0"
                   style={{ background: c.color }}>
                   {c.name[0]}
                 </div>
-                <span className="text-[13px] text-slate-700 font-semibold group-hover:text-blue-600 transition-colors">{c.name}</span>
+                <span className="text-[13px] font-bold" style={{ color: 'var(--theme-text-main)' }}>{c.name}</span>
               </button>
             ))}
-            <div className="border-t border-slate-100 mx-3 my-2" />
-            <button className="w-full flex items-center gap-2 px-4 py-2 text-[13px] text-blue-600 font-semibold hover:bg-blue-50/50 text-left transition-colors">
-              <Plus size={16} /> Add Company
+            <div className="mx-3 my-2 h-px" style={{ background: 'var(--theme-card-border)' }} />
+            <button className="w-full flex items-center gap-2 px-4 py-2 text-[13px] font-bold text-left transition-colors"
+              style={{ color: '#1E7BFF' }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(30, 123, 255, 0.12)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            >
+              <Plus size={15} /> Add Company
             </button>
           </div>
         )}
@@ -65,72 +110,142 @@ export default function Header({ collapsed, onToggleSidebar }) {
       <div className="flex-1" />
 
       {/* Controls Row */}
-      <div className="flex items-center gap-3 lg:gap-5">
+      <div className="flex items-center gap-2.5 lg:gap-3">
+
         {/* FY Selector */}
-        <button className="hidden md:flex items-center gap-2 px-3 py-1.5 border border-slate-200/80 bg-white rounded-lg text-[13px] font-semibold text-slate-600 hover:border-blue-300 hover:text-blue-700 hover:bg-blue-50/50 transition-all hover:shadow-sm">
-          <Calendar size={14} className="text-blue-500" /> FY {company.financialYear}
+        <button
+          className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl text-[12.5px] font-bold transition-all duration-150"
+          style={{ background: glassBtn.bg, border: glassBtn.border, color: glassBtn.text }}
+          onMouseEnter={e => e.currentTarget.style.background = glassBtn.hover}
+          onMouseLeave={e => e.currentTarget.style.background = glassBtn.bg}
+        >
+          <Calendar size={13} style={{ color: glassBtn.muted }} />
+          FY {company.financialYear}
         </button>
 
         {/* Sync Badge */}
-        <div className="hidden sm:flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-emerald-50/80 border border-emerald-100 cursor-pointer hover:bg-emerald-100 transition-all">
+        <div
+          className="hidden sm:flex items-center gap-2 px-2.5 py-1.5 rounded-xl cursor-pointer transition-all duration-150"
+          style={{ background: accentLight, border: `1px solid ${accentHover}` }}
+          onMouseEnter={e => e.currentTarget.style.background = accentHover}
+          onMouseLeave={e => e.currentTarget.style.background = accentLight}
+        >
           <div className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: accentColor }}></span>
+            <span className="relative inline-flex rounded-full h-2 w-2" style={{ backgroundColor: accentColor }}></span>
           </div>
-          <span className="text-xs font-semibold text-emerald-700 hidden lg:inline">Synced · {syncTimeAgo()}</span>
+          <span className="text-xs font-bold hidden lg:inline" style={{ color: accentColor }}>Synced · {syncTimeAgo()}</span>
         </div>
 
-        {/* Quick Actions */}
-        <button className="hidden lg:flex items-center gap-2 px-3 py-1.5 border border-slate-200/80 bg-white rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 hover:border-slate-300 hover:bg-slate-50 transition-all hover:shadow-sm">
-          <Download size={14} /> Export
+        {/* Export */}
+        <button
+          className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-150"
+          style={{ background: glassBtn.bg, border: glassBtn.border, color: glassBtn.text }}
+          onMouseEnter={e => e.currentTarget.style.background = glassBtn.hover}
+          onMouseLeave={e => e.currentTarget.style.background = glassBtn.bg}
+        >
+          <Download size={13} style={{ color: glassBtn.muted }} /> Export
         </button>
 
-        <button className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold text-white shadow-md shadow-blue-500/20 hover:shadow-blue-500/40 hover:-translate-y-0.5 transition-all"
-          style={{ background: 'linear-gradient(135deg,#2563eb,#1d4ed8)' }}>
-          <Plug size={14} /> <span className="hidden lg:inline">Connect Tally</span>
+        {/* Connect Tally */}
+        <button
+          className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-black transition-all duration-150 hover:-translate-y-0.5"
+          style={{
+            background: accentColor,
+            color: isDarkMode ? 'black' : 'white',
+            boxShadow: `0 3px 12px ${accentLight}`,
+            fontFamily: 'inherit',
+          }}
+          onMouseEnter={e => e.currentTarget.style.boxShadow = `0 5px 18px ${accentHover}`}
+          onMouseLeave={e => e.currentTarget.style.boxShadow = `0 3px 12px ${accentLight}`}
+        >
+          <Plug size={13} />
+          <span className="hidden lg:inline">Connect Tally</span>
+        </button>
+
+        {/* Theme Toggle Button */}
+        <button
+          onClick={toggleTheme}
+          className="w-8 h-8 flex items-center justify-center rounded-xl transition-all duration-150 active:scale-95"
+          style={{ background: glassBtn.bg, border: glassBtn.border, color: glassBtn.text }}
+          onMouseEnter={e => e.currentTarget.style.background = glassBtn.hover}
+          onMouseLeave={e => e.currentTarget.style.background = glassBtn.bg}
+          title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+        >
+          {isDarkMode ? <Sun size={16} strokeWidth={2.2} /> : <Moon size={16} strokeWidth={2.2} />}
         </button>
 
         {/* Notification Bell */}
         <div className="relative">
           <button
             onClick={() => setNotifOpen(!notifOpen)}
-            className="w-8 h-8 flex items-center justify-center border border-slate-200/80 bg-white rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-50 hover:border-slate-300 transition-all hover:shadow-sm active:scale-95"
+            className="w-8 h-8 flex items-center justify-center rounded-xl transition-all duration-150 active:scale-95"
+            style={{ background: glassBtn.bg, border: glassBtn.border, color: glassBtn.text }}
+            onMouseEnter={e => e.currentTarget.style.background = glassBtn.hover}
+            onMouseLeave={e => e.currentTarget.style.background = glassBtn.bg}
           >
-            <Bell size={16} strokeWidth={2.5} />
+            <Bell size={16} strokeWidth={2.2} />
             {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white px-1 shadow-sm">
+              <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white px-1">
                 {unreadCount}
               </span>
             )}
           </button>
 
           {notifOpen && (
-            <div className="absolute top-full right-0 mt-2 w-72 sm:w-80 bg-white border border-slate-100 rounded-2xl shadow-xl z-50 animate-fade-in overflow-hidden">
-              <div className="px-4 py-3 border-b border-slate-50 flex items-center justify-between bg-slate-50/50">
-                <span className="text-sm font-bold text-slate-800">Notifications</span>
-                <button className="text-[11px] text-blue-600 hover:text-blue-700 font-semibold bg-blue-50 px-2 py-1 rounded-md transition-colors">Mark all read</button>
+            <div
+              className="absolute top-full right-0 mt-2 w-72 sm:w-80 rounded-2xl z-50 animate-fade-in overflow-hidden"
+              style={{
+                background: 'var(--theme-card-bg)',
+                backdropFilter: 'blur(16px)',
+                border: '1px solid var(--theme-card-border)',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
+              }}
+            >
+              <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--theme-card-border)' }}>
+                <span className="text-sm font-black" style={{ color: 'var(--theme-text-main)' }}>Notifications</span>
+                <button
+                  className="text-[11px] font-bold px-2 py-1 rounded-lg transition-colors"
+                  style={{ color: accentColor, background: accentLight }}
+                >
+                  Mark all read
+                </button>
               </div>
               <div className="max-h-[60vh] overflow-y-auto">
                 {notifications.map(n => (
-                  <div key={n.id} className={`px-4 py-3 border-b border-slate-50 hover:bg-slate-50/80 cursor-pointer transition-colors ${!n.read ? 'bg-blue-50/30' : ''}`}>
+                  <div
+                    key={n.id}
+                    className="px-4 py-3 cursor-pointer transition-colors"
+                    style={{
+                      borderBottom: '1px solid var(--theme-card-border)',
+                      background: !n.read ? accentLight : 'transparent',
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = accentHover}
+                    onMouseLeave={e => e.currentTarget.style.background = !n.read ? accentLight : 'transparent'}
+                  >
                     <div className="flex items-start gap-3">
                       <div className="mt-0.5">
                         {!n.read ? (
-                          <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_0_4px_rgba(59,130,246,0.1)]" />
+                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: accentColor, boxShadow: `0 0 0 4px ${accentLight}` }} />
                         ) : (
-                          <CheckCircle2 size={12} className="text-slate-300" />
+                          <CheckCircle2 size={12} style={{ color: '#94a3b8' }} />
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className={`text-xs ${!n.read ? 'font-semibold text-slate-900' : 'font-medium text-slate-600'} leading-relaxed`}>{n.message}</p>
-                        <p className="text-[10px] font-medium text-slate-400 mt-1">{n.time}</p>
+                        <p className={`text-xs leading-relaxed ${!n.read ? 'font-bold' : 'font-semibold'}`}
+                          style={{ color: !n.read ? 'var(--theme-text-main)' : 'var(--theme-text-muted)' }}>
+                          {n.message}
+                        </p>
+                        <p className="text-[10px] font-medium mt-1" style={{ color: 'var(--theme-text-light)' }}>{n.time}</p>
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
-              <div className="px-4 py-2.5 text-center bg-slate-50/50 border-t border-slate-50">
-                <button className="text-xs text-blue-600 hover:text-blue-700 font-semibold transition-colors">View all notifications</button>
+              <div className="px-4 py-2.5 text-center" style={{ borderTop: '1px solid var(--theme-card-border)' }}>
+                <button className="text-xs font-bold transition-colors" style={{ color: '#1E7BFF' }}>
+                  View all notifications
+                </button>
               </div>
             </div>
           )}

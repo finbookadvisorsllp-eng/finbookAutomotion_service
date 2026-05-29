@@ -6,9 +6,9 @@ export default function ExpenseTrends() {
   const columns = [
     { key: 'category', label: 'Expense Head', sortable: true, render: v => <span className="font-bold">{v}</span> },
     { key: 'budget', label: 'Budgeted Amount', align: 'right', sortable: true, render: v => formatINR(v) },
-    { key: 'actual', label: 'Actual Spent', align: 'right', sortable: true, render: v => <span className="font-black text-slate-800">{formatINR(v)}</span> },
+    { key: 'actual', label: 'Actual Spent', align: 'right', sortable: true, render: v => <span className="font-black text-slate-800 dark:text-slate-200">{formatINR(v)}</span> },
     { key: 'variance', label: 'Variance', align: 'right', sortable: true, render: v => (
-      <span className={`font-bold ${v > 0 ? 'text-red-500' : 'text-emerald-600'}`}>{v > 0 ? `+${formatINR(v)}` : formatINR(v)}</span>
+      <span className={`font-bold ${v > 0 ? 'text-red-500 dark:text-red-400' : 'text-emerald-600 dark:text-[#B6FF00]'}`}>{v > 0 ? `+${formatINR(v)}` : formatINR(v)}</span>
     )},
   ]
 
@@ -16,13 +16,13 @@ export default function ExpenseTrends() {
     <div className="animate-fade-in space-y-5">
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-xl font-black text-slate-900">Expense Trends</h1>
-          <p className="text-sm text-slate-400 mt-0.5">Monitor and control your business expenses.</p>
+          <h1 className="text-xl font-black text-slate-900">Expense Analysis</h1>
+          <p className="text-sm text-slate-400 mt-0.5">Detailed breakdown of indirect expenses</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-100 p-5">
+        <div className="lg:col-span-2 glass-card p-5">
           <h2 className="text-sm font-bold text-slate-800 mb-4">Monthly Expense Trend</h2>
           <ResponsiveContainer width="100%" height={260}>
             <AreaChart data={monthlyTrend}>
@@ -41,7 +41,7 @@ export default function ExpenseTrends() {
           </ResponsiveContainer>
         </div>
 
-        <div className="bg-white rounded-2xl border border-slate-100 p-5">
+        <div className="glass-card p-5">
           <h2 className="text-sm font-bold text-slate-800 mb-4">Top Expense Categories</h2>
           <div className="space-y-4">
             {expenseBreakdown.sort((a,b)=>b.value-a.value).slice(0, 5).map((exp, i) => (
