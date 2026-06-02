@@ -25,13 +25,13 @@ export const company = {
 };
 
 // ─── Currency Formatter ───────────────────────────
-export const formatINR = (val, compact = true) => {
+export const formatINR = (val, compact = false) => {
   if (compact) {
     if (val >= 10000000) return `₹${(val / 10000000).toFixed(2)} Cr`;
     if (val >= 100000) return `₹${(val / 100000).toFixed(2)} L`;
     if (val >= 1000) return `₹${(val / 1000).toFixed(1)}K`;
   }
-  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(val);
+  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val);
 };
 
 export const months = ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'];
@@ -77,7 +77,7 @@ export const kpiData = {
     previous: 920000,
     change: -8.7,
     trend: 'down',
-    label: 'Bills to Pay',
+    label: 'Payables',
     icon: '🧾',
     variant: 'payables',
     subtitle: 'vs last year',

@@ -1,10 +1,26 @@
 import { useState } from 'react'
 import { Menu, Bell, Download, Plug, Calendar, ChevronDown, CheckCircle2, Plus, Moon, Sun } from 'lucide-react'
 import { company, notifications } from '../data/mockData'
+import { useDateRange } from '../context/DateContext'
 
 export default function Header({ collapsed, onToggleSidebar, isDarkMode, toggleTheme }) {
   const [notifOpen, setNotifOpen] = useState(false)
   const [companyOpen, setCompanyOpen] = useState(false)
+  const [dateRangeOpen, setDateRangeOpen] = useState(false)
+  const { selectedDateRange, setSelectedDateRange } = useDateRange()
+  
+  const dateRanges = [
+    "Today (29th May '26)",
+    "Yesterday (28th May '26)",
+    "This Week (22nd May '26 - 29th May '26)",
+    "Last Week (15th May '26 - 22nd May '26)",
+    "This Month (1st May '26 - 31st May '26)",
+    "Last Month (1st Apr '26 - 30th Apr '26)",
+    "This Quarter (1st Apr '26 - 30th Jun '26)",
+    "This Year (1st Apr '26 - 31st Mar '27)",
+    "Last Year (1st Apr '25 - 31st Mar '26)"
+  ]
+
   const unreadCount = notifications.filter(n => !n.read).length
 
   const syncTimeAgo = () => {
@@ -112,16 +128,59 @@ export default function Header({ collapsed, onToggleSidebar, isDarkMode, toggleT
       {/* Controls Row */}
       <div className="flex items-center gap-2.5 lg:gap-3">
 
-        {/* FY Selector */}
-        <button
-          className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl text-[12.5px] font-bold transition-all duration-150"
-          style={{ background: glassBtn.bg, border: glassBtn.border, color: glassBtn.text }}
-          onMouseEnter={e => e.currentTarget.style.background = glassBtn.hover}
-          onMouseLeave={e => e.currentTarget.style.background = glassBtn.bg}
-        >
-          <Calendar size={13} style={{ color: glassBtn.muted }} />
-          FY {company.financialYear}
-        </button>
+        {/* Date Range Selector */}
+        <div className="relative hidden md:block">
+          <button
+            onClick={() => setDateRangeOpen(!dateRangeOpen)}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-[12.5px] font-bold transition-all duration-150"
+            style={{ background: glassBtn.bg, border: glassBtn.border, color: glassBtn.text }}
+            onMouseEnter={e => e.currentTarget.style.background = glassBtn.hover}
+            onMouseLeave={e => e.currentTarget.style.background = glassBtn.bg}
+          >
+            <Calendar size={13} style={{ color: glassBtn.muted }} />
+            {selectedDateRange}
+            <ChevronDown size={13} style={{ color: glassBtn.muted }} />
+          </button>
+
+          {dateRangeOpen && (
+            <div
+              className="absolute top-full right-0 mt-2 w-72 rounded-2xl z-50 py-2 animate-fade-in overflow-hidden"
+              style={{
+                background: 'var(--theme-card-bg)',
+                backdropFilter: 'blur(16px)',
+                border: '1px solid var(--theme-card-border)',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
+              }}
+            >
+              <div className="max-h-[60vh] overflow-y-auto">
+                {dateRanges.map((range, idx) => (
+                  <button 
+                    key={idx} 
+                    onClick={() => { setSelectedDateRange(range); setDateRangeOpen(false) }}
+                    className="w-full flex items-center px-4 py-2 transition-colors text-left"
+                    style={{ 
+                      color: selectedDateRange === range ? '#1E7BFF' : 'var(--theme-text-main)',
+                      background: selectedDateRange === range ? 'rgba(30, 123, 255, 0.08)' : 'transparent',
+                      borderBottom: idx < dateRanges.length - 1 ? '1px solid var(--theme-card-border)' : 'none'
+                    }}
+                    onMouseEnter={e => {
+                      if (selectedDateRange !== range) {
+                        e.currentTarget.style.background = hoverBg
+                      }
+                    }}
+                    onMouseLeave={e => {
+                      if (selectedDateRange !== range) {
+                        e.currentTarget.style.background = 'transparent'
+                      }
+                    }}
+                  >
+                    <span className="text-[13px] font-medium">{range}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Sync Badge */}
         <div

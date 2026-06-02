@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { DateProvider } from './context/DateContext'
 
 // Layout
 import Sidebar from './components/Sidebar'
@@ -24,6 +25,12 @@ import Administration from './pages/Administration'
 import TallySetup from './pages/TallySetup'
 
 // New Pages
+import SalesOrder from './pages/SalesOrder'
+import CreditNote from './pages/CreditNote'
+import DeliveryNote from './pages/DeliveryNote'
+import PurchaseOrder from './pages/PurchaseOrder'
+import DebitNote from './pages/DebitNote'
+import ReceiptNote from './pages/ReceiptNote'
 import Alerts from './pages/Alerts'
 import Notifications from './pages/Notifications'
 import TrialBalance from './pages/TrialBalance'
@@ -42,6 +49,7 @@ import StockValuation from './pages/StockValuation'
 import StockAlerts from './pages/StockAlerts'
 import ItemPerformance from './pages/ItemPerformance'
 import GenericReport from './pages/GenericReport'
+import CashBankModule from './pages/CashBankModule'
 
 import "./index.css"
 
@@ -118,68 +126,79 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <AppShell>
-        <Routes>
-          {/* ── Overview ── */}
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/summary" element={<GenericReport title="Business Summary" description="Overview of your entire business performance." />} />
-          <Route path="/alerts" element={<Alerts />} />
-          <Route path="/notif" element={<Notifications />} />
+      <DateProvider>
+        <AppShell>
+          <Routes>
+            {/* ── Overview ── */}
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/summary" element={<GenericReport title="Business Summary" description="Overview of your entire business performance." />} />
+            <Route path="/alerts" element={<Alerts />} />
+            <Route path="/notif" element={<Notifications />} />
 
-          {/* ── Reports ── */}
-          <Route path="/reports/pl" element={<ProfitLoss />} />
-          <Route path="/reports/bs" element={<BalanceSheet />} />
-          <Route path="/reports/cf" element={<CashFlow />} />
-          <Route path="/reports/gst" element={<GSTReports />} />
-          <Route path="/reports/tb" element={<TrialBalance />} />
-          <Route path="/reports/ledger" element={<LedgerReports />} />
-          <Route path="/reports/daybook" element={<DayBook />} />
-          <Route path="/reports/outstanding" element={<OutstandingReports />} />
+            {/* ── Reports ── */}
+            <Route path="/reports/pl" element={<ProfitLoss />} />
+            <Route path="/reports/bs" element={<BalanceSheet />} />
+            <Route path="/reports/cf" element={<CashFlow />} />
+            <Route path="/reports/gst" element={<GSTReports />} />
+            <Route path="/reports/tb" element={<TrialBalance />} />
+            <Route path="/reports/ledger" element={<LedgerReports />} />
+            <Route path="/reports/daybook" element={<DayBook />} />
+            <Route path="/reports/outstanding" element={<OutstandingReports />} />
 
-          {/* ── Sales & Customers ── */}
-          <Route path="/sales" element={<SalesRegister />} />
-          <Route path="/sales/analysis" element={<SalesAnalysis />} />
-          <Route path="/sales/customers" element={<Customers />} />
-          <Route path="/sales/receivables" element={<Receivables />} />
-          <Route path="/sales/aging" element={<CustomerAging />} />
-          <Route path="/sales/credit-limit" element={<CreditLimit />} />
+            {/* ── Sales & Customers ── */}
+            <Route path="/sales" element={<SalesRegister />} />
+            <Route path="/sales/order" element={<SalesOrder />} />
+            <Route path="/sales/credit-note" element={<CreditNote />} />
+            <Route path="/sales/delivery-note" element={<DeliveryNote />} />
+            <Route path="/sales/analysis" element={<SalesAnalysis />} />
+            <Route path="/sales/customers" element={<Customers />} />
+            <Route path="/sales/receivables" element={<Receivables />} />
+            <Route path="/sales/aging" element={<CustomerAging />} />
+            <Route path="/sales/credit-limit" element={<CreditLimit />} />
 
-          {/* ── Purchase & Vendors ── */}
-          <Route path="/purchase" element={<PurchaseRegister />} />
-          <Route path="/purchase/vendors" element={<Vendors />} />
-          <Route path="/purchase/payables" element={<Payables />} />
-          <Route path="/purchase/aging" element={<VendorAging />} />
-          <Route path="/purchase/bills" element={<BillsDue />} />
-          <Route path="/purchase/trends" element={<PurchaseTrends />} />
+            {/* ── Purchase & Vendors ── */}
+            <Route path="/purchase" element={<PurchaseRegister />} />
+            <Route path="/purchase/order" element={<PurchaseOrder />} />
+            <Route path="/purchase/debit-note" element={<DebitNote />} />
+            <Route path="/purchase/receipt-note" element={<ReceiptNote />} />
+            <Route path="/purchase/vendors" element={<Vendors />} />
+            <Route path="/purchase/payables" element={<Payables />} />
+            <Route path="/purchase/aging" element={<VendorAging />} />
+            <Route path="/purchase/bills" element={<BillsDue />} />
+            <Route path="/purchase/trends" element={<PurchaseTrends />} />
 
-          {/* ── Inventory ── */}
-          <Route path="/inventory" element={<Inventory />} />
-          <Route path="/inventory/slow" element={<SlowMoving />} />
-          <Route path="/inventory/fast" element={<FastMoving />} />
-          <Route path="/inventory/value" element={<StockValuation />} />
-          <Route path="/inventory/alerts" element={<StockAlerts />} />
-          <Route path="/inventory/performance" element={<ItemPerformance />} />
+            {/* ── Cash & Bank ── */}
+            <Route path="/cash-bank" element={<CashBankModule />} />
 
-          {/* ── Accounting ── */}
-          <Route path="/accounting/journal" element={<GenericReport title="Journal Entries" description="View and manage all journal vouchers." />} />
-          <Route path="/accounting/payment" element={<GenericReport title="Payment Vouchers" description="View and manage all payment vouchers." />} />
-          <Route path="/accounting/receipt" element={<GenericReport title="Receipt Vouchers" description="View and manage all receipt vouchers." />} />
-          <Route path="/accounting/ledger" element={<GenericReport title="Ledger Search" description="Search and view specific ledger accounts." />} />
+            {/* ── Inventory ── */}
+            <Route path="/inventory" element={<Inventory />} />
+            <Route path="/inventory/slow" element={<SlowMoving />} />
+            <Route path="/inventory/fast" element={<FastMoving />} />
+            <Route path="/inventory/value" element={<StockValuation />} />
+            <Route path="/inventory/alerts" element={<StockAlerts />} />
+            <Route path="/inventory/performance" element={<ItemPerformance />} />
 
-          {/* ── Analytics ── */}
-          <Route path="/analytics" element={<Analytics />} />
+            {/* ── Accounting ── */}
+            <Route path="/accounting/journal" element={<GenericReport title="Journal Entries" description="View and manage all journal vouchers." />} />
+            <Route path="/accounting/payment" element={<GenericReport title="Payment Vouchers" description="View and manage all payment vouchers." />} />
+            <Route path="/accounting/receipt" element={<GenericReport title="Receipt Vouchers" description="View and manage all receipt vouchers." />} />
+            <Route path="/accounting/ledger" element={<GenericReport title="Ledger Search" description="Search and view specific ledger accounts." />} />
 
-          {/* ── Administration ── */}
-          <Route path="/admin" element={<Administration />} />
-          <Route path="/admin/users" element={<Administration />} />
-          <Route path="/admin/audit" element={<Administration />} />
-          <Route path="/admin/billing" element={<Administration />} />
-          <Route path="/setup" element={<TallySetup />} />
+            {/* ── Analytics ── */}
+            <Route path="/analytics" element={<Analytics />} />
 
-          {/* ── Fallback ── */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </AppShell>
+            {/* ── Administration ── */}
+            <Route path="/admin" element={<Administration />} />
+            <Route path="/admin/users" element={<Administration />} />
+            <Route path="/admin/audit" element={<Administration />} />
+            <Route path="/admin/billing" element={<Administration />} />
+            <Route path="/setup" element={<TallySetup />} />
+
+            {/* ── Fallback ── */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </AppShell>
+      </DateProvider>
     </BrowserRouter>
   )
 }

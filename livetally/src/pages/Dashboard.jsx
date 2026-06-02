@@ -13,25 +13,26 @@ import {
   kpiData, monthlyTrend, receivablesAging, recentVouchers,
   topCustomers, topItems, cashFlowData, formatINR
 } from '../data/mockData'
+import { useDateRange } from '../context/DateContext'
 
 const StatusBadge = ({ status }) => {
   const s = {
-    paid:    'bg-emerald-50 text-emerald-700 border border-emerald-200/60',
+    paid: 'bg-emerald-50 text-emerald-700 border border-emerald-200/60',
     pending: 'bg-amber-50 text-amber-700 border border-amber-200/60',
     overdue: 'bg-red-50 text-red-700 border border-red-200/60',
-    posted:  'bg-slate-100 text-slate-600 border border-slate-200/60',
+    posted: 'bg-slate-100 text-slate-600 border border-slate-200/60',
   }
   return <span className={`px-1.5 py-px rounded text-[10px] font-bold capitalize ${s[status] ?? s.posted}`}>{status}</span>
 }
 
 const voucherCols = [
-  { key: 'id',     label: 'Voucher #', sortable: true, render: v => <span className="text-blue-600 font-mono text-[11px]">{v}</span> },
-  { key: 'date',   label: 'Date',    sortable: true },
-  { key: 'type',   label: 'Type',    sortable: true },
-  { key: 'party',  label: 'Party',   sortable: true, render: v => <span className="font-semibold text-slate-700">{v}</span> },
-  { key: 'amount', label: 'Amount',  sortable: true, align: 'right', render: v => <span className="font-bold text-slate-800">{formatINR(v)}</span> },
-  { key: 'gst',    label: 'GST',     sortable: true, align: 'right', render: v => v > 0 ? <span className="text-slate-400">{formatINR(v)}</span> : <span className="text-slate-200">—</span> },
-  { key: 'status', label: 'Status',  sortable: true, render: v => <StatusBadge status={v} /> },
+  { key: 'id', label: 'Voucher', sortable: true, render: v => <span className="text-blue-600 font-mono text-[11px]">{v}</span> },
+  { key: 'date', label: 'Date', sortable: true },
+  { key: 'type', label: 'Type', sortable: true },
+  { key: 'party', label: 'Party', sortable: true, render: v => <span className="font-semibold text-slate-700">{v}</span> },
+  { key: 'amount', label: 'Amount', sortable: true, align: 'right', render: v => <span className="font-bold text-slate-800">{formatINR(v)}</span> },
+  { key: 'gst', label: 'GST', sortable: true, align: 'right', render: v => v > 0 ? <span className="text-slate-400">{formatINR(v)}</span> : <span className="text-slate-200">—</span> },
+  { key: 'status', label: 'Status', sortable: true, render: v => <StatusBadge status={v} /> },
 ]
 
 const customTooltip = ({ active, payload, label }) => {
@@ -53,11 +54,73 @@ const customTooltip = ({ active, payload, label }) => {
 export default function Dashboard() {
   const navigate = useNavigate()
   const [modalRow, setModalRow] = useState(null)
+  const { selectedDateRange } = useDateRange()
+
+  const getRangeData = () => {
+    let multiplier = 1
+    let vsText = 'vs last year'
+    let chartText = 'Monthly · FY 2024-25'
+    let labelValues = monthlyTrend.map(t => t.month)
+
+    if (selectedDateRange.includes('Today')) {
+      multiplier = 0.0025
+      vsText = 'vs yesterday'
+      chartText = 'Hourly · Today'
+      labelValues = ['9 AM', '11 AM', '1 PM', '3 PM', '5 PM', '7 PM']
+    } else if (selectedDateRange.includes('Yesterday')) {
+      multiplier = 0.0032
+      vsText = 'vs previous day'
+      chartText = 'Hourly · Yesterday'
+      labelValues = ['9 AM', '11 AM', '1 PM', '3 PM', '5 PM', '7 PM']
+    } else if (selectedDateRange.includes('Week')) {
+      multiplier = 0.02
+      vsText = 'vs last week'
+      chartText = 'Daily · This Week'
+      labelValues = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+    } else if (selectedDateRange.includes('Month')) {
+      multiplier = 0.08
+      vsText = 'vs last month'
+      chartText = 'Daily · ' + selectedDateRange.split(' (')[0]
+      labelValues = ['Wk 1', 'Wk 2', 'Wk 3', 'Wk 4']
+    } else if (selectedDateRange.includes('Quarter')) {
+      multiplier = 0.25
+      vsText = 'vs last quarter'
+      chartText = 'Weekly · This Quarter'
+      labelValues = ['Wk 1', 'Wk 4', 'Wk 8', 'Wk 12']
+    } else if (selectedDateRange.includes('Last Year')) {
+      multiplier = 0.8
+      vsText = 'vs previous year'
+      chartText = 'Monthly · FY 2023-24'
+    }
+
+    const dynamicKPIs = Object.fromEntries(
+      Object.entries(kpiData).map(([key, kpi]) => [
+        key,
+        {
+          ...kpi,
+          current: kpi.current * multiplier,
+          subtitle: vsText,
+        }
+      ])
+    )
+
+    const dynamicChartData = monthlyTrend.slice(0, labelValues.length).map((point, index) => ({
+      ...point,
+      revenue: point.revenue * multiplier,
+      expense: point.expense * multiplier,
+      profit: point.profit * multiplier,
+      month: labelValues[index] || point.month
+    }))
+
+    return { dynamicKPIs, dynamicChartData, chartText }
+  }
+
+  const { dynamicKPIs, dynamicChartData, chartText } = getRangeData()
 
   const insights = [
-    { type: 'danger',  icon: AlertCircle, title: 'Action Required',   desc: '5 invoices overdue · ₹3.8L total. BigBazaar 17 days past due.',      action: 'Receivables', path: '/sales/receivables' },
-    { type: 'warning', icon: Clock,        title: 'Bills Due This Week', desc: '4 vendor payments ₹2.1L due before 31 May.',                          action: 'Payables',    path: '/purchase/payables' },
-    { type: 'success', icon: TrendingUp,   title: 'Business Improving',  desc: 'Sales +16.1% · Net profit margin 18.1% vs 17.3% last year.',           action: 'Analytics',   path: '/analytics' },
+    { type: 'danger', icon: AlertCircle, title: 'Action Required', desc: '5 invoices overdue · ₹3.8L total. BigBazaar 17 days past due.', action: 'Receivables', path: '/sales/receivables' },
+    { type: 'warning', icon: Clock, title: 'Bills Due This Week', desc: '4 vendor payments ₹2.1L due before 31 May.', action: 'Payables', path: '/purchase/payables' },
+    { type: 'success', icon: TrendingUp, title: 'Business Improving', desc: 'Sales +16.1% · Net profit margin 18.1% vs 17.3% last year.', action: 'Analytics', path: '/analytics' },
   ]
 
   return (
@@ -93,13 +156,13 @@ export default function Dashboard() {
 
       {/* ── KPI Cards — 6 columns, all in one row ── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        {Object.values(kpiData).map(kpi => (
+        {Object.values(dynamicKPIs).map(kpi => (
           <KPICard key={kpi.label} data={kpi} onClick={() => navigate(
-            kpi.variant === 'sales'        ? '/sales' :
-            kpi.variant === 'purchase'     ? '/purchase' :
-            kpi.variant === 'receivables'  ? '/sales/receivables' :
-            kpi.variant === 'payables'     ? '/purchase/payables' :
-            kpi.variant === 'profit'       ? '/analytics' : '/'
+            kpi.variant === 'sales' ? '/sales' :
+              kpi.variant === 'purchase' ? '/purchase' :
+                kpi.variant === 'receivables' ? '/sales/receivables' :
+                  kpi.variant === 'payables' ? '/purchase/payables' :
+                    kpi.variant === 'profit' ? '/analytics' : '/'
           )} />
         ))}
       </div>
@@ -108,48 +171,73 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-2.5 items-stretch">
 
         {/* Revenue vs Expense — spans 2 */}
-        <div className="xl:col-span-2 glass-card overflow-hidden flex flex-col" style={{ height: 260 }}>
+        <div className="xl:col-span-2 glass-card overflow-hidden flex flex-col" style={{ height: 300 }}>
           <div className="card-header shrink-0">
             <div>
               <h2 className="text-[11.5px] font-bold text-slate-800">Revenue vs Expense</h2>
-              <p className="text-[10px] text-slate-400 font-medium">Monthly · FY 2024-25</p>
+              <p className="text-[10px] text-slate-400 font-medium">{chartText}</p>
             </div>
-            <button onClick={() => navigate('/analytics')} className="flex items-center gap-1 text-[10.5px] text-blue-600 font-bold bg-blue-50 px-2 py-0.5 rounded transition-colors hover:bg-blue-100">
+            <button onClick={() => navigate('/reports/pl')} className="flex items-center gap-1 text-[10.5px] text-blue-600 font-bold bg-blue-50 px-2 py-0.5 rounded transition-colors hover:bg-blue-100">
               Analytics <ArrowRight size={10} />
             </button>
           </div>
           <div className="flex-1 overflow-y-auto scrollbar-hide px-2 pb-2 pt-1">
             <ResponsiveContainer width="100%" height={195}>
-              <AreaChart data={monthlyTrend} margin={{ top: 2, right: 4, left: -26, bottom: 0 }}>
+              <AreaChart data={dynamicChartData} margin={{ top: 2, right: 4, left: -26, bottom: 0 }}>
                 <defs>
                   <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor="var(--chart-rev-stroke)" stopOpacity="var(--chart-grad-opacity-top)" />
+                    <stop offset="5%" stopColor="var(--chart-rev-stroke)" stopOpacity="var(--chart-grad-opacity-top)" />
                     <stop offset="95%" stopColor="var(--chart-rev-stroke)" stopOpacity="var(--chart-grad-opacity-bottom)" />
                   </linearGradient>
                   <linearGradient id="expGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor="var(--chart-exp-stroke)" stopOpacity="var(--chart-grad-opacity-top)" />
+                    <stop offset="5%" stopColor="var(--chart-exp-stroke)" stopOpacity="var(--chart-grad-opacity-top)" />
                     <stop offset="95%" stopColor="var(--chart-exp-stroke)" stopOpacity="var(--chart-grad-opacity-bottom)" />
                   </linearGradient>
                   <linearGradient id="profGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor="var(--chart-prof-stroke)" stopOpacity="var(--chart-grad-opacity-top)" />
+                    <stop offset="5%" stopColor="var(--chart-prof-stroke)" stopOpacity="var(--chart-grad-opacity-top)" />
                     <stop offset="95%" stopColor="var(--chart-prof-stroke)" stopOpacity="var(--chart-grad-opacity-bottom)" />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="2 4" stroke="var(--chart-grid-stroke)" vertical={false} />
                 <XAxis dataKey="month" tick={{ fontSize: 9, fill: 'var(--theme-text-muted)' }} axisLine={false} tickLine={false} dy={4} />
-                <YAxis tickFormatter={v => `₹${(v/100000).toFixed(0)}L`} tick={{ fontSize: 9, fill: 'var(--theme-text-muted)' }} axisLine={false} tickLine={false} dx={-4} />
+                <YAxis tickFormatter={v => `₹${(v / 100000).toFixed(0)}L`} tick={{ fontSize: 9, fill: 'var(--theme-text-muted)' }} axisLine={false} tickLine={false} dx={-4} />
                 <Tooltip content={customTooltip} cursor={{ stroke: 'var(--chart-grid-stroke)', strokeWidth: 1 }} />
                 <Legend iconType="circle" iconSize={6} wrapperStyle={{ fontSize: 10, fontWeight: 600, color: 'var(--theme-text-muted)', paddingTop: 4 }} />
                 <Area type="monotone" dataKey="revenue" stroke="var(--chart-rev-stroke)" strokeWidth={2.5} fill="url(#revGrad)" name="Revenue" activeDot={{ r: 4, fill: 'var(--theme-bg)', stroke: 'var(--chart-rev-stroke)', strokeWidth: 2 }} />
                 <Area type="monotone" dataKey="expense" stroke="var(--chart-exp-stroke)" strokeWidth={2.5} fill="url(#expGrad)" name="Expense" activeDot={{ r: 4, fill: 'var(--theme-bg)', stroke: 'var(--chart-exp-stroke)', strokeWidth: 2 }} />
-                <Area type="monotone" dataKey="profit"  stroke="var(--chart-prof-stroke)" strokeWidth={2.5} fill="url(#profGrad)" name="Profit"  activeDot={{ r: 4, fill: 'var(--theme-bg)', stroke: 'var(--chart-prof-stroke)', strokeWidth: 2 }} />
+                <Area type="monotone" dataKey="profit" stroke="var(--chart-prof-stroke)" strokeWidth={2.5} fill="url(#profGrad)" name="Profit" activeDot={{ r: 4, fill: 'var(--theme-bg)', stroke: 'var(--chart-prof-stroke)', strokeWidth: 2 }} />
               </AreaChart>
             </ResponsiveContainer>
+          </div>
+
+          {/* Card Footer */}
+          <div className="grid grid-cols-3 divide-x divide-slate-100 dark:divide-[rgba(255,255,255,0.05)] border-t border-slate-100 dark:border-[rgba(255,255,255,0.05)] mt-auto shrink-0 bg-slate-50/30 dark:bg-[rgba(0,0,0,0.2)]">
+            <div className="px-3 py-2.5 text-center flex flex-col items-center justify-center">
+              <p className="text-[10px] text-slate-500 font-medium mb-0.5">Total Revenue</p>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11.5px] font-bold text-slate-800 dark:text-slate-200">{formatINR(dynamicKPIs.sales?.current ?? 0)}</span>
+                <span className="text-[8.5px] text-emerald-600 font-bold bg-emerald-50 dark:bg-[rgba(182,255,0,0.1)] dark:text-[#B6FF00] px-1 py-px rounded">{dynamicKPIs.sales?.trend === 'up' ? '↑' : '↓'} {Math.abs(dynamicKPIs.sales?.change ?? 0)}%</span>
+              </div>
+            </div>
+            <div className="px-3 py-2.5 text-center flex flex-col items-center justify-center">
+              <p className="text-[10px] text-slate-500 font-medium mb-0.5">Total Expense</p>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11.5px] font-bold text-slate-800 dark:text-slate-200">{formatINR(dynamicKPIs.purchase?.current ?? 0)}</span>
+                <span className="text-[8.5px] text-red-600 font-bold bg-red-50 dark:bg-[rgba(255,51,102,0.1)] dark:text-[#FF3366] px-1 py-px rounded">{dynamicKPIs.purchase?.trend === 'up' ? '↑' : '↓'} {Math.abs(dynamicKPIs.purchase?.change ?? 0)}%</span>
+              </div>
+            </div>
+            <div className="px-3 py-2.5 text-center flex flex-col items-center justify-center">
+              <p className="text-[10px] text-slate-500 font-medium mb-0.5">Net Profit</p>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11.5px] font-bold text-slate-800 dark:text-slate-200">{formatINR(dynamicKPIs.profit?.current ?? 0)}</span>
+                <span className="text-[8.5px] text-emerald-600 font-bold bg-emerald-50 dark:bg-[rgba(182,255,0,0.1)] dark:text-[#B6FF00] px-1 py-px rounded">{dynamicKPIs.profit?.trend === 'up' ? '↑' : '↓'} {Math.abs(dynamicKPIs.profit?.change ?? 0)}%</span>
+              </div>
+            </div>
           </div>
         </div>
 
         {/* Receivables Aging */}
-        <div className="glass-card overflow-hidden flex flex-col" style={{ height: 260 }}>
+        <div className="glass-card overflow-hidden flex flex-col" style={{ height: 300 }}>
 
           {/* Card Header */}
           <div className="card-header shrink-0">
@@ -256,7 +344,24 @@ export default function Dashboard() {
                 </div>
               ))}
             </div>
+          </div>
 
+          {/* Card Footer */}
+          <div className="grid grid-cols-2 divide-x divide-slate-100 dark:divide-[rgba(255,255,255,0.05)] border-t border-slate-100 dark:border-[rgba(255,255,255,0.05)] mt-auto shrink-0 bg-slate-50/30 dark:bg-[rgba(0,0,0,0.2)]">
+            <div className="px-3 py-2.5 text-center flex flex-col items-center justify-center">
+              <p className="text-[10px] text-slate-500 font-medium mb-0.5">0-30 Days (Safe)</p>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11.5px] font-bold text-slate-800 dark:text-slate-200">₹5.20L</span>
+                <span className="text-[8.5px] text-emerald-600 font-bold bg-emerald-50 dark:bg-[rgba(182,255,0,0.1)] dark:text-[#B6FF00] px-1 py-px rounded">40.6%</span>
+              </div>
+            </div>
+            <div className="px-3 py-2.5 text-center flex flex-col items-center justify-center">
+              <p className="text-[10px] text-slate-500 font-medium mb-0.5">Over 60 Days (Risk)</p>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11.5px] font-bold text-slate-800 dark:text-slate-200">₹3.80L</span>
+                <span className="text-[8.5px] text-red-600 font-bold bg-red-50 dark:bg-[rgba(255,51,102,0.1)] dark:text-[#FF3366] px-1 py-px rounded">29.7%</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -280,10 +385,10 @@ export default function Dashboard() {
               <BarChart data={cashFlowData} margin={{ top: 2, right: 2, left: -30, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="2 4" stroke="var(--chart-grid-stroke)" vertical={false} />
                 <XAxis dataKey="month" tick={{ fontSize: 9, fill: 'var(--theme-text-muted)', fontFamily: "'Nunito','Inter',sans-serif" }} axisLine={false} tickLine={false} dy={4} />
-                <YAxis tickFormatter={v => `${(v/100000).toFixed(0)}L`} tick={{ fontSize: 9, fill: 'var(--theme-text-muted)', fontFamily: "'Nunito','Inter',sans-serif" }} axisLine={false} tickLine={false} dx={-2} />
+                <YAxis tickFormatter={v => `${(v / 100000).toFixed(0)}L`} tick={{ fontSize: 9, fill: 'var(--theme-text-muted)', fontFamily: "'Nunito','Inter',sans-serif" }} axisLine={false} tickLine={false} dx={-2} />
                 <Tooltip formatter={v => formatINR(v)} cursor={{ fill: 'var(--chart-grid-stroke)' }} contentStyle={{ borderRadius: '6px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontSize: 10, fontFamily: "'Nunito','Inter',sans-serif", background: 'var(--theme-card-bg)' }} />
-                <Bar dataKey="operating" fill="var(--chart-cf-op)" radius={[2,2,0,0]} name="Operating" />
-                <Bar dataKey="net"       fill="var(--chart-cf-net)" radius={[2,2,0,0]} name="Net" />
+                <Bar dataKey="operating" fill="var(--chart-cf-op)" radius={[2, 2, 0, 0]} name="Operating" />
+                <Bar dataKey="net" fill="var(--chart-cf-net)" radius={[2, 2, 0, 0]} name="Net" />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -335,7 +440,7 @@ export default function Dashboard() {
                 </div>
                 <div className="text-right shrink-0">
                   <p style={{ fontSize: 11, fontWeight: 900, color: 'var(--theme-text-main)', fontFamily: "'Nunito','Inter',sans-serif" }}>{formatINR(item.value)}</p>
-                  <div 
+                  <div
                     className={`inline-flex items-center gap-0.5 mt-px px-1 py-px rounded ${item.trend === 'up' ? 'bg-emerald-50 text-emerald-600' : item.trend === 'down' ? 'bg-red-50 text-red-600' : 'bg-slate-50 text-slate-500'}`}
                     style={{ fontSize: 9, fontWeight: 800, fontFamily: "'Nunito','Inter',sans-serif" }}
                   >
@@ -352,7 +457,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
         {insights.map((ins, i) => {
           const colors = {
-            danger:  { bg: 'bg-red-50 dark:bg-[rgba(255,51,102,0.1)]', border: 'border-red-200 dark:border-[rgba(255,51,102,0.2)]', icon: 'text-red-600 dark:text-[#FF3366]', text: 'text-red-700 dark:text-[#FF3366]' },
+            danger: { bg: 'bg-red-50 dark:bg-[rgba(255,51,102,0.1)]', border: 'border-red-200 dark:border-[rgba(255,51,102,0.2)]', icon: 'text-red-600 dark:text-[#FF3366]', text: 'text-red-700 dark:text-[#FF3366]' },
             warning: { bg: 'bg-amber-50 dark:bg-[rgba(255,242,0,0.1)]', border: 'border-amber-200 dark:border-[rgba(255,242,0,0.2)]', icon: 'text-amber-600 dark:text-[#FFF200]', text: 'text-amber-700 dark:text-[#FFF200]' },
             success: { bg: 'bg-emerald-50 dark:bg-[rgba(182,255,0,0.1)]', border: 'border-emerald-200 dark:border-[rgba(182,255,0,0.2)]', icon: 'text-emerald-600 dark:text-[#B6FF00]', text: 'text-emerald-700 dark:text-[#B6FF00]' },
           }[ins.type]
@@ -405,14 +510,14 @@ export default function Dashboard() {
           <div className="space-y-3 p-1">
             <div className="grid grid-cols-2 gap-2">
               {[
-                ['Voucher #',      <span className="text-blue-600 font-mono font-bold" key="v1">{modalRow.id}</span>],
-                ['Type',           <span className="font-semibold text-slate-800"      key="v2">{modalRow.type}</span>],
-                ['Date',           <span className="font-semibold text-slate-800"      key="v3">{modalRow.date}</span>],
-                ['Party',          <span className="font-semibold text-slate-800"      key="v4">{modalRow.party}</span>],
-                ['Taxable Amount', <span className="font-bold text-slate-800"          key="v5">{formatINR(modalRow.amount - modalRow.gst)}</span>],
-                ['GST Amount',     <span className="font-bold text-slate-800"          key="v6">{formatINR(modalRow.gst)}</span>],
-                ['Total Amount',   <span className="font-black text-slate-900 text-sm" key="v7">{formatINR(modalRow.amount)}</span>],
-                ['Status',         <StatusBadge key="s" status={modalRow.status} />],
+                ['Voucher #', <span className="text-blue-600 font-mono font-bold" key="v1">{modalRow.id}</span>],
+                ['Type', <span className="font-semibold text-slate-800" key="v2">{modalRow.type}</span>],
+                ['Date', <span className="font-semibold text-slate-800" key="v3">{modalRow.date}</span>],
+                ['Party', <span className="font-semibold text-slate-800" key="v4">{modalRow.party}</span>],
+                ['Taxable Amount', <span className="font-bold text-slate-800" key="v5">{formatINR(modalRow.amount - modalRow.gst)}</span>],
+                ['GST Amount', <span className="font-bold text-slate-800" key="v6">{formatINR(modalRow.gst)}</span>],
+                ['Total Amount', <span className="font-black text-slate-900 text-sm" key="v7">{formatINR(modalRow.amount)}</span>],
+                ['Status', <StatusBadge key="s" status={modalRow.status} />],
               ].map(([k, v]) => (
                 <div key={k} className="bg-slate-50 border border-slate-100 rounded-lg p-2.5">
                   <p className="text-[9.5px] text-slate-400 font-bold uppercase tracking-wider mb-1">{k}</p>

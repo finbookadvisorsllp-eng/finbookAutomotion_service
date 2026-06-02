@@ -75,7 +75,7 @@
   --chart-prof-stroke: #10b981;
   --chart-cf-op: #2563eb;
   --chart-cf-net: #10b981;
-  --chart-grad-opacity-top: 0;
+  --chart-grad-opacity-top: 0.25;
   --chart-grad-opacity-bottom: 0;
   --chart-stroke-width: 1.5;
   --chart-grid-stroke: #f1f5f9;

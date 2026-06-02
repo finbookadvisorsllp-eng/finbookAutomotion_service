@@ -100,14 +100,21 @@ export default function KPICard({ data, onClick }) {
           {formatINR(current)}
         </p>
 
-        {/* Trend badge */}
-        <span
-          className={`flex items-center justify-center rounded-sm font-extrabold px-1 py-0.5 ${trendClass}`}
-          style={{ fontSize: 9 }}
-        >
-          <TrendIcon size={9} strokeWidth={3} className="mr-0.5" />
-          {Math.abs(change)}%
-        </span>
+        {/* Trend + Subtitle */}
+        <div className="flex flex-col items-end gap-1">
+          <span
+            className={`flex items-center justify-center rounded-sm font-extrabold px-1 py-0.5 ${trendClass}`}
+            style={{ fontSize: 9, lineHeight: 1 }}
+          >
+            <TrendIcon size={9} strokeWidth={3} className="mr-0.5" />
+            {Math.abs(change)}%
+          </span>
+          {data.subtitle && (
+            <span style={{ fontSize: 7.5, color: 'var(--theme-text-muted)', fontWeight: 700, lineHeight: 1 }}>
+              {data.subtitle}
+            </span>
+          )}
+        </div>
       </div>
     </div>
   )

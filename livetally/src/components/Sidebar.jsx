@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import logoUrl from '../assets/logo.png'
 import {
   LayoutDashboard, BarChart2, Bell, Mail, TrendingUp, Scale, Droplet, FileText,
   BookOpen, Calendar, AlertTriangle, ReceiptText, Clock, ShoppingCart, Package,
   Snail, Rocket, CircleDollarSign, FileEdit, CreditCard, Search, PieChart,
-  UsersRound, ShieldCheck, PlugZap, FolderKanban, HeadphonesIcon, ChevronDown
+  UsersRound, ShieldCheck, PlugZap, FolderKanban, HeadphonesIcon, ChevronDown, Landmark,
+  ClipboardList, FileMinus, Truck, ClipboardCheck, FilePlus, Inbox
 } from 'lucide-react'
 
 const navGroups = [
@@ -12,8 +14,7 @@ const navGroups = [
     id: 'overview', label: 'Overview',
     items: [
       { id: 'dashboard', label: 'Dashboard', path: '/', icon: LayoutDashboard, badge: null },
-      { id: 'alerts', label: 'Alerts', path: '/alerts', icon: Bell, badge: 5 },
-      { id: 'notif', label: 'Notifications', path: '/notif', icon: Mail, badge: 2 },
+      { id: 'alerts-notif', label: 'Alerts & Notifications', path: '/alerts', icon: Bell, badge: 7 },
     ],
   },
   {
@@ -30,17 +31,29 @@ const navGroups = [
     ],
   },
   {
-    id: 'sales', label: 'Sales & Customers',
+    id: 'sales', label: 'Sales',
     items: [
       { id: 'sales-reg', label: 'Sales Register', path: '/sales', icon: ReceiptText },
       { id: 'cust-aging', label: 'Customer Aging', path: '/sales/aging', icon: Clock },
+      { id: 'sales-order', label: 'Sales Order', path: '/sales/order', icon: ClipboardList },
+      { id: 'credit-note', label: 'Credit Note', path: '/sales/credit-note', icon: FileMinus },
+      { id: 'delivery-note', label: 'Delivery Note', path: '/sales/delivery-note', icon: Truck },
     ],
   },
   {
-    id: 'purchase', label: 'Purchase & Vendors',
+    id: 'purchase', label: 'Purchase',
     items: [
       { id: 'purch-reg', label: 'Purchase Register', path: '/purchase', icon: ShoppingCart },
       { id: 'vend-aging', label: 'Vendor Aging', path: '/purchase/aging', icon: Clock },
+      { id: 'purchase-order', label: 'Purchase Order', path: '/purchase/order', icon: ClipboardCheck },
+      { id: 'debit-note', label: 'Debit Note', path: '/purchase/debit-note', icon: FilePlus },
+      { id: 'receipt-note', label: 'Receipt Note', path: '/purchase/receipt-note', icon: Inbox },
+    ],
+  },
+  {
+    id: 'cash-bank', label: 'Cash & Bank',
+    items: [
+      { id: 'cb-dashboard', label: 'Dashboard', path: '/cash-bank', icon: Landmark }
     ],
   },
   {
@@ -123,36 +136,10 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen }) {
 
       {/* ── Logo Header ── */}
       <div
-        className="flex items-center gap-3 px-4 shrink-0"
+        className="flex items-center gap-1 px-4 shrink-0 border-b-1 border-slate-300"
         style={{ height: 'var(--header-height)' }}
       >
-        {/* Brand mark */}
-        <div
-          className="shrink-0 w-8 h-8 rounded-xl flex items-center justify-center font-black text-white text-[11px] tracking-wider"
-          style={{
-            background: 'linear-gradient(135deg, #1e7bff 0%, #00d2ff 100%)',
-            boxShadow: '0 4px 14px rgba(30,123,255,0.40)',
-            fontFamily: C.font,
-          }}
-        >
-          TV
-        </div>
-
-        {/* Brand name */}
-        <div className="sidebar-logo-text overflow-hidden">
-          <span
-            className="block whitespace-nowrap leading-tight"
-            style={{ fontFamily: C.font, fontSize: 15, fontWeight: 900, color: C.logoTitle, letterSpacing: '-0.01em' }}
-          >
-            TallyView
-          </span>
-          <span
-            className="whitespace-nowrap"
-            style={{ fontFamily: C.font, fontSize: 9.5, fontWeight: 700, color: C.logoSub, letterSpacing: '0.18em', textTransform: 'uppercase' }}
-          >
-            by FinBook
-          </span>
-        </div>
+        <img src={logoUrl} alt="Logo" className="h-12 w-auto object-contain" /> <span className='font-bold text-gray-500 text-lg'>Tally Vision</span>
       </div>
 
       {/* ── Navigation ── */}
