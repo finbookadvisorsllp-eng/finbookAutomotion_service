@@ -26,12 +26,12 @@ export default function SalesAnalysis() {
           <p className="text-3xl font-black">{formatINR(4820000)}</p>
           <p className="text-sm font-semibold text-blue-100 mt-2">↑ 16.1% vs last year</p>
         </div>
-        <div className="bg-white rounded-2xl border border-slate-100 p-5">
+        <div className="glass-card p-5">
           <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Best Month</p>
           <p className="text-2xl font-black text-slate-800">March 2025</p>
           <p className="text-sm font-bold text-emerald-600 mt-1">{formatINR(5500000)} Revenue</p>
         </div>
-        <div className="bg-white rounded-2xl border border-slate-100 p-5">
+        <div className="glass-card p-5">
           <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Top Selling Category</p>
           <p className="text-2xl font-black text-slate-800">FMCG</p>
           <p className="text-sm font-bold text-blue-600 mt-1">{formatINR(categoryData[0]?.value || 0)} Revenue</p>
@@ -40,7 +40,7 @@ export default function SalesAnalysis() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Trend Chart */}
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-100 p-5">
+        <div className="lg:col-span-2 glass-card p-5">
           <h2 className="text-sm font-bold text-slate-800 mb-4">Sales Trend (Month-wise)</h2>
           <ResponsiveContainer width="100%" height={280}>
             <AreaChart data={monthlyTrend}>
@@ -50,17 +50,17 @@ export default function SalesAnalysis() {
                   <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--chart-grid-stroke)" />
               <XAxis dataKey="month" tick={{fontSize: 12, fill: '#64748b'}} axisLine={false} tickLine={false} />
               <YAxis tickFormatter={v => `₹${(v/100000).toFixed(0)}L`} tick={{fontSize: 12, fill: '#64748b'}} axisLine={false} tickLine={false} />
-              <Tooltip formatter={v => formatINR(v)} cursor={{stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '4 4'}} />
+              <Tooltip contentStyle={{ backgroundColor: 'var(--theme-card-bg)', border: '1px solid var(--theme-card-border)', borderRadius: '0.75rem', color: 'var(--theme-text-main)' }} formatter={v => formatINR(v)} cursor={{stroke: 'var(--chart-grid-stroke)', strokeWidth: 1, strokeDasharray: '4 4'}} />
               <Area type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={3} fill="url(#colorSales)" />
             </AreaChart>
           </ResponsiveContainer>
         </div>
 
         {/* Categories Pie */}
-        <div className="bg-white rounded-2xl border border-slate-100 p-5 flex flex-col">
+        <div className="glass-card p-5 flex flex-col">
           <h2 className="text-sm font-bold text-slate-800 mb-4">Sales by Category</h2>
           <div className="flex-1 flex flex-col items-center justify-center">
             <ResponsiveContainer width="100%" height={200}>
@@ -70,7 +70,7 @@ export default function SalesAnalysis() {
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip formatter={v => formatINR(v)} />
+                <Tooltip contentStyle={{ backgroundColor: 'var(--theme-card-bg)', border: '1px solid var(--theme-card-border)', borderRadius: '0.75rem', color: 'var(--theme-text-main)' }} formatter={v => formatINR(v)} />
               </PieChart>
             </ResponsiveContainer>
             <div className="w-full mt-4 space-y-2">

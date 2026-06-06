@@ -117,12 +117,6 @@ export default function Dashboard() {
 
   const { dynamicKPIs, dynamicChartData, chartText } = getRangeData()
 
-  const insights = [
-    { type: 'danger', icon: AlertCircle, title: 'Action Required', desc: '5 invoices overdue · ₹3.8L total. BigBazaar 17 days past due.', action: 'Receivables', path: '/sales/receivables' },
-    { type: 'warning', icon: Clock, title: 'Bills Due This Week', desc: '4 vendor payments ₹2.1L due before 31 May.', action: 'Payables', path: '/purchase/payables' },
-    { type: 'success', icon: TrendingUp, title: 'Business Improving', desc: 'Sales +16.1% · Net profit margin 18.1% vs 17.3% last year.', action: 'Analytics', path: '/analytics' },
-  ]
-
   return (
     <div className="animate-fade-in flex flex-col gap-2.5">
 
@@ -453,37 +447,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* ── Row 4: Insights strip (horizontal, single row) ── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-        {insights.map((ins, i) => {
-          const colors = {
-            danger: { bg: 'bg-red-50 dark:bg-[rgba(255,51,102,0.1)]', border: 'border-red-200 dark:border-[rgba(255,51,102,0.2)]', icon: 'text-red-600 dark:text-[#FF3366]', text: 'text-red-700 dark:text-[#FF3366]' },
-            warning: { bg: 'bg-amber-50 dark:bg-[rgba(255,242,0,0.1)]', border: 'border-amber-200 dark:border-[rgba(255,242,0,0.2)]', icon: 'text-amber-600 dark:text-[#FFF200]', text: 'text-amber-700 dark:text-[#FFF200]' },
-            success: { bg: 'bg-emerald-50 dark:bg-[rgba(182,255,0,0.1)]', border: 'border-emerald-200 dark:border-[rgba(182,255,0,0.2)]', icon: 'text-emerald-600 dark:text-[#B6FF00]', text: 'text-emerald-700 dark:text-[#B6FF00]' },
-          }[ins.type]
-          const Icon = ins.icon
-          return (
-            <div
-              key={i}
-              className={`flex items-start gap-2.5 rounded-lg p-2.5 transition-shadow hover:shadow-sm border ${colors.bg} ${colors.border}`}
-            >
-              <div className={`p-1.5 bg-white dark:bg-[#050505] rounded-md shadow-sm shrink-0 ${colors.icon}`}>
-                <Icon size={13} strokeWidth={2.5} />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className={`text-[11px] font-bold leading-tight ${colors.text}`}>{ins.title}</p>
-                <p className="text-[10px] font-medium text-slate-600 dark:text-slate-400 mt-0.5 leading-snug">{ins.desc}</p>
-                <button
-                  onClick={() => navigate(ins.path)}
-                  className={`flex items-center gap-0.5 text-[10px] font-bold mt-1 hover:underline ${colors.icon}`}
-                >
-                  {ins.action} <ArrowRight size={9} />
-                </button>
-              </div>
-            </div>
-          )
-        })}
-      </div>
 
       {/* ── Row 5: Recent Transactions table ── */}
       <div className="">

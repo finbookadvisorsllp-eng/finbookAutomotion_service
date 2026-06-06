@@ -71,10 +71,10 @@ export default function CashFlow() {
         <h2 className="text-sm font-bold text-slate-800 mb-4">Monthly Cash Flow — Inflow vs Outflow</h2>
         <ResponsiveContainer width="100%" height={260}>
           <BarChart data={monthly} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid-stroke)" />
             <XAxis dataKey="month" tick={{ fontSize:11, fill:'#94a3b8' }} axisLine={false} tickLine={false} />
             <YAxis tickFormatter={v=>`₹${(v/100000).toFixed(0)}L`} tick={{ fontSize:10, fill:'#94a3b8' }} axisLine={false} tickLine={false} />
-            <Tooltip content={fmt} />
+            <Tooltip content={fmt} cursor={false} />
             <Legend iconType="circle" iconSize={8} formatter={v=><span style={{fontSize:11,color:'#64748b'}}>{v}</span>}/>
             <Bar dataKey="inflow"  fill="#10b981" radius={[3,3,0,0]} name="Cash In" />
             <Bar dataKey="outflow" fill="#ef4444" radius={[3,3,0,0]} name="Cash Out" />
@@ -88,10 +88,10 @@ export default function CashFlow() {
           <h2 className="text-sm font-bold text-slate-800 mb-4">Net Cash Flow & Cumulative Balance</h2>
           <ResponsiveContainer width="100%" height={220}>
             <ComposedChart data={monthly}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9"/>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid-stroke)"/>
               <XAxis dataKey="month" tick={{fontSize:11,fill:'#94a3b8'}} axisLine={false} tickLine={false}/>
               <YAxis tickFormatter={v=>`₹${(v/100000).toFixed(0)}L`} tick={{fontSize:10,fill:'#94a3b8'}} axisLine={false} tickLine={false}/>
-              <Tooltip content={fmt}/>
+              <Tooltip content={fmt} cursor={false} />
               <Legend iconType="circle" iconSize={8} formatter={v=><span style={{fontSize:11,color:'#64748b'}}>{v}</span>}/>
               <Bar dataKey="net" fill="#6366f1" radius={[3,3,0,0]} name="Net Cash" />
               <Line type="monotone" dataKey="balance" stroke="#2563eb" strokeWidth={2.5} dot={false} name="Running Balance" />
@@ -104,10 +104,10 @@ export default function CashFlow() {
           <h2 className="text-sm font-bold text-slate-800 mb-4">Cash Position Overview</h2>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={cashFlowData} layout="vertical" margin={{left:10}}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false}/>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid-stroke)" horizontal={false}/>
               <XAxis type="number" tickFormatter={v=>`₹${(v/100000).toFixed(0)}L`} tick={{fontSize:10,fill:'#94a3b8'}} axisLine={false} tickLine={false}/>
               <YAxis type="category" dataKey="month" tick={{fontSize:11,fill:'#64748b'}} axisLine={false} tickLine={false} width={30}/>
-              <Tooltip content={fmt}/>
+              <Tooltip content={fmt} cursor={false} />
               <Legend iconType="circle" iconSize={8} formatter={v=><span style={{fontSize:11,color:'#64748b'}}>{v}</span>}/>
               <Bar dataKey="operating" fill="#10b981" radius={[0,3,3,0]} name="Operating" />
               <Bar dataKey="net"       fill="#2563eb" radius={[0,3,3,0]} name="Net" />

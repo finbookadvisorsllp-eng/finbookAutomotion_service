@@ -24,7 +24,6 @@ const navGroups = [
       { id: 'bs', label: 'Balance Sheet', path: '/reports/bs', icon: Scale },
       { id: 'cf', label: 'Cash Flow', path: '/reports/cf', icon: Droplet },
       { id: 'tb', label: 'Trial Balance', path: '/reports/tb', icon: FileText },
-      { id: 'ledger', label: 'Ledger Reports', path: '/reports/ledger', icon: BookOpen },
       { id: 'daybook', label: 'Day Book', path: '/reports/daybook', icon: Calendar },
       { id: 'outstanding', label: 'Outstanding', path: '/reports/outstanding', icon: AlertTriangle },
       { id: 'profitab', label: 'Profitability', path: '/analytics', icon: PieChart },
@@ -34,7 +33,6 @@ const navGroups = [
     id: 'sales', label: 'Sales',
     items: [
       { id: 'sales-reg', label: 'Sales Register', path: '/sales', icon: ReceiptText },
-      { id: 'cust-aging', label: 'Customer Aging', path: '/sales/aging', icon: Clock },
       { id: 'sales-order', label: 'Sales Order', path: '/sales/order', icon: ClipboardList },
       { id: 'credit-note', label: 'Credit Note', path: '/sales/credit-note', icon: FileMinus },
       { id: 'delivery-note', label: 'Delivery Note', path: '/sales/delivery-note', icon: Truck },
@@ -44,7 +42,6 @@ const navGroups = [
     id: 'purchase', label: 'Purchase',
     items: [
       { id: 'purch-reg', label: 'Purchase Register', path: '/purchase', icon: ShoppingCart },
-      { id: 'vend-aging', label: 'Vendor Aging', path: '/purchase/aging', icon: Clock },
       { id: 'purchase-order', label: 'Purchase Order', path: '/purchase/order', icon: ClipboardCheck },
       { id: 'debit-note', label: 'Debit Note', path: '/purchase/debit-note', icon: FilePlus },
       { id: 'receipt-note', label: 'Receipt Note', path: '/purchase/receipt-note', icon: Inbox },
@@ -73,7 +70,6 @@ const navGroups = [
       { id: 'journal', label: 'Journal Entries', path: '/accounting/journal', icon: FileEdit },
       { id: 'payment', label: 'Payment Voucher', path: '/accounting/payment', icon: CreditCard },
       { id: 'receipt', label: 'Receipt Voucher', path: '/accounting/receipt', icon: ReceiptText },
-      { id: 'ledger-s', label: 'Ledger Search', path: '/accounting/ledger', icon: Search },
     ],
   },
   {
