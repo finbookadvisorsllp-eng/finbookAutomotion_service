@@ -159,9 +159,9 @@ export const salesApi = {
       params: { voucherType },
       responseType: 'blob',
     });
-    const url  = URL.createObjectURL(new Blob([response.data]));
+    const url = URL.createObjectURL(new Blob([response.data]));
     const link = document.createElement('a');
-    link.href     = url;
+    link.href = url;
     link.download = `sample_${voucherType}.csv`;
     link.click();
     URL.revokeObjectURL(url);
@@ -184,6 +184,12 @@ export const salesApi = {
     link.click();
     URL.revokeObjectURL(url);
   },
+
+  /**
+   * Get master data dynamically for the current company
+   */
+  getMasterData: () =>
+    apiClient.get('/companies/current/master-data').then((r) => r.data),
 };
 
 export default salesApi;

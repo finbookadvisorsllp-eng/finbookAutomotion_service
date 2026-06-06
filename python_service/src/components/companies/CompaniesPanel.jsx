@@ -11,6 +11,8 @@ import {
   Settings2,
 } from 'lucide-react'
 import AddCompanyModal from './AddCompanyModal'
+import { useCompanies, useCreateCompany } from './hooks'
+
 
 const initialRows = [
   {
@@ -40,9 +42,28 @@ const emptyForm = {
 
 function CompaniesPanel({ onIconAction }) {
   const [search, setSearch] = useState('')
-  const [rows, setRows] = useState(initialRows)
+  const { data: companyList } = useCompanies()
+  const createCompanyMutation = useCreateCompany()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [formValues, setFormValues] = useState(emptyForm)
+
+  const rows = useMemo(() => {
+    if (!companyList) return []
+    return companyList.map((company, index) => ({
+      id: index + 1,
+      mongoId: company.id,
+      subscription: company.createdAt
+        ? `Subscribed\nvalid till ${new Date(new Date(company.createdAt).setFullYear(new Date(company.createdAt).getFullYear() + 1)).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+        : 'Subscribed\nvalid till Dec 17 2026',
+      businessName: company.name,
+      gstNumber: company.gstin || 'N/A',
+      state: 'Madhya Pradesh',
+      accountants: '',
+      owner: '',
+      credits: 'unlimited',
+      status: 'active',
+    }))
+  }, [companyList])
 
   const filteredRows = useMemo(() => {
     const value = search.trim().toLowerCase()
@@ -59,27 +80,17 @@ function CompaniesPanel({ onIconAction }) {
     if (onIconAction) onIconAction(name, payload)
   }
 
-  const handleSaveCompany = () => {
-    const nextId = rows.length + 1
-    const companyName = formValues.businessName || `Company ${nextId}`
-    const gst = formValues.gstNo || `GST-${nextId}`
-    setRows((prev) => [
-      ...prev,
-      {
-        id: nextId,
-        subscription: 'Subscribed\nvalid till Dec 17 2024',
-        businessName: companyName,
-        gstNumber: gst,
-        state: formValues.state || 'Madhya Pradesh',
-        accountants: '',
-        owner: '',
-        credits: 'unlimited',
-        status: 'active',
-      },
-    ])
-    setIsModalOpen(false)
-    setFormValues(emptyForm)
-    handleIconClick('save-company', { companyName, gst })
+  const handleSaveCompany = async () => {
+    const companyName = formValues.businessName || 'New Company'
+    const gst = formValues.gstNo || ''
+    try {
+      await createCompanyMutation.mutateAsync({ name: companyName, gstin: gst })
+      setIsModalOpen(false)
+      setFormValues(emptyForm)
+      handleIconClick('save-company', { companyName, gst })
+    } catch (err) {
+      console.error('Failed to save company:', err)
+    }
   }
 
   return (
