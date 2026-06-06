@@ -1,7 +1,7 @@
+from app.anjalee.routes.routes import api_router
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
-from app.routes import auth, companies, sales, purchase, fundflow
 from app.db import warm_up_tenant_cache
 
 app = FastAPI(
@@ -34,11 +34,6 @@ async def health():
         "timestamp": datetime.utcnow().isoformat(),
         "version": "1.0.0"
     }
+    # -------------anjalee routes------------
+app.include_router(api_router)
 
-# ─── Router Mounts ───
-# Mount routes under /api prefix to match frontend expectation
-app.include_router(auth.router, prefix="/api")
-app.include_router(companies.router, prefix="/api")
-app.include_router(sales.router, prefix="/api")
-app.include_router(purchase.router, prefix="/api")
-app.include_router(fundflow.router, prefix="/api")
