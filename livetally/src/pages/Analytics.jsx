@@ -56,10 +56,10 @@ export default function Analytics() {
                 </linearGradient>
               ))}
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid-stroke)" />
             <XAxis dataKey="month" tick={{fontSize:11,fill:'#94a3b8'}} axisLine={false} tickLine={false} />
             <YAxis tickFormatter={v=>`₹${(v/100000).toFixed(0)}L`} tick={{fontSize:10,fill:'#94a3b8'}} axisLine={false} tickLine={false} />
-            <Tooltip content={tooltipFmt} />
+            <Tooltip content={tooltipFmt} cursor={false} />
             <Area type="monotone" dataKey="revenue" stroke="#2563eb" strokeWidth={2} fill="url(#rev)" name="Revenue" />
             <Area type="monotone" dataKey="expense" stroke="#ef4444" strokeWidth={2} fill="url(#exp)" name="Expense" />
             <Area type="monotone" dataKey="profit"  stroke="#10b981" strokeWidth={2.5} fill="url(#prof)" name="Profit" />
@@ -73,10 +73,10 @@ export default function Analytics() {
           <h2 className="text-sm font-bold text-slate-800 mb-4">Budget vs Actual</h2>
           <ResponsiveContainer width="100%" height={240}>
             <BarChart data={budgetVsActual} layout="vertical" margin={{ left: 10 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false}/>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid-stroke)" horizontal={false}/>
               <XAxis type="number" tickFormatter={v=>`₹${(v/100000).toFixed(0)}L`} tick={{fontSize:10,fill:'#94a3b8'}} axisLine={false} tickLine={false}/>
               <YAxis type="category" dataKey="category" tick={{fontSize:11,fill:'#64748b'}} axisLine={false} tickLine={false} width={110}/>
-              <Tooltip content={tooltipFmt}/>
+              <Tooltip content={tooltipFmt} cursor={false} />
               <Legend iconType="circle" iconSize={8} formatter={v=><span style={{fontSize:11,color:'#64748b'}}>{v}</span>}/>
               <Bar dataKey="budget" fill="#e2e8f0" radius={[0,3,3,0]} name="Budget" />
               <Bar dataKey="actual" radius={[0,3,3,0]} name="Actual">
@@ -93,10 +93,10 @@ export default function Analytics() {
           <h2 className="text-sm font-bold text-slate-800 mb-4">Cash Flow — Last 6 Months</h2>
           <ResponsiveContainer width="100%" height={240}>
             <ComposedChart data={cashFlowData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9"/>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid-stroke)"/>
               <XAxis dataKey="month" tick={{fontSize:11,fill:'#94a3b8'}} axisLine={false} tickLine={false}/>
               <YAxis tickFormatter={v=>`₹${(v/100000).toFixed(0)}L`} tick={{fontSize:10,fill:'#94a3b8'}} axisLine={false} tickLine={false}/>
-              <Tooltip content={tooltipFmt}/>
+              <Tooltip content={tooltipFmt} cursor={false} />
               <Legend iconType="circle" iconSize={8} formatter={v=><span style={{fontSize:11,color:'#64748b'}}>{v}</span>}/>
               <Bar dataKey="operating" fill="#2563eb" radius={[3,3,0,0]} name="Operating" />
               <Bar dataKey="investing" fill="#e2e8f0" radius={[3,3,0,0]} name="Investing" />

@@ -4,8 +4,8 @@ import Modal from '../components/Modal'
 import { salesData, formatINR } from '../data/mockData'
 
 const StatusBadge = ({ status }) => {
-  const s = { paid:'bg-emerald-100 text-emerald-700', pending:'bg-amber-100 text-amber-700', overdue:'bg-red-100 text-red-700' }
-  return <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold capitalize ${s[status]??'bg-slate-100 text-slate-600'}`}>{status}</span>
+  const s = { paid:'bg-emerald-100 text-emerald-700 dark:bg-[#B6FF00]/10 dark:text-[#B6FF00]', pending:'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400', overdue:'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400' }
+  return <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold capitalize ${s[status]??'bg-slate-100 text-slate-600 dark:bg-slate-500/10 dark:text-slate-400'}`}>{status}</span>
 }
 
 const columns = [
@@ -40,9 +40,9 @@ export default function SalesRegister() {
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 mb-5">
         {[
-          { label: 'Total Sales',     value: formatINR(totalSales), bg:'bg-blue-50', border:'border-blue-100', color:'text-blue-700' },
-          { label: 'GST Collected',   value: formatINR(totalGST),   bg:'bg-purple-50', border:'border-purple-100', color:'text-purple-700' },
-          { label: 'Collected',       value: formatINR(paidSales),  bg:'bg-emerald-50', border:'border-emerald-100', color:'text-emerald-700' },
+          { label: 'Total Sales',     value: formatINR(totalSales), bg:'bg-blue-50 dark:bg-blue-500/10', border:'border-blue-100 dark:border-blue-500/20', color:'text-blue-700 dark:text-blue-400' },
+          { label: 'GST Collected',   value: formatINR(totalGST),   bg:'bg-purple-50 dark:bg-purple-500/10', border:'border-purple-100 dark:border-purple-500/20', color:'text-purple-700 dark:text-purple-400' },
+          { label: 'Collected',       value: formatINR(paidSales),  bg:'bg-emerald-50 dark:bg-[#B6FF00]/10', border:'border-emerald-100 dark:border-[#B6FF00]/20', color:'text-emerald-700 dark:text-[#B6FF00]' },
           { label: 'Total Invoices',  value: salesData.length,      bg:'bg-slate-50', border:'border-slate-200', color:'text-slate-700' },
         ].map(s => (
           <div key={s.label} className={`${s.bg} ${s.border} border rounded-2xl p-4`}>
@@ -57,7 +57,7 @@ export default function SalesRegister() {
         data={salesData}
         pageSize={10}
         onRowClick={setModal}
-        rowClassName={row => row.status === 'overdue' ? 'bg-red-50/40 hover:bg-red-50/70' : 'hover:bg-slate-50/80'}
+        rowClassName={row => row.status === 'overdue' ? 'bg-red-50/40 hover:bg-red-50/70 dark:bg-red-500/10 dark:hover:bg-red-500/20' : 'hover:bg-slate-50/80'}
       />
 
       <Modal isOpen={!!modal} onClose={() => setModal(null)} title={`Invoice: ${modal?.id}`}>

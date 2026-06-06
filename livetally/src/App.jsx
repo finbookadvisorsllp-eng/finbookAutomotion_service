@@ -34,13 +34,10 @@ import ReceiptNote from './pages/ReceiptNote'
 import Alerts from './pages/Alerts'
 import Notifications from './pages/Notifications'
 import TrialBalance from './pages/TrialBalance'
-import LedgerReports from './pages/LedgerReports'
 import DayBook from './pages/DayBook'
 import OutstandingReports from './pages/OutstandingReports'
 import SalesAnalysis from './pages/SalesAnalysis'
-import CustomerAging from './pages/CustomerAging'
 import CreditLimit from './pages/CreditLimit'
-import VendorAging from './pages/VendorAging'
 import BillsDue from './pages/BillsDue'
 import PurchaseTrends from './pages/PurchaseTrends'
 import SlowMoving from './pages/SlowMoving'
@@ -141,7 +138,6 @@ export default function App() {
             <Route path="/reports/cf" element={<CashFlow />} />
             <Route path="/reports/gst" element={<GSTReports />} />
             <Route path="/reports/tb" element={<TrialBalance />} />
-            <Route path="/reports/ledger" element={<LedgerReports />} />
             <Route path="/reports/daybook" element={<DayBook />} />
             <Route path="/reports/outstanding" element={<OutstandingReports />} />
 
@@ -153,7 +149,6 @@ export default function App() {
             <Route path="/sales/analysis" element={<SalesAnalysis />} />
             <Route path="/sales/customers" element={<Customers />} />
             <Route path="/sales/receivables" element={<Receivables />} />
-            <Route path="/sales/aging" element={<CustomerAging />} />
             <Route path="/sales/credit-limit" element={<CreditLimit />} />
 
             {/* ── Purchase & Vendors ── */}
@@ -163,7 +158,6 @@ export default function App() {
             <Route path="/purchase/receipt-note" element={<ReceiptNote />} />
             <Route path="/purchase/vendors" element={<Vendors />} />
             <Route path="/purchase/payables" element={<Payables />} />
-            <Route path="/purchase/aging" element={<VendorAging />} />
             <Route path="/purchase/bills" element={<BillsDue />} />
             <Route path="/purchase/trends" element={<PurchaseTrends />} />
 
@@ -182,7 +176,6 @@ export default function App() {
             <Route path="/accounting/journal" element={<GenericReport title="Journal Entries" description="View and manage all journal vouchers." />} />
             <Route path="/accounting/payment" element={<GenericReport title="Payment Vouchers" description="View and manage all payment vouchers." />} />
             <Route path="/accounting/receipt" element={<GenericReport title="Receipt Vouchers" description="View and manage all receipt vouchers." />} />
-            <Route path="/accounting/ledger" element={<GenericReport title="Ledger Search" description="Search and view specific ledger accounts." />} />
 
             {/* ── Analytics ── */}
             <Route path="/analytics" element={<Analytics />} />

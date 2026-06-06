@@ -4,7 +4,7 @@ from typing import List, Optional
 from bson import ObjectId
 from datetime import datetime
 from app.db import get_db
-from app.routes.sales import serialize_doc
+from .sales import serialize_doc
 
 router = APIRouter(prefix="/fundflow", tags=["fundflow"])
 

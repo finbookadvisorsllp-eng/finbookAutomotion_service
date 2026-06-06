@@ -8,7 +8,7 @@ const AccountSpecsModal = ({ account, onClose, onViewLedger }) => {
   if (!account) return null;
 
   const isBank = (account.type || account._assumedType || '').toLowerCase().includes('bank');
-  
+
   const specs = isBank ? [
     { label: 'Account Number', value: `XXXX-XXXX-${(account.id || '').replace(/[^0-9]/g, '').substring(0, 4) || '4021'}` },
     { label: 'Branch / IFSC', value: 'Main Branch / HDFC0001234' },
@@ -35,7 +35,7 @@ const AccountSpecsModal = ({ account, onClose, onViewLedger }) => {
             <X size={20} />
           </button>
         </div>
-        
+
         <div className="p-5 space-y-4">
           <p className="text-[13px] font-semibold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wider">Account Specifications</p>
           <div className="grid grid-cols-1 gap-3">
@@ -98,17 +98,17 @@ export default function CashBankDashboard() {
   return (
     <div className="animate-fade-in flex flex-col min-h-screen pb-10 space-y-4">
       {/* ── Header ── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between bg-white dark:bg-slate-800 py-3 px-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 gap-3">
+      <div className="flex flex-col md:flex-row md:items-center justify-between glass-card py-3 px-4 gap-3 border-0">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-blue-50 dark:bg-blue-500/10 rounded-lg text-blue-600 dark:text-blue-400">
             <Landmark size={22} strokeWidth={2.5} />
           </div>
-          <h1 className="text-xl font-black text-slate-900 dark:text-white">Cash & Bank</h1>
+          <h1 className="text-xl font-black text-slate-900 dark:text-[#ffffff]">Cash & Bank</h1>
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
           {/* Year Selector */}
-          <div className="flex items-center bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg h-9 overflow-hidden">
+          <div className="flex items-center glass-card h-9 overflow-hidden">
             <button onClick={handlePrevYear} disabled={currentYearIndex === 0} className="px-2 h-full text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-30 transition-colors border-r border-slate-200 dark:border-slate-700 flex items-center justify-center">
               <ChevronLeft size={16} strokeWidth={2.5} />
             </button>
@@ -119,7 +119,7 @@ export default function CashBankDashboard() {
               <ChevronRight size={16} strokeWidth={2.5} />
             </button>
           </div>
-          <button className="flex items-center gap-1.5 px-3 h-9 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-[12px] font-bold text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+          <button className="flex items-center gap-1.5 px-3 h-9 glass-card text-[12px] font-bold text-slate-800 dark:text-slate-200 hover:bg-slate-50 transition-colors">
             <Download size={14} className="text-slate-600 dark:text-slate-400" />
             Export
           </button>
@@ -129,11 +129,11 @@ export default function CashBankDashboard() {
       {/* ── Summary Cards ── */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Card 1: Cash in Hand */}
-        <div className="bg-blue-50 dark:bg-blue-900/20 p-5 rounded-xl border border-blue-100 dark:border-blue-800/30 flex justify-between items-end">
+        <div className="bg-blue-50 dark:bg-blue-500/10 p-5 rounded-xl border border-blue-100 dark:border-blue-500/20 flex justify-between items-end">
           <div className="flex flex-col">
             <p className="text-[13px] font-bold text-blue-600 dark:text-blue-400 mb-2">Cash in Hand</p>
-            <p className="text-[26px] font-black text-slate-900 dark:text-white tracking-tight leading-none mb-2">{formatINR(summary.cashInHand)}</p>
-            <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">vs Previous Year <span className="text-slate-700 dark:text-slate-300 font-bold tracking-tight">₹ 1,95,420.00</span></p>
+            <p className="text-[26px] font-black text-slate-900 dark:text-[#ffffff] tracking-tight leading-none mb-2">{formatINR(summary.cashInHand)}</p>
+            <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-700">vs Previous Year <span className="text-slate-700 dark:text-slate-700 font-bold tracking-tight">₹ 1,95,420.00</span></p>
           </div>
           <div className="w-[22px] h-[22px] rounded-full border border-emerald-500 flex-shrink-0 flex items-center justify-center text-emerald-500 bg-white dark:bg-slate-800 shadow-sm mb-1.5">
             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19V5" /><path d="m5 12 7-7 7 7" /></svg>
@@ -141,11 +141,11 @@ export default function CashBankDashboard() {
         </div>
 
         {/* Card 2: Bank Accounts Balance */}
-        <div className="bg-emerald-50 dark:bg-emerald-900/20 p-5 rounded-xl border border-emerald-100 dark:border-emerald-800/30 flex justify-between items-end">
+        <div className="bg-emerald-50 dark:bg-[#B6FF00]/10 p-5 rounded-xl border border-emerald-100 dark:border-[#B6FF00]/20 flex justify-between items-end">
           <div className="flex flex-col">
             <p className="text-[13px] font-bold text-emerald-600 dark:text-emerald-400 mb-2">Bank Accounts Balance</p>
-            <p className="text-[26px] font-black text-slate-900 dark:text-white tracking-tight leading-none mb-2">{formatINR(summary.bankBalance)}</p>
-            <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">vs Previous Year <span className="text-slate-700 dark:text-slate-300 font-bold tracking-tight">₹ 15,60,290.00</span></p>
+            <p className="text-[26px] font-black text-slate-900 dark:text-[#ffffff] tracking-tight leading-none mb-2">{formatINR(summary.bankBalance)}</p>
+            <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-700">vs Previous Year <span className="text-slate-700 dark:text-slate-700 font-bold tracking-tight">₹ 15,60,290.00</span></p>
           </div>
           <div className="w-[22px] h-[22px] rounded-full border border-emerald-500 flex-shrink-0 flex items-center justify-center text-emerald-500 bg-white dark:bg-slate-800 shadow-sm mb-1.5">
             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19V5" /><path d="m5 12 7-7 7 7" /></svg>
@@ -153,11 +153,11 @@ export default function CashBankDashboard() {
         </div>
 
         {/* Card 3: Total Cash & Bank Balance */}
-        <div className="bg-purple-50 dark:bg-purple-900/20 p-5 rounded-xl border border-purple-100 dark:border-purple-800/30 flex justify-between items-end">
+        <div className="bg-purple-50 dark:bg-purple-500/10 p-5 rounded-xl border border-purple-100 dark:border-purple-500/20 flex justify-between items-end">
           <div className="flex flex-col">
             <p className="text-[13px] font-bold text-purple-600 dark:text-purple-400 mb-2">Total Cash & Bank Balance</p>
-            <p className="text-[26px] font-black text-slate-900 dark:text-white tracking-tight leading-none mb-2">{formatINR(summary.totalBalance)}</p>
-            <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">vs Previous Year <span className="text-slate-700 dark:text-slate-300 font-bold tracking-tight">₹ 17,55,710.00</span></p>
+            <p className="text-[26px] font-black text-slate-900 dark:text-[#ffffff] tracking-tight leading-none mb-2">{formatINR(summary.totalBalance)}</p>
+            <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-700">vs Previous Year <span className="text-slate-700 dark:text-slate-700 font-bold tracking-tight">₹ 17,55,710.00</span></p>
           </div>
           <div className="w-[22px] h-[22px] rounded-full border border-emerald-500 flex-shrink-0 flex items-center justify-center text-emerald-500 bg-white dark:bg-slate-800 shadow-sm mb-1.5">
             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19V5" /><path d="m5 12 7-7 7 7" /></svg>
@@ -165,28 +165,28 @@ export default function CashBankDashboard() {
         </div>
 
         {/* Card 4: Today's Receipts */}
-        <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 flex justify-between items-center">
+        <div className="glass-card p-4 flex justify-between items-center">
           <div className="flex flex-col">
-            <p className="text-[12px] font-bold text-emerald-600 dark:text-emerald-400 mb-1">Today's Receipts</p>
-            <p className="text-xl font-black text-black dark:text-black tracking-tight">{formatINR(summary.todaysReceipts)}</p>
+            <p className="text-[12px] font-bold text-emerald-600 dark:text-emerald-400 mb-1">Total Receipts</p>
+            <p className="text-xl font-black text-black dark:text-[#ffffff] tracking-tight">{formatINR(summary.todaysReceipts)}</p>
           </div>
           <ArrowDownRight size={20} className="text-slate-400" />
         </div>
 
         {/* Card 5: Today's Payments */}
-        <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 flex justify-between items-center">
+        <div className="glass-card p-4 flex justify-between items-center">
           <div className="flex flex-col">
-            <p className="text-[12px] font-bold text-red-600 dark:text-red-400 mb-1">Today's Payments</p>
-            <p className="text-xl font-black text-black dark:text-black tracking-tight">{formatINR(summary.todaysPayments)}</p>
+            <p className="text-[12px] font-bold text-red-600 dark:text-red-400 mb-1">Total Payments</p>
+            <p className="text-xl font-black text-black dark:text-[#ffffff] tracking-tight">{formatINR(summary.todaysPayments)}</p>
           </div>
           <ArrowUpRight size={20} className="text-slate-400" />
         </div>
 
         {/* Card 6: Pending Cheques */}
-        <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 flex justify-between items-center">
+        <div className="glass-card p-4 flex justify-between items-center">
           <div className="flex flex-col">
-            <p className="text-[12px] font-bold text-amber-600 dark:text-amber-400 mb-1">Deposit Pending</p>
-            <p className="text-xl font-black text-black dark:text-black tracking-tight">{formatINR(summary.pendingCheques)}</p>
+            <p className="text-[12px] font-bold text-amber-600 dark:text-amber-400 mb-1"> Net Amount</p>
+            <p className="text-xl font-black text-black dark:text-[#ffffff] tracking-tight">{formatINR(summary.pendingCheques)}</p>
           </div>
           <CreditCard size={20} className="text-slate-400" />
         </div>
@@ -195,28 +195,28 @@ export default function CashBankDashboard() {
       {/* ── Mid Section: Cash, Bank, Transactions ── */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
         {/* Cash Accounts */}
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col">
-          <div className="p-3 border-b border-slate-100 dark:border-slate-700 flex items-center gap-2">
+        <div className="glass-card flex flex-col">
+          <div className="p-3 border-b border-slate-100 flex items-center gap-2">
             <CircleDollarSign size={16} className="text-slate-400" />
-            <h2 className="text-[13px] font-bold text-slate-900 dark:text-white">Cash Accounts</h2>
+            <h2 className="text-[13px] font-bold text-slate-900 dark:text-[#ffffff]">Cash Accounts</h2>
           </div>
           <div className="flex-1 p-0">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50 dark:bg-slate-800/50 text-[11px] text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-slate-700">
+                <tr className="bg-slate-50 text-[11px] text-slate-500 dark:text-slate-700 border-b border-slate-100">
                   <th className="font-semibold py-2 px-3">Account Name</th>
                   <th className="font-semibold py-2 px-3 text-right">Balance</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
+              <tbody className="divide-y divide-slate-100">
                 {cashAccounts.map(acc => (
-                  <tr key={acc.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30">
+                  <tr key={acc.id} className="hover:bg-slate-50 transition-colors">
                     <td className="py-2.5 px-3">
                       <button onClick={() => setSelectedAccountForModal({ ...acc, _assumedType: 'Cash' })} className="text-[12px] font-semibold text-blue-600 dark:text-blue-400 hover:underline text-left">
                         {acc.name}
                       </button>
                     </td>
-                    <td className="py-2.5 px-3 text-[12px] font-bold text-slate-700 dark:text-slate-300 text-right tabular-nums">
+                    <td className="py-2.5 px-3 text-[12px] font-bold text-slate-700 dark:text-slate-700 text-right tabular-nums">
                       {formatINR(acc.balance)}
                     </td>
                   </tr>
@@ -224,35 +224,35 @@ export default function CashBankDashboard() {
               </tbody>
             </table>
           </div>
-          <div className="p-3 border-t border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50 rounded-b-xl">
-            <span className="text-[12px] font-bold text-slate-800 dark:text-slate-200">Total</span>
+          <div className="p-3 border-t border-slate-100 flex justify-between items-center bg-slate-50 rounded-b-xl">
+            <span className="text-[12px] font-bold text-slate-800 dark:text-[#ffffff]">Total</span>
             <span className="text-[13px] font-black text-blue-600 dark:text-blue-400">{formatINR(summary.cashInHand)}</span>
           </div>
         </div>
 
         {/* Bank Accounts */}
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col">
-          <div className="p-3 border-b border-slate-100 dark:border-slate-700 flex items-center gap-2">
+        <div className="glass-card flex flex-col">
+          <div className="p-3 border-b border-slate-100 flex items-center gap-2">
             <Landmark size={16} className="text-slate-400" />
-            <h2 className="text-[13px] font-bold text-slate-900 dark:text-white">Bank Accounts</h2>
+            <h2 className="text-[13px] font-bold text-slate-900 dark:text-[#ffffff]">Bank Accounts</h2>
           </div>
           <div className="flex-1 p-0">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50 dark:bg-slate-800/50 text-[11px] text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-slate-700">
+                <tr className="bg-slate-50 text-[11px] text-slate-500 dark:text-slate-700 border-b border-slate-100">
                   <th className="font-semibold py-2 px-3">Account Name</th>
                   <th className="font-semibold py-2 px-3 text-right">Balance</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
+              <tbody className="divide-y divide-slate-100">
                 {bankAccounts.map(acc => (
-                  <tr key={acc.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30">
+                  <tr key={acc.id} className="hover:bg-slate-50 transition-colors">
                     <td className="py-2.5 px-3">
                       <button onClick={() => setSelectedAccountForModal({ ...acc, _assumedType: 'Bank' })} className="text-[12px] font-semibold text-blue-600 dark:text-blue-400 hover:underline text-left">
                         {acc.name}
                       </button>
                     </td>
-                    <td className="py-2.5 px-3 text-[12px] font-bold text-slate-700 dark:text-slate-300 text-right tabular-nums">
+                    <td className="py-2.5 px-3 text-[12px] font-bold text-slate-700 dark:text-slate-700 text-right tabular-nums">
                       {formatINR(acc.balance)}
                     </td>
                   </tr>
@@ -260,30 +260,30 @@ export default function CashBankDashboard() {
               </tbody>
             </table>
           </div>
-          <div className="p-3 border-t border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50 rounded-b-xl">
-            <span className="text-[12px] font-bold text-slate-800 dark:text-slate-200">Total</span>
+          <div className="p-3 border-t border-slate-100 flex justify-between items-center bg-slate-50 rounded-b-xl">
+            <span className="text-[12px] font-bold text-slate-800 dark:text-[#ffffff]">Total</span>
             <span className="text-[13px] font-black text-blue-600 dark:text-blue-400">{formatINR(summary.bankBalance)}</span>
           </div>
         </div>
 
         {/* Top 5 Transactions */}
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col">
-          <div className="p-3 border-b border-slate-100 dark:border-slate-700">
-            <h2 className="text-[13px] font-bold text-slate-900 dark:text-white">Recent Transactions</h2>
+        <div className="glass-card flex flex-col">
+          <div className="p-3 border-b border-slate-100">
+            <h2 className="text-[13px] font-bold text-slate-900 dark:text-[#ffffff]">Recent Transactions</h2>
           </div>
           <div className="flex-1 overflow-x-auto">
             <table className="w-full text-left border-collapse min-w-[350px]">
               <thead>
-                <tr className="bg-slate-50 dark:bg-slate-800/50 text-[11px] text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-slate-700">
+                <tr className="bg-slate-50 text-[11px] text-slate-500 dark:text-slate-700 border-b border-slate-100">
                   <th className="font-semibold py-2 px-3">Date</th>
                   <th className="font-semibold py-2 px-3">Particulars</th>
                   <th className="font-semibold py-2 px-3 text-right">Amount</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
+              <tbody className="divide-y divide-slate-100">
                 {recentTransactions.map(tx => (
-                  <tr key={tx.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30">
-                    <td className="py-2 px-3 text-[11px] font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap">{tx.date}</td>
+                  <tr key={tx.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="py-2 px-3 text-[11px] font-medium text-slate-500 dark:text-slate-700 whitespace-nowrap">{tx.date}</td>
                     <td className="py-2 px-3">
                       <button onClick={() => navigateToVoucher(tx.id)} className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline text-left line-clamp-1">
                         {tx.party}
@@ -301,14 +301,14 @@ export default function CashBankDashboard() {
       </div>
 
       {/* ── All Accounts Summary Table ── */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
-        <div className="p-3 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
-          <h2 className="text-[14px] font-bold text-slate-900 dark:text-white">All Cash & Bank Accounts</h2>
+      <div className="glass-card overflow-hidden">
+        <div className="p-3 border-b border-slate-100 flex items-center justify-between">
+          <h2 className="text-[14px] font-bold text-slate-900 dark:text-[#ffffff]">All Cash & Bank Accounts</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[900px]">
             <thead>
-              <tr className="bg-slate-50 dark:bg-slate-800/50 text-[11px] text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-slate-700 h-9">
+              <tr className="bg-slate-50 text-[11px] text-slate-500 dark:text-slate-700 border-b border-slate-100 h-9">
                 <th className="font-semibold px-4 w-[250px]">Account Name</th>
                 <th className="font-semibold px-4 w-[100px]">Type</th>
                 <th className="font-semibold px-4 text-right">Opening Balance</th>
@@ -318,19 +318,19 @@ export default function CashBankDashboard() {
                 <th className="font-semibold px-4 w-[60px] text-center">Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
+            <tbody className="divide-y divide-slate-100">
               {allAccounts.map(acc => (
-                <tr key={acc.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 group">
+                <tr key={acc.id} className="hover:bg-slate-50 transition-colors group">
                   <td className="px-4 py-2.5">
                     <button onClick={() => setSelectedAccountForModal(acc)} className="text-[12px] font-semibold text-blue-600 dark:text-blue-400 hover:underline text-left">
                       {acc.name}
                     </button>
                   </td>
-                  <td className="px-4 py-2.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">{acc.type}</td>
-                  <td className="px-4 py-2.5 text-[12px] font-medium text-slate-700 dark:text-slate-300 text-right tabular-nums">{formatINR(acc.opening)}</td>
+                  <td className="px-4 py-2.5 text-[11px] font-medium text-slate-500 dark:text-slate-700">{acc.type}</td>
+                  <td className="px-4 py-2.5 text-[12px] font-medium text-slate-700 dark:text-slate-700 text-right tabular-nums">{formatINR(acc.opening)}</td>
                   <td className="px-4 py-2.5 text-[12px] font-semibold text-emerald-600 dark:text-emerald-400 text-right tabular-nums">{formatINR(acc.receipts)}</td>
                   <td className="px-4 py-2.5 text-[12px] font-semibold text-red-600 dark:text-red-400 text-right tabular-nums">{formatINR(acc.payments)}</td>
-                  <td className="px-4 py-2.5 text-[12px] font-bold text-slate-900 dark:text-white text-right tabular-nums">{formatINR(acc.closing)}</td>
+                  <td className="px-4 py-2.5 text-[12px] font-bold text-slate-900 dark:text-[#ffffff] text-right tabular-nums">{formatINR(acc.closing)}</td>
                   <td className="px-4 py-2.5 text-center">
                     <button onClick={() => navigateToLedger(acc.id)} className="text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
                       <Eye size={16} />
@@ -344,10 +344,10 @@ export default function CashBankDashboard() {
       </div>
 
       {/* Account Specifications Modal */}
-      <AccountSpecsModal 
-        account={selectedAccountForModal} 
-        onClose={() => setSelectedAccountForModal(null)} 
-        onViewLedger={navigateToLedger} 
+      <AccountSpecsModal
+        account={selectedAccountForModal}
+        onClose={() => setSelectedAccountForModal(null)}
+        onViewLedger={navigateToLedger}
       />
 
     </div>
