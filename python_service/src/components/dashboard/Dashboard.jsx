@@ -5,6 +5,8 @@ import Navbar from '../layout/Navbar'
 import Sidebar from '../layout/Sidebar'
 import { LABEL_TO_PATH, PATH_TO_LABEL } from '../../routes/routePaths'
 import { useAppStore } from '../../stores/useAppStore'
+import { fetchCompanies } from '../companies/api'
+
 
 // Modern SaaS design tokens — Linear / Vercel inspired.
 // Light mode: warm neutrals, indigo→violet brand. Dark mode: deep cool slate.
@@ -72,6 +74,33 @@ function Dashboard({
   const companies = useAppStore((s) => s.companies)
   const selectedCompany = useAppStore((s) => s.selectedCompany)
   const setSelectedCompany = useAppStore((s) => s.setSelectedCompany)
+  const setCompanies = useAppStore((s) => s.setCompanies)
+
+  // Dynamically load company list from the database
+  useEffect(() => {
+    const loadCompanies = async () => {
+      try {
+        const list = await fetchCompanies()
+        if (list && list.length > 0) {
+          const names = list.map((c) => c.name)
+          setCompanies(names)
+          
+          // Fallback if current selected company is empty, not in database list, or matches old mocks
+          if (
+            !selectedCompany ||
+            !names.includes(selectedCompany) ||
+            ['Data Uncyclable', 'Finolax Advisors', 'Greenline Ventures', 'Apex Holdings'].includes(selectedCompany)
+          ) {
+            setSelectedCompany(names[0])
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load companies dynamically:', err)
+      }
+    }
+    loadCompanies()
+  }, [setCompanies, setSelectedCompany, selectedCompany])
+
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)

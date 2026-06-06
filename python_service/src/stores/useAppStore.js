@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware'
 
 // Single client-state store: theme, selected company, and auth.
 // Server state belongs in React Query, not here.
-const defaultCompanies = ['Data Uncyclable', 'Finolax Advisors', 'Greenline Ventures', 'Apex Holdings']
+const defaultCompanies = []
 
 export const useAppStore = create(
   persist(
@@ -14,8 +14,8 @@ export const useAppStore = create(
       setMode: (mode) => set({ mode }),
 
       // active company (tenant scope for API calls)
-      companies: defaultCompanies,
-      selectedCompany: defaultCompanies[0],
+      companies: [],
+      selectedCompany: '',
       setSelectedCompany: (selectedCompany) => set({ selectedCompany }),
       setCompanies: (companies) => set({ companies }),
 

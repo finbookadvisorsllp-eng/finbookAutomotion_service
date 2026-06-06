@@ -174,6 +174,18 @@ export const useSalesStore = create((set, get) => ({
     error:         null,
   },
 
+  // ─── Master Data State ────────────────────────────────────────────────────
+  masterData: {
+    salesLedgers: [],
+    partyLedgers: [],
+    gstRegistrations: [],
+    stockItems: [],
+    tcsLedgers: [],
+    additionalChargeLedgers: [],
+    voucherTypes: [],
+    loading: false,
+  },
+
   // ─── Loading / Error ─────────────────────────────────────────────────────
   loading: {
     list:    false,
@@ -234,6 +246,24 @@ export const useSalesStore = create((set, get) => ({
       set({ error: err.response?.data?.message || 'Failed to load transaction' });
     } finally {
       set((s) => ({ loading: { ...s.loading, detail: false } }));
+    }
+  },
+
+  fetchMasterData: async () => {
+    set((s) => ({ masterData: { ...s.masterData, loading: true } }));
+    try {
+      const res = await salesApi.getMasterData();
+      if (res.success) {
+        set({
+          masterData: {
+            ...res.data,
+            loading: false,
+          }
+        });
+      }
+    } catch (err) {
+      console.error('Failed to fetch master data:', err);
+      set((s) => ({ masterData: { ...s.masterData, loading: false } }));
     }
   },
 
