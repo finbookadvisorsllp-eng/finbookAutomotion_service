@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 const schema = z.object({
-  VITE_API_BASE_URL: z.string().url().default('http://localhost:8000/api'),
+  VITE_API_BASE_URL: z.string().url().default('http://localhost:5000/api/v2'),
   VITE_APP_ENV: z.enum(['development', 'staging', 'production']).default('development'),
 })
 

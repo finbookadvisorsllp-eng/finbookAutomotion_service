@@ -14,24 +14,24 @@ import salesApi from '../services/salesApi';
  */
 
 const DEFAULT_FORM = {
-  voucherType:         'sales_invoice',
+  voucherType: 'sales_invoice',
   voucherNumberSeries: 'Default',
-  voucherDate:         '',
-  invoiceDate:         '',
-  invoiceNumber:       '',
-  salesLedger:         '',
-  gstRegistration:     '',
-  partyGstin:          '',
-  partyLedger:         '',
-  consigneeLedger:     'Same as Party',
-  entryTab:            'with_item',
-  productLines:        [{ id: Date.now(), srNo: 1, stockItem: '', description: '', hsnSacCode: '', billQuantity: 0, billRate: 0, discountPercent: 0, amount: 0, rcm: false, taxabilityType: 'Taxable', gstRate: 0 }],
-  salesLines:          [{ id: Date.now(), srNo: 1, salesLedger: '', description: '', hsnSacCode: '', amount: 0, gstRate: 0 }],
-  additionalCharges:   [],
-  tdsDetails:          [],
-  tcsDetails:          [{ id: Date.now() + 200, ledgerName: '', assessableValue: 0, rate: 0, amount: 0 }],
-  narration:           '',
-  status:              'draft',
+  voucherDate: '',
+  invoiceDate: '',
+  invoiceNumber: '',
+  salesLedger: '',
+  gstRegistration: '',
+  partyGstin: '',
+  partyLedger: '',
+  consigneeLedger: 'Same as Party',
+  entryTab: 'with_item',
+  productLines: [{ id: Date.now(), srNo: 1, stockItem: '', description: '', hsnSacCode: '', billQuantity: 0, billRate: 0, discountPercent: 0, amount: 0, rcm: false, taxabilityType: 'Taxable', gstRate: 0 }],
+  salesLines: [{ id: Date.now(), srNo: 1, salesLedger: '', description: '', hsnSacCode: '', amount: 0, gstRate: 0 }],
+  additionalCharges: [],
+  tdsDetails: [],
+  tcsDetails: [{ id: Date.now() + 200, ledgerName: '', assessableValue: 0, rate: 0, amount: 0 }],
+  narration: '',
+  status: 'draft',
 };
 
 const calculateFormTotals = (form) => {
@@ -131,18 +131,18 @@ const calculateFormTotals = (form) => {
 export const useSalesStore = create((set, get) => ({
 
   // ─── List State ──────────────────────────────────────────────────────────
-  transactions:  [],
-  totalCount:    0,
-  currentPage:   1,
-  pageLimit:     20,
+  transactions: [],
+  totalCount: 0,
+  currentPage: 1,
+  pageLimit: 20,
   filters: {
     voucherType: 'sales_invoice',
-    status:      '',
-    search:      '',
-    dateFrom:    '',
-    dateTo:      '',
-    sortBy:      'createdAt',
-    sortOrder:   'desc',
+    status: '',
+    search: '',
+    dateFrom: '',
+    dateTo: '',
+    sortBy: 'createdAt',
+    sortOrder: 'desc',
   },
 
   // ─── Detail State ─────────────────────────────────────────────────────────
@@ -156,28 +156,29 @@ export const useSalesStore = create((set, get) => ({
 
   // ─── OCR Workflow State ───────────────────────────────────────────────────
   ocr: {
-    file:          null,         // File object
-    previewUrl:    null,         // local object URL for PDF/image preview
-    isExtracting:  false,
+    file: null,         // File object
+    previewUrl: null,         // local object URL for PDF/image preview
+    isExtracting: false,
     uploadProgress: 0,
-    result:        null,         // full extraction result from backend
-    error:         null,
+    result: null,         // full extraction result from backend
+    error: null,
   },
 
   // ─── CSV Workflow State ───────────────────────────────────────────────────
   csv: {
-    file:          null,
+    file: null,
     isPreviewLoading: false,
-    preview:       null,         // { totalRows, validCount, failedCount, errors, preview[] }
-    isImporting:   false,
-    importResult:  null,         // { inserted, failed, errors }
-    error:         null,
+    preview: null,         // { totalRows, validCount, failedCount, errors, preview[] }
+    isImporting: false,
+    importResult: null,         // { inserted, failed, errors }
+    error: null,
   },
 
   // ─── Master Data State ────────────────────────────────────────────────────
   masterData: {
     salesLedgers: [],
     partyLedgers: [],
+    partyLedgerDetails: {},
     gstRegistrations: [],
     stockItems: [],
     tcsLedgers: [],
@@ -188,11 +189,11 @@ export const useSalesStore = create((set, get) => ({
 
   // ─── Loading / Error ─────────────────────────────────────────────────────
   loading: {
-    list:    false,
-    detail:  false,
-    save:    false,
-    status:  false,
-    stats:   false,
+    list: false,
+    detail: false,
+    save: false,
+    status: false,
+    stats: false,
   },
   error: null,
 
@@ -217,7 +218,7 @@ export const useSalesStore = create((set, get) => ({
       const res = await salesApi.list(params);
       set({
         transactions: res.data || [],
-        totalCount:   res.meta?.total || 0,
+        totalCount: res.meta?.total || 0,
       });
     } catch (err) {
       set({ error: err.response?.data?.message || 'Failed to load transactions' });
@@ -286,8 +287,8 @@ export const useSalesStore = create((set, get) => ({
   }),
 
   resetForm: () => set({
-    form: { 
-      ...DEFAULT_FORM, 
+    form: {
+      ...DEFAULT_FORM,
       productLines: [{ ...DEFAULT_FORM.productLines[0], id: Date.now() }],
       salesLines: [{ ...DEFAULT_FORM.salesLines[0], id: Date.now() + 100 }],
       tcsDetails: [{ id: Date.now() + 200, ledgerName: '', assessableValue: 0, rate: 0, amount: 0 }]
@@ -297,27 +298,27 @@ export const useSalesStore = create((set, get) => ({
   // ─── Autofill from OCR extraction result ─────────────────────────────────
   autofillFormFromOcr: (ocrFormFields) => set((s) => {
     const entryTab = ocrFormFields.productLines?.length ? 'with_item' : (ocrFormFields.salesLines?.length ? 'without_item' : s.form.entryTab);
-    
+
     const filledForm = {
       ...s.form,
       entryTab,
-      invoiceNumber:   ocrFormFields.invoiceNumber   || s.form.invoiceNumber,
-      invoiceDate:     ocrFormFields.invoiceDate     || s.form.invoiceDate,
-      partyLedger:     ocrFormFields.partyLedger     || s.form.partyLedger,
-      partyGstin:      ocrFormFields.partyGstin      || s.form.partyGstin,
-      salesLedger:     ocrFormFields.salesLedger     || s.form.salesLedger,
-      
-      productLines:    ocrFormFields.productLines?.length 
-        ? ocrFormFields.productLines.map((l, i) => ({ ...l, id: Date.now() + i })) 
+      invoiceNumber: ocrFormFields.invoiceNumber || s.form.invoiceNumber,
+      invoiceDate: ocrFormFields.invoiceDate || s.form.invoiceDate,
+      partyLedger: ocrFormFields.partyLedger || s.form.partyLedger,
+      partyGstin: ocrFormFields.partyGstin || s.form.partyGstin,
+      salesLedger: ocrFormFields.salesLedger || s.form.salesLedger,
+
+      productLines: ocrFormFields.productLines?.length
+        ? ocrFormFields.productLines.map((l, i) => ({ ...l, id: Date.now() + i }))
         : s.form.productLines,
-      
-      salesLines:      ocrFormFields.salesLines?.length 
-        ? ocrFormFields.salesLines.map((l, i) => ({ ...l, id: Date.now() + i + 100 })) 
+
+      salesLines: ocrFormFields.salesLines?.length
+        ? ocrFormFields.salesLines.map((l, i) => ({ ...l, id: Date.now() + i + 100 }))
         : s.form.salesLines,
-        
-      narration:       ocrFormFields.narration       || s.form.narration,
+
+      narration: ocrFormFields.narration || s.form.narration,
     };
-    
+
     return {
       form: calculateFormTotals(filledForm),
     };
@@ -500,13 +501,13 @@ export const useSalesStore = create((set, get) => ({
 
       const payload = {
         ...form,
-        status:    asDraft ? 'draft' : 'pending_review',
+        status: asDraft ? 'draft' : 'pending_review',
         entryMode: 'manual',
         productLines,
         salesLines,
         additionalCharges: (form.additionalCharges || []).map(({ id: _id, ...rest }) => rest),
-        tdsDetails:        (form.tdsDetails || []).map(({ id: _id, ...rest }) => rest),
-        tcsDetails:        (form.tcsDetails || []).map(({ id: _id, ...rest }) => rest),
+        tdsDetails: (form.tdsDetails || []).map(({ id: _id, ...rest }) => rest),
+        tcsDetails: (form.tcsDetails || []).map(({ id: _id, ...rest }) => rest),
       };
 
       let res;
@@ -617,10 +618,10 @@ export const useSalesStore = create((set, get) => ({
     try {
       const payload = {
         ...form,
-        status:    'draft',
+        status: 'draft',
         entryMode: 'ocr',
         productLines: form.productLines.map(({ id: _id, ...rest }) => rest),
-        salesLines:   form.salesLines.map(({ id: _id, ...rest }) => rest),
+        salesLines: form.salesLines.map(({ id: _id, ...rest }) => rest),
       };
       const res = await salesApi.submitOcrTransaction(payload, ocr.result);
       set({ selectedTransaction: res.data });

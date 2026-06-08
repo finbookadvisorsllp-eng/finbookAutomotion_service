@@ -7,19 +7,18 @@ from . import sales
 from . import purchase
 from . import fundflow
 
-api_router = APIRouter(prefix="/api")
+# Router with strict v2 prefix (api/v2) as per requirement
+api_router = APIRouter(prefix="/api/v2")
 
-
-# Health Check Routes
+# Health Check Route
 @api_router.get("/health")
 async def health():
     return {
         "success": True,
-        "message": "Finbook FastAPI Service Running",
+        "message": "Finbook FastAPI Service Running (Anjalee v2 API Module)",
         "timestamp": datetime.utcnow().isoformat(),
-        "version": "1.0.0"
+        "version": "2.0.0"
     }
-
 
 # Module Routes
 api_router.include_router(auth.router)
