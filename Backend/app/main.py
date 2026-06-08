@@ -37,3 +37,9 @@ async def health():
     # -------------anjalee routes------------
 app.include_router(api_router)
 
+# ─────────────── AMAN (LiveTally) routes — /api/v3 ───────────────
+# Owned by the aman project. Do not edit anjalee's include above.
+from app.aman.routes.routes import aman_api_router
+app.include_router(aman_api_router)
+# ─────────────────────────────────────────────────────────────────
+

@@ -1,7 +1,10 @@
 import { useState } from 'react'
 import DataTable from '../components/DataTable'
 import Modal from '../components/Modal'
-import { topCustomers, formatINR } from '../data/mockData'
+import { formatINR } from '../data/mockData'
+import { useDateRange } from '../context/DateContext'
+import { useApi } from '../hooks/useApi'
+import { getCustomers } from '../api'
 
 const columns = [
   { key:'id',   label:'#', render:(_,row,i)=><span className="text-slate-300 font-bold">#{row.id}</span> },
@@ -22,15 +25,18 @@ const columns = [
 
 export default function Customers() {
   const [modal, setModal] = useState(null)
-  const totalSales = topCustomers.reduce((a,c)=>a+c.sales,0)
-  const totalOutstanding = topCustomers.reduce((a,c)=>a+c.outstanding,0)
+  const { fy } = useDateRange()
+  const { data, loading } = useApi(() => getCustomers(fy), [fy], { skip: !fy })
+  const topCustomers = (data || []).map((c) => ({ ...c, sales: c.sales ?? 0 }))
+  const totalSales = topCustomers.reduce((a,c)=>a+(c.sales||0),0)
+  const totalOutstanding = topCustomers.reduce((a,c)=>a+(c.outstanding||0),0)
 
   return (
     <div className="animate-fade-in">
       <div className="flex items-start justify-between mb-5 flex-wrap gap-3">
         <div>
           <h1 className="text-xl font-black text-slate-900">Top Customers</h1>
-          <p className="text-sm text-slate-400 mt-0.5">Sales performance & outstanding</p>
+          <p className="text-sm text-slate-400 mt-0.5">Sales performance & outstanding{loading ? ' · loading…' : ''}</p>
         </div>
         <button className="px-4 py-2 border border-slate-200 rounded-xl text-sm font-medium text-slate-600 transition-colors">⬇ Export</button>
       </div>
