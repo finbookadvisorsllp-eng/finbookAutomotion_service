@@ -1,16 +1,27 @@
 import { useState } from 'react'
+import { login as apiLogin, auth } from '../api'
 
 export default function Login({ onLogin, onDemo }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
   const [emailFocused, setEmailFocused] = useState(false)
   const [passFocused, setPassFocused] = useState(false)
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault()
     setLoading(true)
-    setTimeout(() => { setLoading(false); onLogin() }, 1000)
+    setError('')
+    try {
+      const res = await apiLogin(email, password)
+      if (res?.token) auth.setToken(res.token)
+      onLogin()
+    } catch (err) {
+      setError(err.message || 'Login failed')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const features = [
@@ -220,6 +231,12 @@ export default function Login({ onLogin, onDemo }) {
                 required
               />
             </div>
+
+            {error && (
+              <p style={{ color: '#dc2626', fontSize: 13, fontWeight: 600, marginTop: 12 }}>
+                {error}
+              </p>
+            )}
 
             {/* Sign In Button */}
             <button
