@@ -16,6 +16,35 @@ _tenant_cache = {
 }
 _cache_warmed = False
 
+def ensure_db_indexes(db):
+    """
+    Safely creates all required indexes for the tenant database,
+    ignoring cases where indexes already exist under different names or options.
+    """
+    from pymongo.errors import OperationFailure
+
+    configs = [
+        ("sales_transactions", [("voucherType", 1), ("status", 1), ("createdAt", -1)], {}),
+        ("sales_transactions", [("createdAt", -1)], {}),
+        ("purchase_transactions", [("voucherType", 1), ("status", 1), ("createdAt", -1)], {}),
+        ("purchase_transactions", [("createdAt", -1)], {}),
+        ("fund_flow_transactions", [("voucherType", 1), ("status", 1), ("createdAt", -1)], {}),
+        ("fund_flow_transactions", [("createdAt", -1)], {}),
+        ("ledgers", [("groupName", 1)], {}),
+        ("ledgers", [("ledgerName", 1)], {}),
+    ]
+
+    for coll_name, keys, options in configs:
+        try:
+            db[coll_name].create_index(keys, **options)
+        except OperationFailure as ex:
+            # Code 85 is IndexOptionsConflict (index already exists with a different name or options)
+            if ex.code == 85:
+                continue
+            print(f"Error ensuring index on {coll_name} for keys {keys}: {ex}")
+        except Exception as ex:
+            print(f"Error ensuring index on {coll_name} for keys {keys}: {ex}")
+
 def _warm_up_worker():
     global _cache_warmed
     try:
@@ -35,14 +64,7 @@ def _warm_up_worker():
                 # Ensure indexes on dynamic collections
                 try:
                     db = client[db_name]
-                    db["sales_transactions"].create_index([("voucherType", 1), ("status", 1), ("createdAt", -1)])
-                    db["sales_transactions"].create_index([("createdAt", -1)])
-                    db["purchase_transactions"].create_index([("voucherType", 1), ("status", 1), ("createdAt", -1)])
-                    db["purchase_transactions"].create_index([("createdAt", -1)])
-                    db["fund_flow_transactions"].create_index([("voucherType", 1), ("status", 1), ("createdAt", -1)])
-                    db["fund_flow_transactions"].create_index([("createdAt", -1)])
-                    db["ledgers"].create_index([("groupName", 1)])
-                    db["ledgers"].create_index([("ledgerName", 1)])
+                    ensure_db_indexes(db)
                 except Exception as ex:
                     print(f"Error ensuring indexes for {db_name}: {ex}")
 

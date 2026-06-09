@@ -12,14 +12,8 @@ class CompanyRepository(BaseRepository):
     def create_company(self, company_doc: Dict[str, Any]) -> str:
         # Pre-create indexes on dynamic collections for the tenant database
         try:
-            self.db["sales_transactions"].create_index([("voucherType", 1), ("status", 1), ("createdAt", -1)])
-            self.db["sales_transactions"].create_index([("createdAt", -1)])
-            self.db["purchase_transactions"].create_index([("voucherType", 1), ("status", 1), ("createdAt", -1)])
-            self.db["purchase_transactions"].create_index([("createdAt", -1)])
-            self.db["fund_flow_transactions"].create_index([("voucherType", 1), ("status", 1), ("createdAt", -1)])
-            self.db["fund_flow_transactions"].create_index([("createdAt", -1)])
-            self.db["ledgers"].create_index([("groupName", 1)])
-            self.db["ledgers"].create_index([("ledgerName", 1)])
+            from app.db import ensure_db_indexes
+            ensure_db_indexes(self.db)
         except Exception:
             pass
 
