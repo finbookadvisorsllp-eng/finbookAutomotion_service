@@ -87,6 +87,24 @@ const CreateSales = ({ isDark, voucherType, onBack }) => {
     if (type === 'tcs') removeTcsDetail(id);
   };
 
+  const getGstRegistrationOptions = () => {
+    const base = masterData.gstRegistrations && masterData.gstRegistrations.length > 0
+      ? [...masterData.gstRegistrations]
+      : ['Madhya Pradesh Registration', 'Maharashtra Registration'];
+
+    const partyStates = new Set();
+    if (masterData.partyLedgerDetails) {
+      Object.values(masterData.partyLedgerDetails).forEach((detail) => {
+        if (detail.gstState && detail.gstState.trim() !== '') {
+          partyStates.add(`${detail.gstState.trim()} Registration`);
+        }
+      });
+    }
+
+    const combined = Array.from(new Set([...base, ...partyStates]));
+    return combined.sort();
+  };
+
   const theme = {
     bg: 'var(--app-content-bg)',
     panel: 'var(--app-panel-bg)',
@@ -269,9 +287,27 @@ const CreateSales = ({ isDark, voucherType, onBack }) => {
                 <InputField label="Voucher Number" placeholder="Auto-generated" value={form.voucherNumber} readOnly />
                 <InputField label="Invoice Number" placeholder="Invoice Number" value={form.invoiceNumber} onChange={(v) => setFormField('invoiceNumber', v)} />
                 <SearchableDropdown label="Sales Ledger" placeholder="Sales Ledger" options={masterData.salesLedgers?.length > 0 ? masterData.salesLedgers : ['General Sales', 'Service Sales']} value={form.salesLedger} onChange={(v) => setFormField('salesLedger', v)} />
-                <SearchableDropdown label="GST Registration" placeholder="GST Registration" options={masterData.gstRegistrations?.length > 0 ? masterData.gstRegistrations : ['Madhya Pradesh Registration', 'Maharashtra Registration']} value={form.gstRegistration} onChange={(v) => setFormField('gstRegistration', v)} />
+                <SearchableDropdown label="GST Registration" placeholder="GST Registration" options={getGstRegistrationOptions()} value={form.gstRegistration} onChange={(v) => setFormField('gstRegistration', v)} />
                 <InputField label="Party GSTIN" placeholder="Party GSTIN" value={form.partyGstin} onChange={(v) => setFormField('partyGstin', v)} />
-                <SearchableDropdown label="Party Ledger" placeholder="Party Ledger" hasAdd options={masterData.partyLedgers?.length > 0 ? masterData.partyLedgers : ['HDFC Bank', 'Cash', 'Sundry Debtor A']} value={form.partyLedger} onChange={(v) => setFormField('partyLedger', v)} />
+                <SearchableDropdown 
+                  label="Party Ledger" 
+                  placeholder="Party Ledger" 
+                  hasAdd 
+                  options={masterData.partyLedgers?.length > 0 ? masterData.partyLedgers : ['HDFC Bank', 'Cash', 'Sundry Debtor A']} 
+                  value={form.partyLedger} 
+                  onChange={(v) => {
+                    setFormField('partyLedger', v);
+                    if (v && masterData.partyLedgerDetails && masterData.partyLedgerDetails[v]) {
+                      const details = masterData.partyLedgerDetails[v];
+                      if (details.gstin) {
+                        setFormField('partyGstin', details.gstin);
+                      }
+                      if (details.gstState) {
+                        setFormField('gstRegistration', `${details.gstState} Registration`);
+                      }
+                    }
+                  }} 
+                />
                 <SearchableDropdown label="Consignee Ledger" placeholder="Consignee Ledger" options={['Same as Party', ...(masterData.partyLedgers || [])]} value={form.consigneeLedger} onChange={(v) => setFormField('consigneeLedger', v)} />
               </div>
             </FormSection>

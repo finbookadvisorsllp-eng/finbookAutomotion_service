@@ -6,25 +6,25 @@ import purchaseApi from '../services/purchaseApi';
  */
 
 const DEFAULT_FORM = {
-  voucherType:         'purchase_invoice',
+  voucherType: 'purchase_invoice',
   voucherNumberSeries: 'Default',
-  voucherDate:         '',
-  invoiceDate:         '',
-  invoiceNumber:       '',
-  poNumber:            '',
-  purchaseLedger:      '',
-  gstRegistration:     'Madhya Pradesh Registration',
-  partyGstin:          '',
-  partyLedger:         '',
-  consigneeLedger:     'Same as Party',
-  entryTab:            'without_item',
-  productLines:        [{ id: Date.now(), srNo: 1, stockItem: '', description: '', hsnSacCode: '', billQuantity: 0, billRate: 0, discountPercent: 0, amount: 0, rcm: false, taxabilityType: 'Taxable', gstRate: 0 }],
-  purchaseLines:       [{ id: Date.now(), srNo: 1, purchaseLedger: '', description: '', hsnSacCode: '', amount: 0, gstRate: 0 }],
-  additionalCharges:   [],
-  tdsDetails:          [{ id: Date.now() + 100, ledgerName: '', assessableValue: 0, rate: 0, amount: 0 }],
-  tcsDetails:          [],
-  narration:           '',
-  status:              'draft',
+  voucherDate: '',
+  invoiceDate: '',
+  invoiceNumber: '',
+  poNumber: '',
+  purchaseLedger: '',
+  gstRegistration: 'Madhya Pradesh Registration',
+  partyGstin: '',
+  partyLedger: '',
+  consigneeLedger: 'Same as Party',
+  entryTab: 'without_item',
+  productLines: [{ id: Date.now(), srNo: 1, stockItem: '', description: '', hsnSacCode: '', billQuantity: 0, billRate: 0, discountPercent: 0, amount: 0, rcm: false, taxabilityType: 'Taxable', gstRate: 0 }],
+  purchaseLines: [{ id: Date.now(), srNo: 1, purchaseLedger: '', description: '', hsnSacCode: '', amount: 0, gstRate: 0 }],
+  additionalCharges: [],
+  tdsDetails: [{ id: Date.now() + 100, ledgerName: '', assessableValue: 0, rate: 0, amount: 0 }],
+  tcsDetails: [],
+  narration: '',
+  status: 'draft',
 };
 
 const calculateFormTotals = (form) => {
@@ -130,18 +130,18 @@ const calculateFormTotals = (form) => {
 export const usePurchaseStore = create((set, get) => ({
 
   // ─── List State ──────────────────────────────────────────────────────────
-  transactions:  [],
-  totalCount:    0,
-  currentPage:   1,
-  pageLimit:     20,
+  transactions: [],
+  totalCount: 0,
+  currentPage: 1,
+  pageLimit: 20,
   filters: {
     voucherType: 'purchase_invoice',
-    status:      '',
-    search:      '',
-    dateFrom:    '',
-    dateTo:      '',
-    sortBy:      'createdAt',
-    sortOrder:   'desc',
+    status: '',
+    search: '',
+    dateFrom: '',
+    dateTo: '',
+    sortBy: 'createdAt',
+    sortOrder: 'desc',
   },
 
   // ─── Detail State ─────────────────────────────────────────────────────────
@@ -155,11 +155,11 @@ export const usePurchaseStore = create((set, get) => ({
 
   // ─── Loading / Error ─────────────────────────────────────────────────────
   loading: {
-    list:    false,
-    detail:  false,
-    save:    false,
-    status:  false,
-    stats:   false,
+    list: false,
+    detail: false,
+    save: false,
+    status: false,
+    stats: false,
   },
   error: null,
 
@@ -184,7 +184,7 @@ export const usePurchaseStore = create((set, get) => ({
       const res = await purchaseApi.list(params);
       set({
         transactions: res.data || [],
-        totalCount:   res.meta?.total || 0,
+        totalCount: res.meta?.total || 0,
       });
     } catch (err) {
       set({ error: err.response?.data?.message || 'Failed to load purchase transactions' });
@@ -211,7 +211,7 @@ export const usePurchaseStore = create((set, get) => ({
       const res = await purchaseApi.getById(id);
       // Map database structure to UI rows with temporary UI ids
       const doc = res.data;
-      
+
       const productLines = Array.isArray(doc.productLines) && doc.productLines.length > 0
         ? doc.productLines.map((line, idx) => ({ ...line, id: Date.now() + idx }))
         : [{ id: Date.now(), srNo: 1, stockItem: '', description: '', hsnSacCode: '', billQuantity: 0, billRate: 0, discountPercent: 0, amount: 0, rcm: false, taxabilityType: 'Taxable', gstRate: 0 }];
@@ -421,13 +421,13 @@ export const usePurchaseStore = create((set, get) => ({
 
       const payload = {
         ...form,
-        status:    asDraft ? 'draft' : 'pending_review',
+        status: asDraft ? 'draft' : 'pending_review',
         entryMode: 'manual',
         productLines,
         purchaseLines,
         additionalCharges: (form.additionalCharges || []).map(({ id: _id, ...rest }) => rest),
-        tdsDetails:        (form.tdsDetails || []).map(({ id: _id, ...rest }) => rest),
-        tcsDetails:        (form.tcsDetails || []).map(({ id: _id, ...rest }) => rest),
+        tdsDetails: (form.tdsDetails || []).map(({ id: _id, ...rest }) => rest),
+        tcsDetails: (form.tcsDetails || []).map(({ id: _id, ...rest }) => rest),
       };
 
       let res;

@@ -1,7 +1,10 @@
 import { useState } from 'react'
 import DataTable from '../components/DataTable'
 import Modal from '../components/Modal'
-import { salesData, formatINR } from '../data/mockData'
+import { formatINR } from '../data/mockData'
+import { useDateRange } from '../context/DateContext'
+import { useApi } from '../hooks/useApi'
+import { getSalesRegister } from '../api'
 
 const StatusBadge = ({ status }) => {
   const s = { paid:'bg-emerald-100 text-emerald-700 dark:bg-[#B6FF00]/10 dark:text-[#B6FF00]', pending:'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400', overdue:'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400' }
@@ -21,6 +24,9 @@ const columns = [
 
 export default function SalesRegister() {
   const [modal, setModal] = useState(null)
+  const { fy, selectedDateRange } = useDateRange()
+  const { data: resp, loading } = useApi(() => getSalesRegister(fy, { limit: 500 }), [fy], { skip: !fy })
+  const salesData = resp?.data || []
   const totalSales = salesData.reduce((a,s)=>a+s.total,0)
   const totalGST = salesData.reduce((a,s)=>a+s.gst,0)
   const paidSales = salesData.filter(s=>s.status==='paid').reduce((a,s)=>a+s.total,0)
@@ -30,7 +36,7 @@ export default function SalesRegister() {
       <div className="flex items-start justify-between mb-5 flex-wrap gap-3">
         <div>
           <h1 className="text-xl font-black text-slate-900">Sales Register</h1>
-          <p className="text-sm text-slate-400 mt-0.5">All sales invoices · FY 2024-25</p>
+          <p className="text-sm text-slate-400 mt-0.5">All sales invoices · {selectedDateRange || ''}{loading ? ' · loading…' : ''}</p>
         </div>
         <div className="flex gap-2">
           <button className="px-4 py-2 border border-slate-200 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50">⬇ Export</button>
