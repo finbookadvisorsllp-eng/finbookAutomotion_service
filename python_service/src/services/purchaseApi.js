@@ -54,6 +54,21 @@ export const purchaseApi = {
    */
   addComment: (id, note) =>
     apiClient.post(`${PURCHASE_BASE}/${id}/comments`, { note }).then((r) => r.data),
+
+  getPartyLedgers: () =>
+    apiClient.get(`${PURCHASE_BASE}/party-ledgers`).then((r) => r.data),
+
+  getPurchaseLedgers: () =>
+    apiClient.get(`${PURCHASE_BASE}/purchase-ledgers`).then((r) => r.data),
+
+  getStockItems: () =>
+    apiClient.get(`${PURCHASE_BASE}/stock-items`).then((r) => r.data),
+
+  getNextInvoiceNumber: (voucherType = 'purchase_invoice') =>
+    apiClient.get(`${PURCHASE_BASE}/next-invoice-number`, { params: { voucherType } }).then((r) => r.data),
+
+  getMasterData: () =>
+    apiClient.get('/companies/current/master-data').then((r) => r.data),
 };
 
 export default purchaseApi;

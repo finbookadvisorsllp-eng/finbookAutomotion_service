@@ -53,6 +53,33 @@ class CompanyRepository(BaseRepository):
         except Exception:
             return []
 
+    def get_stock_item_details(self) -> List[Dict[str, Any]]:
+        """Return stock items with name, hsnCode, and gstRate for autofill."""
+        try:
+            results = []
+            for doc in self.db[STOCK_ITEMS_COLLECTION].find({}, {"itemName": 1, "hsnCode": 1, "hsnDetails": 1, "gstDetails": 1, "taxRate": 1}):
+                name = doc.get("itemName", "")
+                if not name:
+                    continue
+                # hsnCode may be stored directly or inside hsnDetails sub-doc
+                hsn = (
+                    doc.get("hsnCode")
+                    or (doc.get("hsnDetails") or {}).get("hsnCode")
+                    or (doc.get("hsnDetails") or {}).get("hsn")
+                    or ""
+                )
+                # gstRate may be stored directly or inside gstDetails sub-doc
+                gst_rate = (
+                    doc.get("taxRate")
+                    or (doc.get("gstDetails") or {}).get("taxRate")
+                    or (doc.get("gstDetails") or {}).get("gstRate")
+                    or 0
+                )
+                results.append({"name": name, "hsnCode": str(hsn), "gstRate": float(gst_rate)})
+            return results
+        except Exception:
+            return []
+
     def get_tcs_ledgers(self) -> List[str]:
         try:
             return [

@@ -10,6 +10,15 @@ import { toast } from 'sonner';
 import VoucherEntryEngine from '../vouchers/VoucherEntryEngine';
 import usePurchaseStore from '../../stores/usePurchaseStore';
 
+const displayPanelDate = (dateStr) => {
+  if (!dateStr) return '—';
+  const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (match) {
+    return `${match[3]}/${match[2]}/${match[1]}`;
+  }
+  return dateStr;
+};
+
 const PurchasePanel = ({ mode, isDark, onAdd, title: customTitle, description: customDescription, voucherType = "purchase", emptyText, icon: CustomIcon }) => {
   const navigate = useNavigate();
   const Icon = CustomIcon || ShoppingCart;
@@ -419,7 +428,7 @@ const PurchasePanel = ({ mode, isDark, onAdd, title: customTitle, description: c
                       )}
                     </td>
                     <td className="p-1.5 px-2 border-r font-black">{tx.invoiceNumber || tx.voucherNumber || '—'}</td>
-                    <td className="p-1.5 px-2 border-r font-semibold">{tx.invoiceDate ? new Date(tx.invoiceDate).toLocaleDateString('en-IN') : '—'}</td>
+                    <td className="p-1.5 px-2 border-r font-semibold">{displayPanelDate(tx.invoiceDate)}</td>
                     <td className="p-1.5 px-2 border-r font-bold truncate max-w-[200px]">{tx.partyLedger || '—'}</td>
                     <td className="p-1.5 px-2 border-r font-semibold text-right">₹ {(tx.baseTotal || 0).toLocaleString('en-IN')}</td>
                     <td className="p-1.5 px-2 border-r font-bold text-right text-emerald-600" style={{ color: 'var(--app-accent)' }}>₹ {(tx.grandTotal || 0).toLocaleString('en-IN')}</td>

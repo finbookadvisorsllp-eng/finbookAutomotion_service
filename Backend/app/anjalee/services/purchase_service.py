@@ -108,6 +108,10 @@ class PurchaseService:
                 "invoiceDate": doc.get("dates", {}).get("voucherDate"),
                 "partyLedger": doc.get("partyLedgerName") or doc.get("partyName"),
                 "partyGstin": doc.get("gstDetails", {}).get("gstin"),
+                "purchaseLedger": doc.get("purchaseLedger") or doc.get("purchaseLedgerName"),
+                "consigneeLedger": doc.get("consigneeLedger"),
+                "gstRegistration": doc.get("gstRegistration"),
+                "gstRegistrationType": doc.get("gstRegistrationType"),
                 "grandTotal": doc.get("totals", {}).get("grandTotal") or doc.get("total_amount") or 0.0,
                 "narration": doc.get("narration"),
                 "status": "approved",
@@ -166,3 +170,13 @@ class PurchaseService:
         success = self.repo.update_transaction_custom(tx_id, update_op)
         if not success:
             raise TransactionNotFoundException()
+
+    def get_party_ledgers(self) -> List[Dict[str, Any]]:
+        return self.repo.get_party_ledgers()
+
+    def get_purchase_ledgers(self) -> List[Dict[str, Any]]:
+        return self.repo.get_purchase_ledgers()
+
+    def get_stock_items(self) -> List[Dict[str, Any]]:
+        """Return stock items with name and hsnCode from the stockItems collection."""
+        return self.repo.get_stock_items()

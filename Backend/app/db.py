@@ -24,8 +24,10 @@ def ensure_db_indexes(db):
     from pymongo.errors import OperationFailure
 
     configs = [
-        ("sales_transactions", [("voucherType", 1), ("status", 1), ("createdAt", -1)], {}),
-        ("sales_transactions", [("createdAt", -1)], {}),
+        ("sales_vouchers", [("voucherType", 1), ("status", 1), ("createdAt", -1)], {}),
+        ("sales_vouchers", [("createdAt", -1)], {}),
+        ("purchase_vouchers", [("voucherType", 1), ("status", 1), ("createdAt", -1)], {}),
+        ("purchase_vouchers", [("createdAt", -1)], {}),
         ("purchase_transactions", [("voucherType", 1), ("status", 1), ("createdAt", -1)], {}),
         ("purchase_transactions", [("createdAt", -1)], {}),
         ("fund_flow_transactions", [("voucherType", 1), ("status", 1), ("createdAt", -1)], {}),
@@ -166,4 +168,20 @@ def get_db(request: Request):
     company_header = request.headers.get("x-company-id") or request.headers.get("x-company")
     db_name = resolve_db_name(company_header)
     return client[db_name]
+
+
+# Change by Anjalee: Add async motor client and FastAPI dependency for dynamic database mapping
+from motor.motor_asyncio import AsyncIOMotorClient
+
+async_client = AsyncIOMotorClient(settings.MONGO_URI, serverSelectionTimeoutMS=5000)
+
+async def get_async_db(request: Request):
+    """
+    FastAPI dependency that dynamically extracts the tenant company from headers
+    and returns the corresponding dynamic MongoDB database using Motor.
+    """
+    company_header = request.headers.get("x-company-id") or request.headers.get("x-company")
+    db_name = resolve_db_name(company_header)
+    return async_client[db_name]
+
 

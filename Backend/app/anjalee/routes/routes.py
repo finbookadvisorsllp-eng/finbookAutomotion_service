@@ -3,7 +3,6 @@ from fastapi import APIRouter
 
 from . import auth
 from . import companies
-from . import sales
 from . import purchase
 from . import fundflow
 
@@ -23,6 +22,9 @@ async def health():
 # Module Routes
 api_router.include_router(auth.router)
 api_router.include_router(companies.router)
-api_router.include_router(sales.router)
 api_router.include_router(purchase.router)
 api_router.include_router(fundflow.router)
+
+# Change by Anjalee: Register new Sales Voucher router
+from . import sales
+api_router.include_router(sales.router)

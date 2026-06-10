@@ -1,6 +1,6 @@
 # Business constants for the anjalee module
-SALES_COLLECTION = "sales_transactions"
-PURCHASE_COLLECTION = "purchase_transactions"
+SALES_COLLECTION = "sales_vouchers"
+PURCHASE_COLLECTION = "purchase_vouchers"
 FUNDFLOW_COLLECTION = "fund_flow_transactions"
 COUNTERS_COLLECTION = "counters"
 COMPANIES_COLLECTION = "companies"

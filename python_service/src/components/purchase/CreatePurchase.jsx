@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import usePurchaseStore from '../../stores/usePurchaseStore';
+import { useAppStore } from '../../stores/useAppStore';
 
 const CreatePurchase = ({ isDark, onBack, voucherType }) => {
   const {
@@ -42,14 +43,36 @@ const CreatePurchase = ({ isDark, onBack, voucherType }) => {
     addTdsDetail,
     updateTdsDetail,
     removeTdsDetail,
+    masterData,
+    fetchMasterData,
+    fetchNextInvoiceNumber,
+    fetchPurchaseOrdersForParty,
+    autofillFromPurchaseOrder,
   } = usePurchaseStore();
 
-  const [activeTab, setActiveTab] = useState('Without Item Invoice');
+  const selectedCompany = useAppStore((s) => s.selectedCompany);
+
+  useEffect(() => {
+    fetchMasterData();
+  }, [selectedCompany]);
 
   // Sync voucherType on mount
   useEffect(() => {
-    resetForm(voucherType || 'purchase_invoice');
-  }, [voucherType, resetForm]);
+    if (!form._id) {
+      const targetType = (voucherType && voucherType !== 'purchase') ? voucherType : 'purchase_invoice';
+      updateForm({ voucherType: targetType });
+    }
+  }, [voucherType, form._id]);
+
+  // Auto-fill Invoice/Voucher Number - peek next number on new entry only
+  useEffect(() => {
+    const effectiveType = (voucherType && voucherType !== 'purchase') ? voucherType : 'purchase_invoice';
+    if (!form._id && (effectiveType === 'purchase_invoice' || effectiveType === 'purchase_order')) {
+      fetchNextInvoiceNumber(effectiveType);
+    }
+  }, []);
+
+  const [activeTab, setActiveTab] = useState('Without Item Invoice');
 
   // Sync tab state
   useEffect(() => {
@@ -61,6 +84,24 @@ const CreatePurchase = ({ isDark, onBack, voucherType }) => {
   const handleTabChange = (tabName) => {
     setActiveTab(tabName);
     updateForm({ entryTab: tabName === 'With Item Invoice' ? 'with_item' : 'without_item' });
+  };
+
+  const getGstRegistrationOptions = () => {
+    const base = masterData.gstRegistrations && masterData.gstRegistrations.length > 0
+      ? [...masterData.gstRegistrations]
+      : ['Madhya Pradesh Registration', 'Maharashtra Registration'];
+
+    const partyStates = new Set();
+    if (masterData.partyLedgerDetails) {
+      Object.values(masterData.partyLedgerDetails).forEach((detail) => {
+        if (detail.gstState && detail.gstState.trim() !== '') {
+          partyStates.add(`${detail.gstState.trim()} Registration`);
+        }
+      });
+    }
+
+    const combined = Array.from(new Set([...base, ...partyStates]));
+    return combined.sort();
   };
 
   const [isLedgerModalOpen, setIsLedgerModalOpen] = useState(false);
@@ -253,28 +294,110 @@ const CreatePurchase = ({ isDark, onBack, voucherType }) => {
     );
   };
 
-  const InputField = ({ label, placeholder, value, icon: Icon, type = "text", compact, readOnly, align = "left", onChange }) => (
-    <div className="relative flex flex-col gap-1 w-full group">
-      {label && (
-        <label className="text-[9px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 text-slate-400 group-focus-within:text-indigo-600 transition-colors" style={{ backgroundColor: theme.panel }}>
-          {label}
-        </label>
-      )}
-      <div className="relative">
-        <input 
-          type={type}
-          value={value}
-          onChange={(e) => onChange && onChange(e.target.value)}
-          onClick={(e) => { if (type === 'date' && !readOnly && e.target.showPicker) e.target.showPicker(); }}
-          readOnly={readOnly}
-          placeholder={placeholder}
-          className={`w-full ${compact ? 'h-8 px-3' : 'h-10 px-4'} rounded-xl border text-[11.5px] font-bold outline-none transition-all duration-300 focus:ring-2 focus:ring-indigo-500/20 ${isDark ? 'focus:border-[#09B6B9] placeholder:text-white/10' : 'focus:border-indigo-500 shadow-sm placeholder:text-slate-300'} ${align === 'right' ? 'text-right' : ''} ${readOnly ? (isDark ? 'cursor-not-allowed opacity-60 bg-slate-800/20' : 'cursor-not-allowed bg-slate-50/50') : 'hover:border-indigo-300'} ${type === 'date' && !readOnly ? 'cursor-pointer' : ''}`}
-          style={{ backgroundColor: readOnly ? theme.headerBg : theme.inputBg, borderColor: theme.border, color: readOnly ? theme.accent : theme.text }}
-        />
-        {Icon && <Icon className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors pointer-events-none" size={14} />}
+  const toDisplayDate = (val) => {
+    if (!val) return "";
+    const datePart = val.split(/[T ]/)[0];
+    if (datePart.includes('-')) {
+      const parts = datePart.split('-');
+      if (parts[0].length === 4 && parts.length === 3) {
+        return `${parts[2]}-${parts[1]}-${parts[0]}`;
+      }
+      return datePart;
+    }
+    return datePart;
+  };
+
+  const toDbDate = (val) => {
+    if (!val) return "";
+    const datePart = val.split(/[T ]/)[0];
+    if (datePart.includes('-')) {
+      const parts = datePart.split('-');
+      if (parts[2]?.length === 4 && parts.length === 3) {
+        return `${parts[2]}-${parts[1]}-${parts[0]}`;
+      }
+      return datePart;
+    }
+    return datePart;
+  };
+
+  const InputField = ({ label, placeholder, value, icon: Icon, type = "text", compact, readOnly, align = "left", onChange }) => {
+    const handleTextChange = (e) => {
+      const isBackspace = e.nativeEvent.inputType === "deleteContentBackward";
+      let raw = e.target.value.replace(/[^0-9]/g, '');
+      if (raw.length > 8) raw = raw.slice(0, 8);
+      
+      let formatted = "";
+      if (raw.length <= 2) {
+        if (raw.length === 2 && !isBackspace) {
+          formatted = `${raw}-`;
+        } else {
+          formatted = raw;
+        }
+      } else if (raw.length <= 4) {
+        if (raw.length === 4 && !isBackspace) {
+          formatted = `${raw.slice(0, 2)}-${raw.slice(2, 4)}-`;
+        } else {
+          formatted = `${raw.slice(0, 2)}-${raw.slice(2)}`;
+        }
+      } else {
+        formatted = `${raw.slice(0, 2)}-${raw.slice(2, 4)}-${raw.slice(4)}`;
+      }
+      
+      if (formatted.length === 10) {
+        onChange(toDbDate(formatted));
+      } else {
+        onChange(formatted);
+      }
+    };
+
+    return (
+      <div className="relative flex flex-col gap-1 w-full group">
+        {label && (
+          <label className="text-[9px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 text-slate-400 group-focus-within:text-indigo-600 transition-colors" style={{ backgroundColor: theme.panel }}>
+            {label}
+          </label>
+        )}
+        <div className="relative">
+          {type === "date" ? (
+            <>
+              <input 
+                type="text"
+                value={toDisplayDate(value)}
+                onChange={handleTextChange}
+                placeholder="dd-mm-yyyy"
+                readOnly={readOnly}
+                className={`w-full ${compact ? 'h-8 px-3' : 'h-10 px-4'} rounded-xl border text-[11.5px] font-bold outline-none transition-all duration-300 focus:ring-2 focus:ring-indigo-500/20 ${isDark ? 'focus:border-[#09B6B9] placeholder:text-white/10' : 'focus:border-indigo-500 shadow-sm placeholder:text-slate-300'} ${align === 'right' ? 'text-right' : ''} ${readOnly ? (isDark ? 'cursor-not-allowed opacity-60 bg-slate-800/20' : 'cursor-not-allowed bg-slate-50/50') : 'hover:border-indigo-300'}`}
+                style={{ backgroundColor: readOnly ? theme.headerBg : theme.inputBg, borderColor: theme.border, color: readOnly ? theme.accent : theme.text }}
+              />
+              {Icon && !readOnly && (
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center cursor-pointer">
+                  <Icon size={14} className="text-slate-400 hover:text-indigo-500 transition-colors pointer-events-none" />
+                  <input 
+                    type="date"
+                    value={toDbDate(value)}
+                    onChange={(e) => onChange && onChange(e.target.value)}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    style={{ width: '20px', height: '20px', right: 0 }}
+                  />
+                </div>
+              )}
+            </>
+          ) : (
+            <input 
+              type={type}
+              value={value}
+              onChange={(e) => onChange && onChange(e.target.value)}
+              readOnly={readOnly}
+              placeholder={placeholder}
+              className={`w-full ${compact ? 'h-8 px-3' : 'h-10 px-4'} rounded-xl border text-[11.5px] font-bold outline-none transition-all duration-300 focus:ring-2 focus:ring-indigo-500/20 ${isDark ? 'focus:border-[#09B6B9] placeholder:text-white/10' : 'focus:border-indigo-500 shadow-sm placeholder:text-slate-300'} ${align === 'right' ? 'text-right' : ''} ${readOnly ? (isDark ? 'cursor-not-allowed opacity-60 bg-slate-800/20' : 'cursor-not-allowed bg-slate-50/50') : 'hover:border-indigo-300'}`}
+              style={{ backgroundColor: readOnly ? theme.headerBg : theme.inputBg, borderColor: theme.border, color: readOnly ? theme.accent : theme.text }}
+            />
+          )}
+          {type !== "date" && Icon && <Icon className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors pointer-events-none" size={14} />}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const SummaryBar = ({ entries, base, cgst, sgst, igst, total }) => (
     <div className="mt-4 h-11 px-5 flex items-center justify-between border rounded-2xl shadow-sm text-[10px] font-black uppercase tracking-widest overflow-x-auto no-scrollbar" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>
@@ -458,15 +581,81 @@ const CreatePurchase = ({ isDark, onBack, voucherType }) => {
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-x-4 gap-y-6">
             <InputField label="Invoice Date" type="date" icon={Calendar} placeholder="Invoice Date" value={form.invoiceDate || ''} onChange={(val) => updateForm({ invoiceDate: val })} />
             <InputField label="Voucher Date" type="date" icon={Calendar} placeholder="Voucher Date" value={form.voucherDate || ''} onChange={(val) => updateForm({ voucherDate: val })} />
-            <SearchableDropdown label="Voucher Type" placeholder="Purchase" options={['Purchase', 'Debit Note', 'Purchase Order']} value={form.voucherType === 'purchase_order' ? 'Purchase Order' : (form.voucherType === 'debit_note' ? 'Debit Note' : 'Purchase')} onChange={(val) => updateForm({ voucherType: val === 'Purchase Order' ? 'purchase_order' : (val === 'Debit Note' ? 'debit_note' : 'purchase_invoice') })} />
+            <SearchableDropdown 
+              label="Voucher Type" 
+              placeholder="Purchase" 
+              options={masterData.voucherTypes?.length > 0 
+                ? masterData.voucherTypes.map(t => t === 'purchase_order' ? 'Purchase Order' : (t === 'debit_note' ? 'Debit Note' : (t === 'purchase_invoice' ? 'Purchase' : t)))
+                : ['Purchase', 'Debit Note', 'Purchase Order']} 
+              value={form.voucherType === 'purchase_order' ? 'Purchase Order' : (form.voucherType === 'debit_note' ? 'Debit Note' : 'Purchase')} 
+              onChange={(val) => {
+                const targetType = val === 'Purchase Order' ? 'purchase_order' : (val === 'Debit Note' ? 'debit_note' : (val === 'Purchase' ? 'purchase_invoice' : val));
+                updateForm({ voucherType: targetType });
+                if (!form._id) {
+                  fetchNextInvoiceNumber(targetType);
+                }
+              }} 
+            />
             <SearchableDropdown label="Voucher Number Series" placeholder="Default" options={['Default', 'Manual']} value={form.voucherNumberSeries} onChange={(val) => updateForm({ voucherNumberSeries: val })} />
             <InputField label="Voucher Number" placeholder="Auto-generated" value={form.voucherNumber || ''} readOnly />
             <InputField label="Invoice Number" placeholder="Invoice Number" value={form.invoiceNumber || ''} onChange={(val) => updateForm({ invoiceNumber: val })} />
-            <InputField label="PO Number" placeholder="PO Number" value={form.poNumber || ''} onChange={(val) => updateForm({ poNumber: val })} />
-            <SearchableDropdown label="GST Registration" placeholder="GST Registration" options={['Madhya Pradesh Registration', 'Maharashtra Registration']} value={form.gstRegistration} onChange={(val) => updateForm({ gstRegistration: val })} />
+            
+            {/* Dynamic Reference PO selection or manual PO input depending on voucher type */}
+            {form.voucherType === 'purchase_invoice' ? (
+              <SearchableDropdown
+                label="Reference PO Number"
+                placeholder="Select PO Number"
+                options={masterData.purchaseOrders || []}
+                value={form.poNumber || ''}
+                onChange={(val) => {
+                  updateForm({ poNumber: val });
+                  if (val) autofillFromPurchaseOrder(val);
+                }}
+              />
+            ) : (
+              <InputField label="PO Number" placeholder="PO Number" value={form.poNumber || ''} onChange={(val) => updateForm({ poNumber: val })} />
+            )}
+
+            <SearchableDropdown 
+              label="Party Ledger" 
+              placeholder="Party Ledger" 
+              hasAdd 
+              options={masterData.partyLedgers?.length > 0 ? masterData.partyLedgers : ['HDFC Bank', 'Cash', 'General Supplier']} 
+              value={form.partyLedger || ''} 
+              onChange={(val) => {
+                updateForm({ partyLedger: val });
+                if (form.voucherType === 'purchase_invoice') {
+                  fetchPurchaseOrdersForParty(val);
+                  updateForm({ poNumber: '' });
+                }
+                if (val && masterData.partyLedgerDetails && masterData.partyLedgerDetails[val]) {
+                  const details = masterData.partyLedgerDetails[val];
+                  updateForm({
+                    partyGstin: details.gstin || '',
+                    gstRegistration: details.gstState ? `${details.gstState} Registration` : '',
+                    gstRegistrationType: details.registrationType || ''
+                  });
+                } else {
+                  updateForm({
+                    partyGstin: '',
+                    gstRegistration: '',
+                    gstRegistrationType: ''
+                  });
+                }
+              }} 
+            />
+
+            <SearchableDropdown label="GST Registration" placeholder="GST Registration" options={getGstRegistrationOptions()} value={form.gstRegistration} onChange={(val) => updateForm({ gstRegistration: val })} />
             <InputField label="Party GSTIN" placeholder="Party GSTIN" value={form.partyGstin || ''} onChange={(val) => updateForm({ partyGstin: val })} />
-            <SearchableDropdown label="Party Ledger" placeholder="Party Ledger" hasAdd options={['HDFC Bank', 'Cash', 'General Supplier']} value={form.partyLedger || ''} onChange={(val) => updateForm({ partyLedger: val })} />
-            <SearchableDropdown label="Consignee Ledger" placeholder="Consignee Ledger" hasAdd options={['Same as Party', 'Branch A']} value={form.consigneeLedger || 'Same as Party'} onChange={(val) => updateForm({ consigneeLedger: val })} />
+
+            <SearchableDropdown 
+              label="GST Registration Type" 
+              placeholder="GST Registration Type" 
+              options={['Regular', 'Composition', 'Consumer', 'Unregistered']} 
+              value={form.gstRegistrationType || ''} 
+              onChange={(val) => updateForm({ gstRegistrationType: val })} 
+            />
+            <SearchableDropdown label="Consignee Ledger" placeholder="Consignee Ledger" hasAdd options={['Same as Party', ...(masterData.partyLedgers || [])]} value={form.consigneeLedger || 'Same as Party'} onChange={(val) => updateForm({ consigneeLedger: val })} />
           </div>
         </FormSection>
 
@@ -491,7 +680,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType }) => {
                     <tr key={row.id} className="animate-in fade-in slide-in-from-left-2 duration-300">
                       <td className="px-2"><div className="w-7 h-7 rounded-full border border-indigo-200 bg-indigo-50 text-indigo-600 flex items-center justify-center shadow-sm"><Layout size={12} /></div></td>
                       <td className="px-2"><div className="h-9 w-full rounded-lg border flex items-center justify-center font-bold text-slate-500" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>{row.srNo}</div></td>
-                      <td className="px-2"><SearchableDropdown placeholder="Select Ledger" compact options={['General Purchase', 'Office Expense', 'Direct Material purchase']} value={row.purchaseLedger || ''} onChange={(val) => updatePurchaseLine(row.id, { purchaseLedger: val })} /></td>
+                      <td className="px-2"><SearchableDropdown placeholder="Select Ledger" compact options={masterData.purchaseLedgers?.length > 0 ? masterData.purchaseLedgers : ['General Purchase']} value={row.purchaseLedger || ''} onChange={(val) => updatePurchaseLine(row.id, { purchaseLedger: val })} /></td>
                       <td className="px-2"><InputField placeholder="Description" compact value={row.description || ''} onChange={(val) => updatePurchaseLine(row.id, { description: val })} /></td>
                       <td className="px-2"><InputField placeholder="HSN/SAC" compact value={row.hsnSacCode || ''} onChange={(val) => updatePurchaseLine(row.id, { hsnSacCode: val })} /></td>
                       <td className="px-2"><InputField value={row.amount || ''} align="right" compact onChange={(val) => updatePurchaseLine(row.id, { amount: val })} /></td>
@@ -530,7 +719,15 @@ const CreatePurchase = ({ isDark, onBack, voucherType }) => {
                     <tr key={row.id} className="animate-in fade-in slide-in-from-left-2 duration-300">
                       <td className="px-2"><div className="w-7 h-7 rounded-full border border-purple-200 bg-purple-50 text-purple-600 flex items-center justify-center shadow-sm"><Layout size={12} /></div></td>
                       <td className="px-2"><div className="h-8 w-full rounded-lg border flex items-center justify-center font-bold text-slate-500" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>{row.srNo}</div></td>
-                      <td className="px-2"><SearchableDropdown placeholder="Stock Item" hasAdd compact options={['Monitor', 'Keyboard', 'Mouse', 'CPU', 'Laptop']} value={row.stockItem || ''} onChange={(val) => updateProductLine(row.id, { stockItem: val, gstRate: 18 })} /></td>
+                      <td className="px-2"><SearchableDropdown placeholder="Stock Item" hasAdd compact options={masterData.stockItems?.length > 0 ? masterData.stockItems : ['Monitor', 'Keyboard']} value={row.stockItem || ''} onChange={(val) => {
+                        const updates = { stockItem: val };
+                        if (val && masterData.stockItemDetails && masterData.stockItemDetails[val]) {
+                          const sd = masterData.stockItemDetails[val];
+                          if (sd.hsnCode) updates.hsnSacCode = sd.hsnCode;
+                          if (sd.gstRate) updates.gstRate = sd.gstRate;
+                        }
+                        updateProductLine(row.id, updates);
+                      }} /></td>
                       <td className="px-2"><InputField placeholder="Description" compact value={row.description || ''} onChange={(val) => updateProductLine(row.id, { description: val })} /></td>
                       <td className="px-2"><InputField placeholder="HSN/SAC" compact value={row.hsnSacCode || ''} onChange={(val) => updateProductLine(row.id, { hsnSacCode: val })} /></td>
                       <td className="px-2"><InputField value={row.billQuantity || ''} align="right" compact onChange={(val) => updateProductLine(row.id, { billQuantity: val })} /></td>
@@ -567,7 +764,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType }) => {
                   <tr key={row.id} className="animate-in fade-in slide-in-from-left-2 duration-300">
                     <td className="px-2 text-center"><input type="checkbox" className="w-4 h-4 rounded border-slate-200 accent-indigo-600 shadow-sm" checked={row.included || false} onChange={(e) => updateAdditionalCharge(row.id, { included: e.target.checked })} /></td>
                     <td className="px-2"><InputField placeholder="Taxable Value" compact value={row.taxableValue || ''} onChange={(val) => updateAdditionalCharge(row.id, { taxableValue: val })} /></td>
-                    <td className="px-2"><SearchableDropdown placeholder="Select Ledger" compact options={['Freight Charges', 'Packaging Charges']} value={row.ledgerName || ''} onChange={(val) => updateAdditionalCharge(row.id, { ledgerName: val })} /></td>
+                    <td className="px-2"><SearchableDropdown placeholder="Select Ledger" compact options={masterData.additionalChargeLedgers?.length > 0 ? masterData.additionalChargeLedgers : ['Freight Charges']} value={row.ledgerName || ''} onChange={(val) => updateAdditionalCharge(row.id, { ledgerName: val })} /></td>
                     <td className="px-2"><div className="flex items-center gap-2"><InputField value={row.amount || ''} align="right" compact onChange={(val) => updateAdditionalCharge(row.id, { amount: val })} /><button onClick={() => removeRow('additional', row.id)} className="w-8 h-8 rounded-lg bg-red-500/10 text-red-500 border border-red-500/10 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all"><Minus size={14} /></button></div></td>
                     <td className="px-2 w-10"></td>
                   </tr>
@@ -634,7 +831,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType }) => {
                   <tbody>
                     {(form.tdsDetails || []).map((row) => (
                       <tr key={row.id} className="animate-in fade-in slide-in-from-left-2 duration-300">
-                        <td className="px-1"><SearchableDropdown placeholder="TDS Ledger" compact options={['TDS on Services', 'TDS on Goods']} value={row.ledgerName || ''} onChange={(val) => updateTdsDetail(row.id, { ledgerName: val })} /></td>
+                        <td className="px-1"><SearchableDropdown placeholder="TDS Ledger" compact options={masterData.tdsLedgers?.length > 0 ? masterData.tdsLedgers : ['TDS on Services', 'TDS on Goods']} value={row.ledgerName || ''} onChange={(val) => updateTdsDetail(row.id, { ledgerName: val })} /></td>
                         <td className="px-1"><InputField value={row.assessableValue || ''} align="right" compact onChange={(val) => updateTdsDetail(row.id, { assessableValue: val })} /></td>
                         <td className="px-1"><InputField value={row.rate || ''} align="right" compact onChange={(val) => updateTdsDetail(row.id, { rate: val })} /></td>
                         <td className="px-1"><InputField value={row.amount || "0.00"} align="right" readOnly compact /></td>

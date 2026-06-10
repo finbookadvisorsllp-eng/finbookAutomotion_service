@@ -127,6 +127,26 @@ const calculateFormTotals = (form) => {
   };
 };
 
+const normalizeVoucherType = (type) => {
+  if (!type) return 'purchase_invoice';
+  return type.toLowerCase().replace(/[\s\-]+/g, '_');
+};
+
+const formatDate = (isoStr) => {
+  if (!isoStr) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(isoStr)) return isoStr;
+  if (/^\d{4}-\d{2}-\d{2}/.test(isoStr)) return isoStr.slice(0, 10);
+  try {
+    const d = new Date(isoStr);
+    if (!isNaN(d.getTime())) {
+      return d.toISOString().slice(0, 10);
+    }
+  } catch (e) {
+    console.warn('formatDate error:', e);
+  }
+  return '';
+};
+
 export const usePurchaseStore = create((set, get) => ({
 
   // ─── List State ──────────────────────────────────────────────────────────
@@ -149,6 +169,22 @@ export const usePurchaseStore = create((set, get) => ({
 
   // ─── Stats State ─────────────────────────────────────────────────────────
   stats: null,
+
+  // ─── Master Data State ────────────────────────────────────────────────────
+  masterData: {
+    purchaseLedgers: [],
+    partyLedgers: [],
+    partyLedgerDetails: {},
+    gstRegistrations: [],
+    stockItems: [],
+    stockItemDetails: {},
+    tdsLedgers: [],
+    additionalChargeLedgers: [],
+    voucherTypes: [],
+    purchaseOrders: [],
+    purchaseOrdersRaw: [],
+    loading: false,
+  },
 
   // ─── Form State ──────────────────────────────────────────────────────────
   form: { ...DEFAULT_FORM },
@@ -182,9 +218,31 @@ export const usePurchaseStore = create((set, get) => ({
       // Remove empty filters
       Object.keys(params).forEach((k) => { if (!params[k]) delete params[k]; });
       const res = await purchaseApi.list(params);
+
+      // Normalize purchase_vouchers to match standard keys
+      const normalizedList = (res.data || []).map(v => ({
+        ...v,
+        voucherType: normalizeVoucherType(v.voucherType),
+        partyLedger: v.partyLedgerName || v.partyLedger || '',
+        partyGstin: v.partyGSTIN || v.partyGstin || '',
+        invoiceNumber: v.invoiceNumber || '',
+        poNumber: v.poNumber || '',
+        invoiceDate: v.voucherDate || v.invoiceDate || '', // fallback
+        baseTotal: v.baseAmount || v.baseTotal || 0,
+        status: (v.status || 'draft').toLowerCase(),
+        entryTab: v.entryTab || (v.purchaseLines?.length ? 'without_item' : 'with_item'),
+      }));
+
+      // Sort normalizedList by date descending
+      normalizedList.sort((a, b) => {
+        const dateA = new Date(a.createdAt || a.invoiceDate || a.voucherDate || 0);
+        const dateB = new Date(b.createdAt || b.invoiceDate || b.voucherDate || 0);
+        return dateB - dateA;
+      });
+
       set({
-        transactions: res.data || [],
-        totalCount: res.meta?.total || 0,
+        transactions: normalizedList,
+        totalCount: res.pagination?.total || res.meta?.total || normalizedList.length || 0,
       });
     } catch (err) {
       set({ error: err.response?.data?.message || 'Failed to load purchase transactions' });
@@ -232,15 +290,13 @@ export const usePurchaseStore = create((set, get) => ({
         ? doc.tcsDetails.map((line, idx) => ({ ...line, id: Date.now() + 400 + idx }))
         : [];
 
-      // Format ISO dates to YYYY-MM-DD
-      const formatDate = (isoStr) => isoStr ? new Date(isoStr).toISOString().slice(0, 10) : '';
-
       set({
         selectedTransaction: doc,
         form: calculateFormTotals({
           ...doc,
-          voucherDate: formatDate(doc.voucherDate),
-          invoiceDate: formatDate(doc.invoiceDate),
+          voucherType: normalizeVoucherType(doc.voucherType),
+          voucherDate: formatDate(doc.voucherDate || doc.invoiceDate),
+          invoiceDate: formatDate(doc.invoiceDate || doc.voucherDate),
           productLines,
           purchaseLines,
           additionalCharges,
@@ -263,6 +319,10 @@ export const usePurchaseStore = create((set, get) => ({
     form: calculateFormTotals({
       ...DEFAULT_FORM,
       voucherType,
+      purchaseLedger: get().masterData.purchaseLedgers?.[0] || '',
+      productLines: [{ ...DEFAULT_FORM.productLines[0], id: Date.now() }],
+      purchaseLines: [{ ...DEFAULT_FORM.purchaseLines[0], id: Date.now() + 50 }],
+      tdsDetails: [{ id: Date.now() + 100, ledgerName: '', assessableValue: 0, rate: 0, amount: 0 }],
     }),
     selectedTransaction: null,
     error: null,
@@ -271,6 +331,173 @@ export const usePurchaseStore = create((set, get) => ({
   updateForm: (fields) => set((s) => ({
     form: calculateFormTotals({ ...s.form, ...fields }),
   })),
+
+  fetchMasterData: async () => {
+    set((s) => ({ masterData: { ...s.masterData, loading: true } }));
+    try {
+      const res = await purchaseApi.getMasterData();
+      if (res.success) {
+        try {
+          const partyRes = await purchaseApi.getPartyLedgers();
+          const purchaseRes = await purchaseApi.getPurchaseLedgers();
+          const purchaseOrdersRes = await purchaseApi.list({ voucherType: 'purchase_order', limit: 100 }).catch(() => ({ data: [] }));
+          const purchaseOrders = (purchaseOrdersRes.data || [])
+            .map(po => po.voucherNumber || po.invoiceNumber || po.poNumber)
+            .filter(Boolean);
+
+          if (partyRes.success && purchaseRes.success) {
+            const partyNames = partyRes.data.map(l => l.name);
+            const purchaseNames = purchaseRes.data.map(l => l.name);
+            const partyDetails = {};
+            partyRes.data.forEach(l => {
+              partyDetails[l.name] = {
+                id: l.id,
+                gstin: l.gstin,
+                gstState: l.gstState,
+                registrationType: l.registrationType
+              };
+            });
+
+            // Build stockItems list and stockItemDetails keyed by name for HSN autofill
+            const stockRes = await purchaseApi.getStockItems().catch(() => ({ success: false, data: [] }));
+            const stockItemsRaw = (stockRes.success && stockRes.data) ? stockRes.data : [];
+            const stockNames = stockItemsRaw.map(item => item.name).filter(Boolean);
+            const stockItemDetails = {};
+            stockItemsRaw.forEach(item => {
+              if (item.name) {
+                stockItemDetails[item.name] = { hsnCode: item.hsnCode || '', gstRate: item.gstRate || 0 };
+              }
+            });
+
+            set({
+              masterData: {
+                ...res.data,
+                partyLedgers: partyNames.length ? partyNames : res.data.partyLedgers,
+                purchaseLedgers: purchaseNames.length ? purchaseNames : res.data.purchaseLedgers,
+                partyLedgerDetails: Object.keys(partyDetails).length ? partyDetails : res.data.partyLedgerDetails,
+                stockItems: stockNames.length ? stockNames : res.data.stockItems,
+                stockItemDetails: Object.keys(stockItemDetails).length ? stockItemDetails : (res.data.stockItemDetails || {}),
+                purchaseOrders: purchaseOrders,
+                purchaseOrdersRaw: purchaseOrdersRes.data || [],
+                loading: false
+              }
+            });
+            const nextPurchaseNames = purchaseNames.length ? purchaseNames : res.data.purchaseLedgers;
+            if (!get().form._id && !get().form.purchaseLedger && nextPurchaseNames?.length > 0) {
+              set((s) => ({
+                form: {
+                  ...s.form,
+                  purchaseLedger: nextPurchaseNames[0]
+                }
+              }));
+            }
+            return;
+          }
+        } catch (e) {
+          console.error("Failed to load purchase-voucher master data:", e);
+        }
+
+        set({
+          masterData: {
+            ...res.data,
+            purchaseOrdersRaw: [],
+            loading: false,
+          }
+        });
+      }
+    } catch (err) {
+      console.error('Failed to fetch master data:', err);
+      set((s) => ({ masterData: { ...s.masterData, loading: false } }));
+    }
+  },
+
+  fetchNextInvoiceNumber: async (voucherType = 'purchase_invoice') => {
+    try {
+      const res = await purchaseApi.getNextInvoiceNumber(voucherType);
+      if (res?.success && res?.data?.invoiceNumber) {
+        set((s) => ({
+          form: calculateFormTotals({ ...s.form, invoiceNumber: res.data.invoiceNumber }),
+        }));
+      }
+    } catch (e) {
+      // Silently fail
+      console.warn('Could not fetch next invoice number:', e);
+    }
+  },
+
+  fetchPurchaseOrdersForParty: (partyName) => set((s) => {
+    const raw = s.masterData.purchaseOrdersRaw || [];
+    const filtered = partyName
+      ? raw.filter(po =>
+          (po.partyLedgerName || po.partyLedger || '').toLowerCase() === partyName.toLowerCase()
+        )
+      : raw;
+    const filteredNumbers = filtered
+      .map(po => po.voucherNumber || po.invoiceNumber || po.poNumber)
+      .filter(Boolean);
+    return {
+      masterData: { ...s.masterData, purchaseOrders: filteredNumbers }
+    };
+  }),
+
+  autofillFromPurchaseOrder: (voucherNumber) => set((s) => {
+    const raw = s.masterData.purchaseOrdersRaw || [];
+    const po = raw.find(
+      r => (r.voucherNumber || r.invoiceNumber || r.poNumber) === voucherNumber
+    );
+    if (!po) return {};
+
+    const defaultProductLine = { srNo: 1, stockItem: '', description: '', hsnSacCode: '', billQuantity: 0, billRate: 0, discountPercent: 0, amount: 0, rcm: false, taxabilityType: 'Taxable', gstRate: 0 };
+    const productLines = Array.isArray(po.productLines) && po.productLines.length > 0
+      ? po.productLines.map((line, idx) => ({ ...defaultProductLine, ...line, id: Date.now() + idx, srNo: idx + 1 }))
+      : [{ id: Date.now(), ...defaultProductLine }];
+
+    const defaultPurchaseLine = { srNo: 1, purchaseLedger: '', description: '', hsnSacCode: '', amount: 0, gstRate: 0 };
+    const purchaseLines = Array.isArray(po.purchaseLines) && po.purchaseLines.length > 0
+      ? po.purchaseLines.map((line, idx) => ({
+          ...defaultPurchaseLine,
+          id: Date.now() + 100 + idx,
+          srNo: idx + 1,
+          purchaseLedger: line.purchaseLedger || '',
+          description: line.description || '',
+          hsnSacCode: line.hsnSacCode || '',
+          amount: line.amount || 0,
+          gstRate: line.gstRate || 0,
+        }))
+      : [{ id: Date.now() + 50, ...defaultPurchaseLine }];
+
+    const additionalCharges = Array.isArray(po.additionalCharges)
+      ? po.additionalCharges.map((c, idx) => ({ ...c, id: Date.now() + 200 + idx }))
+      : [];
+
+    const tdsDetails = Array.isArray(po.tdsDetails) && po.tdsDetails.length > 0
+      ? po.tdsDetails.map((t, idx) => ({ ...t, id: Date.now() + 300 + idx }))
+      : [{ id: Date.now() + 300, ledgerName: '', assessableValue: 0, rate: 0, amount: 0 }];
+
+    const entryTab = po.entryTab || (po.productLines?.length ? 'with_item' : 'without_item');
+
+    const partyName = po.partyLedgerName || po.partyLedger || s.form.partyLedger;
+    const details = s.masterData.partyLedgerDetails?.[partyName] || {};
+
+    const filledForm = {
+      ...s.form,
+      entryTab,
+      partyLedger: partyName,
+      partyGstin: po.partyGSTIN || po.partyGstin || details.gstin || s.form.partyGstin,
+      gstRegistration: po.gstRegistration || (details.gstState ? `${details.gstState} Registration` : s.form.gstRegistration),
+      gstRegistrationType: po.gstRegistrationType || details.registrationType || s.form.gstRegistrationType,
+      consigneeLedger: po.consigneeLedger || s.form.consigneeLedger,
+      purchaseLedger: po.purchaseLedger || (purchaseLines[0]?.purchaseLedger || (s.form.purchaseLedger || (s.masterData.purchaseLedgers?.[0] || ''))),
+      narration: po.narration || s.form.narration,
+      productLines,
+      purchaseLines,
+      additionalCharges,
+      tdsDetails,
+      poNumber: po.poNumber || po.voucherNumber || s.form.poNumber,
+    };
+
+    return { form: calculateFormTotals(filledForm) };
+  }),
 
   // --- Row management: Inventory Lines ---
   addProductLine: () => set((s) => {
@@ -436,7 +663,49 @@ export const usePurchaseStore = create((set, get) => ({
       } else {
         res = await purchaseApi.create(payload);
       }
-      set({ selectedTransaction: res.data });
+
+      const savedDoc = res.data;
+      if (savedDoc) {
+        const productLines = Array.isArray(savedDoc.productLines) && savedDoc.productLines.length > 0
+          ? savedDoc.productLines.map((line, idx) => ({ ...line, id: Date.now() + idx }))
+          : [{ id: Date.now(), srNo: 1, stockItem: '', description: '', hsnSacCode: '', billQuantity: 0, billRate: 0, discountPercent: 0, amount: 0, rcm: false, taxabilityType: 'Taxable', gstRate: 0 }];
+
+        const purchaseLines = Array.isArray(savedDoc.purchaseLines) && savedDoc.purchaseLines.length > 0
+          ? savedDoc.purchaseLines.map((line, idx) => ({ ...line, id: Date.now() + 100 + idx }))
+          : [{ id: Date.now() + 50, srNo: 1, purchaseLedger: '', description: '', hsnSacCode: '', amount: 0, gstRate: 0 }];
+
+        const additionalCharges = Array.isArray(savedDoc.additionalCharges)
+          ? savedDoc.additionalCharges.map((line, idx) => ({ ...line, id: Date.now() + 200 + idx }))
+          : [];
+
+        const tdsDetails = Array.isArray(savedDoc.tdsDetails)
+          ? savedDoc.tdsDetails.map((line, idx) => ({ ...line, id: Date.now() + 300 + idx }))
+          : [];
+
+        const tcsDetails = Array.isArray(savedDoc.tcsDetails)
+          ? savedDoc.tcsDetails.map((line, idx) => ({ ...line, id: Date.now() + 400 + idx }))
+          : [];
+
+        const updatedFormValues = {
+          ...savedDoc,
+          voucherType: normalizeVoucherType(savedDoc.voucherType),
+          voucherDate: formatDate(savedDoc.voucherDate || savedDoc.invoiceDate),
+          invoiceDate: formatDate(savedDoc.invoiceDate || savedDoc.voucherDate),
+          productLines,
+          purchaseLines,
+          additionalCharges,
+          tdsDetails,
+          tcsDetails,
+          _id: savedDoc._id || savedDoc.id || get().form._id,
+        };
+
+        set({
+          selectedTransaction: savedDoc,
+          form: calculateFormTotals(updatedFormValues)
+        });
+      } else {
+        set({ selectedTransaction: res.data });
+      }
       return { success: true, data: res.data };
     } catch (err) {
       const message = err.response?.data?.message || 'Save failed';

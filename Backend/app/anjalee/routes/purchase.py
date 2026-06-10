@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, Query
-from typing import Optional
+from typing import Optional, List, Dict, Any
+from datetime import datetime
 from app.db import get_db
 from app.anjalee.repositories.purchase_repo import PurchaseRepository
 from app.anjalee.services.purchase_service import PurchaseService
@@ -22,6 +23,50 @@ async def get_summary_stats(
         "success": True,
         "data": stats
     }
+
+# ── Specific named GET routes MUST come before /{id} so FastAPI doesn't capture them as IDs ──
+
+@router.get("/party-ledgers")
+async def get_party_ledgers(
+    service: PurchaseService = Depends(get_purchase_service)
+):
+    data = service.get_party_ledgers()
+    return {"success": True, "data": data}
+
+@router.get("/purchase-ledgers")
+async def get_purchase_ledgers(
+    service: PurchaseService = Depends(get_purchase_service)
+):
+    data = service.get_purchase_ledgers()
+    return {"success": True, "data": data}
+
+@router.get("/stock-items")
+async def get_stock_items(
+    service: PurchaseService = Depends(get_purchase_service)
+):
+    """Return all stock items with name and hsnCode from the stockItems collection."""
+    data = service.get_stock_items()
+    return {"success": True, "data": data}
+
+@router.get("/next-invoice-number")
+async def get_next_invoice_number(
+    voucherType: str = Query("purchase_invoice"),
+    service: PurchaseService = Depends(get_purchase_service)
+):
+    """Return the next auto-generated invoice/voucher number for a voucher type (peek, does not consume the counter)."""
+    voucher_type_raw = voucherType.lower().replace(" ", "_")
+    prefix_map = {
+        "purchase_invoice": "PI",
+        "purchase_order": "PO",
+        "debit_note": "DN",
+    }
+    prefix = prefix_map.get(voucher_type_raw, "PI")
+    seq = service.repo.peek_next_sequence_value(prefix)
+    year = datetime.now().year
+    next_number = f"{prefix}-{year}-{str(seq).zfill(4)}"
+    return {"success": True, "data": {"invoiceNumber": next_number}}
+
+# ── Generic CRUD routes ──
 
 @router.get("")
 async def list_transactions(

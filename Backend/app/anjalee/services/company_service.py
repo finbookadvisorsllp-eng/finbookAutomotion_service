@@ -134,6 +134,10 @@ class CompanyService:
         if not stock_items:
             stock_items = ["Monitor", "Keyboard"]
 
+        # Build a details dict keyed by item name for HSN autofill
+        stock_item_details_list = self.repo.get_stock_item_details()
+        stock_item_details = {item["name"]: {"hsnCode": item["hsnCode"], "gstRate": item["gstRate"]} for item in stock_item_details_list}
+
         tcs_ledgers = self.repo.get_tcs_ledgers()
         if not tcs_ledgers:
             tcs_ledgers = ["TCS on Sales"]
@@ -154,6 +158,7 @@ class CompanyService:
             "partyLedgerDetails": party_details,
             "gstRegistrations": gst_registrations,
             "stockItems": sorted(list(set(stock_items))),
+            "stockItemDetails": stock_item_details,
             "tcsLedgers": sorted(list(set(tcs_ledgers))),
             "additionalChargeLedgers": sorted(list(set(additional_charge_ledgers))),
             "voucherTypes": sorted(list(set(voucher_types)))
