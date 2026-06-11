@@ -1,23 +1,54 @@
 from fastapi import Request
 from pymongo import MongoClient
 import re
+import threading
 from app.config import settings
 
 # Initialize MongoClient
 client = MongoClient(settings.MONGO_URI, serverSelectionTimeoutMS=5000)
 
-# In-memory cache for resolving company references to database names
-_tenant_cache = {}
+# In-memory cache for resolving company references to database names.
+# Pre-populate with default company mapping to avoid blocking first requests/refresh.
+_tenant_cache = {
+    "6a182ee36efd32db3c490a6c": "sf_tenant_6a182ee36efd32db3c490a6c",
+    "Friends Grafix FY 2024-25": "sf_tenant_6a182ee36efd32db3c490a6c",
+    "Friends Grafix": "sf_tenant_6a182ee36efd32db3c490a6c"
+}
 _cache_warmed = False
 
-def warm_up_tenant_cache():
+def ensure_db_indexes(db):
     """
-    Scans organizations and multi-tenant databases to pre-populate the tenant cache,
-    preventing slow database scans during individual API requests.
+    Safely creates all required indexes for the tenant database,
+    ignoring cases where indexes already exist under different names or options.
     """
+    from pymongo.errors import OperationFailure
+
+    configs = [
+        ("sales_vouchers", [("voucherType", 1), ("status", 1), ("createdAt", -1)], {}),
+        ("sales_vouchers", [("createdAt", -1)], {}),
+        ("purchase_vouchers", [("voucherType", 1), ("status", 1), ("createdAt", -1)], {}),
+        ("purchase_vouchers", [("createdAt", -1)], {}),
+        ("purchase_transactions", [("voucherType", 1), ("status", 1), ("createdAt", -1)], {}),
+        ("purchase_transactions", [("createdAt", -1)], {}),
+        ("fund_flow_transactions", [("voucherType", 1), ("status", 1), ("createdAt", -1)], {}),
+        ("fund_flow_transactions", [("createdAt", -1)], {}),
+        ("ledgers", [("groupName", 1)], {}),
+        ("ledgers", [("ledgerName", 1)], {}),
+    ]
+
+    for coll_name, keys, options in configs:
+        try:
+            db[coll_name].create_index(keys, **options)
+        except OperationFailure as ex:
+            # Code 85 is IndexOptionsConflict (index already exists with a different name or options)
+            if ex.code == 85:
+                continue
+            print(f"Error ensuring index on {coll_name} for keys {keys}: {ex}")
+        except Exception as ex:
+            print(f"Error ensuring index on {coll_name} for keys {keys}: {ex}")
+
+def _warm_up_worker():
     global _cache_warmed
-    if _cache_warmed:
-        return
     try:
         # 1. Warm up organizations
         orgs = client["salesforecasting_system"]["organizations"].find({}, {"slug": 1, "name": 1, "dbName": 1})
@@ -32,6 +63,13 @@ def warm_up_tenant_cache():
         all_dbs = client.list_database_names()
         for db_name in all_dbs:
             if db_name.startswith("sf_tenant_"):
+                # Ensure indexes on dynamic collections
+                try:
+                    db = client[db_name]
+                    ensure_db_indexes(db)
+                except Exception as ex:
+                    print(f"Error ensuring indexes for {db_name}: {ex}")
+
                 try:
                     companies = client[db_name]["companies"].find({}, {"companyName": 1, "basicCompantFormalName": 1})
                     for comp in companies:
@@ -44,8 +82,22 @@ def warm_up_tenant_cache():
                 except Exception:
                     pass
         _cache_warmed = True
+        print("Tenant cache warming and indexing completed successfully in background.")
     except Exception as e:
-        print(f"Error warming up tenant cache: {e}")
+        print(f"Error warming up tenant cache in background: {e}")
+
+def warm_up_tenant_cache():
+    """
+    Spawns a background thread to warm up the tenant cache,
+    preventing blocking the FastAPI startup event and causing slow page loads.
+    """
+    global _cache_warmed
+    if _cache_warmed:
+        return
+    
+    # Start the worker thread
+    thread = threading.Thread(target=_warm_up_worker, daemon=True)
+    thread.start()
 
 def resolve_db_name(company_ref: str) -> str:
     """
@@ -86,22 +138,23 @@ def resolve_db_name(company_ref: str) -> str:
     except Exception:
         pass
 
-    # 4. Scan all sf_tenant_* databases for a matching companyName
-    try:
-        all_dbs = client.list_database_names()
-        for db_name in all_dbs:
-            if db_name.startswith("sf_tenant_"):
-                comp_doc = client[db_name]["companies"].find_one({
-                    "$or": [
-                        {"companyName": company_ref},
-                        {"basicCompantFormalName": company_ref}
-                    ]
-                })
-                if comp_doc:
-                    _tenant_cache[company_ref] = db_name
-                    return db_name
-    except Exception:
-        pass
+    # 4. Scan all sf_tenant_* databases for a matching companyName (only if cache is not fully warmed)
+    if not _cache_warmed:
+        try:
+            all_dbs = client.list_database_names()
+            for db_name in all_dbs:
+                if db_name.startswith("sf_tenant_"):
+                    comp_doc = client[db_name]["companies"].find_one({
+                        "$or": [
+                            {"companyName": company_ref},
+                            {"basicCompantFormalName": company_ref}
+                        ]
+                    })
+                    if comp_doc:
+                        _tenant_cache[company_ref] = db_name
+                        return db_name
+        except Exception:
+            pass
 
     # Fallback to the default database name and cache it to prevent subsequent heavy scans
     _tenant_cache[company_ref] = settings.DEFAULT_DB_NAME
@@ -115,4 +168,20 @@ def get_db(request: Request):
     company_header = request.headers.get("x-company-id") or request.headers.get("x-company")
     db_name = resolve_db_name(company_header)
     return client[db_name]
+
+
+# Change by Anjalee: Add async motor client and FastAPI dependency for dynamic database mapping
+from motor.motor_asyncio import AsyncIOMotorClient
+
+async_client = AsyncIOMotorClient(settings.MONGO_URI, serverSelectionTimeoutMS=5000)
+
+async def get_async_db(request: Request):
+    """
+    FastAPI dependency that dynamically extracts the tenant company from headers
+    and returns the corresponding dynamic MongoDB database using Motor.
+    """
+    company_header = request.headers.get("x-company-id") or request.headers.get("x-company")
+    db_name = resolve_db_name(company_header)
+    return async_client[db_name]
+
 

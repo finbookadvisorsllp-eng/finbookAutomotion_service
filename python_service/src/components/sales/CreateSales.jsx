@@ -19,7 +19,9 @@ const CreateSales = ({ isDark, voucherType, onBack }) => {
     addAdditionalCharge, updateAdditionalCharge, removeAdditionalCharge,
     addTcsDetail, updateTcsDetail, removeTcsDetail,
     ocr, clearOcr,
-    masterData, fetchMasterData
+    masterData, fetchMasterData, fetchSalesOrdersForParty, autofillFromSalesOrder,
+    fetchNextInvoiceNumber,
+    fetchCreditNoteInvoicesForParty, autofillFromSalesInvoice
   } = useSalesStore();
 
   const isOcrReview = !!ocr.result && !!ocr.previewUrl;
@@ -29,31 +31,33 @@ const CreateSales = ({ isDark, voucherType, onBack }) => {
     fetchMasterData();
   }, [selectedCompany]);
 
-  // Sync voucherType into store on mount
-  useEffect(() => { setFormField('voucherType', voucherType || 'sales_invoice'); }, [voucherType]);
-
-  // Ensure at least one TCS Details row is present by default
+  // Sync voucherType into store on mount if not editing
   useEffect(() => {
-    if (!form.tcsDetails || form.tcsDetails.length === 0) {
-      addTcsDetail();
+    if (!form._id) {
+      const targetType = (voucherType && voucherType !== 'sales') ? voucherType : 'sales_invoice';
+      setFormField('voucherType', targetType);
     }
-  }, []);
+  }, [voucherType, form._id]);
+
+  // Change by Anjalee: Auto-fill Invoice Number like Tally — peek next number on new entry only.
+  // Only triggered for sales_invoice; editable by the user at any time.
+  useEffect(() => {
+    const effectiveType = (voucherType && voucherType !== 'sales') ? voucherType : 'sales_invoice';
+    if (!form._id && effectiveType === 'sales_invoice') {
+      fetchNextInvoiceNumber('sales_invoice');
+    }
+  }, []);  // Run once on mount only
 
   const [activeTab, setActiveTab] = useState('Without Item');
 
   // Sync tab from store
+  // Change by Anjalee: Map 'with_item'/'without_item' correctly to display tab labels
   useEffect(() => {
     if (form.entryTab) {
-      setActiveTab(form.entryTab === 'with_item' ? 'with_item' : 'Without Item');
+      setActiveTab(form.entryTab === 'with_item' ? 'With Item' : 'Without Item');
     }
   }, [form.entryTab]);
 
-  // Ensure at least one TCS row is present on load
-  useEffect(() => {
-    if (!form.tcsDetails || form.tcsDetails.length === 0) {
-      addTcsDetail();
-    }
-  }, [form.tcsDetails, addTcsDetail]);
 
   // ── Handlers ────────────────────────────────────────────────────────────
   const handleSaveDraft = async () => {
@@ -85,6 +89,24 @@ const CreateSales = ({ isDark, voucherType, onBack }) => {
     if (type === 'product') removeProductLine(id);
     if (type === 'additional') removeAdditionalCharge(id);
     if (type === 'tcs') removeTcsDetail(id);
+  };
+
+  const getGstRegistrationOptions = () => {
+    const base = masterData.gstRegistrations && masterData.gstRegistrations.length > 0
+      ? [...masterData.gstRegistrations]
+      : ['Madhya Pradesh Registration', 'Maharashtra Registration'];
+
+    const partyStates = new Set();
+    if (masterData.partyLedgerDetails) {
+      Object.values(masterData.partyLedgerDetails).forEach((detail) => {
+        if (detail.gstState && detail.gstState.trim() !== '') {
+          partyStates.add(`${detail.gstState.trim()} Registration`);
+        }
+      });
+    }
+
+    const combined = Array.from(new Set([...base, ...partyStates]));
+    return combined.sort();
   };
 
   const theme = {
@@ -248,7 +270,11 @@ const CreateSales = ({ isDark, voucherType, onBack }) => {
             {['Without Item', 'With Item'].map(tab => (
               <button
                 key={tab}
-                onClick={() => setActiveTab(tab)}
+                onClick={() => {
+                  // Change by Anjalee: Update local state and sync store entryTab field
+                  setActiveTab(tab);
+                  setFormField('entryTab', tab === 'With Item' ? 'with_item' : 'without_item');
+                }}
                 className={`flex-1 py-3 text-[11px] font-black tracking-tight transition-all relative ${activeTab === tab ? 'text-indigo-600' : 'text-slate-400 hover:text-indigo-600'}`}
               >
                 {tab}
@@ -262,16 +288,110 @@ const CreateSales = ({ isDark, voucherType, onBack }) => {
             {/* Basic Details */}
             <FormSection title="Basic Details" zIndex={100}>
               <div className={`grid grid-cols-1 ${isOcrReview ? 'sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3' : 'sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5'} gap-x-4 gap-y-6`}>
+
+                {/* ── Credit Note: show these FIRST in Basic Details ── */}
+                {form.voucherType === 'credit_note' && (
+                  <>
+                    <InputField
+                      label="Credit Note Date"
+                      icon={Calendar}
+                      type="date"
+                      value={form.creditNoteDate}
+                      onChange={(v) => setFormField('creditNoteDate', v)}
+                    />
+                    <SearchableDropdown
+                      label="Party Ledger"
+                      placeholder="Select Party Ledger"
+                      hasAdd
+                      options={masterData.partyLedgers?.length > 0 ? masterData.partyLedgers : []}
+                      value={form.partyLedger}
+                      onChange={(v) => {
+                        setFormField('partyLedger', v);
+                        setFormField('referenceNumber', '');
+                        // Fetch sales invoices for this party for the reference dropdown
+                        if (v) fetchCreditNoteInvoicesForParty(v);
+                        if (v && masterData.partyLedgerDetails && masterData.partyLedgerDetails[v]) {
+                          const details = masterData.partyLedgerDetails[v];
+                          setFormField('partyGstin', details.gstin || '');
+                          setFormField('gstRegistration', details.gstState ? `${details.gstState} Registration` : '');
+                          setFormField('gstRegistrationType', details.registrationType || '');
+                        } else {
+                          setFormField('partyGstin', '');
+                          setFormField('gstRegistration', '');
+                          setFormField('gstRegistrationType', '');
+                        }
+                      }}
+                    />
+                    <SearchableDropdown
+                      label="Reference Number (Sales Invoice)"
+                      placeholder={form.partyLedger ? 'Select Invoice Number' : 'Select Party First'}
+                      options={masterData.creditNoteInvoices || []}
+                      value={form.referenceNumber || ''}
+                      onChange={(v) => {
+                        setFormField('referenceNumber', v);
+                        if (v) autofillFromSalesInvoice(v);
+                      }}
+                    />
+                  </>
+                )}
+
+                {/* ── Common Fields ── */}
                 <InputField label="Invoice Date" icon={Calendar} type="date" value={form.invoiceDate} onChange={(v) => setFormField('invoiceDate', v)} />
                 <InputField label="Voucher Date" icon={Calendar} type="date" value={form.voucherDate} onChange={(v) => setFormField('voucherDate', v)} />
                 <SearchableDropdown label="Voucher Type" placeholder="Sales" options={masterData.voucherTypes?.length > 0 ? masterData.voucherTypes : ['sales_invoice', 'sales_order', 'credit_note']} value={form.voucherType} onChange={(v) => setFormField('voucherType', v)} />
                 <SearchableDropdown label="Voucher Number Series" placeholder="Default" options={['Default', 'Manual']} value={form.voucherNumberSeries} onChange={(v) => setFormField('voucherNumberSeries', v)} />
                 <InputField label="Voucher Number" placeholder="Auto-generated" value={form.voucherNumber} readOnly />
                 <InputField label="Invoice Number" placeholder="Invoice Number" value={form.invoiceNumber} onChange={(v) => setFormField('invoiceNumber', v)} />
+                {/* Sales Invoice: Reference Number (Sales Order) */}
+                {form.voucherType === 'sales_invoice' && (
+                  <SearchableDropdown
+                    label="Reference Number (Sales Order)"
+                    placeholder="Select Reference Number"
+                    options={masterData.salesOrders || []}
+                    value={form.referenceNumber || ''}
+                    onChange={(v) => {
+                      setFormField('referenceNumber', v);
+                      if (v) autofillFromSalesOrder(v);
+                    }}
+                  />
+                )}
                 <SearchableDropdown label="Sales Ledger" placeholder="Sales Ledger" options={masterData.salesLedgers?.length > 0 ? masterData.salesLedgers : ['General Sales', 'Service Sales']} value={form.salesLedger} onChange={(v) => setFormField('salesLedger', v)} />
-                <SearchableDropdown label="GST Registration" placeholder="GST Registration" options={masterData.gstRegistrations?.length > 0 ? masterData.gstRegistrations : ['Madhya Pradesh Registration', 'Maharashtra Registration']} value={form.gstRegistration} onChange={(v) => setFormField('gstRegistration', v)} />
+                {/* Party Ledger: hidden for credit_note (already shown at top) */}
+                {form.voucherType !== 'credit_note' && (
+                  <SearchableDropdown
+                    label="Party Ledger"
+                    placeholder="Party Ledger"
+                    hasAdd
+                    options={masterData.partyLedgers?.length > 0 ? masterData.partyLedgers : ['HDFC Bank', 'Cash', 'Sundry Debtor A']}
+                    value={form.partyLedger}
+                    onChange={(v) => {
+                      setFormField('partyLedger', v);
+                      if (form.voucherType === 'sales_invoice') {
+                        fetchSalesOrdersForParty(v);
+                        setFormField('referenceNumber', '');
+                      }
+                      if (v && masterData.partyLedgerDetails && masterData.partyLedgerDetails[v]) {
+                        const details = masterData.partyLedgerDetails[v];
+                        setFormField('partyGstin', details.gstin || '');
+                        setFormField('gstRegistration', details.gstState ? `${details.gstState} Registration` : '');
+                        setFormField('gstRegistrationType', details.registrationType || '');
+                      } else {
+                        setFormField('partyGstin', '');
+                        setFormField('gstRegistration', '');
+                        setFormField('gstRegistrationType', '');
+                      }
+                    }}
+                  />
+                )}
                 <InputField label="Party GSTIN" placeholder="Party GSTIN" value={form.partyGstin} onChange={(v) => setFormField('partyGstin', v)} />
-                <SearchableDropdown label="Party Ledger" placeholder="Party Ledger" hasAdd options={masterData.partyLedgers?.length > 0 ? masterData.partyLedgers : ['HDFC Bank', 'Cash', 'Sundry Debtor A']} value={form.partyLedger} onChange={(v) => setFormField('partyLedger', v)} />
+                <SearchableDropdown label="GST Registration" placeholder="GST Registration" options={getGstRegistrationOptions()} value={form.gstRegistration} onChange={(v) => setFormField('gstRegistration', v)} />
+                <SearchableDropdown 
+                  label="GST Registration Type" 
+                  placeholder="GST Registration Type" 
+                  options={['Regular', 'Composition', 'Consumer', 'Unregistered']} 
+                  value={form.gstRegistrationType || ''} 
+                  onChange={(v) => setFormField('gstRegistrationType', v)} 
+                />
                 <SearchableDropdown label="Consignee Ledger" placeholder="Consignee Ledger" options={['Same as Party', ...(masterData.partyLedgers || [])]} value={form.consigneeLedger} onChange={(v) => setFormField('consigneeLedger', v)} />
               </div>
             </FormSection>
@@ -346,13 +466,21 @@ const CreateSales = ({ isDark, voucherType, onBack }) => {
                         <tr key={row.id} className="animate-in fade-in slide-in-from-left-2 duration-300">
                           <td className="px-2"><div className="w-7 h-7 rounded-full border border-purple-200 bg-purple-50 text-purple-600 flex items-center justify-center shadow-sm"><Layout size={12} /></div></td>
                           <td className="px-2"><div className="h-8 w-full rounded-lg border flex items-center justify-center font-bold" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>{row.srNo}</div></td>
-                          <td className="px-2"><SearchableDropdown placeholder="Stock Item" hasAdd compact options={masterData.stockItems?.length > 0 ? masterData.stockItems : ['Monitor', 'Keyboard']} value={row.stockItem} onChange={(v) => updateProductLine(row.id, 'stockItem', v)} /></td>
+                          <td className="px-2"><SearchableDropdown placeholder="Stock Item" hasAdd compact options={masterData.stockItems?.length > 0 ? masterData.stockItems : ['Monitor', 'Keyboard']} value={row.stockItem} onChange={(v) => {
+                            const updates = { stockItem: v };
+                            if (v && masterData.stockItemDetails && masterData.stockItemDetails[v]) {
+                              const sd = masterData.stockItemDetails[v];
+                              if (sd.hsnCode) updates.hsnSacCode = sd.hsnCode;
+                              if (sd.gstRate) updates.gstRate = sd.gstRate;
+                            }
+                            updateProductLine(row.id, updates);
+                          }} /></td>
                           <td className="px-2"><InputField placeholder="Description" compact value={row.description} onChange={(v) => updateProductLine(row.id, 'description', v)} /></td>
                           <td className="px-2"><InputField placeholder="HSN/SAC" compact value={row.hsnSacCode} onChange={(v) => updateProductLine(row.id, 'hsnSacCode', v)} /></td>
                           <td className="px-2"><InputField value={row.billQuantity} align="right" compact onChange={(v) => updateProductLine(row.id, 'billQuantity', parseFloat(v) || 0)} /></td>
                           <td className="px-2"><InputField value={row.billRate} align="right" compact onChange={(v) => updateProductLine(row.id, 'billRate', parseFloat(v) || 0)} /></td>
                           <td className="px-2"><InputField value={row.discountPercent} align="right" compact onChange={(v) => updateProductLine(row.id, 'discountPercent', parseFloat(v) || 0)} /></td>
-                          <td className="px-2"><InputField value={(row.billQuantity * row.billRate * (1 - (row.discountPercent / 100))).toFixed(2)} align="right" readOnly compact /></td>
+                          <td className="px-2"><InputField value={parseFloat(row.amount || 0).toFixed(2)} align="right" readOnly compact /></td>
                           <td className="px-2 text-center"><input type="checkbox" checked={row.rcm} onChange={(e) => updateProductLine(row.id, 'rcm', e.target.checked)} className="w-4 h-4 rounded border-slate-200 accent-indigo-600" /></td>
                           <td className="px-2"><SearchableDropdown placeholder="Taxable" value={row.taxabilityType} compact options={['Taxable', 'Exempt']} onChange={(v) => updateProductLine(row.id, 'taxabilityType', v)} /></td>
                           <td className="px-2"><SearchableDropdown placeholder="18%" value={row.gstRate ? `${row.gstRate}%` : '0%'} compact options={['0%', '5%', '12%', '18%', '28%']} onChange={(v) => updateProductLine(row.id, 'gstRate', parseFloat(v) || 0)} /></td>
@@ -723,27 +851,30 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
 
 const toDisplayDate = (val) => {
   if (!val) return "";
-  if (val.includes('-')) {
-    const parts = val.split('-');
+  const datePart = val.split(/[T ]/)[0];
+  if (datePart.includes('-')) {
+    const parts = datePart.split('-');
     if (parts[0].length === 4 && parts.length === 3) {
       return `${parts[2]}-${parts[1]}-${parts[0]}`;
     }
-    return val;
+    return datePart;
   }
-  return val;
+  return datePart;
 };
 
 const toDbDate = (val) => {
   if (!val) return "";
-  if (val.includes('-')) {
-    const parts = val.split('-');
+  const datePart = val.split(/[T ]/)[0];
+  if (datePart.includes('-')) {
+    const parts = datePart.split('-');
     if (parts[2]?.length === 4 && parts.length === 3) {
       return `${parts[2]}-${parts[1]}-${parts[0]}`;
     }
-    return val;
+    return datePart;
   }
-  return val;
+  return datePart;
 };
+
 
 const InputField = ({ label, placeholder, value, icon: Icon, type = "text", compact, readOnly, align = "left", onChange }) => {
   const { theme, isDark } = useContext(ThemeContext);

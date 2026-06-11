@@ -1,28 +1,16 @@
-from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel, EmailStr
+from fastapi import APIRouter, Depends
+from app.anjalee.schemas.auth_schemas import LoginRequest, LoginResponse
+from app.anjalee.services.auth_service import AuthService
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-class LoginRequest(BaseModel):
-    email: EmailStr
-    password: str
-
-class LoginResponse(BaseModel):
-    token: str
-    user: dict
+def get_auth_service() -> AuthService:
+    return AuthService()
 
 @router.post("/login", response_model=LoginResponse)
-async def login(payload: LoginRequest):
-    # Standard authentication stub for development/testing
-    if payload.email and payload.password:
-        return {
-            "token": "dev-stub-token",
-            "user": {
-                "email": payload.email,
-                "name": payload.email.split("@")[0].capitalize()
-            }
-        }
-    raise HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Invalid credentials"
-    )
+async def login(payload: LoginRequest, service: AuthService = Depends(get_auth_service)):
+    """
+    Standard authentication endpoint.
+    Delegates credentials check to the AuthService.
+    """
+    return service.authenticate_user(payload)

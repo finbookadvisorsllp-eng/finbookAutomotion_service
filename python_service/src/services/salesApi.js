@@ -1,6 +1,6 @@
 import apiClient from '../lib/apiClient';
 
-const SALES_BASE = '/sales';
+const SALES_BASE = '/sales-voucher';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Types (JSDoc for IDE intellisense without TypeScript)
@@ -190,6 +190,53 @@ export const salesApi = {
    */
   getMasterData: () =>
     apiClient.get('/companies/current/master-data').then((r) => r.data),
+
+  /**
+   * Get party ledgers for without-item sales vouchers
+   */
+  getPartyLedgers: () =>
+    apiClient.get(`${SALES_BASE}/party-ledgers`).then((r) => r.data),
+
+  /**
+   * Get sales ledgers for without-item sales vouchers
+   */
+  getSalesLedgers: () =>
+    apiClient.get(`${SALES_BASE}/sales-ledgers`).then((r) => r.data),
+
+  /**
+   * Get stock items with HSN code from the stockItems collection
+   */
+  getStockItems: () =>
+    apiClient.get(`${SALES_BASE}/stock-items`).then((r) => r.data),
+
+  /**
+   * Change by Anjalee: Peek the next auto-generated invoice number without consuming the counter.
+   * Used to pre-fill the Invoice Number field like Tally does on new voucher creation.
+   * @param {'sales_invoice'|'sales_order'|'credit_note'} voucherType
+   */
+  getNextInvoiceNumber: (voucherType = 'sales_invoice') =>
+    apiClient.get(`${SALES_BASE}/next-invoice-number`, { params: { voucherType } }).then((r) => r.data),
+
+  /**
+   * Change by Anjalee: Get all sales invoices for a party (for Credit Note reference dropdown).
+   * @param {string} partyName
+   */
+  getSalesInvoicesByParty: (partyName) =>
+    apiClient.get(`${SALES_BASE}/by-party-invoices`, { params: { partyName } }).then((r) => r.data),
+};
+
+
+// Change by Anjalee: Define salesVoucherApi for compatibility (now pointing to unified endpoints)
+export const salesVoucherApi = {
+  create: (payload) => salesApi.create(payload),
+  list: (params = {}) => salesApi.list(params),
+  getById: (id) => salesApi.getById(id),
+  update: (id, payload) => salesApi.update(id, payload),
+  delete: (id) => salesApi.delete(id),
+  getPartyLedgers: () => salesApi.getPartyLedgers(),
+  getSalesLedgers: () => salesApi.getSalesLedgers(),
+  getStockItems: () => salesApi.getStockItems(),
 };
 
 export default salesApi;
+
