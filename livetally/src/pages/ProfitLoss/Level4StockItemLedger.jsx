@@ -3,10 +3,10 @@ import { useSearchParams } from 'react-router-dom';
 import { plDrillDownData } from '../../data/plDrillDownData';
 import { formatINR } from '../../data/mockData';
 
-export default function Level4StockItemLedger({ itemId, currentYearData }) {
+export default function Level4StockItemLedger({ itemId, currentYearData, itemData: propItemData }) {
  const [searchParams, setSearchParams] = useSearchParams();
  const [activeTab, setActiveTab] = useState('Summary');
- const itemData = plDrillDownData.stockItemLedger?.[itemId];
+ const itemData = propItemData || plDrillDownData.stockItemLedger?.[itemId];
 
  if (!itemData) return null;
 

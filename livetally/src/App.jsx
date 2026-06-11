@@ -10,6 +10,7 @@ import Header from './components/Header'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import ProfitLoss from './pages/ProfitLoss'
+import OpeningStockSummary from './pages/OpeningStockSummary'
 import BalanceSheet from './pages/BalanceSheet'
 import CashFlow from './pages/CashFlow'
 import Receivables from './pages/Receivables'
@@ -134,6 +135,7 @@ export default function App() {
 
             {/* ── Reports ── */}
             <Route path="/reports/pl" element={<ProfitLoss />} />
+            <Route path="/reports/pl/opening-stock" element={<OpeningStockSummary />} />
             <Route path="/reports/bs" element={<BalanceSheet />} />
             <Route path="/reports/cf" element={<CashFlow />} />
             <Route path="/reports/gst" element={<GSTReports />} />

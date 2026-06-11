@@ -17,15 +17,17 @@ def stock_item_by_name(db) -> dict[str, dict]:
     return {s.get("itemName"): s for s in all_stock_items(db) if s.get("itemName")}
 
 
-def inventory_movement(db, fy: str) -> dict[str, dict]:
-    """Per stock item: inward/outward qty + value within the FY.
+def inventory_movement(db, fy: str | None = None, date_match: dict | None = None) -> dict[str, dict]:
+    """Per stock item: inward/outward qty + value within the period.
 
     ``actualQty`` is stored as a string like ``'483.00 PCS'`` and ``rate`` as
     ``'51.00/PCS'`` so the parse happens in Python after pulling entries.
     """
+    from app.aman.repositories.voucher_repo import date_match_clause
+    match_clause = date_match_clause(fy, date_match)
     pipeline = [
-        {"$match": fy_match(fy)},
-        {"$project": {"voucherTypeName": 1, "inventoryEntries": 1}},
+        {"$match": match_clause},
+        {"$project": {"voucherTypeName": 1, "inventoryEntries": 1, "dates.date": 1}},
         {"$unwind": "$inventoryEntries"},
     ]
     out: dict[str, dict] = {}
@@ -49,9 +51,11 @@ def inventory_movement(db, fy: str) -> dict[str, dict]:
     return out
 
 
-def stock_item_vouchers(db, fy: str, item_name: str) -> list[dict]:
-    """Vouchers in the FY that include a given stock item (for stock-item ledger)."""
-    match = fy_match(fy, {"inventoryEntries.stockItemName": item_name})
+def stock_item_vouchers(db, fy: str | None = None, item_name: str | None = None, date_match: dict | None = None) -> list[dict]:
+    """Vouchers in the period that include a given stock item (for stock-item ledger)."""
+    from app.aman.repositories.voucher_repo import date_match_clause
+    match = date_match_clause(fy, date_match, {"inventoryEntries.stockItemName": item_name})
     proj = {"voucherNumber": 1, "voucherTypeName": 1, "partyLedgerName": 1,
             "dates.date": 1, "inventoryEntries": 1}
     return list(db["vouchers"].find(match, proj).sort([(DATE_FIELD, 1)]))
+

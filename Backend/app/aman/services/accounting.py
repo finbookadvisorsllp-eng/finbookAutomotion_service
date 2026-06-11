@@ -4,10 +4,17 @@ Every report (Trial Balance, P&L, Balance Sheet, Ledger, GST) is derived from
 these primitives so the whole stack is internally consistent. No FastAPI/HTTP
 imports here; pure functions + Mongo reads via repositories.
 """
+import re
 from dataclasses import dataclass, field
 
 from app.aman.core.serializers import money
 from app.aman.repositories import group_repo, ledger_repo, voucher_repo
+
+
+def _norm_name(name: str | None) -> str:
+    """Whitespace-normalise a ledger name for tolerant master matching:
+    trim ends and collapse internal runs of whitespace to a single space."""
+    return re.sub(r"\s+", " ", (name or "")).strip()
 
 
 # ─────────────────────────── primitives ───────────────────────────
@@ -80,9 +87,9 @@ def opening_stock_value(db) -> float:
 STOCK_LEDGER_NAME = "Stock-in-Hand"
 
 
-def compute_ledger_balances(db, fy: str, include_opening: bool = True,
-                            include_stock: bool = True) -> dict[str, LedgerBalance]:
-    """Build per-ledger balances for the FY.
+def compute_ledger_balances(db, fy: str | None = None, include_opening: bool = True,
+                            include_stock: bool = True, date_match: dict | None = None) -> dict[str, LedgerBalance]:
+    """Build per-ledger balances for the period.
 
     Merges the ledger master (opening balance + group mapping) with the period
     movement aggregated from vouchers. Ledger names that appear in vouchers but
@@ -91,9 +98,22 @@ def compute_ledger_balances(db, fy: str, include_opening: bool = True,
     """
     masters = ledger_repo.ledger_by_name(db)
     groups = group_repo.group_by_name(db)
-    movement = voucher_repo.ledger_movement(db, fy)
+    movement = voucher_repo.ledger_movement(db, fy, date_match=date_match)
+
+    # Whitespace-normalised index of master names. Tally treats ledger names as
+    # whitespace-insensitive, but a sync can emit a voucher line with a stray
+    # double space (e.g. 'Savitri Packaging' vs the master 'Savitri  Packaging').
+    # Matching on the normalised key reunites such movement with its real master
+    # instead of stranding it as an unclassified (Suspense) balance. This is a
+    # generic data-quality rule — never a per-name mapping.
+    norm_master = {_norm_name(n): n for n in masters}
 
     balances: dict[str, LedgerBalance] = {}
+
+    def _canonical(name: str) -> str:
+        if name in masters:
+            return name
+        return norm_master.get(_norm_name(name), name)
 
     def _resolve(name: str) -> LedgerBalance:
         if name in balances:
@@ -124,14 +144,22 @@ def compute_ledger_balances(db, fy: str, include_opening: bool = True,
                 _resolve(name)
 
     for name, mov in movement.items():
-        lb = _resolve(name)
-        lb.movement_debit = mov.get("debit", 0.0)
-        lb.movement_credit = mov.get("credit", 0.0)
+        # Accumulate (+=) because a normalised name can merge two raw voucher
+        # spellings (e.g. single- vs double-space) into one master ledger.
+        lb = _resolve(_canonical(name))
+        lb.movement_debit += mov.get("debit", 0.0)
+        lb.movement_credit += mov.get("credit", 0.0)
 
     # Inject opening stock-in-hand (held in inventory masters, not in ledgers)
     # so the Trial Balance / Balance Sheet tie out.
     if include_opening and include_stock:
-        osv = opening_stock_value(db)
+        # Resolve opening stock for range dynamically
+        from app.aman.services.inventory_service import opening_stock_value_range
+        from app.aman.services.financial_year import fy_bounds
+        if date_match:
+            osv = opening_stock_value_range(db, date_match=date_match)
+        else:
+            osv = opening_stock_value(db)
         if osv:
             balances[STOCK_LEDGER_NAME] = LedgerBalance(
                 name=STOCK_LEDGER_NAME,
@@ -143,6 +171,7 @@ def compute_ledger_balances(db, fy: str, include_opening: bool = True,
             )
 
     return balances
+
 
 
 # ─────────────────────────── group rollup (Trial Balance tree) ───────────────────────────

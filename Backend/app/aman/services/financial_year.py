@@ -98,3 +98,83 @@ def month_buckets(fy: str) -> list[dict]:
             "year": year,
         })
     return buckets
+
+
+def date_range_filter(start: datetime, end: datetime, field: str = "dates.date") -> dict:
+    """Mongo match clause for an arbitrary date range on the given date field."""
+    return {field: {"$gte": start, "$lte": end}}
+
+
+def resolve_date_range(
+    date_filter_str: str | None = None,
+    from_date_str: str | None = None,
+    to_date_str: str | None = None,
+    fy: str | None = None
+) -> tuple[datetime, datetime]:
+    """
+    Resolves date range into inclusive (start_datetime, end_datetime) based on the filter.
+    Defaults to FY range if no filter is provided.
+    """
+    from datetime import time, timedelta
+    now = datetime.now()
+
+    if date_filter_str == "today":
+        start = datetime.combine(now.date(), time.min)
+        end = datetime.combine(now.date(), time.max)
+        return start, end
+
+    elif date_filter_str == "this_month":
+        start = datetime(now.year, now.month, 1, 0, 0, 0)
+        if now.month == 12:
+            end = datetime(now.year, 12, 31, 23, 59, 59, 999000)
+        else:
+            next_month = datetime(now.year, now.month + 1, 1)
+            end = next_month - timedelta(microseconds=1000)
+        return start, end
+
+    elif date_filter_str == "this_quarter":
+        m = now.month
+        if m in (4, 5, 6):
+            q_start_month = 4
+            q_end_month = 6
+            q_year = now.year
+        elif m in (7, 8, 9):
+            q_start_month = 7
+            q_end_month = 9
+            q_year = now.year
+        elif m in (10, 11, 12):
+            q_start_month = 10
+            q_end_month = 12
+            q_year = now.year
+        else:  # 1, 2, 3
+            q_start_month = 1
+            q_end_month = 3
+            q_year = now.year
+
+        start = datetime(q_year, q_start_month, 1, 0, 0, 0)
+        if q_end_month == 12:
+            end = datetime(q_year, 12, 31, 23, 59, 59, 999000)
+        else:
+            next_month = datetime(q_year, q_end_month + 1, 1)
+            end = next_month - timedelta(microseconds=1000)
+        return start, end
+
+    elif date_filter_str == "this_financial_year":
+        fy_str = fy_of_date(now)
+        return fy_bounds(fy_str)
+
+    elif date_filter_str == "custom" or (from_date_str and to_date_str):
+        if from_date_str and to_date_str:
+            try:
+                start = datetime.strptime(from_date_str, "%Y-%m-%d")
+                end = datetime.strptime(to_date_str, "%Y-%m-%d").replace(hour=23, minute=59, second=59, microsecond=999000)
+                return start, end
+            except ValueError:
+                pass
+        fy_str = fy or fy_of_date(now)
+        return fy_bounds(fy_str)
+
+    else:
+        fy_str = fy or fy_of_date(now)
+        return fy_bounds(fy_str)
+
