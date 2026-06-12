@@ -10,18 +10,19 @@ export default function Breadcrumbs({ ledgerName, currentYearData }) {
 
     if (!ledger && !voucher) return null; // Only show if we are drilled down
 
+    // Map a drill-down origin to the page the user came from, so "back" always
+    // returns to the actual previous report (never a fixed page).
+    const ORIGIN_ROUTES = {
+        'trial-balance': '/reports/tb',
+        'balance-sheet': '/reports/bs',
+        'cash': '/cash-bank/cash',
+        'bank': '/cash-bank/bank',
+    };
+
     const navigateTo = (level) => {
         if (level === 'root') {
-            if (from === 'trial-balance') {
-                navigate('/reports/tb');
-                return;
-            }
-            if (from === 'cash') {
-                navigate('/cash-bank/cash');
-                return;
-            }
-            if (from === 'bank') {
-                navigate('/cash-bank/bank');
+            if (from && ORIGIN_ROUTES[from]) {
+                navigate(ORIGIN_ROUTES[from]);
                 return;
             }
             const newParams = new URLSearchParams(searchParams);

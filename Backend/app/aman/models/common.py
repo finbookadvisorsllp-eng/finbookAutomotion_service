@@ -40,8 +40,15 @@ def ok(data: Any = None, pagination: Optional[dict] = None, meta: Optional[dict]
 
 
 def paginate(total: int, page: int, limit: int) -> dict:
+    """Standard pagination envelope. Exposes both the legacy keys
+    (``total``/``limit``/``pages``) and the explicit ones the UI expects
+    (``pageSize``/``totalRecords``/``totalPages``/``hasNext``/``hasPrevious``)."""
     pages = (total + limit - 1) // limit if limit else 0
-    return {"total": total, "page": page, "limit": limit, "pages": pages}
+    return {
+        "total": total, "page": page, "limit": limit, "pages": pages,
+        "pageSize": limit, "totalRecords": total, "totalPages": pages,
+        "hasNext": page < pages, "hasPrevious": page > 1,
+    }
 
 
 class PageParams(BaseModel):

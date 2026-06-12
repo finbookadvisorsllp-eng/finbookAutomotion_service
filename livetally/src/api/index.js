@@ -45,6 +45,10 @@ export const getOpeningStock = (fy, params = {}) => apiGet('/reports/profit-loss
 export const getOpeningStockItems = (fy, params = {}) =>
   apiGetFull('/reports/profit-loss/opening-stock/items', { fy, page: 1, limit: 50, ...params })
 export const getBalanceSheet = (fy) => apiGet('/reports/balance-sheet', { fy })
+export const getBsGroupChildren = (groupId, fy) =>
+  apiGet(`/reports/balance-sheet/group/${encodeURIComponent(groupId)}/children`, { fy })
+export const getBsLedgerVouchers = (ledgerId, fy, page = 1, limit = 100) =>
+  apiGetFull(`/reports/balance-sheet/ledger/${encodeURIComponent(ledgerId)}/vouchers`, { fy, page, limit })
 export const getCashFlow = (fy) => apiGet('/reports/cash-flow', { fy })
 export const getDayBook = (fy, date, page = 1, limit = 100) =>
   apiGetFull('/reports/daybook', { fy, date, page, limit })

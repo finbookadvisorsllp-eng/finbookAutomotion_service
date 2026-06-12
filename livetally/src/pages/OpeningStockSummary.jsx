@@ -41,7 +41,7 @@ export default function OpeningStockSummary() {
     const [sort, setSort] = useState('value');
     const [order, setOrder] = useState('desc');
     const [page, setPage] = useState(1);
-    const [limit, setLimit] = useState(25);
+    const [limit, setLimit] = useState(10);
 
     // Debounce the search box (avoid a request per keystroke).
     useEffect(() => {

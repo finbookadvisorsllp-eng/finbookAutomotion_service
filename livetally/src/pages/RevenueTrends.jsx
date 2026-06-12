@@ -1,4 +1,4 @@
-import { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar, Cell } from 'recharts'
+import { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar } from 'recharts'
 import { monthlyTrend, formatINR } from '../data/mockData'
 
 export default function RevenueTrends() {
@@ -26,14 +26,14 @@ export default function RevenueTrends() {
             <AreaChart data={monthlyTrend}>
               <defs>
                 <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-              <XAxis dataKey="month" tick={{fontSize: 12, fill: '#64748b'}} axisLine={false} tickLine={false} />
-              <YAxis tickFormatter={v => `₹${(v/100000).toFixed(0)}L`} tick={{fontSize: 12, fill: '#64748b'}} axisLine={false} tickLine={false} />
-              <Tooltip formatter={v => formatINR(v)} cursor={{stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '4 4'}} />
+              <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#64748b' }} axisLine={false} tickLine={false} />
+              <YAxis tickFormatter={v => `₹${(v / 100000).toFixed(0)}L`} tick={{ fontSize: 12, fill: '#64748b' }} axisLine={false} tickLine={false} />
+              <Tooltip formatter={v => formatINR(v)} cursor={{ stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '4 4' }} />
               <Area type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={3} fill="url(#colorRev)" />
             </AreaChart>
           </ResponsiveContainer>
@@ -44,9 +44,9 @@ export default function RevenueTrends() {
           <ResponsiveContainer width="100%" height={320}>
             <BarChart data={growthData}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-              <XAxis dataKey="month" tick={{fontSize: 10, fill: '#64748b'}} axisLine={false} tickLine={false} />
-              <YAxis tickFormatter={v => `${v}%`} tick={{fontSize: 10, fill: '#64748b'}} axisLine={false} tickLine={false} />
-              <Tooltip formatter={v => `${v}%`} cursor={{fill: '#f8fafc'}} />
+              <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
+              <YAxis tickFormatter={v => `${v}%`} tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
+              <Tooltip formatter={v => `${v}%`} cursor={{ fill: '#f8fafc' }} />
               <Bar dataKey="growth" radius={[4, 4, 0, 0]}>
                 {growthData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.growth >= 0 ? '#10b981' : '#ef4444'} />

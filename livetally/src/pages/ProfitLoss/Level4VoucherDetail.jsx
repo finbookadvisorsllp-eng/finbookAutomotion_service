@@ -96,8 +96,8 @@ export default function Level4VoucherDetail({ voucherData }) {
  </p>
  </div>
 
- {/* Items Section (For Inventory Vouchers) */}
- {voucherData.items && (
+ {/* Items Section — only when the voucher actually has stock items */}
+ {voucherData.items?.length > 0 && (
  <div className="p-3 px-4 border-b border-slate-300 ">
  <h2 className="text-[14px] font-bold text-slate-900 mb-2">Items</h2>
  <div className="overflow-x-auto">
@@ -147,8 +147,8 @@ export default function Level4VoucherDetail({ voucherData }) {
  </div>
  )}
 
- {/* Payment / Receipt Details (For Non-Inventory Vouchers) */}
- {voucherData.bills && (
+ {/* For Bills — only when bill references exist */}
+ {voucherData.bills?.length > 0 && (
  <div className="p-3 px-4 border-b border-slate-300 ">
  <h2 className="text-[14px] font-bold text-slate-900 mb-2 mt-2">For Bills</h2>
  <div className="overflow-x-auto">
@@ -171,10 +171,13 @@ export default function Level4VoucherDetail({ voucherData }) {
  </tbody>
  </table>
  </div>
- 
- {voucherData.paymentDetails && (
- <div className="mt-4 mb-2">
- <h2 className="text-[14px] font-bold text-slate-900 mb-2">Payment Details</h2>
+ </div>
+ )}
+
+ {/* Payment Details — ledger lines (Payment / Receipt / Contra) */}
+ {voucherData.paymentDetails?.length > 0 && (
+ <div className="p-3 px-4 border-b border-slate-300 ">
+ <h2 className="text-[14px] font-bold text-slate-900 mb-2 mt-2">Payment Details</h2>
  <div className="overflow-x-auto">
  <table className="w-full text-left">
  <tbody className="divide-y divide-slate-200 dark:divide-slate-600/50 text-[12px] font-bold">
@@ -189,11 +192,9 @@ export default function Level4VoucherDetail({ voucherData }) {
  </div>
  </div>
  )}
- </div>
- )}
 
- {/* Journal Entries (For Journal Vouchers) */}
- {voucherData.entries && (
+ {/* Ledger Entries (Dr/Cr) — Journal / Payment / Receipt / Contra */}
+ {voucherData.entries?.length > 0 && (
  <div className="p-3 px-4 border-b border-slate-300 ">
  <h2 className="text-[14px] font-bold text-slate-900 mb-2 mt-2">Entries</h2>
  <div className="overflow-x-auto">
@@ -229,8 +230,8 @@ export default function Level4VoucherDetail({ voucherData }) {
  </div>
  )}
 
- {/* Summary Section */}
- {voucherData.items && voucherData.taxes && Object.keys(voucherData.taxes).length > 0 && (
+ {/* Summary Section — tax breakup, only for item vouchers */}
+ {voucherData.items?.length > 0 && voucherData.taxes && Object.keys(voucherData.taxes).length > 0 && (
  <div className="p-3 px-4 border-b border-slate-300 bg-white ">
  <h2 className="text-[14px] font-bold text-slate-900 mb-2">Summary</h2>
  <div className="space-y-2 max-w-full">
@@ -262,14 +263,14 @@ export default function Level4VoucherDetail({ voucherData }) {
  </div>
  )}
 
- {/* Gross Total Section */}
- {voucherData.totals?.grandTotal || voucherData.grossTotal || voucherData.bills ? (
+ {/* Total Section */}
+ {(voucherData.grossTotal || voucherData.totals?.grandTotal) ? (
  <div className="p-3 px-4 flex justify-between items-center">
  <h2 className="text-[18px] font-black text-slate-900 ">
- {voucherData.type === 'Payment' || voucherData.type === 'Receipt' ? 'Total' : 'Gross Total'}
+ {voucherData.hasItems ? 'Gross Total' : 'Total'}
  </h2>
  <span className="text-[18px] font-black text-slate-900 ">
- {formatINR(voucherData.grossTotal || voucherData.totals?.grandTotal || voucherData.bills?.[0]?.amount)}
+ {formatINR(voucherData.grossTotal || voucherData.totals?.grandTotal)}
  </span>
  </div>
  ) : null}

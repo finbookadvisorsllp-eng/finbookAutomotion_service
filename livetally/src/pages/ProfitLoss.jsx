@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { formatINR } from '../data/mockData';
 import { useDateRange } from '../context/DateContext';
@@ -99,6 +99,11 @@ export default function ProfitLoss() {
 
     const apiParams = getBackendParams(fy, selectedDateRange);
 
+    // Server-side pagination state for the ledger voucher drill (default 10/page).
+    const [voucherPage, setVoucherPage] = useState(1);
+    const [voucherPageSize, setVoucherPageSize] = useState(10);
+    useEffect(() => { setVoucherPage(1); }, [ledgerId, fy, selectedDateRange]);
+
     // 1. Fetch main Profit & Loss report (L1 & L2)
     const { data: apiData, loading: plLoading, error: plError } = useApi(
         () => getProfitLoss(fy, apiParams),
@@ -106,10 +111,10 @@ export default function ProfitLoss() {
         { skip: !fy }
     );
 
-    // 2. Fetch vouchers list for selected ledger (L3)
+    // 2. Fetch vouchers list for selected ledger (L3) — server-side paginated
     const { data: voucherRes, loading: vouchersLoading } = useApi(
-        () => getPlLedgerVouchers(ledgerId, fy, 1, 100, apiParams),
-        [ledgerId, fy, selectedDateRange],
+        () => getPlLedgerVouchers(ledgerId, fy, voucherPage, voucherPageSize, apiParams),
+        [ledgerId, fy, selectedDateRange, voucherPage, voucherPageSize],
         { skip: !ledgerId || ledgerId === 'stock-hand-closing' }
     );
 
@@ -314,7 +319,10 @@ export default function ProfitLoss() {
         }
 
         if (ledgerId) {
-            return <Level3VoucherList ledgerData={getLedgerData()} vouchers={vouchers} />;
+            return <Level3VoucherList ledgerData={getLedgerData()} vouchers={vouchers}
+                pagination={voucherRes?.pagination}
+                onPageChange={setVoucherPage}
+                onPageSizeChange={(s) => { setVoucherPageSize(s); setVoucherPage(1); }} />;
         }
 
         // Default Level 1 & 2 (Unified)

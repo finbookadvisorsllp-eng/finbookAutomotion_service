@@ -78,14 +78,19 @@ def map_voucher_detail(db, v: dict) -> dict:
             gst_map[s.get("itemName")] = (s.get("gstSettings") or {}).get("gstRate") or 0
 
     items = []
-    for i, ie in enumerate(v.get("inventoryEntries", [])):
+    for ie in v.get("inventoryEntries", []):
         name = ie.get("stockItemName")
         qty = parse_qty(ie.get("actualQty") or ie.get("billedQty"))
-        rate = parse_rate(ie.get("rate"))
         amount = money(abs(float(ie.get("amount") or 0)))
+        # Skip empty/placeholder inventory rows (no item name and no qty/amount)
+        # so Payment / Receipt / Journal / Contra vouchers don't render an empty
+        # Items table. Item-less vouchers therefore return items == [].
+        if not name and not qty and not amount:
+            continue
+        rate = parse_rate(ie.get("rate"))
         gross_rate = money(amount / qty) if qty else rate
         items.append({
-            "srNo": i + 1,
+            "srNo": len(items) + 1,
             "name": name,
             "hsn": hsn_map.get(name, ""),
             "qty": qty,
@@ -143,6 +148,7 @@ def map_voucher_detail(db, v: dict) -> dict:
         "partyGstin": gst.get("partyGstin"),
         "placeOfSupply": gst.get("placeOfSupply"),
         "narration": v.get("narration") or "",
+        "hasItems": len(items) > 0,
         "items": items,
         "taxes": taxes,
         "entries": entries,

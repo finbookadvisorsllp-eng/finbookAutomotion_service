@@ -1,14 +1,15 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { formatINR } from '../../data/mockData';
+import Pagination from '../../components/Pagination';
 
-export default function Level3VoucherList({ ledgerData, vouchers = [] }) {
+export default function Level3VoucherList({ ledgerData, vouchers = [], pagination, onPageChange, onPageSizeChange }) {
  const [, setSearchParams] = useSearchParams();
  const [activeTab, setActiveTab] = useState('Ledger Summary');
 
  if (!ledgerData) return null;
 
- const totalAmount = vouchers.reduce((sum, v) => sum + v.amount, 0);
+ const closingBalance = ledgerData.debit || ledgerData.credit || 0;
 
  return (
  <div className="glass-card animate-fade-in overflow-hidden">
@@ -128,37 +129,19 @@ export default function Level3VoucherList({ ledgerData, vouchers = [] }) {
  </table>
  </div>
 
- {/* Pagination Footer */}
- <div className="py-2.5 px-4 border-t border-slate-300 flex items-center justify-between bg-slate-50/50 ">
- <div className="text-[11px] font-medium text-slate-500 ">
- 1-{vouchers.length} of {vouchers.length}
- </div>
- 
+ {/* Ledger closing-balance chip */}
+ <div className="flex justify-center py-2 border-t border-slate-200 bg-slate-50/40">
  <div className="px-3 py-1 bg-slate-100/80 rounded-full text-[11px] font-bold text-slate-600 shadow-sm border border-slate-300 ">
- <span className="opacity-75 font-medium mr-1">Opening:</span> 
- ₹0.00 <span className="text-emerald-600 dark:text-emerald-400 ml-0.5 mr-3">Cr</span>
- <span className="opacity-75 font-medium mr-1">Closing:</span> 
- {formatINR(totalAmount)} 
+ <span className="opacity-75 font-medium mr-1">Closing:</span>
+ {formatINR(closingBalance)}
  <span className={`ml-0.5 ${ledgerData.debit > 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
  {ledgerData.debit > 0 ? 'Dr' : 'Cr'}
  </span>
  </div>
+ </div>
 
- <div className="flex items-center gap-1">
- <button className="p-1 rounded text-slate-400 hover:bg-slate-200 transition-colors">
- <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
- </button>
- <button className="w-7 h-7 flex items-center justify-center rounded bg-blue-600 text-white text-xs font-bold shadow-sm">
- 1
- </button>
- <button className="w-7 h-7 flex items-center justify-center rounded text-slate-600 hover:bg-slate-200 text-xs font-medium transition-colors">
- 2
- </button>
- <button className="p-1 rounded text-slate-400 hover:bg-slate-200 transition-colors">
- <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
- </button>
- </div>
- </div>
+ {/* Real server-side pagination */}
+ <Pagination pagination={pagination} onPageChange={onPageChange} onPageSizeChange={onPageSizeChange} />
  </>
  )}
 
