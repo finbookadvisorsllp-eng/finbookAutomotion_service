@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query, status, UploadFile, File, Form
+from fastapi import APIRouter, Depends, Query, status, UploadFile, File, Form, Request
 from typing import List, Optional
 from datetime import datetime
 from bson import ObjectId
@@ -65,9 +65,11 @@ async def get_summary_stats(
 
 @router.get("/party-ledgers", response_model=dict)
 async def get_party_ledgers(
+    request: Request,
     service: SalesVoucherService = Depends(get_sales_voucher_service)
 ):
-    data = await service.get_party_ledgers()
+    company_header = request.headers.get("x-company-id") or request.headers.get("x-company")
+    data = await service.get_party_ledgers(company_id=company_header)
     return {"success": True, "data": data}
 
 @router.get("/sales-ledgers", response_model=dict)
@@ -90,7 +92,7 @@ async def get_next_invoice_number(
         "credit_note": "CN",
     }
     prefix = prefix_map.get(voucher_type_raw, "SV")
-    seq = await service.repo.peek_next_sequence_value(prefix)
+    seq = await service.repo.get_dynamic_next_sequence(voucher_type_raw, prefix, consume=False)
     year = datetime.now().year
     next_number = f"{prefix}-{year}-{str(seq).zfill(4)}"
     return {"success": True, "data": {"invoiceNumber": next_number}}

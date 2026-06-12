@@ -21,18 +21,18 @@ class SalesVoucherService:
         party_details = await self.repo.get_party_details(payload.partyLedgerName)
         party_state = party_details["gstState"] or company_state
 
-        # 3. Generate Sequential Voucher Number if not provided
+        # 3. Generate Sequential Voucher Number if not provided or if series is Default
         # Change by Anjalee: Use Tally-style type-specific prefix for voucher numbering
         voucher_type_raw = (payload.voucherType or "sales_invoice").lower().replace(" ", "_")
         voucher_number = payload.voucherNumber
-        if not voucher_number:
+        if not voucher_number or payload.voucherSeries == "Default":
             prefix_map = {
                 "sales_invoice": "SI",
                 "sales_order": "SO",
                 "credit_note": "CN",
             }
             prefix = prefix_map.get(voucher_type_raw, "SV")
-            seq = await self.repo.get_next_sequence_value(prefix)
+            seq = await self.repo.get_dynamic_next_sequence(voucher_type_raw, prefix, consume=True)
             year = datetime.now().year
             voucher_number = f"{prefix}-{year}-{str(seq).zfill(4)}"
 
@@ -305,8 +305,8 @@ class SalesVoucherService:
                 detail=f"Sales voucher with ID {voucher_id} not found"
             )
 
-    async def get_party_ledgers(self) -> List[Dict[str, Any]]:
-        return await self.repo.get_party_ledgers()
+    async def get_party_ledgers(self, company_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        return await self.repo.get_party_ledgers(company_id=company_id)
 
     async def get_sales_ledgers(self) -> List[Dict[str, Any]]:
         return await self.repo.get_sales_ledgers()

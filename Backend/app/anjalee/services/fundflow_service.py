@@ -149,6 +149,13 @@ class FundFlowService:
         doc = self.repo.find_transaction_by_id(tx_id)
         return serialize_doc(doc)
 
+    def get_next_voucher_number(self, voucher_type: str) -> str:
+        from app.anjalee.constants.business_constants import FUNDFLOW_PREFIXES
+        prefix = FUNDFLOW_PREFIXES.get(voucher_type, "BP")
+        seq = self.repo.peek_next_sequence_value(prefix)
+        year = datetime.now().year
+        return f"{prefix}-{year}-{str(seq).zfill(4)}"
+
     def add_comment(self, tx_id: str, payload: CommentRequest) -> None:
         update_op = {
             "$push": {

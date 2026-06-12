@@ -67,6 +67,9 @@ export const purchaseApi = {
   getNextInvoiceNumber: (voucherType = 'purchase_invoice') =>
     apiClient.get(`${PURCHASE_BASE}/next-invoice-number`, { params: { voucherType } }).then((r) => r.data),
 
+  getPurchaseInvoicesByParty: (partyName) =>
+    apiClient.get(`${PURCHASE_BASE}/by-party-invoices`, { params: { partyName } }).then((r) => r.data),
+
   getMasterData: () =>
     apiClient.get('/companies/current/master-data').then((r) => r.data),
 };

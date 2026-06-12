@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from typing import List, Optional
 
-class PurchaseTransactionCreate(BaseModel):
+class PurchaseVoucherCreate(BaseModel):
     voucherType: str
     voucherNumber: Optional[str] = None
     voucherNumberSeries: Optional[str] = None
@@ -9,6 +9,8 @@ class PurchaseTransactionCreate(BaseModel):
     invoiceNumber: Optional[str] = None
     invoiceDate: Optional[str] = None
     poNumber: Optional[str] = None
+    debitNoteDate: Optional[str] = None
+    referenceNumber: Optional[str] = None
     partyLedger: Optional[str] = None
     partyGstin: Optional[str] = None
     purchaseLedger: Optional[str] = None

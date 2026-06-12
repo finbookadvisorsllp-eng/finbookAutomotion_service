@@ -54,8 +54,8 @@ const PurchaseOrderRoute = () => { const { isDark } = useDashCtx(); return <Purc
 const PurchaseInvoiceRoute = () => { const { isDark } = useDashCtx(); return <PurchaseInvoice isDark={isDark} /> }
 const DebitNoteRoute = () => { const { isDark } = useDashCtx(); return <DebitNote isDark={isDark} /> }
 
-const CashPaymentRoute = () => { const { isDark } = useDashCtx(); return <PettyCashPanel mode="Inbox" isDark={isDark} voucherType="cash_payment" title="Cash Payment" /> }
-const BankPaymentRoute = () => { const { isDark } = useDashCtx(); return <PettyCashPanel mode="Inbox" isDark={isDark} voucherType="bank_payment" title="Bank Payment" /> }
+const CashPaymentRoute = () => { const { isDark } = useDashCtx(); return <PettyCashPanel mode="Inbox" isDark={isDark} voucherType="cash_payment" title="Payment" /> }
+const BankPaymentRoute = () => { const { isDark } = useDashCtx(); return <PettyCashPanel mode="Inbox" isDark={isDark} voucherType="bank_payment" title="Receipt" /> }
 const ContraRoute = () => { const { isDark } = useDashCtx(); return <PettyCashPanel mode="Inbox" isDark={isDark} voucherType="contra" title="Contra" /> }
 const FundFlowReviewRoute = () => { const { isDark } = useDashCtx(); return <PettyCashPanel mode="Review" isDark={isDark} /> }
 const FundFlowArchiveRoute = () => { const { isDark } = useDashCtx(); return <PettyCashPanel mode="Archive" isDark={isDark} /> }

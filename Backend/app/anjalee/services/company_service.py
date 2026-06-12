@@ -147,10 +147,33 @@ class CompanyService:
         if not additional_charge_ledgers:
             additional_charge_ledgers = ["Freight Charges"]
 
-        parents = ["Sales", "Sales Order", "Credit Note"]
-        voucher_types = self.repo.get_voucher_types_by_parents(parents)
+        parents = ["Sales", "Sales Order", "Credit Note", "Purchase", "Purchase Order", "Debit Note"]
+        voucher_types_raw = []
+        try:
+            voucher_types_raw = list(self.repo.db["voucher_types"].find(
+                {"parent": {"$in": parents}},
+                {"voucherTypeName": 1, "parent": 1}
+            ))
+        except Exception:
+            pass
+
+        sales_parents = ["Sales", "Sales Order", "Credit Note"]
+        voucher_types = [
+            doc.get("voucherTypeName")
+            for doc in voucher_types_raw
+            if doc.get("parent") in sales_parents and doc.get("voucherTypeName")
+        ]
         if not voucher_types:
             voucher_types = ["sales_invoice", "sales_order", "credit_note"]
+
+        voucher_types_full = [
+            {
+                "name": doc.get("voucherTypeName"),
+                "parent": doc.get("parent")
+            }
+            for doc in voucher_types_raw
+            if doc.get("voucherTypeName") and doc.get("parent")
+        ]
 
         return {
             "salesLedgers": sorted(list(set(sales_ledgers))),
@@ -161,5 +184,6 @@ class CompanyService:
             "stockItemDetails": stock_item_details,
             "tcsLedgers": sorted(list(set(tcs_ledgers))),
             "additionalChargeLedgers": sorted(list(set(additional_charge_ledgers))),
-            "voucherTypes": sorted(list(set(voucher_types)))
+            "voucherTypes": sorted(list(set(voucher_types))),
+            "voucherTypesFull": voucher_types_full
         }

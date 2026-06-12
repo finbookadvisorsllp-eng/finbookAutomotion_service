@@ -39,14 +39,13 @@ const CreateSales = ({ isDark, voucherType, onBack }) => {
     }
   }, [voucherType, form._id]);
 
-  // Change by Anjalee: Auto-fill Invoice Number like Tally — peek next number on new entry only.
-  // Only triggered for sales_invoice; editable by the user at any time.
+  // Auto-fill Voucher Number like Tally — peek next number on new entry only.
   useEffect(() => {
-    const effectiveType = (voucherType && voucherType !== 'sales') ? voucherType : 'sales_invoice';
-    if (!form._id && effectiveType === 'sales_invoice') {
-      fetchNextInvoiceNumber('sales_invoice');
+    if (!form._id && form.voucherNumberSeries === 'Default') {
+      const effectiveType = (voucherType && voucherType !== 'sales') ? voucherType : 'sales_invoice';
+      fetchNextInvoiceNumber(effectiveType);
     }
-  }, []);  // Run once on mount only
+  }, [voucherType, form._id, form.voucherNumberSeries]);
 
   const [activeTab, setActiveTab] = useState('Without Item');
 
@@ -58,6 +57,37 @@ const CreateSales = ({ isDark, voucherType, onBack }) => {
     }
   }, [form.entryTab]);
 
+  const [showTcs, setShowTcs] = useState(false);
+  const initializedRef = useRef(false);
+
+  // Sync showTcs state with form.tcsDetails when it gets loaded or updated
+  useEffect(() => {
+    const hasTcs = !!(form.tcsDetails && form.tcsDetails.some(t => t.ledgerName !== '' || (parseFloat(t.assessableValue) || 0) > 0 || (parseFloat(t.rate) || 0) > 0));
+    
+    if (!initializedRef.current) {
+      initializedRef.current = true;
+      setShowTcs(hasTcs);
+      if (!hasTcs) {
+        setFormField('tcsDetails', []);
+      }
+    } else {
+      // Auto-enable if populated details are loaded (e.g. from Sales Order autofill or editing)
+      if (hasTcs) {
+        setShowTcs(true);
+      }
+    }
+  }, [form.tcsDetails]);
+
+  const handleToggleTcs = (checked) => {
+    setShowTcs(checked);
+    if (checked) {
+      if (!form.tcsDetails || form.tcsDetails.length === 0) {
+        setFormField('tcsDetails', [{ id: Date.now() + 200, ledgerName: '', assessableValue: 0, rate: 0, amount: 0 }]);
+      }
+    } else {
+      setFormField('tcsDetails', []);
+    }
+  };
 
   // ── Handlers ────────────────────────────────────────────────────────────
   const handleSaveDraft = async () => {
@@ -157,7 +187,7 @@ const CreateSales = ({ isDark, voucherType, onBack }) => {
   return (
     <ThemeContext.Provider value={{ theme, isDark }}>
       <div className="flex flex-col gap-2 h-full animate-in fade-in duration-500 overflow-hidden" style={{ backgroundColor: theme.bg }}>
-      <style>{`
+        <style>{`
         .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: ${theme.scrollbarTrack}; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: ${theme.scrollbarThumb}; border-radius: 10px; }
@@ -165,459 +195,507 @@ const CreateSales = ({ isDark, voucherType, onBack }) => {
         .no-scrollbar::-webkit-scrollbar { display: none; }
       `}</style>
 
-      {/* Top Action Bar (Save/Approve) */}
-      <div className="flex flex-wrap items-center justify-between gap-3 px-3 py-2 shrink-0 border-b" style={{ borderColor: theme.border, backgroundColor: theme.panel }}>
-        <div className="flex flex-wrap items-center gap-4 sm:gap-6">
-          <div className="flex flex-col">
-            <h1 className="text-[14px] font-black tracking-tight uppercase" style={{ color: theme.accent }}>
-              {isOcrReview ? 'OCR Review & Verification' : 'Sales Entry Engine'}
-            </h1>
-            {isOcrReview && (
-              <div className="flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span className="text-[9px] font-bold text-emerald-600 uppercase tracking-widest">AI Extraction Active</span>
-              </div>
-            )}
-          </div>
-          <div className="flex gap-2.5">
-            <button
-              onClick={handleSaveDraft}
-              disabled={loading.save}
-              className="flex items-center gap-2 px-5 py-2 rounded-xl border text-[10px] font-black shadow-sm transition-all hover:scale-[1.03] active:scale-[0.97] disabled:opacity-60"
-              style={{ borderColor: theme.accent, color: theme.accent, backgroundColor: isDark ? 'rgba(9, 182, 185, 0.05)' : '#fff' }}
-            >
-              {loading.save ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} strokeWidth={3} />} SAVE DRAFT
-            </button>
-            <button
-              onClick={handlePushToReview}
-              disabled={loading.save || loading.status}
-              className="flex items-center gap-2 px-5 py-2 rounded-xl text-[10px] font-black shadow-lg transition-all hover:scale-[1.03] active:scale-[0.97] disabled:opacity-60 text-white"
-              style={{ background: theme.accentGradient }}
-            >
-              {loading.status ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} strokeWidth={3} />} PUSH TO REVIEW
-            </button>
-            {isOcrReview && (
+        {/* Top Action Bar (Save/Approve) */}
+        <div className="flex flex-wrap items-center justify-between gap-3 px-3 py-2 shrink-0 border-b" style={{ borderColor: theme.border, backgroundColor: theme.panel }}>
+          <div className="flex flex-wrap items-center gap-4 sm:gap-6">
+            <div className="flex flex-col">
+              <h1 className="text-[14px] font-black tracking-tight uppercase" style={{ color: theme.accent }}>
+                {isOcrReview ? 'OCR Review & Verification' : 'Sales Entry Engine'}
+              </h1>
+              {isOcrReview && (
+                <div className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span className="text-[9px] font-bold text-emerald-600 uppercase tracking-widest">AI Extraction Active</span>
+                </div>
+              )}
+            </div>
+            <div className="flex gap-2.5">
               <button
-                onClick={clearOcr}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl border border-red-200 text-red-500 text-[10px] font-black hover:bg-red-50 transition-all"
+                onClick={handleSaveDraft}
+                disabled={loading.save}
+                className="flex items-center gap-2 px-5 py-2 rounded-xl border text-[10px] font-black shadow-sm transition-all hover:scale-[1.03] active:scale-[0.97] disabled:opacity-60"
+                style={{ borderColor: theme.accent, color: theme.accent, backgroundColor: isDark ? 'rgba(9, 182, 185, 0.05)' : '#fff' }}
               >
-                <X size={13} strokeWidth={3} /> CLEAR OCR
+                {loading.save ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} strokeWidth={3} />} SAVE DRAFT
               </button>
-            )}
+              <button
+                onClick={handlePushToReview}
+                disabled={loading.save || loading.status}
+                className="flex items-center gap-2 px-5 py-2 rounded-xl text-[10px] font-black shadow-lg transition-all hover:scale-[1.03] active:scale-[0.97] disabled:opacity-60 text-white"
+                style={{ background: theme.accentGradient }}
+              >
+                {loading.status ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} strokeWidth={3} />} PUSH TO REVIEW
+              </button>
+              {isOcrReview && (
+                <button
+                  onClick={clearOcr}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl border border-red-200 text-red-500 text-[10px] font-black hover:bg-red-50 transition-all"
+                >
+                  <X size={13} strokeWidth={3} /> CLEAR OCR
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button className="p-2 rounded-xl border text-slate-400 hover:text-indigo-600 transition-all hover:bg-indigo-50" style={{ borderColor: theme.border, backgroundColor: theme.inputBg }}><Layout size={15} /></button>
+            <button className="p-2 rounded-xl border text-slate-400 hover:text-red-500 transition-all hover:bg-red-50" style={{ borderColor: theme.border, backgroundColor: theme.inputBg }}><X size={15} /></button>
           </div>
         </div>
-        <div className="flex gap-2">
-          <button className="p-2 rounded-xl border text-slate-400 hover:text-indigo-600 transition-all hover:bg-indigo-50" style={{ borderColor: theme.border, backgroundColor: theme.inputBg }}><Layout size={15} /></button>
-          <button className="p-2 rounded-xl border text-slate-400 hover:text-red-500 transition-all hover:bg-red-50" style={{ borderColor: theme.border, backgroundColor: theme.inputBg }}><X size={15} /></button>
-        </div>
-      </div>
 
-      <div className={`flex-1 overflow-hidden ${isOcrReview ? 'grid grid-cols-1 lg:grid-cols-2' : 'flex flex-col'}`}>
+        <div className={`flex-1 overflow-hidden ${isOcrReview ? 'grid grid-cols-1 lg:grid-cols-2' : 'flex flex-col'}`}>
 
-        {/* Left Side: Document Preview (OCR Review Mode Only) */}
-        {isOcrReview && (
-          <div className="h-full border-r overflow-hidden flex flex-col bg-slate-50/50" style={{ borderColor: theme.border }}>
-            <div className="px-4 py-3 border-b flex items-center justify-between bg-white/50 backdrop-blur-md" style={{ borderColor: theme.border }}>
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center">
-                  <Bot size={14} />
+          {/* Left Side: Document Preview (OCR Review Mode Only) */}
+          {isOcrReview && (
+            <div className="h-full border-r overflow-hidden flex flex-col bg-slate-50/50" style={{ borderColor: theme.border }}>
+              <div className="px-4 py-3 border-b flex items-center justify-between bg-white/50 backdrop-blur-md" style={{ borderColor: theme.border }}>
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center">
+                    <Bot size={14} />
+                  </div>
+                  <span className="text-[11px] font-black uppercase tracking-widest text-slate-700">Source Document</span>
                 </div>
-                <span className="text-[11px] font-black uppercase tracking-widest text-slate-700">Source Document</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded truncate max-w-[150px]">{ocr.file?.name}</span>
-                <span className="text-[10px] font-black text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded">{ocr.result?.confidence || 0}% Match</span>
-              </div>
-            </div>
-            <div className="flex-1 p-4 overflow-auto custom-scrollbar">
-              <div className="w-full h-full min-h-[600px] rounded-2xl border shadow-2xl overflow-hidden bg-white" style={{ borderColor: theme.border }}>
-                {ocr.file?.type === 'application/pdf' ? (
-                  <iframe src={ocr.previewUrl} className="w-full h-full border-0" title="PDF Preview" />
-                ) : (
-                  <img src={ocr.previewUrl} alt="Invoice Preview" className="w-full h-full object-contain" />
-                )}
-              </div>
-            </div>
-            <div className="p-4 bg-white/50 border-t" style={{ borderColor: theme.border }}>
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-indigo-600 text-white shadow-lg">
-                <Bot size={20} />
-                <div className="flex-1">
-                  <p className="text-[11px] font-black uppercase tracking-tight">AI Verification Mode</p>
-                  <p className="text-[10px] font-medium opacity-90">Please cross-verify the totals and party details on the right.</p>
+                <div className="flex items-center gap-3">
+                  <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded truncate max-w-[150px]">{ocr.file?.name}</span>
+                  <span className="text-[10px] font-black text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded">{ocr.result?.confidence || 0}% Match</span>
                 </div>
-                <Check className="text-emerald-300" size={20} strokeWidth={3} />
+              </div>
+              <div className="flex-1 p-4 overflow-auto custom-scrollbar">
+                <div className="w-full h-full min-h-[600px] rounded-2xl border shadow-2xl overflow-hidden bg-white" style={{ borderColor: theme.border }}>
+                  {ocr.file?.type === 'application/pdf' ? (
+                    <iframe src={ocr.previewUrl} className="w-full h-full border-0" title="PDF Preview" />
+                  ) : (
+                    <img src={ocr.previewUrl} alt="Invoice Preview" className="w-full h-full object-contain" />
+                  )}
+                </div>
+              </div>
+              <div className="p-4 bg-white/50 border-t" style={{ borderColor: theme.border }}>
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-indigo-600 text-white shadow-lg">
+                  <Bot size={20} />
+                  <div className="flex-1">
+                    <p className="text-[11px] font-black uppercase tracking-tight">AI Verification Mode</p>
+                    <p className="text-[10px] font-medium opacity-90">Please cross-verify the totals and party details on the right.</p>
+                  </div>
+                  <Check className="text-emerald-300" size={20} strokeWidth={3} />
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Right Side / Full: The Form */}
-        <div className="flex flex-col h-full overflow-hidden">
-          {/* Totals Row */}
-          <div className="flex items-center border shadow-sm shrink-0 overflow-x-auto no-scrollbar py-1 rounded-xl mx-2 mt-2" style={{ borderColor: theme.border, backgroundColor: theme.panel }}>
-            <SummaryItem label="BaseTotal" value={form.baseTotal || "0.00"} />
-            <SummaryItem label="SubTotal" value={form.subTotal || "0.00"} />
-            <SummaryItem label="CGST" value={form.cgstTotal || "0.00"} />
-            <SummaryItem label="SGST" value={form.sgstTotal || "0.00"} />
-            <SummaryItem label="IGST" value={form.igstTotal || "0.00"} />
-            <SummaryItem label="TCS" value={form.tcsTotal || "0.00"} />
-            <SummaryItem label="Round-off" value={form.roundOff || "0.00"} />
-            <SummaryItem label="Grand Total" value={form.grandTotal || "0.00"} isLast />
-          </div>
+          {/* Right Side / Full: The Form */}
+          <div className="flex flex-col h-full overflow-hidden">
+            {/* Totals Row */}
+            <div className="flex items-center border shadow-sm shrink-0 overflow-x-auto no-scrollbar py-1 rounded-xl mx-2 mt-2" style={{ borderColor: theme.border, backgroundColor: theme.panel }}>
+              <SummaryItem label="BaseTotal" value={form.baseTotal || "0.00"} />
+              <SummaryItem label="SubTotal" value={form.subTotal || "0.00"} />
+              <SummaryItem label="CGST" value={form.cgstTotal || "0.00"} />
+              <SummaryItem label="SGST" value={form.sgstTotal || "0.00"} />
+              <SummaryItem label="IGST" value={form.igstTotal || "0.00"} />
+              <SummaryItem label="TCS" value={form.tcsTotal || "0.00"} />
+              <SummaryItem label="Round-off" value={form.roundOff || "0.00"} />
+              <SummaryItem label="Grand Total" value={form.grandTotal || "0.00"} isLast />
+            </div>
 
-          {/* Tabs */}
-          <div className="flex items-center border-b shrink-0 px-2 mt-1" style={{ borderColor: theme.border, backgroundColor: theme.panel }}>
-            {['Without Item', 'With Item'].map(tab => (
-              <button
-                key={tab}
-                onClick={() => {
-                  // Change by Anjalee: Update local state and sync store entryTab field
-                  setActiveTab(tab);
-                  setFormField('entryTab', tab === 'With Item' ? 'with_item' : 'without_item');
-                }}
-                className={`flex-1 py-3 text-[11px] font-black tracking-tight transition-all relative ${activeTab === tab ? 'text-indigo-600' : 'text-slate-400 hover:text-indigo-600'}`}
-              >
-                {tab}
-                {activeTab === tab && <div className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-indigo-600 rounded-t-full" />}
-              </button>
-            ))}
-          </div>
+            {/* Tabs */}
+            <div className="flex items-center border-b shrink-0 px-2 mt-1" style={{ borderColor: theme.border, backgroundColor: theme.panel }}>
+              {['Without Item', 'With Item'].map(tab => (
+                <button
+                  key={tab}
+                  onClick={() => {
+                    // Change by Anjalee: Update local state and sync store entryTab field
+                    setActiveTab(tab);
+                    setFormField('entryTab', tab === 'With Item' ? 'with_item' : 'without_item');
+                  }}
+                  className={`flex-1 py-3 text-[11px] font-black tracking-tight transition-all relative ${activeTab === tab ? 'text-indigo-600' : 'text-slate-400 hover:text-indigo-600'}`}
+                >
+                  {tab}
+                  {activeTab === tab && <div className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-indigo-600 rounded-t-full" />}
+                </button>
+              ))}
+            </div>
 
-          {/* Content Area */}
-          <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 px-2 pb-10 mt-2">
-            {/* Basic Details */}
-            <FormSection title="Basic Details" zIndex={100}>
-              <div className={`grid grid-cols-1 ${isOcrReview ? 'sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3' : 'sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5'} gap-x-4 gap-y-6`}>
+            {/* Content Area */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 px-2 pb-10 mt-2">
+              {/* Basic Details */}
+              <FormSection title="Basic Details" zIndex={100}>
+                <div className={`grid grid-cols-1 ${isOcrReview ? 'sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3' : 'sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5'} gap-x-4 gap-y-6`}>
 
-                {/* ── Credit Note: show these FIRST in Basic Details ── */}
-                {form.voucherType === 'credit_note' && (
-                  <>
-                    <InputField
-                      label="Credit Note Date"
-                      icon={Calendar}
-                      type="date"
-                      value={form.creditNoteDate}
-                      onChange={(v) => setFormField('creditNoteDate', v)}
-                    />
+                  {/* ── Credit Note: show these FIRST in Basic Details ── */}
+                  {form.voucherType === 'credit_note' && (
+                    <>
+                      <InputField
+                        label="Credit Note Date"
+                        icon={Calendar}
+                        type="date"
+                        value={form.creditNoteDate}
+                        onChange={(v) => setFormField('creditNoteDate', v)}
+                      />
+                      <SearchableDropdown
+                        label="Party Ledger"
+                        placeholder="Select Party Ledger"
+                        hasAdd
+                        options={masterData.partyLedgers?.length > 0 ? masterData.partyLedgers : []}
+                        value={form.partyLedger}
+                        onChange={(v) => {
+                          setFormField('partyLedger', v);
+                          setFormField('referenceNumber', '');
+                          // Fetch sales invoices for this party for the reference dropdown
+                          if (v) fetchCreditNoteInvoicesForParty(v);
+                          if (v && masterData.partyLedgerDetails && masterData.partyLedgerDetails[v]) {
+                            const details = masterData.partyLedgerDetails[v];
+                            setFormField('partyGstin', details.gstin || '');
+                            setFormField('gstRegistration', details.gstState ? `${details.gstState} Registration` : '');
+                            setFormField('gstRegistrationType', details.registrationType || '');
+                          } else {
+                            setFormField('partyGstin', '');
+                            setFormField('gstRegistration', '');
+                            setFormField('gstRegistrationType', '');
+                          }
+                        }}
+                      />
+                      <SearchableDropdown
+                        label="Reference Number (Sales Invoice)"
+                        placeholder={form.partyLedger ? 'Select Voucher Number' : 'Select Party First'}
+                        options={masterData.creditNoteInvoices || []}
+                        value={form.referenceNumber || ''}
+                        onChange={(v) => {
+                          setFormField('referenceNumber', v);
+                          if (v) autofillFromSalesInvoice(v);
+                        }}
+                      />
+                    </>
+                  )}
+
+                  {/* ── Common Fields ── */}
+                  <InputField label="Invoice Date" icon={Calendar} type="date" value={form.invoiceDate} onChange={(v) => setFormField('invoiceDate', v)} />
+                  <InputField label="Voucher Date" icon={Calendar} type="date" value={form.voucherDate} onChange={(v) => setFormField('voucherDate', v)} />
+                  <SearchableDropdown
+                    label="Voucher Type"
+                    placeholder="Sales"
+                    options={masterData.voucherTypes?.length > 0 ? masterData.voucherTypes : ['sales_invoice', 'sales_order', 'credit_note']}
+                    value={form.voucherType}
+                    onChange={(v) => {
+                      setFormField('voucherType', v);
+                      if (form.voucherNumberSeries === 'Default') {
+                        fetchNextInvoiceNumber(v);
+                      }
+                    }}
+                  />
+                  <SearchableDropdown
+                    label="Voucher Number Series"
+                    placeholder="Default"
+                    options={['Default', 'Manual']}
+                    value={form.voucherNumberSeries}
+                    onChange={(v) => {
+                      setFormField('voucherNumberSeries', v);
+                      if (v === 'Default') {
+                        fetchNextInvoiceNumber(form.voucherType);
+                      }
+                    }}
+                  />
+                  <InputField
+                    label="Voucher Number"
+                    placeholder={form.voucherNumberSeries === 'Default' ? "Auto-generated" : "Enter Voucher Number"}
+                    value={form.voucherNumber}
+                    readOnly={form.voucherNumberSeries === 'Default'}
+                    onChange={(v) => setFormField('voucherNumber', v)}
+                  />
+                  {/* Sales Invoice: Reference Number (Sales Order) */}
+                  {form.voucherType === 'sales_invoice' && (
                     <SearchableDropdown
-                      label="Party Ledger"
-                      placeholder="Select Party Ledger"
-                      hasAdd
-                      options={masterData.partyLedgers?.length > 0 ? masterData.partyLedgers : []}
-                      value={form.partyLedger}
-                      onChange={(v) => {
-                        setFormField('partyLedger', v);
-                        setFormField('referenceNumber', '');
-                        // Fetch sales invoices for this party for the reference dropdown
-                        if (v) fetchCreditNoteInvoicesForParty(v);
-                        if (v && masterData.partyLedgerDetails && masterData.partyLedgerDetails[v]) {
-                          const details = masterData.partyLedgerDetails[v];
-                          setFormField('partyGstin', details.gstin || '');
-                          setFormField('gstRegistration', details.gstState ? `${details.gstState} Registration` : '');
-                          setFormField('gstRegistrationType', details.registrationType || '');
-                        } else {
-                          setFormField('partyGstin', '');
-                          setFormField('gstRegistration', '');
-                          setFormField('gstRegistrationType', '');
-                        }
-                      }}
-                    />
-                    <SearchableDropdown
-                      label="Reference Number (Sales Invoice)"
-                      placeholder={form.partyLedger ? 'Select Invoice Number' : 'Select Party First'}
-                      options={masterData.creditNoteInvoices || []}
+                      label="Reference Number (Sales Order)"
+                      placeholder="Select Reference Number"
+                      options={masterData.salesOrders || []}
                       value={form.referenceNumber || ''}
                       onChange={(v) => {
                         setFormField('referenceNumber', v);
-                        if (v) autofillFromSalesInvoice(v);
+                        if (v) autofillFromSalesOrder(v);
                       }}
                     />
-                  </>
-                )}
+                  )}
+                  <SearchableDropdown label="Sales Ledger" placeholder="Sales Ledger" options={masterData.salesLedgers?.length > 0 ? masterData.salesLedgers : ['General Sales', 'Service Sales']} value={form.salesLedger} onChange={(v) => setFormField('salesLedger', v)} />
+                  {/* Party Ledger: hidden for credit_note (already shown at top) */}
+                  {form.voucherType !== 'credit_note' && (
+                    <SearchableDropdown
+                      label="Party Ledger"
+                      placeholder="Party Ledger"
+                      hasAdd
+                      options={masterData.partyLedgers?.length > 0 ? masterData.partyLedgers : ['HDFC Bank', 'Cash', 'Sundry Debtor A']}
+                      value={form.partyLedger}
+                      onChange={(v) => {
+                        setFormField('partyLedger', v);
+                        if (form.voucherType === 'sales_invoice') {
+                          fetchSalesOrdersForParty(v);
+                          setFormField('referenceNumber', '');
+                        }
+                        if (v && masterData.partyLedgerDetails && masterData.partyLedgerDetails[v]) {
+                          const details = masterData.partyLedgerDetails[v];
+                          setFormField('partyGstin', details.gstin || '');
+                        } else {
+                          setFormField('partyGstin', '');
+                        }
+                      }}
+                    />
+                  )}
+                  <InputField label="Party GSTIN" placeholder="Party GSTIN" value={form.partyGstin} onChange={(v) => setFormField('partyGstin', v)} />
+                  <SearchableDropdown label="Consignee Ledger" placeholder="Consignee Ledger" options={['Same as Party', ...(masterData.partyLedgers || [])]} value={form.consigneeLedger} onChange={(v) => setFormField('consigneeLedger', v)} />
+                </div>
+              </FormSection>
 
-                {/* ── Common Fields ── */}
-                <InputField label="Invoice Date" icon={Calendar} type="date" value={form.invoiceDate} onChange={(v) => setFormField('invoiceDate', v)} />
-                <InputField label="Voucher Date" icon={Calendar} type="date" value={form.voucherDate} onChange={(v) => setFormField('voucherDate', v)} />
-                <SearchableDropdown label="Voucher Type" placeholder="Sales" options={masterData.voucherTypes?.length > 0 ? masterData.voucherTypes : ['sales_invoice', 'sales_order', 'credit_note']} value={form.voucherType} onChange={(v) => setFormField('voucherType', v)} />
-                <SearchableDropdown label="Voucher Number Series" placeholder="Default" options={['Default', 'Manual']} value={form.voucherNumberSeries} onChange={(v) => setFormField('voucherNumberSeries', v)} />
-                <InputField label="Voucher Number" placeholder="Auto-generated" value={form.voucherNumber} readOnly />
-                <InputField label="Invoice Number" placeholder="Invoice Number" value={form.invoiceNumber} onChange={(v) => setFormField('invoiceNumber', v)} />
-                {/* Sales Invoice: Reference Number (Sales Order) */}
-                {form.voucherType === 'sales_invoice' && (
-                  <SearchableDropdown
-                    label="Reference Number (Sales Order)"
-                    placeholder="Select Reference Number"
-                    options={masterData.salesOrders || []}
-                    value={form.referenceNumber || ''}
-                    onChange={(v) => {
-                      setFormField('referenceNumber', v);
-                      if (v) autofillFromSalesOrder(v);
-                    }}
+              {/* Dynamic Table Section based on Tab */}
+              {activeTab === 'Without Item' && (
+                <FormSection title="Sales Details" zIndex={90} headerAction={<button onClick={() => addSalesLine()} className="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex items-center justify-center hover:bg-emerald-500 hover:text-white transition-all"><Plus size={12} strokeWidth={3} /></button>}>
+                  <div className="overflow-x-auto custom-scrollbar pb-32">
+                    <table className="w-full text-left text-[10px] border-separate border-spacing-y-2 min-w-[800px]">
+                      <thead>
+                        <tr className="font-black uppercase tracking-tight" style={{ color: theme.mutedText }}>
+                          <th className="px-2 w-10"></th>
+                          <th className="px-2 w-16 text-center">Sr. No.</th>
+                          <th className="px-2">Sales Ledger</th>
+                          <th className="px-2">Description</th>
+                          <th className="px-2">HSN/SAC Code</th>
+                          <th className="px-2">GST Rate</th>
+                          <th className="px-2 text-right pr-10">Amount</th>
+                          <th className="px-2 w-10"></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {form.salesLines.map((row) => (
+                          <tr key={row.id} className="animate-in fade-in slide-in-from-left-2 duration-300">
+                            <td className="px-2"><div className="w-7 h-7 rounded-full border border-indigo-200 bg-indigo-50 text-indigo-600 flex items-center justify-center shadow-sm"><Layout size={12} /></div></td>
+                            <td className="px-2"><div className="h-9 w-full rounded-lg border flex items-center justify-center font-bold" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>{row.srNo}</div></td>
+                            <td className="px-2"><SearchableDropdown placeholder="Select Sales Ledger" compact options={masterData.salesLedgers?.length > 0 ? masterData.salesLedgers : ['General Sales']} value={row.salesLedger} onChange={(v) => updateSalesLine(row.id, 'salesLedger', v)} /></td>
+                            <td className="px-2"><InputField placeholder="Description" compact value={row.description} onChange={(v) => updateSalesLine(row.id, 'description', v)} /></td>
+                            <td className="px-2"><InputField placeholder="HSN/SAC" compact value={row.hsnSacCode} onChange={(v) => updateSalesLine(row.id, 'hsnSacCode', v)} /></td>
+                            <td className="px-2"><SearchableDropdown placeholder="18%" value={row.gstRate ? `${row.gstRate}%` : '0%'} compact options={['0%', '5%', '12%', '18%', '28%']} onChange={(v) => updateSalesLine(row.id, 'gstRate', parseFloat(v) || 0)} /></td>
+                            <td className="px-2"><InputField value={row.amount} align="right" compact onChange={(v) => updateSalesLine(row.id, 'amount', parseFloat(v) || 0)} /></td>
+                            <td className="px-2"><button onClick={() => removeSalesLine(row.id)} className="w-8 h-8 rounded-lg bg-red-500/10 text-red-500 border border-red-500/10 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all"><Minus size={14} /></button></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <SummaryBar
+                    entries={form.salesLines.length}
+                    base={form.baseTotal}
+                    cgst={form.cgstTotal}
+                    sgst={form.sgstTotal}
+                    igst={form.igstTotal}
+                    total={form.subTotal}
                   />
-                )}
-                <SearchableDropdown label="Sales Ledger" placeholder="Sales Ledger" options={masterData.salesLedgers?.length > 0 ? masterData.salesLedgers : ['General Sales', 'Service Sales']} value={form.salesLedger} onChange={(v) => setFormField('salesLedger', v)} />
-                {/* Party Ledger: hidden for credit_note (already shown at top) */}
-                {form.voucherType !== 'credit_note' && (
-                  <SearchableDropdown
-                    label="Party Ledger"
-                    placeholder="Party Ledger"
-                    hasAdd
-                    options={masterData.partyLedgers?.length > 0 ? masterData.partyLedgers : ['HDFC Bank', 'Cash', 'Sundry Debtor A']}
-                    value={form.partyLedger}
-                    onChange={(v) => {
-                      setFormField('partyLedger', v);
-                      if (form.voucherType === 'sales_invoice') {
-                        fetchSalesOrdersForParty(v);
-                        setFormField('referenceNumber', '');
-                      }
-                      if (v && masterData.partyLedgerDetails && masterData.partyLedgerDetails[v]) {
-                        const details = masterData.partyLedgerDetails[v];
-                        setFormField('partyGstin', details.gstin || '');
-                        setFormField('gstRegistration', details.gstState ? `${details.gstState} Registration` : '');
-                        setFormField('gstRegistrationType', details.registrationType || '');
-                      } else {
-                        setFormField('partyGstin', '');
-                        setFormField('gstRegistration', '');
-                        setFormField('gstRegistrationType', '');
-                      }
-                    }}
-                  />
-                )}
-                <InputField label="Party GSTIN" placeholder="Party GSTIN" value={form.partyGstin} onChange={(v) => setFormField('partyGstin', v)} />
-                <SearchableDropdown label="GST Registration" placeholder="GST Registration" options={getGstRegistrationOptions()} value={form.gstRegistration} onChange={(v) => setFormField('gstRegistration', v)} />
-                <SearchableDropdown 
-                  label="GST Registration Type" 
-                  placeholder="GST Registration Type" 
-                  options={['Regular', 'Composition', 'Consumer', 'Unregistered']} 
-                  value={form.gstRegistrationType || ''} 
-                  onChange={(v) => setFormField('gstRegistrationType', v)} 
-                />
-                <SearchableDropdown label="Consignee Ledger" placeholder="Consignee Ledger" options={['Same as Party', ...(masterData.partyLedgers || [])]} value={form.consigneeLedger} onChange={(v) => setFormField('consigneeLedger', v)} />
-              </div>
-            </FormSection>
+                </FormSection>
+              )}
 
-            {/* Dynamic Table Section based on Tab */}
-            {activeTab === 'Without Item' && (
-              <FormSection title="Sales Details" zIndex={90} headerAction={<button onClick={() => addSalesLine()} className="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex items-center justify-center hover:bg-emerald-500 hover:text-white transition-all"><Plus size={12} strokeWidth={3} /></button>}>
+              {activeTab === 'With Item' && (
+                <FormSection title="Product Details" zIndex={90} headerAction={<button onClick={() => addProductLine()} className="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex items-center justify-center hover:bg-emerald-500 hover:text-white transition-all"><Plus size={12} strokeWidth={3} /></button>}>
+                  <div className="overflow-x-auto custom-scrollbar pb-32">
+                    <table className="w-full text-left text-[10px] border-separate border-spacing-y-2 min-w-[1200px] mb-20">
+                      <thead>
+                        <tr className="font-black uppercase tracking-tight" style={{ color: theme.mutedText }}>
+                          <th className="px-2 w-10"></th>
+                          <th className="px-2 w-16 text-center">Sr. No.</th>
+                          <th className="px-2 min-w-[200px]">Stock Item</th>
+                          <th className="px-2 min-w-[150px]">Description</th>
+                          <th className="px-2">HSN/SAC Code</th>
+                          <th className="px-2">Bill Quantity</th>
+                          <th className="px-2">Bill Rate</th>
+                          <th className="px-2">Discount</th>
+                          <th className="px-2 text-right">Amount</th>
+                          <th className="px-2">RCM</th>
+                          <th className="px-2">GST Rate</th>
+                          <th className="px-2 w-10"></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {form.productLines.map((row) => (
+                          <tr key={row.id} className="animate-in fade-in slide-in-from-left-2 duration-300">
+                            <td className="px-2"><div className="w-7 h-7 rounded-full border border-purple-200 bg-purple-50 text-purple-600 flex items-center justify-center shadow-sm"><Layout size={12} /></div></td>
+                            <td className="px-2"><div className="h-8 w-full rounded-lg border flex items-center justify-center font-bold" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>{row.srNo}</div></td>
+                            <td className="px-2"><SearchableDropdown placeholder="Stock Item" hasAdd compact options={masterData.stockItems?.length > 0 ? masterData.stockItems : ['Monitor', 'Keyboard']} value={row.stockItem} onChange={(v) => {
+                              const updates = {
+                                stockItem: v,
+                                hsnSacCode: '',
+                                gstRate: 0,
+                                unit: ''
+                              };
+                              if (v && masterData.stockItemDetails && masterData.stockItemDetails[v]) {
+                                const sd = masterData.stockItemDetails[v];
+                                if (sd.hsnCode) updates.hsnSacCode = sd.hsnCode;
+                                if (sd.gstRate !== undefined) updates.gstRate = sd.gstRate;
+                                if (sd.unit) updates.unit = sd.unit;
+                              }
+                              updateProductLine(row.id, updates);
+                            }} /></td>
+                            <td className="px-2"><InputField placeholder="Description" compact value={row.description} onChange={(v) => updateProductLine(row.id, 'description', v)} /></td>
+                            <td className="px-2"><InputField placeholder="HSN/SAC" compact value={row.hsnSacCode} onChange={(v) => updateProductLine(row.id, 'hsnSacCode', v)} /></td>
+                            <td className="px-2">
+                              <div className="flex items-center gap-1">
+                                <InputField value={row.billQuantity} align="right" compact onChange={(v) => updateProductLine(row.id, 'billQuantity', parseFloat(v) || 0)} />
+                                {row.unit && <span className="shrink-0 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border" style={{ color: 'var(--app-accent)', borderColor: 'rgba(99,102,241,0.2)', backgroundColor: 'rgba(99,102,241,0.07)' }}>{row.unit}</span>}
+                              </div>
+                            </td>
+                            <td className="px-2"><InputField value={row.billRate} align="right" compact onChange={(v) => updateProductLine(row.id, 'billRate', parseFloat(v) || 0)} /></td>
+                            <td className="px-2"><InputField value={row.discountPercent} align="right" compact onChange={(v) => updateProductLine(row.id, 'discountPercent', parseFloat(v) || 0)} /></td>
+                            <td className="px-2"><InputField value={parseFloat(row.amount || 0).toFixed(2)} align="right" readOnly compact /></td>
+                            <td className="px-2 text-center"><input type="checkbox" checked={row.rcm} onChange={(e) => updateProductLine(row.id, 'rcm', e.target.checked)} className="w-4 h-4 rounded border-slate-200 accent-indigo-600" /></td>
+                            <td className="px-2"><SearchableDropdown placeholder="18%" value={row.gstRate ? `${row.gstRate}%` : '0%'} compact options={['0%', '5%', '12%', '18%', '28%']} onChange={(v) => updateProductLine(row.id, 'gstRate', parseFloat(v) || 0)} /></td>
+                            <td className="px-2"><button onClick={() => removeProductLine(row.id)} className="w-8 h-8 rounded-lg bg-red-500/10 text-red-500 border border-red-500/10 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all"><Minus size={14} /></button></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <SummaryBar
+                    entries={form.productLines.length}
+                    base={form.baseTotal}
+                    cgst={form.cgstTotal}
+                    sgst={form.sgstTotal}
+                    igst={form.igstTotal}
+                    total={form.subTotal}
+                  />
+                </FormSection>
+              )}
+
+              {/* Additional Item Details */}
+              <FormSection title="Additional Item Details" zIndex={80} headerAction={<button onClick={() => addRow('additional')} className="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex items-center justify-center hover:bg-emerald-500 hover:text-white transition-all"><Plus size={12} strokeWidth={3} /></button>}>
                 <div className="overflow-x-auto custom-scrollbar pb-32">
-                  <table className="w-full text-left text-[10px] border-separate border-spacing-y-2 min-w-[800px]">
+                  <table className="w-full text-left text-[10px] border-separate border-spacing-y-2 min-w-[600px] mb-20">
                     <thead>
                       <tr className="font-black uppercase tracking-tight" style={{ color: theme.mutedText }}>
-                        <th className="px-2 w-10"></th>
-                        <th className="px-2 w-16 text-center">Sr. No.</th>
-                        <th className="px-2">Sales Ledger</th>
-                        <th className="px-2">Description</th>
-                        <th className="px-2">HSN/SAC Code</th>
-                        <th className="px-2">GST Rate</th>
+                        <th className="px-2 w-10 text-center"><input type="checkbox" className="w-4 h-4 rounded border-slate-200 accent-indigo-600 shadow-sm" /></th>
+                        <th className="px-2">Taxable Value</th>
+                        <th className="px-2">Ledger Name</th>
                         <th className="px-2 text-right pr-10">Amount</th>
                         <th className="px-2 w-10"></th>
                       </tr>
                     </thead>
                     <tbody>
-                      {form.salesLines.map((row) => (
+                      {form.additionalCharges.map((row) => (
                         <tr key={row.id} className="animate-in fade-in slide-in-from-left-2 duration-300">
-                          <td className="px-2"><div className="w-7 h-7 rounded-full border border-indigo-200 bg-indigo-50 text-indigo-600 flex items-center justify-center shadow-sm"><Layout size={12} /></div></td>
-                          <td className="px-2"><div className="h-9 w-full rounded-lg border flex items-center justify-center font-bold" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>{row.srNo}</div></td>
-                          <td className="px-2"><SearchableDropdown placeholder="Select Sales Ledger" compact options={masterData.salesLedgers?.length > 0 ? masterData.salesLedgers : ['General Sales']} value={row.salesLedger} onChange={(v) => updateSalesLine(row.id, 'salesLedger', v)} /></td>
-                          <td className="px-2"><InputField placeholder="Description" compact value={row.description} onChange={(v) => updateSalesLine(row.id, 'description', v)} /></td>
-                          <td className="px-2"><InputField placeholder="HSN/SAC" compact value={row.hsnSacCode} onChange={(v) => updateSalesLine(row.id, 'hsnSacCode', v)} /></td>
-                          <td className="px-2"><SearchableDropdown placeholder="18%" value={row.gstRate ? `${row.gstRate}%` : '0%'} compact options={['0%', '5%', '12%', '18%', '28%']} onChange={(v) => updateSalesLine(row.id, 'gstRate', parseFloat(v) || 0)} /></td>
-                          <td className="px-2"><InputField value={row.amount} align="right" compact onChange={(v) => updateSalesLine(row.id, 'amount', parseFloat(v) || 0)} /></td>
-                          <td className="px-2"><button onClick={() => removeSalesLine(row.id)} className="w-8 h-8 rounded-lg bg-red-500/10 text-red-500 border border-red-500/10 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all"><Minus size={14} /></button></td>
+                          <td className="px-2 text-center"><input type="checkbox" className="w-4 h-4 rounded border-slate-200 accent-indigo-600 shadow-sm" /></td>
+                          <td className="px-2"><div className="h-8 flex items-center font-bold text-slate-500">{row.taxableValue || '0.00'}</div></td>
+                          <td className="px-2"><SearchableDropdown placeholder="Select Ledger" compact options={masterData.additionalChargeLedgers?.length > 0 ? masterData.additionalChargeLedgers : ['Freight Charges']} value={row.ledgerName} onChange={(v) => updateAdditionalCharge(row.id, 'ledgerName', v)} /></td>
+                          <td className="px-2"><div className="flex items-center gap-2"><InputField value={row.amount} align="right" compact onChange={(v) => updateAdditionalCharge(row.id, 'amount', parseFloat(v) || 0)} /><button onClick={() => removeAdditionalCharge(row.id)} className="w-8 h-8 rounded-lg bg-red-500/10 text-red-500 border border-red-500/10 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all"><Minus size={14} /></button></div></td>
+                          <td className="px-2 w-10"></td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
-                <SummaryBar
-                  entries={form.salesLines.length}
-                  base={form.baseTotal}
-                  cgst={form.cgstTotal}
-                  sgst={form.sgstTotal}
-                  igst={form.igstTotal}
-                  total={form.subTotal}
-                />
+                <SummaryBar entries={form.additionalCharges.length} base="0.00" cgst="0.00" sgst="0.00" igst="0.00" total={form.additionalCharges.reduce((acc, l) => acc + (l.amount || 0), 0).toFixed(2)} />
               </FormSection>
-            )}
 
-            {activeTab === 'With Item' && (
-              <FormSection title="Product Details" zIndex={90} headerAction={<button onClick={() => addProductLine()} className="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex items-center justify-center hover:bg-emerald-500 hover:text-white transition-all"><Plus size={12} strokeWidth={3} /></button>}>
-                <div className="overflow-x-auto custom-scrollbar pb-32">
-                  <table className="w-full text-left text-[10px] border-separate border-spacing-y-2 min-w-[1200px] mb-20">
-                    <thead>
-                      <tr className="font-black uppercase tracking-tight" style={{ color: theme.mutedText }}>
-                        <th className="px-2 w-10"></th>
-                        <th className="px-2 w-16 text-center">Sr. No.</th>
-                        <th className="px-2 min-w-[200px]">Stock Item</th>
-                        <th className="px-2 min-w-[150px]">Description</th>
-                        <th className="px-2">HSN/SAC Code</th>
-                        <th className="px-2">Bill Quantity</th>
-                        <th className="px-2">Bill Rate</th>
-                        <th className="px-2">Discount</th>
-                        <th className="px-2 text-right">Amount</th>
-                        <th className="px-2">RCM</th>
-                        <th className="px-2">Taxability Type</th>
-                        <th className="px-2">GST Rate</th>
-                        <th className="px-2 w-10"></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {form.productLines.map((row) => (
-                        <tr key={row.id} className="animate-in fade-in slide-in-from-left-2 duration-300">
-                          <td className="px-2"><div className="w-7 h-7 rounded-full border border-purple-200 bg-purple-50 text-purple-600 flex items-center justify-center shadow-sm"><Layout size={12} /></div></td>
-                          <td className="px-2"><div className="h-8 w-full rounded-lg border flex items-center justify-center font-bold" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>{row.srNo}</div></td>
-                          <td className="px-2"><SearchableDropdown placeholder="Stock Item" hasAdd compact options={masterData.stockItems?.length > 0 ? masterData.stockItems : ['Monitor', 'Keyboard']} value={row.stockItem} onChange={(v) => {
-                            const updates = { stockItem: v };
-                            if (v && masterData.stockItemDetails && masterData.stockItemDetails[v]) {
-                              const sd = masterData.stockItemDetails[v];
-                              if (sd.hsnCode) updates.hsnSacCode = sd.hsnCode;
-                              if (sd.gstRate) updates.gstRate = sd.gstRate;
-                            }
-                            updateProductLine(row.id, updates);
-                          }} /></td>
-                          <td className="px-2"><InputField placeholder="Description" compact value={row.description} onChange={(v) => updateProductLine(row.id, 'description', v)} /></td>
-                          <td className="px-2"><InputField placeholder="HSN/SAC" compact value={row.hsnSacCode} onChange={(v) => updateProductLine(row.id, 'hsnSacCode', v)} /></td>
-                          <td className="px-2"><InputField value={row.billQuantity} align="right" compact onChange={(v) => updateProductLine(row.id, 'billQuantity', parseFloat(v) || 0)} /></td>
-                          <td className="px-2"><InputField value={row.billRate} align="right" compact onChange={(v) => updateProductLine(row.id, 'billRate', parseFloat(v) || 0)} /></td>
-                          <td className="px-2"><InputField value={row.discountPercent} align="right" compact onChange={(v) => updateProductLine(row.id, 'discountPercent', parseFloat(v) || 0)} /></td>
-                          <td className="px-2"><InputField value={parseFloat(row.amount || 0).toFixed(2)} align="right" readOnly compact /></td>
-                          <td className="px-2 text-center"><input type="checkbox" checked={row.rcm} onChange={(e) => updateProductLine(row.id, 'rcm', e.target.checked)} className="w-4 h-4 rounded border-slate-200 accent-indigo-600" /></td>
-                          <td className="px-2"><SearchableDropdown placeholder="Taxable" value={row.taxabilityType} compact options={['Taxable', 'Exempt']} onChange={(v) => updateProductLine(row.id, 'taxabilityType', v)} /></td>
-                          <td className="px-2"><SearchableDropdown placeholder="18%" value={row.gstRate ? `${row.gstRate}%` : '0%'} compact options={['0%', '5%', '12%', '18%', '28%']} onChange={(v) => updateProductLine(row.id, 'gstRate', parseFloat(v) || 0)} /></td>
-                          <td className="px-2"><button onClick={() => removeProductLine(row.id)} className="w-8 h-8 rounded-lg bg-red-500/10 text-red-500 border border-red-500/10 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all"><Minus size={14} /></button></td>
+              {/* GST Details */}
+              <FormSection title="GST Details" zIndex={70}>
+                <div className="border rounded-xl overflow-hidden shadow-sm" style={{ borderColor: theme.border, backgroundColor: theme.panel }}>
+                  {(!form.gstDetails || form.gstDetails.length === 0) ? (
+                    <div className="p-6 text-center text-[10px] font-black uppercase tracking-widest" style={{ backgroundColor: theme.headerBg, color: theme.mutedText }}>
+                      No Entries Are Available
+                    </div>
+                  ) : (
+                    <table className="w-full text-left text-[10px]">
+                      <thead className="border-y" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>
+                        <tr className="font-black uppercase tracking-tight" style={{ color: theme.mutedText }}>
+                          <th className="p-3">GST Type</th>
+                          <th className="p-3">Ledger Name</th>
+                          <th className="p-3 text-right">Amount</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {form.gstDetails.map((row, idx) => (
+                          <tr key={idx} className="border-b" style={{ borderColor: theme.border }}>
+                            <td className="p-3 font-bold text-slate-700">{row.gstType}</td>
+                            <td className="p-3 font-semibold text-slate-500">{row.ledgerName}</td>
+                            <td className="p-3 text-right text-indigo-600 font-black">₹{parseFloat(row.amount).toFixed(2)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
                 </div>
-                <SummaryBar
-                  entries={form.productLines.length}
-                  base={form.baseTotal}
-                  cgst={form.cgstTotal}
-                  sgst={form.sgstTotal}
-                  igst={form.igstTotal}
-                  total={form.subTotal}
-                />
               </FormSection>
-            )}
 
-            {/* Additional Item Details */}
-            <FormSection title="Additional Item Details" zIndex={80} headerAction={<button onClick={() => addRow('additional')} className="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex items-center justify-center hover:bg-emerald-500 hover:text-white transition-all"><Plus size={12} strokeWidth={3} /></button>}>
-              <div className="overflow-x-auto custom-scrollbar pb-32">
-                <table className="w-full text-left text-[10px] border-separate border-spacing-y-2 min-w-[600px] mb-20">
-                  <thead>
-                    <tr className="font-black uppercase tracking-tight" style={{ color: theme.mutedText }}>
-                      <th className="px-2 w-10 text-center"><input type="checkbox" className="w-4 h-4 rounded border-slate-200 accent-indigo-600 shadow-sm" /></th>
-                      <th className="px-2">Taxable Value</th>
-                      <th className="px-2">Ledger Name</th>
-                      <th className="px-2 text-right pr-10">Amount</th>
-                      <th className="px-2 w-10"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {form.additionalCharges.map((row) => (
-                      <tr key={row.id} className="animate-in fade-in slide-in-from-left-2 duration-300">
-                        <td className="px-2 text-center"><input type="checkbox" className="w-4 h-4 rounded border-slate-200 accent-indigo-600 shadow-sm" /></td>
-                        <td className="px-2"><InputField placeholder="Taxable Value" compact value={row.taxableValue} onChange={(v) => updateAdditionalCharge(row.id, 'taxableValue', v)} /></td>
-                        <td className="px-2"><SearchableDropdown placeholder="Select Ledger" compact options={masterData.additionalChargeLedgers?.length > 0 ? masterData.additionalChargeLedgers : ['Freight Charges']} value={row.ledgerName} onChange={(v) => updateAdditionalCharge(row.id, 'ledgerName', v)} /></td>
-                        <td className="px-2"><div className="flex items-center gap-2"><InputField value={row.amount} align="right" compact onChange={(v) => updateAdditionalCharge(row.id, 'amount', parseFloat(v) || 0)} /><button onClick={() => removeAdditionalCharge(row.id)} className="w-8 h-8 rounded-lg bg-red-500/10 text-red-500 border border-red-500/10 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all"><Minus size={14} /></button></div></td>
-                        <td className="px-2 w-10"></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <SummaryBar entries={form.additionalCharges.length} base="0.00" cgst="0.00" sgst="0.00" igst="0.00" total={form.additionalCharges.reduce((acc, l) => acc + (l.amount || 0), 0).toFixed(2)} />
-            </FormSection>
-
-            {/* GST Details */}
-            <FormSection title="GST Details" zIndex={70}>
-              <div className="border rounded-xl overflow-hidden shadow-sm" style={{ borderColor: theme.border, backgroundColor: theme.panel }}>
-                {(!form.gstDetails || form.gstDetails.length === 0) ? (
-                  <div className="p-6 text-center text-[10px] font-black uppercase tracking-widest" style={{ backgroundColor: theme.headerBg, color: theme.mutedText }}>
-                    No Entries Are Available
+              {/* TDS & TCS */}
+              <div className="grid grid-cols-1 gap-4">
+                {/* TCS Toggle Button */}
+                <div className="flex items-center justify-between p-4 rounded-2xl border shadow-sm transition-all duration-300 hover:shadow-md" style={{ backgroundColor: theme.panel, borderColor: theme.border }}>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[11px] font-black uppercase tracking-wider" style={{ color: theme.text }}>TCS Applicable</span>
+                    <span className="text-[9px] font-bold uppercase tracking-tight" style={{ color: theme.mutedText }}>Toggle if Tax Collected at Source is required</span>
                   </div>
-                ) : (
-                  <table className="w-full text-left text-[10px]">
-                    <thead className="border-y" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>
-                      <tr className="font-black uppercase tracking-tight" style={{ color: theme.mutedText }}>
-                        <th className="p-3">GST Type</th>
-                        <th className="p-3">Ledger Name</th>
-                        <th className="p-3 text-right">Amount</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {form.gstDetails.map((row, idx) => (
-                        <tr key={idx} className="border-b" style={{ borderColor: theme.border }}>
-                          <td className="p-3 font-bold text-slate-700">{row.gstType}</td>
-                          <td className="p-3 font-semibold text-slate-500">{row.ledgerName}</td>
-                          <td className="p-3 text-right text-indigo-600 font-black">₹{parseFloat(row.amount).toFixed(2)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  <label className="relative inline-flex items-center cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={showTcs}
+                      onChange={(e) => handleToggleTcs(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div 
+                      className="w-10 h-5 rounded-full relative transition-colors duration-300 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-5 shadow-inner"
+                      style={{ 
+                        backgroundColor: showTcs ? (isDark ? '#09B6B9' : '#4f46e5') : (isDark ? '#334155' : '#cbd5e1')
+                      }}
+                    />
+                  </label>
+                </div>
+
+                {showTcs && (
+                  <FormSection title="TCS Details" zIndex={60}>
+                    <div className="overflow-x-auto custom-scrollbar pb-32">
+                      <table className="w-full text-left text-[10px] border-separate border-spacing-y-2 min-w-[400px] mb-20">
+                        <thead>
+                          <tr className="font-black uppercase tracking-tight" style={{ color: theme.mutedText }}>
+                            <th className="px-2">Ledger Name</th>
+                            <th className="px-2">Assessable Value</th>
+                            <th className="px-2">Rate</th>
+                            <th className="px-2">Amount</th>
+                            <th className="px-2 w-10 text-right">
+                              <button onClick={() => addRow('tcs')} className="w-7 h-7 rounded-full border border-emerald-200 bg-white shadow-sm flex items-center justify-center text-emerald-500 hover:bg-emerald-50 transition-all">
+                                <Plus size={14} strokeWidth={3} />
+                              </button>
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {form.tcsDetails.map((row) => (
+                            <tr key={row.id} className="animate-in fade-in slide-in-from-left-2 duration-300">
+                              <td className="px-1"><SearchableDropdown placeholder="TCS Ledger" compact options={masterData.tcsLedgers?.length > 0 ? masterData.tcsLedgers : ['TCS on Sales']} value={row.ledgerName} onChange={(v) => updateTcsDetail(row.id, 'ledgerName', v)} /></td>
+                              <td className="px-1"><InputField value={row.assessableValue} align="right" compact onChange={(v) => updateTcsDetail(row.id, 'assessableValue', parseFloat(v) || 0)} /></td>
+                              <td className="px-1"><InputField value={row.rate} align="right" compact onChange={(v) => updateTcsDetail(row.id, 'rate', parseFloat(v) || 0)} /></td>
+                              <td className="px-1"><InputField value={(row.assessableValue * row.rate / 100).toFixed(2)} align="right" readOnly compact /></td>
+                              <td className="px-1 text-right">
+                                <button onClick={() => removeTcsDetail(row.id)} className="w-7 h-7 rounded-full border border-red-200 bg-white shadow-sm flex items-center justify-center text-red-500 hover:bg-red-50 transition-all">
+                                  <Minus size={14} strokeWidth={3} />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="mt-3 flex justify-between font-black text-[9px] uppercase rounded-lg border px-3 py-1.5 shadow-sm" style={{ backgroundColor: theme.accentSoft, borderColor: theme.border, color: theme.accent }}>
+                      <span>Number Of Entries: {form.tcsDetails.length}</span>
+                      <span>Total: {form.tcsDetails.reduce((acc, l) => acc + (l.amount || 0), 0).toFixed(2)}</span>
+                    </div>
+                  </FormSection>
                 )}
               </div>
-            </FormSection>
 
-            {/* TDS & TCS */}
-            <div className="grid grid-cols-1 gap-4">
-              <FormSection title="TCS Details" zIndex={60}>
-                <div className="overflow-x-auto custom-scrollbar pb-32">
-                  <table className="w-full text-left text-[10px] border-separate border-spacing-y-2 min-w-[400px] mb-20">
-                    <thead>
-                      <tr className="font-black uppercase tracking-tight" style={{ color: theme.mutedText }}>
-                        <th className="px-2">Ledger Name</th>
-                        <th className="px-2">Assessable Value</th>
-                        <th className="px-2">Rate</th>
-                        <th className="px-2">Amount</th>
-                        <th className="px-2 w-10 text-right">
-                          <button onClick={() => addRow('tcs')} className="w-7 h-7 rounded-full border border-emerald-200 bg-white shadow-sm flex items-center justify-center text-emerald-500 hover:bg-emerald-50 transition-all">
-                            <Plus size={14} strokeWidth={3} />
-                          </button>
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {form.tcsDetails.map((row) => (
-                        <tr key={row.id} className="animate-in fade-in slide-in-from-left-2 duration-300">
-                          <td className="px-1"><SearchableDropdown placeholder="TCS Ledger" compact options={masterData.tcsLedgers?.length > 0 ? masterData.tcsLedgers : ['TCS on Sales']} value={row.ledgerName} onChange={(v) => updateTcsDetail(row.id, 'ledgerName', v)} /></td>
-                          <td className="px-1"><InputField value={row.assessableValue} align="right" compact onChange={(v) => updateTcsDetail(row.id, 'assessableValue', parseFloat(v) || 0)} /></td>
-                          <td className="px-1"><InputField value={row.rate} align="right" compact onChange={(v) => updateTcsDetail(row.id, 'rate', parseFloat(v) || 0)} /></td>
-                          <td className="px-1"><InputField value={(row.assessableValue * row.rate / 100).toFixed(2)} align="right" readOnly compact /></td>
-                          <td className="px-1 text-right">
-                            <button onClick={() => removeTcsDetail(row.id)} className="w-7 h-7 rounded-full border border-red-200 bg-white shadow-sm flex items-center justify-center text-red-500 hover:bg-red-50 transition-all">
-                              <Minus size={14} strokeWidth={3} />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                <div className="mt-3 flex justify-between font-black text-[9px] uppercase rounded-lg border px-3 py-1.5 shadow-sm" style={{ backgroundColor: theme.accentSoft, borderColor: theme.border, color: theme.accent }}>
-                  <span>Number Of Entries: {form.tcsDetails.length}</span>
-                  <span>Total: {form.tcsDetails.reduce((acc, l) => acc + (l.amount || 0), 0).toFixed(2)}</span>
-                </div>
+              {/* Narration */}
+              <FormSection title="Narration" zIndex={10}>
+                <textarea
+                  value={form.narration || ''}
+                  onChange={(e) => setFormField('narration', e.target.value)}
+                  className="w-full h-20 rounded-xl border p-4 text-[11px] font-bold outline-none transition-all focus:border-indigo-400 resize-none shadow-sm placeholder:text-slate-300"
+                  placeholder="Enter narration here..."
+                  style={{ backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.text }}
+                />
               </FormSection>
-            </div>
 
-            {/* Narration */}
-            <FormSection title="Narration" zIndex={10}>
-              <textarea
-                value={form.narration || ''}
-                onChange={(e) => setFormField('narration', e.target.value)}
-                className="w-full h-20 rounded-xl border p-4 text-[11px] font-bold outline-none transition-all focus:border-indigo-400 resize-none shadow-sm placeholder:text-slate-300"
-                placeholder="Enter narration here..."
-                style={{ backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.text }}
-              />
-            </FormSection>
+              <div className="text-center py-4 text-[10px] font-black uppercase tracking-widest opacity-30" style={{ color: theme.mutedText }}>
+                Please Select Sundry Ledger
+              </div>
 
-            <div className="text-center py-4 text-[10px] font-black uppercase tracking-widest opacity-30" style={{ color: theme.mutedText }}>
-              Please Select Sundry Ledger
-            </div>
-
-            {/* <div className="mt-8">
+              {/* <div className="mt-8">
           <div className="flex items-center gap-3 mb-4 px-2">
             <div className="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-600 flex items-center justify-center">
               <Bot size={16} />
@@ -707,10 +785,10 @@ const CreateSales = ({ isDark, voucherType, onBack }) => {
             </div>
           </div>
         </div> */ }
+            </div>
           </div>
         </div>
       </div>
-    </div>
     </ThemeContext.Provider>
   );
 };
@@ -883,7 +961,7 @@ const InputField = ({ label, placeholder, value, icon: Icon, type = "text", comp
     const isBackspace = e.nativeEvent.inputType === "deleteContentBackward";
     let raw = e.target.value.replace(/[^0-9]/g, '');
     if (raw.length > 8) raw = raw.slice(0, 8);
-    
+
     let formatted = "";
     if (raw.length <= 2) {
       if (raw.length === 2 && !isBackspace) {
@@ -900,7 +978,7 @@ const InputField = ({ label, placeholder, value, icon: Icon, type = "text", comp
     } else {
       formatted = `${raw.slice(0, 2)}-${raw.slice(2, 4)}-${raw.slice(4)}`;
     }
-    
+
     if (formatted.length === 10) {
       onChange(toDbDate(formatted));
     } else {

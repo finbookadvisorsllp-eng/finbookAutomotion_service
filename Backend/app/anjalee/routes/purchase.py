@@ -4,7 +4,7 @@ from datetime import datetime
 from app.db import get_db
 from app.anjalee.repositories.purchase_repo import PurchaseRepository
 from app.anjalee.services.purchase_service import PurchaseService
-from app.anjalee.schemas.purchase_schemas import PurchaseTransactionCreate, StatusUpdate, CommentRequest
+from app.anjalee.schemas.purchase_schemas import PurchaseVoucherCreate, StatusUpdate, CommentRequest
 
 router = APIRouter(prefix="/purchase", tags=["purchase"])
 
@@ -61,10 +61,19 @@ async def get_next_invoice_number(
         "debit_note": "DN",
     }
     prefix = prefix_map.get(voucher_type_raw, "PI")
-    seq = service.repo.peek_next_sequence_value(prefix)
+    seq = service.repo.get_dynamic_next_sequence(voucher_type_raw, prefix, consume=False)
     year = datetime.now().year
     next_number = f"{prefix}-{year}-{str(seq).zfill(4)}"
     return {"success": True, "data": {"invoiceNumber": next_number}}
+
+@router.get("/by-party-invoices", response_model=dict)
+async def get_invoices_by_party(
+    partyName: str = Query(..., description="Party ledger name to filter purchase invoices"),
+    service: PurchaseService = Depends(get_purchase_service)
+):
+    """Return all purchase invoices for a given party (for Debit Note reference dropdown)."""
+    data = service.get_invoices_by_party(partyName)
+    return {"success": True, "data": data}
 
 # ── Generic CRUD routes ──
 
@@ -96,7 +105,7 @@ async def list_transactions(
 
 @router.post("")
 async def create_transaction(
-    payload: PurchaseTransactionCreate,
+    payload: PurchaseVoucherCreate,
     service: PurchaseService = Depends(get_purchase_service)
 ):
     data = service.create_transaction(payload)
@@ -119,7 +128,7 @@ async def get_transaction(
 @router.put("/{id}")
 async def update_transaction(
     id: str,
-    payload: PurchaseTransactionCreate,
+    payload: PurchaseVoucherCreate,
     service: PurchaseService = Depends(get_purchase_service)
 ):
     data = service.update_transaction(id, payload)

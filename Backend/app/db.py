@@ -55,34 +55,35 @@ def _warm_up_worker():
         for org in orgs:
             db_name = org.get("dbName") or f"sf_tenant_{str(org['_id'])}"
             if org.get("slug"):
-                _tenant_cache[org["slug"].strip()] = db_name
+                slug_clean = org["slug"].strip()
+                if slug_clean not in _tenant_cache:
+                    _tenant_cache[slug_clean] = db_name
             if org.get("name"):
-                _tenant_cache[org["name"].strip()] = db_name
+                name_clean = org["name"].strip()
+                if name_clean not in _tenant_cache:
+                    _tenant_cache[name_clean] = db_name
                 
         # 2. Warm up company names from sf_tenant_* databases
         all_dbs = client.list_database_names()
         for db_name in all_dbs:
             if db_name.startswith("sf_tenant_"):
-                # Ensure indexes on dynamic collections
-                try:
-                    db = client[db_name]
-                    ensure_db_indexes(db)
-                except Exception as ex:
-                    print(f"Error ensuring indexes for {db_name}: {ex}")
-
                 try:
                     companies = client[db_name]["companies"].find({}, {"companyName": 1, "basicCompantFormalName": 1})
                     for comp in companies:
                         c_name = comp.get("companyName")
                         f_name = comp.get("basicCompantFormalName")
                         if c_name:
-                            _tenant_cache[c_name.strip()] = db_name
+                            c_clean = c_name.strip()
+                            if c_clean not in _tenant_cache:
+                                _tenant_cache[c_clean] = db_name
                         if f_name:
-                            _tenant_cache[f_name.strip()] = db_name
+                            f_clean = f_name.strip()
+                            if f_clean not in _tenant_cache:
+                                _tenant_cache[f_clean] = db_name
                 except Exception:
                     pass
         _cache_warmed = True
-        print("Tenant cache warming and indexing completed successfully in background.")
+        print("Tenant cache warming completed successfully in background.")
     except Exception as e:
         print(f"Error warming up tenant cache in background: {e}")
 
@@ -160,6 +161,8 @@ def resolve_db_name(company_ref: str) -> str:
     _tenant_cache[company_ref] = settings.DEFAULT_DB_NAME
     return settings.DEFAULT_DB_NAME
 
+_indexed_dbs = set()
+
 def get_db(request: Request):
     """
     FastAPI dependency that dynamically extracts the tenant company from headers
@@ -167,6 +170,12 @@ def get_db(request: Request):
     """
     company_header = request.headers.get("x-company-id") or request.headers.get("x-company")
     db_name = resolve_db_name(company_header)
+    
+    # Ensure indexes on-demand in a background thread if not already done
+    if db_name not in _indexed_dbs:
+        _indexed_dbs.add(db_name)
+        threading.Thread(target=ensure_db_indexes, args=(client[db_name],), daemon=True).start()
+        
     return client[db_name]
 
 
@@ -182,6 +191,12 @@ async def get_async_db(request: Request):
     """
     company_header = request.headers.get("x-company-id") or request.headers.get("x-company")
     db_name = resolve_db_name(company_header)
+    
+    # Ensure indexes on-demand in a background thread if not already done
+    if db_name not in _indexed_dbs:
+        _indexed_dbs.add(db_name)
+        threading.Thread(target=ensure_db_indexes, args=(client[db_name],), daemon=True).start()
+        
     return async_client[db_name]
 
 

@@ -65,6 +65,12 @@ class FundFlowRepository(BaseRepository):
         except Exception:
             return False
 
+    def peek_next_sequence_value(self, sequence_id: str) -> int:
+        counter = self.db[COUNTERS_COLLECTION].find_one({"_id": sequence_id})
+        if not counter:
+            return 1
+        return counter.get("seq", 0) + 1
+
     def update_transaction_custom(self, tx_id: str, update_op: Dict[str, Any]) -> bool:
         try:
             result = self.db[FUNDFLOW_COLLECTION].update_one(

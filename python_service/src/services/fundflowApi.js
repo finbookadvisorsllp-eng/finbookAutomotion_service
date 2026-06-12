@@ -50,6 +50,15 @@ export const fundflowApi = {
    */
   addComment: (id, note) =>
     apiClient.post(`${FUNDFLOW_BASE}/${id}/comments`, { note }).then((r) => r.data),
+
+  getNextVoucherNumber: (voucherType = 'cash_payment') =>
+    apiClient.get(`${FUNDFLOW_BASE}/next-voucher-number`, { params: { voucherType } }).then((r) => r.data),
+
+  getLedgers: () =>
+    apiClient.get(`${FUNDFLOW_BASE}/ledgers`).then((r) => r.data),
+
+  getPartyDetails: (partyName, fy = '2025-2026') =>
+    apiClient.get(`${FUNDFLOW_BASE}/party-details`, { params: { partyName, fy } }).then((r) => r.data),
 };
 
 export default fundflowApi;

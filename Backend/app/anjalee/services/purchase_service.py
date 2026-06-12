@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 from app.anjalee.repositories.purchase_repo import PurchaseRepository
-from app.anjalee.schemas.purchase_schemas import PurchaseTransactionCreate, StatusUpdate, CommentRequest
+from app.anjalee.schemas.purchase_schemas import PurchaseVoucherCreate, StatusUpdate, CommentRequest
 from app.anjalee.utils.serialization import serialize_doc
 from app.anjalee.constants.business_constants import PURCHASE_PREFIXES
 from app.anjalee.exceptions.custom_exceptions import TransactionNotFoundException
@@ -66,7 +66,7 @@ class PurchaseService:
             "total": total
         }
 
-    def create_transaction(self, payload: PurchaseTransactionCreate) -> Dict[str, Any]:
+    def create_transaction(self, payload: PurchaseVoucherCreate) -> Dict[str, Any]:
         doc_data = payload.model_dump()
         doc_data["createdAt"] = datetime.now()
         doc_data["updatedAt"] = datetime.now()
@@ -75,7 +75,7 @@ class PurchaseService:
             voucher_type = doc_data["voucherType"]
             prefix = PURCHASE_PREFIXES.get(voucher_type, "PI")
                 
-            seq = self.repo.get_next_sequence_value(prefix)
+            seq = self.repo.get_dynamic_next_sequence(voucher_type, prefix, consume=True)
             year = datetime.now().year
             doc_data["voucherNumber"] = f"{prefix}-{year}-{str(seq).zfill(4)}"
             
@@ -106,6 +106,8 @@ class PurchaseService:
                 "voucherDate": doc.get("dates", {}).get("voucherDate"),
                 "invoiceNumber": ref_str or doc.get("voucherNumber"),
                 "invoiceDate": doc.get("dates", {}).get("voucherDate"),
+                "debitNoteDate": doc.get("debitNoteDate"),
+                "referenceNumber": doc.get("referenceNumber") or doc.get("reference"),
                 "partyLedger": doc.get("partyLedgerName") or doc.get("partyName"),
                 "partyGstin": doc.get("gstDetails", {}).get("gstin"),
                 "purchaseLedger": doc.get("purchaseLedger") or doc.get("purchaseLedgerName"),
@@ -123,7 +125,7 @@ class PurchaseService:
             
         raise TransactionNotFoundException()
 
-    def update_transaction(self, tx_id: str, payload: PurchaseTransactionCreate) -> Dict[str, Any]:
+    def update_transaction(self, tx_id: str, payload: PurchaseVoucherCreate) -> Dict[str, Any]:
         update_data = payload.model_dump()
         update_data["updatedAt"] = datetime.now()
         
@@ -180,3 +182,8 @@ class PurchaseService:
     def get_stock_items(self) -> List[Dict[str, Any]]:
         """Return stock items with name and hsnCode from the stockItems collection."""
         return self.repo.get_stock_items()
+
+    def get_invoices_by_party(self, party_name: str) -> List[Dict[str, Any]]:
+        """Fetch all purchase_invoice vouchers for a party — used for Debit Note reference dropdown."""
+        docs = self.repo.get_invoices_by_party(party_name)
+        return [serialize_doc(doc) for doc in docs]
