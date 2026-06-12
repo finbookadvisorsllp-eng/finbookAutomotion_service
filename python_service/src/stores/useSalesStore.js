@@ -86,11 +86,34 @@ const calculateFormTotals = (form) => {
   }
 
   // Change by Anjalee: Sum additional charges using their own amount.
-  // taxableValue is a FREE user input per row — do NOT overwrite it here.
-  // New rows are initialised with taxableValue:0 so they never inherit product totals.
+  // Automatically calculate tax ledgers based on percentage in name and running taxable value.
   let additionalTotal = 0;
+  let runningTaxable = baseTotal;
   if (Array.isArray(form.additionalCharges)) {
     form.additionalCharges.forEach((c) => {
+      const nameUpper = (c.ledgerName || '').toUpperCase();
+      const isTaxLedger = nameUpper.includes('CGST') || nameUpper.includes('SGST') || nameUpper.includes('IGST') || nameUpper.includes('UTGST');
+
+      if (isTaxLedger) {
+        c.taxableValue = runningTaxable.toFixed(2);
+        const match = c.ledgerName.match(/(\d+(?:\.\d+)?)\s*%/);
+        const rate = match ? parseFloat(match[1]) : null;
+        if (rate !== null) {
+          c.amount = parseFloat((runningTaxable * rate / 100).toFixed(2));
+        } else {
+          // Fallback if no percentage in name: use cgstTotal/sgstTotal/igstTotal if available, or 0
+          if (nameUpper.includes('CGST')) {
+            c.amount = parseFloat((cgstTotal || 0).toFixed(2));
+          } else if (nameUpper.includes('SGST') || nameUpper.includes('UTGST')) {
+            c.amount = parseFloat((sgstTotal || 0).toFixed(2));
+          } else if (nameUpper.includes('IGST')) {
+            c.amount = parseFloat((igstTotal || 0).toFixed(2));
+          }
+        }
+      } else {
+        c.taxableValue = "0.00";
+        runningTaxable += parseFloat(c.amount) || 0;
+      }
       additionalTotal += parseFloat(c.amount) || 0;
     });
   }
@@ -310,24 +333,24 @@ export const useSalesStore = create((set, get) => ({
       const productLines = Array.isArray(data.inventoryEntries) && data.inventoryEntries.length > 0
         ? data.inventoryEntries.map((line, idx) => ({ ...defaultProductLine, ...line, srNo: line.srNo || idx + 1, id: Date.now() + idx }))
         : (Array.isArray(data.productLines) && data.productLines.length > 0
-            ? data.productLines.map((line, idx) => ({ ...defaultProductLine, ...line, srNo: line.srNo || idx + 1, id: Date.now() + idx }))
-            : [{ id: Date.now(), ...defaultProductLine }]);
+          ? data.productLines.map((line, idx) => ({ ...defaultProductLine, ...line, srNo: line.srNo || idx + 1, id: Date.now() + idx }))
+          : [{ id: Date.now(), ...defaultProductLine }]);
 
       const defaultSalesLine = { srNo: 1, salesLedger: '', description: '', hsnSacCode: '', amount: 0, gstRate: 0 };
       const salesLines = Array.isArray(data.salesEntries) && data.salesEntries.length > 0
         ? data.salesEntries.map((line, idx) => ({
-            ...defaultSalesLine,
-            id: Date.now() + 100 + idx,
-            srNo: idx + 1,
-            salesLedger: line.ledgerName,
-            description: line.description || '',
-            hsnSacCode: line.hsnSacCode || '',
-            amount: line.amount || 0,
-            gstRate: line.gstRate || 0
-          }))
+          ...defaultSalesLine,
+          id: Date.now() + 100 + idx,
+          srNo: idx + 1,
+          salesLedger: line.ledgerName,
+          description: line.description || '',
+          hsnSacCode: line.hsnSacCode || '',
+          amount: line.amount || 0,
+          gstRate: line.gstRate || 0
+        }))
         : (Array.isArray(data.salesLines) && data.salesLines.length > 0
-            ? data.salesLines.map((line, idx) => ({ ...defaultSalesLine, ...line, srNo: line.srNo || idx + 1, id: Date.now() + 100 + idx }))
-            : [{ id: Date.now() + 50, ...defaultSalesLine }]);
+          ? data.salesLines.map((line, idx) => ({ ...defaultSalesLine, ...line, srNo: line.srNo || idx + 1, id: Date.now() + 100 + idx }))
+          : [{ id: Date.now() + 50, ...defaultSalesLine }]);
 
       const defaultAdditionalCharge = { ledgerName: '', amount: 0 };
       const additionalCharges = Array.isArray(data.additionalCharges)
@@ -424,7 +447,7 @@ export const useSalesStore = create((set, get) => ({
             const stockItemDetails = {};
             stockItemsRaw.forEach(item => {
               if (item.name) {
-                stockItemDetails[item.name] = { hsnCode: item.hsnCode || '', gstRate: item.gstRate || 0 };
+                stockItemDetails[item.name] = { hsnCode: item.hsnCode || '', gstRate: item.gstRate || 0, unit: item.unit || '' };
               }
             });
 
@@ -475,14 +498,12 @@ export const useSalesStore = create((set, get) => ({
   //  Actions: Form Management
   // ─────────────────────────────────────────────────────────────────────────
 
-  // Change by Anjalee: Fetch and pre-fill the next invoice number (Tally-style).
-  // Peeks the next sequence without consuming it — the counter is only incremented on actual save.
   fetchNextInvoiceNumber: async (voucherType = 'sales_invoice') => {
     try {
       const res = await salesApi.getNextInvoiceNumber(voucherType);
       if (res?.success && res?.data?.invoiceNumber) {
         set((s) => ({
-          form: calculateFormTotals({ ...s.form, invoiceNumber: res.data.invoiceNumber }),
+          form: calculateFormTotals({ ...s.form, voucherNumber: res.data.invoiceNumber }),
         }));
       }
     } catch (e) {
@@ -522,8 +543,8 @@ export const useSalesStore = create((set, get) => ({
     const raw = s.masterData.salesOrdersRaw || [];
     const filtered = partyName
       ? raw.filter(so =>
-          (so.partyLedgerName || '').toLowerCase() === partyName.toLowerCase()
-        )
+        (so.partyLedgerName || '').toLowerCase() === partyName.toLowerCase()
+      )
       : raw;
     const filteredNumbers = filtered
       .map(so => so.voucherNumber || so.invoiceNumber)
@@ -553,15 +574,15 @@ export const useSalesStore = create((set, get) => ({
     const defaultSalesLine = { srNo: 1, salesLedger: '', description: '', hsnSacCode: '', amount: 0, gstRate: 0 };
     const salesLines = Array.isArray(so.salesEntries) && so.salesEntries.length > 0
       ? so.salesEntries.map((line, idx) => ({
-          ...defaultSalesLine,
-          id: Date.now() + 100 + idx,
-          srNo: idx + 1,
-          salesLedger: line.ledgerName || '',
-          description: line.description || '',
-          hsnSacCode: line.hsnSacCode || '',
-          amount: line.amount || 0,
-          gstRate: line.gstRate || 0,
-        }))
+        ...defaultSalesLine,
+        id: Date.now() + 100 + idx,
+        srNo: idx + 1,
+        salesLedger: line.ledgerName || '',
+        description: line.description || '',
+        hsnSacCode: line.hsnSacCode || '',
+        amount: line.amount || 0,
+        gstRate: line.gstRate || 0,
+      }))
       : [{ id: Date.now() + 50, ...defaultSalesLine }];
 
     // Map additionalCharges
@@ -602,14 +623,14 @@ export const useSalesStore = create((set, get) => ({
 
   // ─── Credit Note: Fetch sales invoices for a party ───────────────────────
   // Change by Anjalee: When party ledger is selected in Credit Note form,
-  // fetch all sales_invoice records for that party and store their invoice numbers
+  // fetch all sales_invoice records for that party and store their voucher numbers
   // in masterData.creditNoteInvoices for the Reference Number dropdown.
   fetchCreditNoteInvoicesForParty: async (partyName) => {
     try {
       const res = await salesApi.getSalesInvoicesByParty(partyName);
       const docs = res?.data || [];
       const invoiceNumbers = docs
-        .map(d => d.invoiceNumber || d.voucherNumber)
+        .map(d => d.voucherNumber || d.invoiceNumber)
         .filter(Boolean);
       set((s) => ({
         masterData: {
@@ -624,12 +645,12 @@ export const useSalesStore = create((set, get) => ({
   },
 
   // ─── Credit Note: Autofill from selected Sales Invoice reference ───────────
-  // Change by Anjalee: When user picks a Reference Number (sales invoice's invoiceNumber)
+  // Change by Anjalee: When user picks a Reference Number (sales invoice's voucherNumber)
   // in Credit Note form, copy all data from that invoice into the credit note form.
-  autofillFromSalesInvoice: (invoiceNumber) => set((s) => {
+  autofillFromSalesInvoice: (voucherNumber) => set((s) => {
     const raw = s.masterData.creditNoteInvoicesRaw || [];
     const inv = raw.find(
-      r => (r.invoiceNumber || r.voucherNumber) === invoiceNumber
+      r => (r.voucherNumber || r.invoiceNumber) === voucherNumber
     );
     if (!inv) return {};
 
@@ -643,15 +664,15 @@ export const useSalesStore = create((set, get) => ({
     const defaultSalesLine = { srNo: 1, salesLedger: '', description: '', hsnSacCode: '', amount: 0, gstRate: 0 };
     const salesLines = Array.isArray(inv.salesEntries) && inv.salesEntries.length > 0
       ? inv.salesEntries.map((line, idx) => ({
-          ...defaultSalesLine,
-          id: Date.now() + 100 + idx,
-          srNo: idx + 1,
-          salesLedger: line.ledgerName || '',
-          description: line.description || '',
-          hsnSacCode: line.hsnSacCode || '',
-          amount: line.amount || 0,
-          gstRate: line.gstRate || 0,
-        }))
+        ...defaultSalesLine,
+        id: Date.now() + 100 + idx,
+        srNo: idx + 1,
+        salesLedger: line.ledgerName || '',
+        description: line.description || '',
+        hsnSacCode: line.hsnSacCode || '',
+        amount: line.amount || 0,
+        gstRate: line.gstRate || 0,
+      }))
       : [{ id: Date.now() + 50, ...defaultSalesLine }];
 
     const additionalCharges = Array.isArray(inv.additionalCharges)
@@ -960,22 +981,22 @@ export const useSalesStore = create((set, get) => ({
         const productLines = Array.isArray(savedDoc.inventoryEntries) && savedDoc.inventoryEntries.length > 0
           ? savedDoc.inventoryEntries.map((line, idx) => ({ ...line, id: Date.now() + idx }))
           : (Array.isArray(savedDoc.productLines) && savedDoc.productLines.length > 0
-              ? savedDoc.productLines.map((line, idx) => ({ ...line, id: Date.now() + idx }))
-              : [{ id: Date.now(), srNo: 1, stockItem: '', description: '', hsnSacCode: '', billQuantity: 0, billRate: 0, discountPercent: 0, amount: 0, rcm: false, taxabilityType: 'Taxable', gstRate: 0 }]);
+            ? savedDoc.productLines.map((line, idx) => ({ ...line, id: Date.now() + idx }))
+            : [{ id: Date.now(), srNo: 1, stockItem: '', description: '', hsnSacCode: '', billQuantity: 0, billRate: 0, discountPercent: 0, amount: 0, rcm: false, taxabilityType: 'Taxable', gstRate: 0 }]);
 
         const salesLines = Array.isArray(savedDoc.salesEntries) && savedDoc.salesEntries.length > 0
           ? savedDoc.salesEntries.map((line, idx) => ({
-              id: Date.now() + 100 + idx,
-              srNo: idx + 1,
-              salesLedger: line.ledgerName,
-              description: line.description || '',
-              hsnSacCode: line.hsnSacCode || '',
-              amount: line.amount || 0,
-              gstRate: line.gstRate || 0
-            }))
+            id: Date.now() + 100 + idx,
+            srNo: idx + 1,
+            salesLedger: line.ledgerName,
+            description: line.description || '',
+            hsnSacCode: line.hsnSacCode || '',
+            amount: line.amount || 0,
+            gstRate: line.gstRate || 0
+          }))
           : (Array.isArray(savedDoc.salesLines) && savedDoc.salesLines.length > 0
-              ? savedDoc.salesLines.map((line, idx) => ({ ...line, id: Date.now() + 100 + idx }))
-              : [{ id: Date.now() + 50, srNo: 1, salesLedger: '', description: '', hsnSacCode: '', amount: 0, gstRate: 0 }]);
+            ? savedDoc.salesLines.map((line, idx) => ({ ...line, id: Date.now() + 100 + idx }))
+            : [{ id: Date.now() + 50, srNo: 1, salesLedger: '', description: '', hsnSacCode: '', amount: 0, gstRate: 0 }]);
 
         const additionalCharges = Array.isArray(savedDoc.additionalCharges)
           ? savedDoc.additionalCharges.map((line, idx) => ({ ...line, id: Date.now() + 200 + idx }))

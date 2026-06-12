@@ -31,8 +31,8 @@ export const LABEL_TO_PATH = {
   'Debit Note (Purchase Return)': '/purchase/debit-notes',
 
   // Fund flow
-  'Cash Payment': '/fund-flow/cash-payment',
-  'Bank Payment': '/fund-flow/bank-payment',
+  'Payment': '/fund-flow/cash-payment',
+  'Receipt': '/fund-flow/bank-payment',
   'Contra': '/fund-flow/contra',
   'Fund Flow Review': '/fund-flow/review',
   'Fund Flow Archive': '/fund-flow/archive',

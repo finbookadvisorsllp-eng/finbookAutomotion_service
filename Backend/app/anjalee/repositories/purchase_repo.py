@@ -81,6 +81,54 @@ class PurchaseRepository(BaseRepository):
         current_seq = counter["seq"] if counter else 0
         return current_seq + 1
 
+    def get_dynamic_next_sequence(self, voucher_type: str, prefix: str, consume: bool = False) -> int:
+        # Resolve voucher type matching
+        types = [voucher_type, voucher_type.replace("_", " "), voucher_type.replace(" ", "_")]
+        types = list(set(types))
+        regex_pattern = "^(" + "|".join(types) + ")$"
+        
+        # Query matching vouchers
+        query = {
+            "voucherType": {"$regex": regex_pattern, "$options": "i"},
+            "voucherNumber": {"$regex": f"^{prefix}-"},
+            "isDeleted": {"$ne": True}
+        }
+        cursor = self.db[PURCHASE_COLLECTION].find(query, {"voucherNumber": 1})
+        docs = list(cursor)
+        
+        max_seq = 0
+        for d in docs:
+            v_num = d.get("voucherNumber", "")
+            parts = v_num.split("-")
+            if len(parts) >= 3:
+                try:
+                    seq_val = int(parts[-1])
+                    if seq_val > max_seq:
+                        max_seq = seq_val
+                except ValueError:
+                    pass
+                    
+        next_seq = max_seq + 1
+        
+        # If no documents are found, fallback to the database counter
+        if max_seq == 0:
+            counter = self.db[COUNTERS_COLLECTION].find_one({"_id": prefix})
+            if counter:
+                next_seq = counter["seq"] + 1
+            else:
+                next_seq = 1
+                
+        if consume:
+            # Sync/update the counter in COUNTERS_COLLECTION
+            self.db[COUNTERS_COLLECTION].update_one(
+                {"_id": prefix},
+                {"$set": {"seq": next_seq}},
+                upsert=True
+            )
+            
+        return next_seq
+
+
     def get_party_ledgers(self) -> List[Dict[str, Any]]:
         party_groups = ["Sundry Debtors", "Sundry Creditors", "Bank Accounts", "Cash-in-Hand"]
         ledgers = list(self.db[LEDGERS_COLLECTION].find({"groupName": {"$in": party_groups}}))
@@ -152,36 +200,68 @@ class PurchaseRepository(BaseRepository):
         return results
 
     def get_stock_items(self) -> List[Dict[str, Any]]:
-        """Fetch stock items with name and HSN code from hsnDetails.hsnCode field."""
+        """Fetch stock items with name and HSN code from hsnSacDetails.hsnCode field."""
         try:
             results = []
             for doc in self.db[STOCK_ITEMS_COLLECTION].find(
                 {},
-                {"itemName": 1, "hsnDetails": 1, "hsnCode": 1, "gstDetails": 1, "taxRate": 1}
+                {"itemName": 1, "hsnSacDetails": 1, "gstSettings": 1, "hsnCode": 1, "taxRate": 1,
+                 "unit": 1, "unitOfMeasure": 1, "baseUnit": 1}
             ):
                 name = doc.get("itemName", "")
                 if not name:
                     continue
-                # Primary: hsnDetails.hsnCode  Fallback: top-level hsnCode
-                hsn_details = doc.get("hsnDetails") or {}
+                # Primary: hsnSacDetails.hsnCode/hsn  Fallback: top-level hsnCode
+                hsn_sac = doc.get("hsnSacDetails") or {}
                 hsn_code = (
-                    hsn_details.get("hsnCode")
-                    or hsn_details.get("hsn")
+                    hsn_sac.get("hsnCode")
+                    or hsn_sac.get("hsn")
                     or doc.get("hsnCode")
                     or ""
                 )
-                gst_details = doc.get("gstDetails") or {}
-                gst_rate = (
-                    gst_details.get("taxRate")
-                    or gst_details.get("gstRate")
-                    or doc.get("taxRate")
-                    or 0
-                )
+                # Primary: gstSettings.gstRate/igstRate  Fallback: cgstRate + sgstRate, then top-level taxRate
+                gst_settings = doc.get("gstSettings") or {}
+                gst_rate = gst_settings.get("gstRate") or gst_settings.get("igstRate")
+                if gst_rate is None or gst_rate == 0:
+                    cgst = gst_settings.get("cgstRate")
+                    sgst = gst_settings.get("sgstRate")
+                    cgst_val = float(cgst) if cgst is not None else 0.0
+                    sgst_val = float(sgst) if sgst is not None else 0.0
+                    gst_rate = cgst_val + sgst_val
+                if not gst_rate:
+                    gst_rate = doc.get("taxRate") or 0
+
+                # unit field is a nested object: {baseUnit: "Nos", alternateUnit: ...}
+                # Fallback to top-level baseUnit or unitOfMeasure string if needed
+                unit_raw = doc.get("unit")
+                if isinstance(unit_raw, dict):
+                    unit = unit_raw.get("baseUnit") or ""
+                elif isinstance(unit_raw, str):
+                    unit = unit_raw
+                else:
+                    unit = doc.get("baseUnit") or doc.get("unitOfMeasure") or ""
                 results.append({
                     "name": name,
                     "hsnCode": str(hsn_code),
-                    "gstRate": float(gst_rate)
+                    "gstRate": float(gst_rate),
+                    "unit": str(unit)
                 })
             return results
         except Exception:
             return []
+
+    def get_invoices_by_party(self, party_name: str) -> List[Dict[str, Any]]:
+        """Fetch all purchase_invoice vouchers for a party — used for Debit Note reference dropdown."""
+        import re
+        escaped = re.escape(party_name)
+        query = {
+            "voucherType": {"$regex": "^(purchase_invoice|purchase invoice)$", "$options": "i"},
+            "$or": [
+                {"partyLedger": {"$regex": f"^{escaped}$", "$options": "i"}},
+                {"partyLedgerName": {"$regex": f"^{escaped}$", "$options": "i"}},
+                {"partyName": {"$regex": f"^{escaped}$", "$options": "i"}},
+            ],
+            "isDeleted": {"$ne": True},
+        }
+        cursor = self.db[PURCHASE_COLLECTION].find(query).sort("createdAt", -1).limit(200)
+        return list(cursor)

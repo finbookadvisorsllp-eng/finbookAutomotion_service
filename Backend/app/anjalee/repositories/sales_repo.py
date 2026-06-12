@@ -84,6 +84,54 @@ class SalesVoucherRepository:
         current_seq = counter["seq"] if counter else 0
         return current_seq + 1
 
+    async def get_dynamic_next_sequence(self, voucher_type: str, prefix: str, consume: bool = False) -> int:
+        # Resolve voucher type matching (similar to list_vouchers)
+        types = [voucher_type, voucher_type.replace("_", " "), voucher_type.replace(" ", "_")]
+        types = list(set(types))
+        regex_pattern = "^(" + "|".join(types) + ")$"
+        
+        # Query matching vouchers
+        query = {
+            "voucherType": {"$regex": regex_pattern, "$options": "i"},
+            "voucherNumber": {"$regex": f"^{prefix}-"},
+            "isDeleted": {"$ne": True}
+        }
+        cursor = self.db[SALES_VOUCHERS_COLLECTION].find(query, {"voucherNumber": 1})
+        docs = await cursor.to_list(length=1000)
+        
+        max_seq = 0
+        for d in docs:
+            v_num = d.get("voucherNumber", "")
+            parts = v_num.split("-")
+            if len(parts) >= 3:
+                try:
+                    # The last part is the sequence number
+                    seq_val = int(parts[-1])
+                    if seq_val > max_seq:
+                        max_seq = seq_val
+                except ValueError:
+                    pass
+                    
+        next_seq = max_seq + 1
+        
+        # If no documents are found, fallback to the database counter
+        if max_seq == 0:
+            counter = await self.db[COUNTERS_COLLECTION].find_one({"_id": prefix})
+            if counter:
+                next_seq = counter["seq"] + 1
+            else:
+                next_seq = 1
+                
+        if consume:
+            # Sync/update the counter in COUNTERS_COLLECTION
+            await self.db[COUNTERS_COLLECTION].update_one(
+                {"_id": prefix},
+                {"$set": {"seq": next_seq}},
+                upsert=True
+            )
+            
+        return next_seq
+
     async def get_company_state(self) -> str:
         # Lookup first company doc
         comp = await self.db[COMPANIES_COLLECTION].find_one()
@@ -152,11 +200,65 @@ class SalesVoucherRepository:
             }
         return {"id": "", "name": str(party_ledger_id_or_name), "gstin": "", "gstState": "", "registrationType": "Consumer"}
 
-    async def get_party_ledgers(self) -> List[Dict[str, Any]]:
+    async def get_party_ledgers(self, company_id: Optional[str] = None) -> List[Dict[str, Any]]:
         party_groups = ["Sundry Debtors", "Sundry Creditors", "Bank Accounts", "Cash-in-Hand"]
-        cursor = self.db[LEDGERS_COLLECTION].find({"groupName": {"$in": party_groups}})
+        query = {"groupName": {"$in": party_groups}}
+        
+        comp = None
+        if company_id:
+            if len(company_id) == 24:
+                try:
+                    comp = await self.db[COMPANIES_COLLECTION].find_one({"_id": ObjectId(company_id)})
+                except Exception:
+                    pass
+            if not comp:
+                comp = await self.db[COMPANIES_COLLECTION].find_one({
+                    "$or": [
+                        {"companyName": company_id},
+                        {"basicCompantFormalName": company_id}
+                    ]
+                })
+        
+        if not comp:
+            comp = await self.db[COMPANIES_COLLECTION].find_one()
+
+        if comp:
+            query["companyId"] = comp["_id"]
+        cursor = self.db[LEDGERS_COLLECTION].find(query)
         ledgers = await cursor.to_list(length=1000)
         
+        # 1. Identify ledger names that need GST/registration type fallback
+        names_needing_fallback = []
+        for l in ledgers:
+            ledger_name = l.get("ledgerName", "")
+            pd = l.get("partyDetails") or {}
+            gstin = pd.get("gstin") or l.get("gstin") or ""
+            gst_state = pd.get("gstState") or ""
+            registration_type = pd.get("registrationType") or l.get("registrationType") or ""
+            if ledger_name and (not gstin or not gst_state or not registration_type):
+                names_needing_fallback.append(ledger_name)
+                
+        # 2. Fetch fallback voucher details in bulk in a single query
+        voucher_lookup = {}
+        if names_needing_fallback:
+            voucher_cursor = self.db["vouchers"].find({
+                "$or": [
+                    {"partyLedgerName": {"$in": names_needing_fallback}},
+                    {"partyName": {"$in": names_needing_fallback}}
+                ],
+                "gstDetails.gstin": {"$exists": True, "$ne": ""}
+            })
+            vouchers_list = await voucher_cursor.to_list(length=1000)
+            for v in vouchers_list:
+                name1 = v.get("partyLedgerName")
+                name2 = v.get("partyName")
+                gd = v.get("gstDetails") or {}
+                if name1:
+                    voucher_lookup[name1] = gd
+                if name2:
+                    voucher_lookup[name2] = gd
+
+        # 3. Assemble results using the lookup map in memory
         results = []
         for l in ledgers:
             ledger_name = l.get("ledgerName", "")
@@ -165,17 +267,9 @@ class SalesVoucherRepository:
             gst_state = pd.get("gstState") or ""
             registration_type = pd.get("registrationType") or l.get("registrationType") or ""
             
-            # Fallback to vouchers collection if GSTIN or gstState is missing
             if not gstin or not gst_state or not registration_type:
-                voucher = await self.db["vouchers"].find_one({
-                    "$or": [
-                        {"partyLedgerName": ledger_name},
-                        {"partyName": ledger_name}
-                    ],
-                    "gstDetails.gstin": {"$exists": True, "$ne": ""}
-                })
-                if voucher:
-                    gd = voucher.get("gstDetails") or {}
+                gd = voucher_lookup.get(ledger_name) or {}
+                if gd:
                     if not gstin:
                         gstin = gd.get("gstin") or ""
                     if not gst_state:
@@ -193,6 +287,7 @@ class SalesVoucherRepository:
             results.append({
                 "id": str(l["_id"]),
                 "name": ledger_name,
+                "ledgerName": ledger_name,
                 "gstin": gstin,
                 "gstState": gst_state,
                 "registrationType": registration_type
@@ -225,11 +320,12 @@ class SalesVoucherRepository:
         return results
 
     async def get_stock_items(self) -> List[Dict[str, Any]]:
-        """Fetch stock items with name and HSN code from hsnDetails.hsnCode field."""
+        """Fetch stock items with name and HSN code from hsnSacDetails.hsnCode field."""
         try:
             cursor = self.db[STOCK_ITEMS_COLLECTION].find(
                 {},
-                {"itemName": 1, "hsnDetails": 1, "hsnCode": 1, "gstDetails": 1, "taxRate": 1}
+                {"itemName": 1, "hsnSacDetails": 1, "gstSettings": 1, "hsnCode": 1, "taxRate": 1,
+                 "unit": 1, "unitOfMeasure": 1, "baseUnit": 1}
             )
             docs = await cursor.to_list(length=2000)
             results = []
@@ -237,25 +333,40 @@ class SalesVoucherRepository:
                 name = doc.get("itemName", "")
                 if not name:
                     continue
-                # Primary: hsnDetails.hsnCode  Fallback: top-level hsnCode
-                hsn_details = doc.get("hsnDetails") or {}
+                # Primary: hsnSacDetails.hsnCode/hsn  Fallback: top-level hsnCode
+                hsn_sac = doc.get("hsnSacDetails") or {}
                 hsn_code = (
-                    hsn_details.get("hsnCode")
-                    or hsn_details.get("hsn")
+                    hsn_sac.get("hsnCode")
+                    or hsn_sac.get("hsn")
                     or doc.get("hsnCode")
                     or ""
                 )
-                gst_details = doc.get("gstDetails") or {}
-                gst_rate = (
-                    gst_details.get("taxRate")
-                    or gst_details.get("gstRate")
-                    or doc.get("taxRate")
-                    or 0
-                )
+                # Primary: gstSettings.gstRate/igstRate  Fallback: cgstRate + sgstRate, then top-level taxRate
+                gst_settings = doc.get("gstSettings") or {}
+                gst_rate = gst_settings.get("gstRate") or gst_settings.get("igstRate")
+                if gst_rate is None or gst_rate == 0:
+                    cgst = gst_settings.get("cgstRate")
+                    sgst = gst_settings.get("sgstRate")
+                    cgst_val = float(cgst) if cgst is not None else 0.0
+                    sgst_val = float(sgst) if sgst is not None else 0.0
+                    gst_rate = cgst_val + sgst_val
+                if not gst_rate:
+                    gst_rate = doc.get("taxRate") or 0
+
+                # unit field is a nested object: {baseUnit: "Nos", alternateUnit: ...}
+                # Fallback to top-level baseUnit or unitOfMeasure string if needed
+                unit_raw = doc.get("unit")
+                if isinstance(unit_raw, dict):
+                    unit = unit_raw.get("baseUnit") or ""
+                elif isinstance(unit_raw, str):
+                    unit = unit_raw
+                else:
+                    unit = doc.get("baseUnit") or doc.get("unitOfMeasure") or ""
                 results.append({
                     "name": name,
                     "hsnCode": str(hsn_code),
-                    "gstRate": float(gst_rate)
+                    "gstRate": float(gst_rate),
+                    "unit": str(unit)
                 })
             return results
         except Exception as e:

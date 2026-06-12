@@ -142,8 +142,8 @@ const PettyCashPanel = ({ mode, isDark, voucherType, title: customTitle }) => {
 
   const getTitle = () => {
     let base = 'Fund Flow';
-    if (voucherType === 'cash_payment') base = 'Cash Payment';
-    else if (voucherType === 'bank_payment') base = 'Bank Payment';
+    if (voucherType === 'cash_payment') base = 'Payment';
+    else if (voucherType === 'bank_payment') base = 'Receipt';
     else if (voucherType === 'contra') base = 'Contra';
 
     if (viewMode === 'manual') return `${base} Entry`;
@@ -156,8 +156,8 @@ const PettyCashPanel = ({ mode, isDark, voucherType, title: customTitle }) => {
 
   const getDescription = () => {
     let base = 'petty-cash and fund-flow movement';
-    if (voucherType === 'cash_payment') base = 'cash payment transactions';
-    else if (voucherType === 'bank_payment') base = 'bank payment transactions';
+    if (voucherType === 'cash_payment') base = 'payment transactions';
+    else if (voucherType === 'bank_payment') base = 'receipt transactions';
     else if (voucherType === 'contra') base = 'contra transitions';
 
     return `Manage and process all ${base} efficiently.`;

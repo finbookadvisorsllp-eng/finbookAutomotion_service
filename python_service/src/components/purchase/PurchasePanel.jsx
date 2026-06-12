@@ -395,7 +395,7 @@ const PurchasePanel = ({ mode, isDark, onAdd, title: customTitle, description: c
                 </th>
                 <TableHead label="Sr No." width="60px" borderRight />
                 <TableHead label="Document Filename (OCR)" sortable borderRight />
-                <TableHead label="Invoice Number" sortable borderRight />
+                <TableHead label="Voucher Number" sortable borderRight />
                 <TableHead label="Invoice Date" sortable borderRight />
                 <TableHead label="Party Ledger" sortable borderRight />
                 <TableHead label="Base Total" sortable borderRight />
@@ -427,7 +427,7 @@ const PurchasePanel = ({ mode, isDark, onAdd, title: customTitle, description: c
                         <span className="opacity-40 italic">No document</span>
                       )}
                     </td>
-                    <td className="p-1.5 px-2 border-r font-black">{tx.invoiceNumber || tx.voucherNumber || '—'}</td>
+                    <td className="p-1.5 px-2 border-r font-black">{tx.voucherNumber || tx.invoiceNumber || '—'}</td>
                     <td className="p-1.5 px-2 border-r font-semibold">{displayPanelDate(tx.invoiceDate)}</td>
                     <td className="p-1.5 px-2 border-r font-bold truncate max-w-[200px]">{tx.partyLedger || '—'}</td>
                     <td className="p-1.5 px-2 border-r font-semibold text-right">₹ {(tx.baseTotal || 0).toLocaleString('en-IN')}</td>

@@ -12,8 +12,10 @@ const DEFAULT_FORM = {
   invoiceDate: '',
   invoiceNumber: '',
   poNumber: '',
+  debitNoteDate: '',
+  referenceNumber: '',
   purchaseLedger: '',
-  gstRegistration: 'Madhya Pradesh Registration',
+  gstRegistration: '',
   partyGstin: '',
   partyLedger: '',
   consigneeLedger: 'Same as Party',
@@ -44,6 +46,7 @@ const calculateFormTotals = (form) => {
       const rate = parseFloat(line.billRate) || 0;
       const disc = parseFloat(line.discountPercent) || 0;
       const amount = parseFloat((qty * rate * (1 - disc / 100)).toFixed(2));
+      line.amount = amount;
       const gstRate = parseFloat(line.gstRate) || 0;
 
       baseTotal += amount;
@@ -74,27 +77,47 @@ const calculateFormTotals = (form) => {
   }
 
   let additionalTotal = 0;
+  let runningTaxable = baseTotal;
   if (Array.isArray(form.additionalCharges)) {
-    form.additionalCharges.forEach((c) => { additionalTotal += parseFloat(c.amount) || 0; });
+    form.additionalCharges.forEach((c) => {
+      const nameUpper = (c.ledgerName || '').toUpperCase();
+      const isTaxLedger = nameUpper.includes('CGST') || nameUpper.includes('SGST') || nameUpper.includes('IGST') || nameUpper.includes('UTGST');
+
+      if (isTaxLedger) {
+        c.taxableValue = runningTaxable.toFixed(2);
+        const match = c.ledgerName.match(/(\d+(?:\.\d+)?)\s*%/);
+        const rate = match ? parseFloat(match[1]) : null;
+        if (rate !== null) {
+          c.amount = parseFloat((runningTaxable * rate / 100).toFixed(2));
+        } else {
+          // Fallback if no percentage in name: use cgstTotal/sgstTotal/igstTotal if available, or 0
+          if (nameUpper.includes('CGST')) {
+            c.amount = parseFloat((cgstTotal || 0).toFixed(2));
+          } else if (nameUpper.includes('SGST') || nameUpper.includes('UTGST')) {
+            c.amount = parseFloat((sgstTotal || 0).toFixed(2));
+          } else if (nameUpper.includes('IGST')) {
+            c.amount = parseFloat((igstTotal || 0).toFixed(2));
+          }
+        }
+      } else {
+        c.taxableValue = "0.00";
+        runningTaxable += parseFloat(c.amount) || 0;
+      }
+      additionalTotal += parseFloat(c.amount) || 0;
+    });
   }
 
   const subTotal = baseTotal + cgstTotal + sgstTotal + igstTotal + additionalTotal;
 
   let tdsTotal = 0;
   if (Array.isArray(form.tdsDetails)) {
-    form.tdsDetails.forEach((t) => {
-      const assessable = parseFloat(t.assessableValue) || subTotal;
-      const rate = parseFloat(t.rate) || 0;
-      const amt = parseFloat(((assessable * rate) / 100).toFixed(2));
-      t.amount = amt;
-      tdsTotal += amt;
-    });
+    form.tdsDetails.forEach((t) => { tdsTotal += parseFloat(t.amount) || 0; });
   }
 
   let tcsTotal = 0;
   if (Array.isArray(form.tcsDetails)) {
     form.tcsDetails.forEach((t) => {
-      const assessable = parseFloat(t.assessableValue) || subTotal;
+      const assessable = parseFloat(t.assessableValue) || 0;
       const rate = parseFloat(t.rate) || 0;
       const amt = parseFloat(((assessable * rate) / 100).toFixed(2));
       t.amount = amt;
@@ -181,8 +204,11 @@ export const usePurchaseStore = create((set, get) => ({
     tdsLedgers: [],
     additionalChargeLedgers: [],
     voucherTypes: [],
+    voucherTypesFull: [],
     purchaseOrders: [],
     purchaseOrdersRaw: [],
+    debitNoteInvoices: [],
+    debitNoteInvoicesRaw: [],
     loading: false,
   },
 
@@ -290,20 +316,34 @@ export const usePurchaseStore = create((set, get) => ({
         ? doc.tcsDetails.map((line, idx) => ({ ...line, id: Date.now() + 400 + idx }))
         : [];
 
+      const formValues = {
+        ...doc,
+        voucherType: normalizeVoucherType(doc.voucherType),
+        voucherDate: formatDate(doc.voucherDate || doc.invoiceDate),
+        invoiceDate: formatDate(doc.invoiceDate || doc.voucherDate),
+        invoiceNumber: doc.invoiceNumber || doc.voucherNumber || '',
+        voucherNumber: doc.voucherNumber || doc.invoiceNumber || '',
+        debitNoteDate: doc.debitNoteDate || '',
+        referenceNumber: doc.referenceNumber || '',
+        productLines,
+        purchaseLines,
+        additionalCharges,
+        tdsDetails,
+        tcsDetails,
+      };
+
       set({
         selectedTransaction: doc,
-        form: calculateFormTotals({
-          ...doc,
-          voucherType: normalizeVoucherType(doc.voucherType),
-          voucherDate: formatDate(doc.voucherDate || doc.invoiceDate),
-          invoiceDate: formatDate(doc.invoiceDate || doc.voucherDate),
-          productLines,
-          purchaseLines,
-          additionalCharges,
-          tdsDetails,
-          tcsDetails,
-        }),
+        form: calculateFormTotals(formValues),
       });
+
+      if (formValues.partyLedger) {
+        if (formValues.voucherType === 'debit_note') {
+          await get().fetchPurchaseInvoicesForParty(formValues.partyLedger);
+        } else if (formValues.voucherType === 'purchase_invoice') {
+          get().fetchPurchaseOrdersForParty(formValues.partyLedger);
+        }
+      }
     } catch (err) {
       set({ error: err.response?.data?.message || 'Failed to load details' });
     } finally {
@@ -365,7 +405,7 @@ export const usePurchaseStore = create((set, get) => ({
             const stockItemDetails = {};
             stockItemsRaw.forEach(item => {
               if (item.name) {
-                stockItemDetails[item.name] = { hsnCode: item.hsnCode || '', gstRate: item.gstRate || 0 };
+                stockItemDetails[item.name] = { hsnCode: item.hsnCode || '', gstRate: item.gstRate || 0, unit: item.unit || '' };
               }
             });
 
@@ -416,7 +456,11 @@ export const usePurchaseStore = create((set, get) => ({
       const res = await purchaseApi.getNextInvoiceNumber(voucherType);
       if (res?.success && res?.data?.invoiceNumber) {
         set((s) => ({
-          form: calculateFormTotals({ ...s.form, invoiceNumber: res.data.invoiceNumber }),
+          form: calculateFormTotals({ 
+            ...s.form, 
+            invoiceNumber: res.data.invoiceNumber,
+            voucherNumber: res.data.invoiceNumber
+          }),
         }));
       }
     } catch (e) {
@@ -429,8 +473,8 @@ export const usePurchaseStore = create((set, get) => ({
     const raw = s.masterData.purchaseOrdersRaw || [];
     const filtered = partyName
       ? raw.filter(po =>
-          (po.partyLedgerName || po.partyLedger || '').toLowerCase() === partyName.toLowerCase()
-        )
+        (po.partyLedgerName || po.partyLedger || '').toLowerCase() === partyName.toLowerCase()
+      )
       : raw;
     const filteredNumbers = filtered
       .map(po => po.voucherNumber || po.invoiceNumber || po.poNumber)
@@ -448,22 +492,39 @@ export const usePurchaseStore = create((set, get) => ({
     if (!po) return {};
 
     const defaultProductLine = { srNo: 1, stockItem: '', description: '', hsnSacCode: '', billQuantity: 0, billRate: 0, discountPercent: 0, amount: 0, rcm: false, taxabilityType: 'Taxable', gstRate: 0 };
-    const productLines = Array.isArray(po.productLines) && po.productLines.length > 0
-      ? po.productLines.map((line, idx) => ({ ...defaultProductLine, ...line, id: Date.now() + idx, srNo: idx + 1 }))
+    const rawProductLines = po.productLines || po.inventoryEntries || [];
+    const productLines = Array.isArray(rawProductLines) && rawProductLines.length > 0
+      ? rawProductLines.map((line, idx) => {
+          const stockItem = line.stockItem || line.stockItemName || '';
+          const billQuantity = line.billQuantity !== undefined ? line.billQuantity : (parseFloat(line.billedQty) || parseFloat(line.actualQty) || 0);
+          const billRate = line.billRate !== undefined ? line.billRate : (parseFloat(line.rate) || 0);
+          const discountPercent = line.discountPercent !== undefined ? line.discountPercent : 0;
+          return {
+            ...defaultProductLine,
+            ...line,
+            stockItem,
+            billQuantity,
+            billRate,
+            discountPercent,
+            id: Date.now() + idx,
+            srNo: idx + 1
+          };
+        })
       : [{ id: Date.now(), ...defaultProductLine }];
 
     const defaultPurchaseLine = { srNo: 1, purchaseLedger: '', description: '', hsnSacCode: '', amount: 0, gstRate: 0 };
-    const purchaseLines = Array.isArray(po.purchaseLines) && po.purchaseLines.length > 0
-      ? po.purchaseLines.map((line, idx) => ({
-          ...defaultPurchaseLine,
-          id: Date.now() + 100 + idx,
-          srNo: idx + 1,
-          purchaseLedger: line.purchaseLedger || '',
-          description: line.description || '',
-          hsnSacCode: line.hsnSacCode || '',
-          amount: line.amount || 0,
-          gstRate: line.gstRate || 0,
-        }))
+    const rawPurchaseLines = po.purchaseLines || po.ledgerEntries || [];
+    const purchaseLines = Array.isArray(rawPurchaseLines) && rawPurchaseLines.length > 0
+      ? rawPurchaseLines.map((line, idx) => {
+          const purchaseLedger = line.purchaseLedger || line.ledgerName || '';
+          return {
+            ...defaultPurchaseLine,
+            ...line,
+            purchaseLedger,
+            id: Date.now() + 100 + idx,
+            srNo: idx + 1
+          };
+        })
       : [{ id: Date.now() + 50, ...defaultPurchaseLine }];
 
     const additionalCharges = Array.isArray(po.additionalCharges)
@@ -474,7 +535,7 @@ export const usePurchaseStore = create((set, get) => ({
       ? po.tdsDetails.map((t, idx) => ({ ...t, id: Date.now() + 300 + idx }))
       : [{ id: Date.now() + 300, ledgerName: '', assessableValue: 0, rate: 0, amount: 0 }];
 
-    const entryTab = po.entryTab || (po.productLines?.length ? 'with_item' : 'without_item');
+    const entryTab = po.entryTab || ((po.productLines?.length || po.inventoryEntries?.length) ? 'with_item' : 'without_item');
 
     const partyName = po.partyLedgerName || po.partyLedger || s.form.partyLedger;
     const details = s.masterData.partyLedgerDetails?.[partyName] || {};
@@ -499,6 +560,104 @@ export const usePurchaseStore = create((set, get) => ({
     return { form: calculateFormTotals(filledForm) };
   }),
 
+  // ─── Debit Note: Fetch purchase invoices for a party ──────────────────────
+  fetchPurchaseInvoicesForParty: async (partyName) => {
+    try {
+      const res = await purchaseApi.getPurchaseInvoicesByParty(partyName);
+      const docs = res?.data || [];
+      const invoiceNumbers = docs
+        .map(d => d.voucherNumber || d.invoiceNumber)
+        .filter(Boolean);
+      set((s) => ({
+        masterData: {
+          ...s.masterData,
+          debitNoteInvoices: invoiceNumbers,
+          debitNoteInvoicesRaw: docs,
+        }
+      }));
+    } catch (e) {
+      console.warn('Could not fetch purchase invoices for party:', e);
+    }
+  },
+
+  // ─── Debit Note: Autofill from selected Purchase Invoice reference ──────────
+  autofillFromPurchaseInvoice: (voucherNumber) => set((s) => {
+    const raw = s.masterData.debitNoteInvoicesRaw || [];
+    const inv = raw.find(
+      r => (r.voucherNumber || r.invoiceNumber) === voucherNumber
+    );
+    if (!inv) return {};
+
+    const defaultProductLine = { srNo: 1, stockItem: '', description: '', hsnSacCode: '', billQuantity: 0, billRate: 0, discountPercent: 0, amount: 0, rcm: false, taxabilityType: 'Taxable', gstRate: 0 };
+    const rawProductLines = inv.productLines || inv.inventoryEntries || [];
+    const productLines = Array.isArray(rawProductLines) && rawProductLines.length > 0
+      ? rawProductLines.map((line, idx) => {
+          const stockItem = line.stockItem || line.stockItemName || '';
+          const billQuantity = line.billQuantity !== undefined ? line.billQuantity : (parseFloat(line.billedQty) || parseFloat(line.actualQty) || 0);
+          const billRate = line.billRate !== undefined ? line.billRate : (parseFloat(line.rate) || 0);
+          const discountPercent = line.discountPercent !== undefined ? line.discountPercent : 0;
+          return {
+            ...defaultProductLine,
+            ...line,
+            stockItem,
+            billQuantity,
+            billRate,
+            discountPercent,
+            id: Date.now() + idx,
+            srNo: idx + 1
+          };
+        })
+      : [{ id: Date.now(), ...defaultProductLine }];
+
+    const defaultPurchaseLine = { srNo: 1, purchaseLedger: '', description: '', hsnSacCode: '', amount: 0, gstRate: 0 };
+    const rawPurchaseLines = inv.purchaseLines || inv.ledgerEntries || [];
+    const purchaseLines = Array.isArray(rawPurchaseLines) && rawPurchaseLines.length > 0
+      ? rawPurchaseLines.map((line, idx) => {
+          const purchaseLedger = line.purchaseLedger || line.ledgerName || '';
+          return {
+            ...defaultPurchaseLine,
+            ...line,
+            purchaseLedger,
+            id: Date.now() + 100 + idx,
+            srNo: idx + 1
+          };
+        })
+      : [{ id: Date.now() + 50, ...defaultPurchaseLine }];
+
+    const additionalCharges = Array.isArray(inv.additionalCharges)
+      ? inv.additionalCharges.map((c, idx) => ({ ...c, id: Date.now() + 200 + idx }))
+      : [];
+
+    const tdsDetails = Array.isArray(inv.tdsDetails) && inv.tdsDetails.length > 0
+      ? inv.tdsDetails.map((t, idx) => ({ ...t, id: Date.now() + 300 + idx }))
+      : [{ id: Date.now() + 300, ledgerName: '', assessableValue: 0, rate: 0, amount: 0 }];
+
+    const entryTab = inv.entryTab || ((inv.productLines?.length || inv.inventoryEntries?.length) ? 'with_item' : 'without_item');
+
+    const partyName = inv.partyLedgerName || inv.partyLedger || s.form.partyLedger;
+    const details = s.masterData.partyLedgerDetails?.[partyName] || {};
+
+    const filledForm = {
+      ...s.form,
+      entryTab,
+      partyLedger: partyName,
+      partyGstin: inv.partyGSTIN || inv.partyGstin || details.gstin || s.form.partyGstin,
+      gstRegistration: inv.gstRegistration || (details.gstState ? `${details.gstState} Registration` : s.form.gstRegistration),
+      gstRegistrationType: inv.gstRegistrationType || details.registrationType || s.form.gstRegistrationType,
+      consigneeLedger: inv.consigneeLedger || s.form.consigneeLedger,
+      purchaseLedger: inv.purchaseLedger || (purchaseLines[0]?.purchaseLedger || (s.form.purchaseLedger || (s.masterData.purchaseLedgers?.[0] || ''))),
+      voucherDate: formatDate(inv.voucherDate || inv.invoiceDate),
+      invoiceDate: formatDate(inv.invoiceDate || inv.voucherDate),
+      productLines,
+      purchaseLines,
+      additionalCharges,
+      tdsDetails,
+      narration: inv.narration || s.form.narration,
+    };
+
+    return { form: calculateFormTotals(filledForm) };
+  }),
+
   // --- Row management: Inventory Lines ---
   addProductLine: () => set((s) => {
     const nextLines = [...s.form.productLines, { id: Date.now(), srNo: s.form.productLines.length + 1, stockItem: '', description: '', hsnSacCode: '', billQuantity: 0, billRate: 0, discountPercent: 0, amount: 0, rcm: false, taxabilityType: 'Taxable', gstRate: 0 }];
@@ -508,7 +667,12 @@ export const usePurchaseStore = create((set, get) => ({
   updateProductLine: (id, fields) => set((s) => {
     const nextLines = s.form.productLines.map((l) => {
       if (l.id === id) {
-        return { ...l, ...fields };
+        const updated = { ...l, ...fields };
+        const qty = parseFloat(updated.billQuantity) || 0;
+        const rate = parseFloat(updated.billRate) || 0;
+        const disc = parseFloat(updated.discountPercent) || 0;
+        updated.amount = parseFloat((qty * rate * (1 - disc / 100)).toFixed(2));
+        return updated;
       }
       return l;
     });
@@ -648,6 +812,9 @@ export const usePurchaseStore = create((set, get) => ({
 
       const payload = {
         ...form,
+        invoiceNumber: form.voucherNumber || form.invoiceNumber || '',
+        debitNoteDate: form.debitNoteDate || undefined,
+        referenceNumber: form.referenceNumber || '',
         status: asDraft ? 'draft' : 'pending_review',
         entryMode: 'manual',
         productLines,
@@ -691,6 +858,8 @@ export const usePurchaseStore = create((set, get) => ({
           voucherType: normalizeVoucherType(savedDoc.voucherType),
           voucherDate: formatDate(savedDoc.voucherDate || savedDoc.invoiceDate),
           invoiceDate: formatDate(savedDoc.invoiceDate || savedDoc.voucherDate),
+          debitNoteDate: savedDoc.debitNoteDate || '',
+          referenceNumber: savedDoc.referenceNumber || '',
           productLines,
           purchaseLines,
           additionalCharges,
@@ -703,6 +872,14 @@ export const usePurchaseStore = create((set, get) => ({
           selectedTransaction: savedDoc,
           form: calculateFormTotals(updatedFormValues)
         });
+
+        if (updatedFormValues.partyLedger) {
+          if (updatedFormValues.voucherType === 'debit_note') {
+            await get().fetchPurchaseInvoicesForParty(updatedFormValues.partyLedger);
+          } else if (updatedFormValues.voucherType === 'purchase_invoice') {
+            get().fetchPurchaseOrdersForParty(updatedFormValues.partyLedger);
+          }
+        }
       } else {
         set({ selectedTransaction: res.data });
       }

@@ -22,7 +22,7 @@ const menuItems = [
   { key: 'Manage', icon: Settings2, children: ['Manage Company', 'Manage Business User', 'Allocate Accountant'] },
   { key: 'Sales', icon: BarChart3, children: ['Sales Order', 'Sales Invoice', 'Credit Note (Sales Return)'] },
   { key: 'Purchase/Expense', icon: ShoppingCart, children: ['Purchase Order', 'Purchase Invoice', 'Debit Note (Purchase Return)'] },
-  { key: 'Fund Flow', icon: Wallet, children: ['Cash Payment', 'Bank Payment', 'Contra'] },
+  { key: 'Fund Flow', icon: Wallet, children: ['Payment', 'Receipt', 'Contra'] },
   { key: 'Bank', icon: Landmark, children: ['Manage Bank', 'Manage Rule', 'Inbox'] },
   { key: 'Review', icon: History, children: ['Sales Review', 'Purchase Review', 'Fund Flow Review', 'Bank Review'] },
   { key: 'Archive', icon: Archive, children: ['Sales Archive', 'Purchase Archive', 'Fund Flow Archive', 'Bank Archive'] },

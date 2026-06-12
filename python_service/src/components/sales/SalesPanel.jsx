@@ -402,8 +402,8 @@ const SalesPanel = ({ mode, isDark, onAdd, title: customTitle, description: cust
                 </th>
                 <TableHead label="Sr No." width="60px" borderRight />
                 <TableHead label="Document Filename (OCR)" sortable borderRight />
-                {/* Change by Anjalee: Column label differs by voucher type */}
-                <TableHead label={voucherType === 'sales_order' ? 'Voucher Number' : 'Invoice Number'} sortable borderRight />
+                {/* Column label differs by voucher type: Voucher Number for sales_order and credit_note, Invoice Number for others */}
+                <TableHead label={['sales_order', 'credit_note'].includes(voucherType) ? 'Voucher Number' : 'Invoice Number'} sortable borderRight />
                 {/* Change by Anjalee: Reference No. column only for sales_invoice voucher type */}
                 {voucherType !== 'sales_order' && (
                   <TableHead label="Reference No." sortable borderRight />
@@ -439,9 +439,9 @@ const SalesPanel = ({ mode, isDark, onAdd, title: customTitle, description: cust
                         <span className="opacity-40 italic">No document</span>
                       )}
                     </td>
-                    {/* Change by Anjalee: sales_invoice → invoiceNumber; sales_order → voucherNumber */}
+                    {/* sales_order and credit_note show voucherNumber, others show invoiceNumber */}
                     <td className="p-1.5 px-2 border-r font-black">
-                      {voucherType === 'sales_order'
+                      {['sales_order', 'credit_note'].includes(voucherType)
                         ? (tx.voucherNumber || '—')
                         : (tx.invoiceNumber || '—')}
                     </td>

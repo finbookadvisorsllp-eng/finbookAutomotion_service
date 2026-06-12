@@ -6,7 +6,7 @@ const DEFAULT_FORM = {
   voucherNumberSeries: 'Default',
   voucherDate:         new Date().toISOString().substring(0, 10),
   referenceNumber:     '',
-  company:             'Main Company Ltd',
+  company:             '',
   partyLedger:         '',
   againstLedger:       '',
   amount:              0,
@@ -16,7 +16,7 @@ const DEFAULT_FORM = {
 
   cashLedger:          '',
   cashAmount:          0,
-  openingBalance:      25000,
+  openingBalance:      0,
 
   bankLedger:          '',
   transType:           '',
@@ -25,7 +25,7 @@ const DEFAULT_FORM = {
   utr:                 '',
   ifscCode:            '',
   branchName:          '',
-  bankBalance:         150000,
+  bankBalance:         0,
 
   sourceLedger:        '',
   transferAmount:      0,
@@ -91,6 +91,20 @@ export const useFundFlowStore = create((set, get) => ({
   // ─── Stats State ─────────────────────────────────────────────────────────
   stats: null,
 
+  // ─── Master Data State ────────────────────────────────────────────────────
+  masterData: {
+    ledgers: [],
+    gstLedgers: [],
+    tdsLedgers: [],
+    costCenters: [],
+    costCategories: [],
+    gstRates: [],
+    tdsRates: [],
+    loading: false,
+  },
+
+  selectedPartyDetails: null,
+
   // ─── Form State ──────────────────────────────────────────────────────────
   form: { ...DEFAULT_FORM },
 
@@ -143,6 +157,46 @@ export const useFundFlowStore = create((set, get) => ({
       console.error('Failed to fetch stats:', err);
     } finally {
       set((s) => ({ loading: { ...s.loading, stats: false } }));
+    }
+  },
+
+  fetchMasterData: async () => {
+    set((s) => ({ masterData: { ...s.masterData, loading: true } }));
+    try {
+      const res = await fundflowApi.getLedgers();
+      if (res.success) {
+        const data = res.data;
+        if (data && !Array.isArray(data)) {
+          set({
+            masterData: {
+              ledgers: data.ledgers || [],
+              gstLedgers: data.gstLedgers || [],
+              tdsLedgers: data.tdsLedgers || [],
+              costCenters: data.costCenters || [],
+              costCategories: data.costCategories || [],
+              gstRates: data.gstRates || [],
+              tdsRates: data.tdsRates || [],
+              loading: false
+            }
+          });
+        } else {
+          set({
+            masterData: {
+              ledgers: data || [],
+              gstLedgers: [],
+              tdsLedgers: [],
+              costCenters: [],
+              costCategories: [],
+              gstRates: [],
+              tdsRates: [],
+              loading: false
+            }
+          });
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch fundflow master data:", err);
+      set((s) => ({ masterData: { ...s.masterData, loading: false } }));
     }
   },
 
@@ -244,6 +298,81 @@ export const useFundFlowStore = create((set, get) => ({
       return { success: true };
     } catch (err) {
       return { success: false, message: err.response?.data?.message || 'Failed to delete transaction' };
+    }
+  },
+
+  fetchNextVoucherNumber: async (voucherType) => {
+    try {
+      const res = await fundflowApi.getNextVoucherNumber(voucherType);
+      if (res.success && res.data) {
+        set((s) => ({ form: { ...s.form, voucherNumber: res.data.voucherNumber } }));
+      }
+    } catch (err) {
+      console.error('Failed to fetch next voucher number:', err);
+    }
+  },
+
+  fetchPartyDetails: async (partyName) => {
+    if (!partyName) {
+      set({ selectedPartyDetails: null });
+      return;
+    }
+    try {
+      const res = await fundflowApi.getPartyDetails(partyName);
+      if (res.success && res.data) {
+        set({ selectedPartyDetails: res.data });
+        
+        const details = res.data;
+        
+        // Default DR/CR type:
+        // Group = Sundry Creditors -> Debit
+        // Group = Sundry Debtors -> Credit
+        // Group = Expense Ledger / Expense -> Debit
+        let defaultDrCr = 'Debit (Dr)';
+        if (details.groupName === 'Sundry Debtors') {
+          defaultDrCr = 'Credit (Cr)';
+        } else if (details.groupName === 'Sundry Creditors') {
+          defaultDrCr = 'Debit (Dr)';
+        } else if (details.groupName && details.groupName.toLowerCase().includes('expense')) {
+          defaultDrCr = 'Debit (Dr)';
+        }
+        
+        get().setFormValue('drCrType', defaultDrCr);
+        get().setFormValue('ledgerGroup', details.groupName);
+        
+        // Auto-fill Bill Allocation table
+        if (details.pendingBills && details.pendingBills.length > 0) {
+          const mappedBills = details.pendingBills.map((bill, index) => ({
+            id: Date.now() + index,
+            billType: 'Against Ref',
+            billRef: bill.billNo,
+            billAmount: bill.pendingAmount,
+            dueDate: bill.date
+          }));
+          get().setFormValue('billRows', mappedBills);
+        } else {
+          get().setFormValue('billRows', []);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch party details:', err);
+    }
+  },
+
+  fetchCashBankBalance: async (ledgerName, type) => {
+    if (!ledgerName) return;
+    try {
+      const res = await fundflowApi.getPartyDetails(ledgerName);
+      if (res.success && res.data) {
+        const balance = res.data.outstandingBalance || 0.0;
+        if (type === 'cash') {
+          set((s) => ({ form: { ...s.form, openingBalance: balance } }));
+        } else if (type === 'bank') {
+          set((s) => ({ form: { ...s.form, bankBalance: balance } }));
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch cash/bank balance:', err);
     }
   },
 }));
