@@ -162,14 +162,15 @@ def get_voucher_detail(db, ident: str) -> dict | None:
 
 
 # ─────────────────────────── Pattern A: ledger -> vouchers ───────────────────────────
-def voucher_list_for_ledger(db, fy: str, ledger_name: str, page: int = 1,
-                            limit: int = 100, sort_dir: int = -1) -> tuple[list[dict], int]:
+def voucher_list_for_ledger(db, fy: str | None = None, ledger_name: str | None = None, page: int = 1,
+                            limit: int = 100, sort_dir: int = -1, date_match: dict | None = None) -> tuple[list[dict], int]:
     skip = (page - 1) * limit
-    total = voucher_repo.count_for_ledger(db, fy, ledger_name)
+    total = voucher_repo.count_for_ledger(db, fy, ledger_name, date_match=date_match)
     docs = voucher_repo.vouchers_for_ledger(db, fy, ledger_name, skip=skip,
-                                            limit=limit, sort_dir=sort_dir)
+                                            limit=limit, sort_dir=sort_dir, date_match=date_match)
     rows = [voucher_row(v, ledger_amount_in_voucher(v, ledger_name)) for v in docs]
     return rows, total
+
 
 
 # ─────────────────────────── Pattern B: month -> vouchers ───────────────────────────

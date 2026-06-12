@@ -15,9 +15,13 @@ from app.aman.services.financial_year import current_fy, is_valid_fy
 
 
 # ─────────────────────────────── Tenant ───────────────────────────────
-def get_db(request: Request):
+def get_db(request: Request, companyId: Optional[str] = Query(None)):
     """Return the tenant-scoped Mongo database (shared resolver)."""
-    return _shared_get_db(request)
+    company_header = companyId or request.headers.get("x-company-id") or request.headers.get("x-company")
+    from app.db import resolve_db_name, client
+    db_name = resolve_db_name(company_header)
+    return client[db_name]
+
 
 
 def get_tenant_key(

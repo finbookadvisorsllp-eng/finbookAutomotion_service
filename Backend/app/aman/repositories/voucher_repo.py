@@ -45,18 +45,27 @@ def fy_match(fy: str, extra: dict | None = None) -> dict:
     return match
 
 
+def date_match_clause(fy: str | None = None, date_match: dict | None = None, extra: dict | None = None) -> dict:
+    match = date_match if date_match is not None else date_filter(fy)
+    match = dict(match)
+    if extra:
+        match.update(extra)
+    return match
+
+
 # ─────────────────────────── aggregations ───────────────────────────
-def ledger_movement(db, fy: str) -> dict[str, dict]:
-    """Per-ledger debit/credit movement for the FY.
+def ledger_movement(db, fy: str | None = None, date_match: dict | None = None) -> dict[str, dict]:
+    """Per-ledger debit/credit movement for the period.
 
     Returns ``{ledgerName: {"debit": x, "credit": y}}`` summed from every
     ledgerEntry, bucketed by Tally's ``isDeemedPositive`` with abs(amount).
     """
     # Dr/Cr bucketed by the SIGN of amount (verified universal rule):
     #   amount < 0 -> Debit, amount > 0 -> Credit.
+    match_clause = date_match if date_match is not None else date_filter(fy)
     amt = {"$ifNull": ["$ledgerEntries.amount", 0]}
     pipeline = [
-        {"$match": date_filter(fy)},
+        {"$match": match_clause},
         {"$unwind": "$ledgerEntries"},
         {"$group": {
             "_id": "$ledgerEntries.ledgerName",
@@ -74,10 +83,10 @@ def ledger_movement(db, fy: str) -> dict[str, dict]:
     return out
 
 
-def vouchers_for_ledger(db, fy: str, ledger_name: str, skip: int = 0,
-                        limit: int = 0, sort_dir: int = -1) -> list[dict]:
-    """All vouchers in the FY that touch a given ledger (for L3 drill-down)."""
-    match = fy_match(fy, {"ledgerEntries.ledgerName": ledger_name})
+def vouchers_for_ledger(db, fy: str | None = None, ledger_name: str | None = None, skip: int = 0,
+                        limit: int = 0, sort_dir: int = -1, date_match: dict | None = None) -> list[dict]:
+    """All vouchers in the period that touch a given ledger (for L3 drill-down)."""
+    match = date_match_clause(fy, date_match, {"ledgerEntries.ledgerName": ledger_name})
     proj = {"voucherNumber": 1, "voucherTypeName": 1, "partyLedgerName": 1,
             "partyName": 1, "dates.date": 1, "reference.reference": 1,
             "ledgerEntries": 1, "totals": 1}
@@ -89,8 +98,9 @@ def vouchers_for_ledger(db, fy: str, ledger_name: str, skip: int = 0,
     return list(cur)
 
 
-def count_for_ledger(db, fy: str, ledger_name: str) -> int:
-    return db["vouchers"].count_documents(fy_match(fy, {"ledgerEntries.ledgerName": ledger_name}))
+def count_for_ledger(db, fy: str | None = None, ledger_name: str | None = None, date_match: dict | None = None) -> int:
+    match = date_match_clause(fy, date_match, {"ledgerEntries.ledgerName": ledger_name})
+    return db["vouchers"].count_documents(match)
 
 
 def monthly_totals(db, fy: str, voucher_types: list[str]) -> dict[str, float]:
@@ -190,13 +200,14 @@ def monthly_series(db, fy: str, voucher_types: list[str]) -> dict[int, float]:
     return {row["_id"]: round(row.get("amount", 0), 2) for row in db["vouchers"].aggregate(pipeline)}
 
 
-def monthly_ledger_movement(db, fy: str, ledger_names: list[str]) -> dict[int, dict]:
+def monthly_ledger_movement(db, fy: str | None = None, ledger_names: list[str] = None, date_match: dict | None = None) -> dict[int, dict]:
     """Month-number -> {debit, credit} for a set of ledgers (sign-based)."""
     if not ledger_names:
         return {}
+    match_clause = date_match_clause(fy, date_match, {"ledgerEntries.ledgerName": {"$in": ledger_names}})
     amt = {"$ifNull": ["$ledgerEntries.amount", 0]}
     pipeline = [
-        {"$match": fy_match(fy, {"ledgerEntries.ledgerName": {"$in": ledger_names}})},
+        {"$match": match_clause},
         {"$unwind": "$ledgerEntries"},
         {"$match": {"ledgerEntries.ledgerName": {"$in": ledger_names}}},
         {"$group": {
@@ -208,3 +219,4 @@ def monthly_ledger_movement(db, fy: str, ledger_names: list[str]) -> dict[int, d
     return {row["_id"]: {"debit": round(row.get("debit", 0), 2),
                         "credit": round(row.get("credit", 0), 2)}
             for row in db["vouchers"].aggregate(pipeline)}
+

@@ -2,9 +2,9 @@ import { useSearchParams } from 'react-router-dom';
 import { plDrillDownData } from '../../data/plDrillDownData';
 import { formatINR } from '../../data/mockData';
 
-export default function Level5StockItemCustomer({ customerId, currentYearData }) {
+export default function Level5StockItemCustomer({ customerId, currentYearData, customerData: propCustomerData }) {
  const [searchParams, setSearchParams] = useSearchParams();
- const customerData = plDrillDownData.stockItemCustomerLedger?.[customerId];
+ const customerData = propCustomerData || plDrillDownData.stockItemCustomerLedger?.[customerId];
 
  if (!customerData) return null;
 

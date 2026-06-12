@@ -34,12 +34,16 @@ export const getTbGroupLedgers = (groupId, fy) =>
   apiGet(`/reports/trial-balance/group/${encodeURIComponent(groupId)}/ledgers`, { fy })
 export const getTbLedgerVouchers = (ledgerId, fy, page = 1, limit = 100) =>
   apiGetFull(`/reports/trial-balance/ledger/${encodeURIComponent(ledgerId)}/vouchers`, { fy, page, limit })
-export const getProfitLoss = (fy) => apiGet('/reports/profit-loss', { fy })
-export const getPlLedgerVouchers = (ledgerId, fy, page = 1, limit = 100) =>
-  apiGetFull(`/reports/profit-loss/ledger/${encodeURIComponent(ledgerId)}/vouchers`, { fy, page, limit })
-export const getPlStockItems = (fy) => apiGet('/reports/profit-loss/stock/items', { fy })
-export const getPlStockItemLedger = (item, fy) =>
-  apiGet(`/reports/profit-loss/stock-item/${encodeURIComponent(item)}/ledger`, { fy })
+export const getProfitLoss = (fy, params = {}) => apiGet('/reports/profit-loss', { fy, ...params })
+export const getPlLedgerVouchers = (ledgerId, fy, page = 1, limit = 100, params = {}) =>
+  apiGetFull(`/reports/profit-loss/ledger/${encodeURIComponent(ledgerId)}/vouchers`, { fy, page, limit, ...params })
+export const getPlStockItems = (fy, params = {}) => apiGet('/reports/profit-loss/stock/items', { fy, ...params })
+export const getPlStockItemLedger = (item, fy, params = {}) =>
+  apiGet(`/reports/profit-loss/stock-item/${encodeURIComponent(item)}/ledger`, { fy, ...params })
+// Opening Stock Summary (dedicated page): group summary + paginated item list.
+export const getOpeningStock = (fy, params = {}) => apiGet('/reports/profit-loss/opening-stock', { fy, ...params })
+export const getOpeningStockItems = (fy, params = {}) =>
+  apiGetFull('/reports/profit-loss/opening-stock/items', { fy, page: 1, limit: 50, ...params })
 export const getBalanceSheet = (fy) => apiGet('/reports/balance-sheet', { fy })
 export const getCashFlow = (fy) => apiGet('/reports/cash-flow', { fy })
 export const getDayBook = (fy, date, page = 1, limit = 100) =>
