@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import List, Optional, Dict, Any
+from bson import ObjectId
 from app.anjalee.repositories.fundflow_repo import FundFlowRepository
 from app.anjalee.schemas.fundflow_schemas import FundFlowTransactionCreate, StatusUpdate, CommentRequest
 from app.anjalee.utils.serialization import serialize_doc
@@ -73,7 +74,7 @@ class FundFlowService:
         
         if not doc_data.get("voucherNumber"):
             voucher_type = doc_data["voucherType"]
-            prefix = FUNDFLOW_PREFIXES.get(voucher_type, "BP")
+            prefix = FUNDFLOW_PREFIXES.get(voucher_type, "PV")
                 
             seq = self.repo.get_next_sequence_value(prefix)
             year = datetime.now().year
@@ -81,6 +82,11 @@ class FundFlowService:
             
         inserted_id = self.repo.insert_transaction(doc_data)
         doc_data["_id"] = inserted_id
+        
+        # Update invoice balances
+        bill_rows = doc_data.get("billRows") or []
+        self._update_invoice_balances(bill_rows)
+        
         return serialize_doc(doc_data)
 
     def get_transaction(self, tx_id: str) -> Dict[str, Any]:
@@ -116,6 +122,14 @@ class FundFlowService:
         raise TransactionNotFoundException()
 
     def update_transaction(self, tx_id: str, payload: FundFlowTransactionCreate) -> Dict[str, Any]:
+        # Retrieve the OLD transaction first to reverse its old allocations
+        old_doc = self.repo.find_transaction_by_id(tx_id)
+        if not old_doc:
+            raise TransactionNotFoundException()
+            
+        old_bill_rows = old_doc.get("billRows") or []
+        self._reverse_invoice_balances(old_bill_rows, exclude_tx_id=tx_id)
+        
         update_data = payload.model_dump()
         update_data["updatedAt"] = datetime.now()
         
@@ -123,13 +137,173 @@ class FundFlowService:
         if not success:
             raise TransactionNotFoundException()
             
+        # Update invoice balances with the NEW allocations
+        new_bill_rows = update_data.get("billRows") or []
+        self._update_invoice_balances(new_bill_rows)
+        
         doc = self.repo.find_transaction_by_id(tx_id)
         return serialize_doc(doc)
 
     def delete_transaction(self, tx_id: str) -> None:
+        doc = self.repo.find_transaction_by_id(tx_id)
+        if not doc:
+            raise TransactionNotFoundException()
+            
+        # Reverse invoice balances
+        bill_rows = doc.get("billRows") or []
+        self._reverse_invoice_balances(bill_rows, exclude_tx_id=tx_id)
+        
         success = self.repo.delete_transaction(tx_id)
         if not success:
             raise TransactionNotFoundException()
+
+    def _find_invoice_doc(self, db, bill_ref: str) -> Optional[tuple]:
+        if not bill_ref:
+            return None
+        
+        # Try vouchers
+        doc = db["vouchers"].find_one({
+            "$or": [
+                {"voucherNumber": bill_ref},
+                {"voucherGuid": bill_ref}
+            ]
+        })
+        if doc:
+            return "vouchers", doc
+            
+        # Try purchase_vouchers
+        doc = db["purchase_vouchers"].find_one({
+            "$or": [
+                {"voucherNumber": bill_ref},
+                {"invoiceNumber": bill_ref}
+            ]
+        })
+        if doc:
+            return "purchase_vouchers", doc
+            
+        # Try sales_vouchers
+        doc = db["sales_vouchers"].find_one({
+            "voucherNumber": bill_ref
+        })
+        if doc:
+            return "sales_vouchers", doc
+            
+        return None
+
+    def _get_bill_amount(self, coll_name: str, doc: dict) -> float:
+        if coll_name == "vouchers":
+            totals_obj = doc.get("totals") or {}
+            return float(totals_obj.get("totalAmount") or totals_obj.get("totalDebit") or totals_obj.get("totalCredit") or 0.0)
+        elif coll_name == "purchase_vouchers":
+            return float(doc.get("grandTotal") or 0.0)
+        elif coll_name == "sales_vouchers":
+            return float(doc.get("grandTotal") or 0.0)
+        return 0.0
+
+    def _update_invoice_balances(self, bill_rows: List[Dict[str, Any]]) -> None:
+        db = self.repo.db
+        for row in bill_rows:
+            bill_ref = row.get("billNo") or row.get("billRef") or ""
+            if not bill_ref:
+                continue
+                
+            res = self._find_invoice_doc(db, bill_ref)
+            if not res:
+                continue
+                
+            coll_name, doc = res
+            invoice_amount = self._get_bill_amount(coll_name, doc)
+            
+            # Sum up all non-deleted fundflows' allocationAmount matching this bill_ref
+            paid_amount = 0.0
+            ff_records = list(db["fundflow"].find({
+                "status": {"$ne": "deleted"},
+                "billRows": {
+                    "$elemMatch": {
+                        "$or": [
+                            {"billNo": bill_ref},
+                            {"billRef": bill_ref}
+                        ]
+                    }
+                }
+            }))
+            for ff in ff_records:
+                for r in ff.get("billRows") or []:
+                    r_ref = r.get("billNo") or r.get("billRef") or ""
+                    if r_ref == bill_ref:
+                        paid_amount += float(r.get("allocationAmount") or r.get("allocatedAmount") or r.get("allocation_amount") or 0.0)
+            
+            new_outstanding = max(0.0, round(invoice_amount - paid_amount, 2))
+            allocation_amount = float(row.get("allocationAmount") or row.get("allocatedAmount") or row.get("allocation_amount") or 0.0)
+            
+            db[coll_name].update_one(
+                {"_id": doc["_id"]},
+                {"$set": {
+                    "paid_amount": round(paid_amount, 2),
+                    "paidAmount": round(paid_amount, 2),
+                    "outstanding_amount": new_outstanding,
+                    "outstandingAmount": new_outstanding,
+                    "invoice_amount": invoice_amount,
+                    "invoiceAmount": invoice_amount,
+                    "allocation_amount": allocation_amount,
+                    "allocationAmount": allocation_amount
+                }}
+            )
+
+    def _reverse_invoice_balances(self, bill_rows: List[Dict[str, Any]], exclude_tx_id: Optional[str] = None) -> None:
+        db = self.repo.db
+        for row in bill_rows:
+            bill_ref = row.get("billNo") or row.get("billRef") or ""
+            if not bill_ref:
+                continue
+                
+            res = self._find_invoice_doc(db, bill_ref)
+            if not res:
+                continue
+                
+            coll_name, doc = res
+            invoice_amount = self._get_bill_amount(coll_name, doc)
+            
+            # Sum up all non-deleted fundflows' allocationAmount except exclude_tx_id
+            paid_amount = 0.0
+            query = {
+                "status": {"$ne": "deleted"},
+                "billRows": {
+                    "$elemMatch": {
+                        "$or": [
+                            {"billNo": bill_ref},
+                            {"billRef": bill_ref}
+                        ]
+                    }
+                }
+            }
+            if exclude_tx_id:
+                try:
+                    query["_id"] = {"$ne": ObjectId(exclude_tx_id)}
+                except Exception:
+                    pass
+                    
+            ff_records = list(db["fundflow"].find(query))
+            for ff in ff_records:
+                for r in ff.get("billRows") or []:
+                    r_ref = r.get("billNo") or r.get("billRef") or ""
+                    if r_ref == bill_ref:
+                        paid_amount += float(r.get("allocationAmount") or r.get("allocatedAmount") or r.get("allocation_amount") or 0.0)
+            
+            new_outstanding = max(0.0, round(invoice_amount - paid_amount, 2))
+            
+            db[coll_name].update_one(
+                {"_id": doc["_id"]},
+                {"$set": {
+                    "paid_amount": round(paid_amount, 2),
+                    "paidAmount": round(paid_amount, 2),
+                    "outstanding_amount": new_outstanding,
+                    "outstandingAmount": new_outstanding,
+                    "invoice_amount": invoice_amount,
+                    "invoiceAmount": invoice_amount
+                }}
+            )
+
 
     def update_status(self, tx_id: str, payload: StatusUpdate) -> Dict[str, Any]:
         update_op = {
@@ -151,7 +325,7 @@ class FundFlowService:
 
     def get_next_voucher_number(self, voucher_type: str) -> str:
         from app.anjalee.constants.business_constants import FUNDFLOW_PREFIXES
-        prefix = FUNDFLOW_PREFIXES.get(voucher_type, "BP")
+        prefix = FUNDFLOW_PREFIXES.get(voucher_type, "PV")
         seq = self.repo.peek_next_sequence_value(prefix)
         year = datetime.now().year
         return f"{prefix}-{year}-{str(seq).zfill(4)}"

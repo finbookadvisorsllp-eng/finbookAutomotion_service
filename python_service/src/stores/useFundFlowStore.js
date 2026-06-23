@@ -33,7 +33,9 @@ const DEFAULT_FORM = {
   amountReceived:      0,
 
   billRows:            [],
+  ledgerRows:          [],
   costCenters:         [],
+  costCenterApplicable: false,
 
   gstApplicable:       false,
   gstLedger:           '',
@@ -48,16 +50,25 @@ const DEFAULT_FORM = {
   totalDebit:          0,
   totalCredit:         0,
   difference:          0,
+  excessOption:        '',
+  remarks:             '',
+  instType:            '',
 };
 
 const calculateFormTotals = (form) => {
   const f = { ...form };
 
   if (f.voucherType === 'cash_payment' || f.voucherType === 'bank_payment') {
+    // If ledgerRows exist and have entries, auto-sum their amounts
+    if (f.ledgerRows && f.ledgerRows.length > 0) {
+      const ledgerTotal = f.ledgerRows.reduce((acc, r) => acc + (parseFloat(r.amount) || 0), 0);
+      f.amount = ledgerTotal;
+    }
     const amt = parseFloat(f.amount) || 0;
     f.totalDebit = amt;
     f.totalCredit = amt;
     f.difference = 0;
+    f.cashAmount = f.amount;
   } else if (f.voucherType === 'contra') {
     const sourceAmt = parseFloat(f.transferAmount) || 0;
     const destAmt = parseFloat(f.amountReceived) || 0;
@@ -218,6 +229,13 @@ export const useFundFlowStore = create((set, get) => ({
 
   setFormValue: (key, value) => set((s) => {
     const updatedForm = { ...s.form, [key]: value };
+    if (updatedForm.voucherType === 'cash_payment' || updatedForm.voucherType === 'bank_payment') {
+      if (key === 'amount') {
+        updatedForm.cashAmount = value;
+      } else if (key === 'cashAmount') {
+        updatedForm.amount = value;
+      }
+    }
     return { form: calculateFormTotals(updatedForm) };
   }),
 
@@ -227,7 +245,11 @@ export const useFundFlowStore = create((set, get) => ({
     form: {
       ...DEFAULT_FORM,
       voucherType,
+      drCrType: voucherType === 'bank_payment' ? 'Credit (Cr)' : 'Debit (Dr)',
       voucherDate: new Date().toISOString().substring(0, 10),
+      excessOption: '',
+      remarks: '',
+      instType: '',
     },
     error: null,
   }),
@@ -328,30 +350,97 @@ export const useFundFlowStore = create((set, get) => ({
         // Group = Sundry Creditors -> Debit
         // Group = Sundry Debtors -> Credit
         // Group = Expense Ledger / Expense -> Debit
-        let defaultDrCr = 'Debit (Dr)';
-        if (details.groupName === 'Sundry Debtors') {
-          defaultDrCr = 'Credit (Cr)';
-        } else if (details.groupName === 'Sundry Creditors') {
-          defaultDrCr = 'Debit (Dr)';
-        } else if (details.groupName && details.groupName.toLowerCase().includes('expense')) {
-          defaultDrCr = 'Debit (Dr)';
-        }
-        
+        let defaultDrCr = get().form.voucherType === 'bank_payment' ? 'Credit (Cr)' : 'Debit (Dr)';
         get().setFormValue('drCrType', defaultDrCr);
         get().setFormValue('ledgerGroup', details.groupName);
+        get().setFormValue('excessOption', '');
         
-        // Auto-fill Bill Allocation table
+        // Auto-fill Bill Allocation table: Initialize a single row matching the voucher amount
+        const voucherAmount = parseFloat(get().form.amount) || 0;
         if (details.pendingBills && details.pendingBills.length > 0) {
-          const mappedBills = details.pendingBills.map((bill, index) => ({
-            id: Date.now() + index,
+          get().setFormValue('billRows', [{
+            id: Date.now(),
             billType: 'Against Ref',
-            billRef: bill.billNo,
-            billAmount: bill.pendingAmount,
-            dueDate: bill.date
-          }));
-          get().setFormValue('billRows', mappedBills);
+            billNo: '',
+            billRef: '',
+            date: '',
+            dueDate: '',
+            billAmount: 0,
+            pendingAmount: 0,
+            allocationAmount: voucherAmount,
+            allocatedAmount: voucherAmount
+          }]);
         } else {
-          get().setFormValue('billRows', []);
+          get().setFormValue('billRows', [{
+            id: Date.now(),
+            billType: 'On Account',
+            billNo: '',
+            billRef: '',
+            date: '',
+            dueDate: '',
+            billAmount: 0,
+            pendingAmount: 0,
+            allocationAmount: voucherAmount,
+            allocatedAmount: voucherAmount
+          }]);
+        }
+
+        // Autofill Cost Center Details
+        if (details.isCostCentresOn) {
+          const master = get().masterData || {};
+          const categories = master.costCategories || [];
+          const centers = master.costCenters || [];
+          
+          const defaultCategory = categories[0] || 'Primary Cost Category';
+          const filteredCenters = centers.filter(c => c.category === defaultCategory);
+          const defaultCenter = (filteredCenters[0] || centers[0])?.name || 'Mumbai Branch';
+          const defaultAmount = parseFloat(get().form.amount) || 0;
+          
+          get().setFormValue('costCategory', defaultCategory);
+          get().setFormValue('costCenter', defaultCenter);
+          get().setFormValue('costAmount', defaultAmount);
+          get().setFormValue('costCenters', [{ category: defaultCategory, name: defaultCenter, amount: defaultAmount }]);
+        } else {
+          get().setFormValue('costCategory', '');
+          get().setFormValue('costCenter', '');
+          get().setFormValue('costAmount', 0);
+          get().setFormValue('costCenters', []);
+        }
+
+        // Autofill GST Details
+        if (details.gstApplicable) {
+          const master = get().masterData || {};
+          const gstLedgers = master.gstLedgers || [];
+          const gstRates = master.gstRates || [];
+          
+          const defaultGstLedger = gstLedgers[0]?.name || (gstLedgers[0] || 'CGST @ 9%');
+          const defaultGstRate = gstRates[0] || '18%';
+          
+          get().setFormValue('gstApplicable', true);
+          get().setFormValue('gstLedger', typeof defaultGstLedger === 'object' ? defaultGstLedger.name : defaultGstLedger);
+          get().setFormValue('gstRate', defaultGstRate);
+        } else {
+          get().setFormValue('gstApplicable', false);
+          get().setFormValue('gstLedger', '');
+          get().setFormValue('gstRate', '');
+        }
+
+        // Autofill TDS Details
+        if (details.tdsApplicable) {
+          const master = get().masterData || {};
+          const tdsLedgers = master.tdsLedgers || [];
+          const tdsRates = master.tdsRates || [];
+          
+          const defaultTdsLedger = tdsLedgers[0]?.name || (tdsLedgers[0] || 'TDS Payable');
+          const defaultTdsRate = tdsRates[0] || '10%';
+          
+          get().setFormValue('tdsApplicable', true);
+          get().setFormValue('tdsLedger', typeof defaultTdsLedger === 'object' ? defaultTdsLedger.name : defaultTdsLedger);
+          get().setFormValue('tdsRate', defaultTdsRate);
+        } else {
+          get().setFormValue('tdsApplicable', false);
+          get().setFormValue('tdsLedger', '');
+          get().setFormValue('tdsRate', '');
         }
       }
     } catch (err) {

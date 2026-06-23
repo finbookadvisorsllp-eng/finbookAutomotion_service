@@ -13,7 +13,7 @@ class Settings:
     # Use MONGO_URI, default to local if not specified
     MONGO_URI: str = os.getenv("MONGO_URI") or os.getenv("MONGODB_URI") or "mongodb://localhost:27017"
     
-    # Default Database Name to fetch data for Friends Grafix FY 2024-25
-    DEFAULT_DB_NAME: str = "sf_tenant_6a182ee36efd32db3c490a6c"
+    # Default Database Name to fetch data locally
+    DEFAULT_DB_NAME: str = "finbook_23aafff9731l1z7"
 
 settings = Settings()

@@ -203,6 +203,8 @@ export const usePurchaseStore = create((set, get) => ({
     stockItemDetails: {},
     tdsLedgers: [],
     additionalChargeLedgers: [],
+    taxLedgers: [],
+    allLedgers: [],
     voucherTypes: [],
     voucherTypesFull: [],
     purchaseOrders: [],

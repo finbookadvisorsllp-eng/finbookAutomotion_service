@@ -201,7 +201,7 @@ class SalesVoucherRepository:
         return {"id": "", "name": str(party_ledger_id_or_name), "gstin": "", "gstState": "", "registrationType": "Consumer"}
 
     async def get_party_ledgers(self, company_id: Optional[str] = None) -> List[Dict[str, Any]]:
-        party_groups = ["Sundry Debtors", "Sundry Creditors", "Bank Accounts", "Cash-in-Hand"]
+        party_groups = ["Sundry Debtors", "Sundry Creditors"]
         query = {"groupName": {"$in": party_groups}}
         
         comp = None

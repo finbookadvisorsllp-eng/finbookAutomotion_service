@@ -130,7 +130,7 @@ class PurchaseRepository(BaseRepository):
 
 
     def get_party_ledgers(self) -> List[Dict[str, Any]]:
-        party_groups = ["Sundry Debtors", "Sundry Creditors", "Bank Accounts", "Cash-in-Hand"]
+        party_groups = ["Sundry Debtors", "Sundry Creditors"]
         ledgers = list(self.db[LEDGERS_COLLECTION].find({"groupName": {"$in": party_groups}}))
         
         results = []

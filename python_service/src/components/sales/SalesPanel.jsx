@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Plus, CheckCircle2, Trash2, Send, RefreshCw, Search, Download, HelpCircle,
   ArrowUpDown, MessageSquare, ChevronLeft, ChevronRight, Edit3, Loader2, X,
@@ -12,10 +12,38 @@ import useSalesStore from '../../stores/useSalesStore';
 
 const SalesPanel = ({ mode, isDark, onAdd, title: customTitle, description: customDescription, voucherType = "sales", emptyText, icon: CustomIcon }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const Icon = CustomIcon || BarChart3;
   
   const [viewMode, setViewMode] = useState('inbox'); // 'inbox', 'manual', 'ocr', 'csv'
   const [selectedIds, setSelectedIds] = useState([]);
+
+  useEffect(() => {
+    if (location.state?.openManual) {
+      window.history.replaceState({}, document.title);
+      setViewMode('manual');
+    }
+  }, [location.state]);
+
+  const handleBack = (activeType) => {
+    if (['sales_invoice', 'sales_order', 'credit_note'].includes(activeType)) {
+      setViewMode('inbox');
+      fetchTransactions();
+    } else {
+      if (['purchase_invoice', 'purchase_order', 'debit_note'].includes(activeType)) {
+        navigate('/purchase/inbox', { state: { openManual: true } });
+      } else if (activeType === 'cash_payment') {
+        navigate('/fund-flow/cash-payment', { state: { openManual: true } });
+      } else if (activeType === 'bank_payment') {
+        navigate('/fund-flow/bank-payment', { state: { openManual: true } });
+      } else if (activeType === 'contra') {
+        navigate('/fund-flow/contra', { state: { openManual: true } });
+      } else {
+        setViewMode('inbox');
+        fetchTransactions();
+      }
+    }
+  };
 
   // ── Store ───────────────────────────────────────────────────────────
   const {
@@ -293,7 +321,7 @@ const SalesPanel = ({ mode, isDark, onAdd, title: customTitle, description: cust
       {/* VoucherEntryEngine overlay for Create/Edit mode */}
       {viewMode !== 'inbox' && voucherType && (
         <div className="absolute inset-0 z-40">
-          <VoucherEntryEngine isDark={isDark} defaultMode={viewMode} voucherType={voucherType} onBack={() => { setViewMode('inbox'); fetchTransactions(); }} />
+          <VoucherEntryEngine isDark={isDark} defaultMode={viewMode} voucherType={voucherType} onBack={handleBack} />
         </div>
       )}
 
@@ -391,8 +419,8 @@ const SalesPanel = ({ mode, isDark, onAdd, title: customTitle, description: cust
         <div className="overflow-x-auto h-full themed-scrollbar">
           <table className="w-full text-left border-collapse min-w-[1100px]">
             <thead className="sticky top-0 z-10">
-              <tr style={{ backgroundColor: isDark ? 'var(--app-table-head-bg)' : '#fcfdfe' }}>
-                <th className="p-1.5 border-b border-r w-10 text-center" style={{ borderColor: '#e2e8f0' }}>
+              <tr style={{ backgroundColor: 'var(--app-table-head-bg)' }}>
+                <th className="p-1.5 border-b border-r w-10 text-center" style={{ borderColor: 'var(--app-row-border)' }}>
                   <input
                     type="checkbox"
                     className="w-3.5 h-3.5 rounded border-gray-300 accent-indigo-600 shadow-sm cursor-pointer"

@@ -38,7 +38,7 @@ const brandTheme = {
     contentBg: '#0A0A0F',
     sidebarBg: 'rgba(13, 14, 20, 0.72)',
     border: 'rgba(255, 255, 255, 0.08)',
-    heading: '#e2bf22ff',
+    heading: '#76acedff',
     text: '#ffffffff',
     muted: '#cfcfd5ff',
     tableHeadBg: 'rgba(255, 255, 255, 0.03)',
@@ -55,13 +55,10 @@ const brandTheme = {
   },
 }
 
-function Dashboard({
-  subscriptionMessage = 'Your subscription expires in 8 days',
-  credits = 372,
-}) {
+function Dashboard() {
   const location = useLocation()
   const navigate = useNavigate()
-  const activeItem = PATH_TO_LABEL[location.pathname] ?? 'User Data'
+  const activeItem = PATH_TO_LABEL[location.pathname] ?? 'Dashboard'
   const handleItemClick = (label) => {
     const path = LABEL_TO_PATH[label]
     if (path) navigate(path)
@@ -75,6 +72,10 @@ function Dashboard({
   const selectedCompany = useAppStore((s) => s.selectedCompany)
   const setSelectedCompany = useAppStore((s) => s.setSelectedCompany)
   const setCompanies = useAppStore((s) => s.setCompanies)
+  const approvalCenterView = useAppStore((s) => s.approvalCenterView)
+
+  const isApprovalDetail = location.pathname.startsWith('/automation/approval-center') && approvalCenterView === 'detail'
+  const isCompactHeader = isApprovalDetail || location.pathname === '/sales/new' || location.pathname === '/'
 
   // Dynamically load company list from the database
   useEffect(() => {
@@ -123,7 +124,7 @@ function Dashboard({
 
   return (
     <div
-      className={`min-h-screen  relative overflow-hidden ${isDark ? 'dark' : ''}`}
+      className={`h-screen overflow-hidden relative ${isDark ? 'dark' : ''}`}
       style={{
         backgroundColor: theme.appBg,
         color: theme.heading,
@@ -181,7 +182,7 @@ function Dashboard({
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-        className="overflow-hidden rounded-xl h-screen flex flex-col md:rounded-2xl border relative z-10 glass-surface"
+        className="overflow-hidden h-full flex flex-row border relative z-10 glass-surface"
         style={{
           borderColor: theme.border,
           boxShadow: isDark
@@ -189,84 +190,50 @@ function Dashboard({
             : '0 24px 60px -24px rgba(15,23,42,0.18), 0 1px 0 rgba(15,23,42,0.02)',
         }}
       >
-        <Navbar
-          isDark={isDark}
-          mode={mode}
-          onModeToggle={toggleMode}
-          companies={companies}
-          selectedCompany={selectedCompany}
-          onCompanyChange={setSelectedCompany}
-          subscriptionMessage={subscriptionMessage}
-          credits={credits}
-          onMobileNavToggle={() => setMobileNavOpen((p) => !p)}
-        />
+        {/* Desktop sidebar (full height, on the left) */}
+        <div className="hidden md:flex h-full">
+          <Sidebar
+            activeItem={activeItem}
+            onItemClick={handleItemClick}
+            collapsed={sidebarCollapsed}
+            onToggle={() => setSidebarCollapsed((prev) => !prev)}
+            isDark={isDark}
+          />
+        </div>
 
-        <div className="flex flex-1 relative overflow-hidden">
-          {/* Desktop sidebar */}
-          <div className="hidden md:flex h-full">
-            <Sidebar
-              activeItem={activeItem}
-              onItemClick={handleItemClick}
-              collapsed={sidebarCollapsed}
-              onToggle={() => setSidebarCollapsed((prev) => !prev)}
-              isDark={isDark}
-            />
-          </div>
+        {/* Right side panel: Navbar on top, Main content on bottom */}
+        <div className="flex-1 flex flex-col overflow-hidden h-full">
+          <Navbar
+            isDark={isDark}
+            mode={mode}
+            onModeToggle={toggleMode}
+            companies={companies}
+            selectedCompany={selectedCompany}
+            onCompanyChange={setSelectedCompany}
+            onMobileNavToggle={() => setMobileNavOpen((p) => !p)}
+          />
 
-          {/* Mobile drawer */}
-          <AnimatePresence>
-            {mobileNavOpen && (
-              <>
-                <motion.div
-                  key="mobile-nav-scrim"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  onClick={() => setMobileNavOpen(false)}
-                  className="absolute inset-0 z-30 bg-black/30 md:hidden backdrop-blur-sm"
-                />
-                <motion.div
-                  key="mobile-nav-drawer"
-                  initial={{ x: '-100%' }}
-                  animate={{ x: 0 }}
-                  exit={{ x: '-100%' }}
-                  transition={{ type: 'spring', stiffness: 380, damping: 36 }}
-                  className="absolute left-0 top-0 bottom-0 z-40 md:hidden h-full"
-                >
-                  <Sidebar
-                    activeItem={activeItem}
-                    onItemClick={handleItemClick}
-                    collapsed={false}
-                    onToggle={() => setMobileNavOpen(false)}
-                    isDark={isDark}
-                  />
-                </motion.div>
-              </>
-            )}
-          </AnimatePresence>
+          <main
+            className={`flex-1 flex flex-col overflow-hidden ${isCompactHeader ? 'p-2 pb-0.5' : 'p-3 sm:p-4 md:p-5'}`}
+            style={{ backgroundColor: 'transparent' }}
+          >
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeItem}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+                className="h-full flex flex-col"
+              >
+                <Suspense fallback={<div className="h-full flex items-center justify-center text-xs font-semibold uppercase tracking-widest" style={{ color: theme.muted }}>Loading…</div>}>
+                  <Outlet context={{ isDark }} />
+                </Suspense>
+              </motion.div>
+            </AnimatePresence>
+          </main>
 
-          <div className="flex-1 flex flex-col overflow-hidden">
-            <main
-              className="flex-1 flex flex-col overflow-hidden p-3 sm:p-4 md:p-5"
-              style={{ backgroundColor: 'transparent' }}
-            >
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={activeItem}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -4 }}
-                  transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-                  className="h-full flex flex-col"
-                >
-                  <Suspense fallback={<div className="h-full flex items-center justify-center text-xs font-semibold uppercase tracking-widest" style={{ color: theme.muted }}>Loading…</div>}>
-                    <Outlet context={{ isDark }} />
-                  </Suspense>
-                </motion.div>
-              </AnimatePresence>
-            </main>
-
+          {!isCompactHeader && (
             <footer
               className="px-4 py-2.5 text-[11.5px] font-semibold text-center border-t"
               style={{
@@ -277,8 +244,41 @@ function Dashboard({
             >
               © {new Date().getFullYear()} Finbook Advisors. All rights reserved.
             </footer>
-          </div>
+          )}
         </div>
+
+        {/* Mobile drawer overlays the entire layout */}
+        <AnimatePresence>
+          {mobileNavOpen && (
+            <>
+              <motion.div
+                key="mobile-nav-scrim"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                onClick={() => setMobileNavOpen(false)}
+                className="absolute inset-0 z-30 bg-black/30 md:hidden backdrop-blur-sm"
+              />
+              <motion.div
+                key="mobile-nav-drawer"
+                initial={{ x: '-100%' }}
+                animate={{ x: 0 }}
+                exit={{ x: '-100%' }}
+                transition={{ type: 'spring', stiffness: 380, damping: 36 }}
+                className="absolute left-0 top-0 bottom-0 z-40 md:hidden h-full"
+              >
+                <Sidebar
+                  activeItem={activeItem}
+                  onItemClick={handleItemClick}
+                  collapsed={false}
+                  onToggle={() => setMobileNavOpen(false)}
+                  isDark={isDark}
+                />
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
       </motion.div>
     </div>
   )

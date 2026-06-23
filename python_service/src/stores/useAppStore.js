@@ -19,6 +19,10 @@ export const useAppStore = create(
       setSelectedCompany: (selectedCompany) => set({ selectedCompany }),
       setCompanies: (companies) => set({ companies }),
 
+      // approval center view state ('list' | 'detail')
+      approvalCenterView: 'list',
+      setApprovalCenterView: (approvalCenterView) => set({ approvalCenterView }),
+
       // auth
       token: null,
       user: null,

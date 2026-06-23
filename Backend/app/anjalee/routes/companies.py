@@ -1,5 +1,5 @@
-from fastapi import APIRouter, Depends
-from typing import List
+from fastapi import APIRouter, Depends, Query
+from typing import List, Optional
 from app.db import get_db
 from app.anjalee.repositories.company_repo import CompanyRepository
 from app.anjalee.services.company_service import CompanyService
@@ -35,3 +35,24 @@ async def get_current_company_master_data(service: CompanyService = Depends(get_
         "success": True,
         "data": master_data
     }
+
+@router.get("/current/dashboard-summary")
+async def get_current_company_dashboard_summary(
+    startDate: Optional[str] = Query(None),
+    endDate: Optional[str] = Query(None),
+    partyLedger: Optional[str] = Query(None),
+    service: CompanyService = Depends(get_company_service)
+):
+    """
+    Fetch dashboard summary and party ledger details dynamically for the current company.
+    """
+    summary_data = service.get_company_dashboard_summary(
+        start_date_str=startDate, 
+        end_date_str=endDate,
+        party_ledger=partyLedger
+    )
+    return {
+        "success": True,
+        "data": summary_data
+    }
+

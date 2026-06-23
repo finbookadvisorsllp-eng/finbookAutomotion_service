@@ -10,9 +10,10 @@ client = MongoClient(settings.MONGO_URI, serverSelectionTimeoutMS=5000)
 # In-memory cache for resolving company references to database names.
 # Pre-populate with default company mapping to avoid blocking first requests/refresh.
 _tenant_cache = {
-    "6a182ee36efd32db3c490a6c": "sf_tenant_6a182ee36efd32db3c490a6c",
-    "Friends Grafix FY 2024-25": "sf_tenant_6a182ee36efd32db3c490a6c",
-    "Friends Grafix": "sf_tenant_6a182ee36efd32db3c490a6c"
+    "6a182ee36efd32db3c490a6c": "finbook_23aafff9731l1z7",
+    "Friends Grafix FY 2024-25": "finbook_23aafff9731l1z7",
+    "Friends Grafix": "finbook_23aafff9731l1z7",
+    "finbook_23aafff9731l1z7": "finbook_23aafff9731l1z7"
 }
 _cache_warmed = False
 
@@ -30,8 +31,8 @@ def ensure_db_indexes(db):
         ("purchase_vouchers", [("createdAt", -1)], {}),
         ("purchase_transactions", [("voucherType", 1), ("status", 1), ("createdAt", -1)], {}),
         ("purchase_transactions", [("createdAt", -1)], {}),
-        ("fund_flow_transactions", [("voucherType", 1), ("status", 1), ("createdAt", -1)], {}),
-        ("fund_flow_transactions", [("createdAt", -1)], {}),
+        ("fund_flow_vouchers", [("voucherType", 1), ("status", 1), ("createdAt", -1)], {}),
+        ("fund_flow_vouchers", [("createdAt", -1)], {}),
         ("ledgers", [("groupName", 1)], {}),
         ("ledgers", [("ledgerName", 1)], {}),
     ]

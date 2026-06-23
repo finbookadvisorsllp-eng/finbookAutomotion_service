@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Any
 
 class FundFlowTransactionCreate(BaseModel):
     voucherType: str
@@ -26,6 +26,26 @@ class FundFlowTransactionCreate(BaseModel):
     status: Optional[str] = "draft"
     billRows: Optional[List[dict]] = []
     costCenters: Optional[List[dict]] = []
+
+    # UI Fields for saving all fund flow details
+    voucherNumberSeries: Optional[str] = None
+    company: Optional[str] = None
+    ledgerGroup: Optional[str] = None
+    openingBalance: Optional[float] = 0.0
+    bankBalance: Optional[float] = 0.0
+    costCenterApplicable: Optional[bool] = False
+    costCategory: Optional[str] = None
+    costCenter: Optional[str] = None
+    costAmount: Optional[float] = 0.0
+    gstApplicable: Optional[bool] = False
+    gstLedger: Optional[str] = None
+    gstRate: Optional[Any] = None
+    tdsApplicable: Optional[bool] = False
+    tdsLedger: Optional[str] = None
+    tdsRate: Optional[Any] = None
+    totalDebit: Optional[float] = 0.0
+    totalCredit: Optional[float] = 0.0
+    difference: Optional[float] = 0.0
 
 class StatusUpdate(BaseModel):
     status: str

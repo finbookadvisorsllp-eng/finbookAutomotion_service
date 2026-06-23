@@ -11,6 +11,18 @@ import { toast } from 'sonner';
 
 const VoucherEntryEngine = ({ isDark, defaultMode = 'manual', voucherType = 'sales', onBack }) => {
   const [activeMode, setActiveMode] = useState(defaultMode);
+  const [activeVoucherType, setActiveVoucherType] = useState(voucherType);
+
+  React.useEffect(() => {
+    setActiveVoucherType(voucherType);
+  }, [voucherType]);
+
+  const handleBack = (type) => {
+    if (onBack) {
+      onBack(type || activeVoucherType);
+    }
+  };
+
   const theme = {
     bg: 'var(--app-content-bg)', panel: 'var(--app-panel-bg)',
     border: 'var(--app-border)', headerBg: 'var(--app-table-head-bg)',
@@ -29,45 +41,47 @@ const VoucherEntryEngine = ({ isDark, defaultMode = 'manual', voucherType = 'sal
     );
   };
 
-  const isSales = !['cash_payment', 'bank_payment', 'contra', 'purchase', 'purchase_invoice', 'purchase_order', 'debit_note'].includes(voucherType);
+  const isSales = !['cash_payment', 'bank_payment', 'contra', 'purchase', 'purchase_invoice', 'purchase_order', 'debit_note'].includes(activeVoucherType);
 
   return (
     <div className="flex flex-col gap-1.5 w-full h-full animate-in fade-in duration-500">
       {/* Header */}
-      <div className="shrink-0 rounded-2xl border shadow-sm p-2 relative overflow-hidden"
-        style={{ backgroundColor: isDark ? 'rgba(30,41,59,0.9)' : '#ffffff', borderColor: theme.border }}>
-        <div className="absolute -right-20 -top-20 w-40 h-40 bg-indigo-500/10 rounded-full blur-[30px]" />
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 w-full relative z-10">
-          <div className="flex items-center gap-2">
-            {onBack && (
-              <button onClick={onBack} className="p-1 rounded-md border hover:bg-slate-100 transition-colors"
-                style={{ color: theme.text, borderColor: theme.border, backgroundColor: theme.panel }}>
-                <X size={11.5} strokeWidth={3} />
-              </button>
-            )}
-            <div>
-              <h2 className="text-[12.5px] font-black tracking-tight" style={{ color: theme.text }}>Voucher Entry Engine</h2>
-              <p className="text-[8px] font-bold uppercase tracking-widest" style={{ color: theme.mutedText }}>Unified Entry System</p>
+      {activeMode !== 'manual' && (
+        <div className="shrink-0 rounded-2xl border shadow-sm p-2 relative overflow-hidden"
+          style={{ backgroundColor: isDark ? 'rgba(30,41,59,0.9)' : '#ffffff', borderColor: theme.border }}>
+          <div className="absolute -right-20 -top-20 w-40 h-40 bg-indigo-500/10 rounded-full blur-[30px]" />
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 w-full relative z-10">
+            <div className="flex items-center gap-2">
+              {onBack && (
+                <button onClick={() => handleBack(activeVoucherType)} className="p-1 rounded-md border hover:bg-slate-100 transition-colors"
+                  style={{ color: theme.text, borderColor: theme.border, backgroundColor: theme.panel }}>
+                  <X size={11.5} strokeWidth={3} />
+                </button>
+              )}
+              <div>
+                <h2 className="text-[12.5px] font-black tracking-tight" style={{ color: theme.text }}>Voucher Entry Engine</h2>
+                <p className="text-[8px] font-bold uppercase tracking-widest" style={{ color: theme.mutedText }}>Unified Entry System</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1 p-0.5 rounded-lg" style={{ backgroundColor: theme.inputBg, border: `1px solid ${theme.border}` }}>
+              <NavButton mode="manual" icon={Keyboard} label="Manual Entry" />
+              <NavButton mode="csv" icon={FileSpreadsheet} label="Bulk CSV" />
+              <NavButton mode="ocr" icon={ScanLine} label="AI-OCR" />
             </div>
           </div>
-          <div className="flex items-center gap-1 p-0.5 rounded-lg" style={{ backgroundColor: theme.inputBg, border: `1px solid ${theme.border}` }}>
-            <NavButton mode="manual" icon={Keyboard} label="Manual Entry" />
-            <NavButton mode="csv" icon={FileSpreadsheet} label="Bulk CSV" />
-            <NavButton mode="ocr" icon={ScanLine} label="AI-OCR" />
-          </div>
         </div>
-      </div>
+      )}
 
       <div className="flex-1 overflow-hidden relative">
         {activeMode === 'manual' && (
-          voucherType === 'cash_payment' || voucherType === 'bank_payment' || voucherType === 'contra'
-            ? <CreateFundFlow isDark={isDark} onBack={onBack} voucherType={voucherType} />
-            : voucherType === 'purchase' || voucherType === 'purchase_invoice' || voucherType === 'purchase_order' || voucherType === 'debit_note'
-              ? <CreatePurchase isDark={isDark} onBack={onBack} voucherType={voucherType} />
-              : <CreateSales isDark={isDark} onBack={onBack} voucherType={voucherType} />
+          activeVoucherType === 'cash_payment' || activeVoucherType === 'bank_payment' || activeVoucherType === 'contra'
+            ? <CreateFundFlow isDark={isDark} onBack={handleBack} voucherType={activeVoucherType} onVoucherTypeChange={setActiveVoucherType} />
+            : activeVoucherType === 'purchase' || activeVoucherType === 'purchase_invoice' || activeVoucherType === 'purchase_order' || activeVoucherType === 'debit_note'
+              ? <CreatePurchase isDark={isDark} onBack={handleBack} voucherType={activeVoucherType} onVoucherTypeChange={setActiveVoucherType} />
+              : <CreateSales isDark={isDark} onBack={handleBack} voucherType={activeVoucherType} onVoucherTypeChange={setActiveVoucherType} />
         )}
-        {activeMode === 'csv' && <CsvUploadPanel isDark={isDark} theme={theme} voucherType={voucherType} isSales={isSales} />}
-        {activeMode === 'ocr' && <OcrPanel isDark={isDark} theme={theme} voucherType={voucherType} isSales={isSales} onSwitchToManual={() => setActiveMode('manual')} />}
+        {activeMode === 'csv' && <CsvUploadPanel isDark={isDark} theme={theme} voucherType={activeVoucherType} isSales={isSales} />}
+        {activeMode === 'ocr' && <OcrPanel isDark={isDark} theme={theme} voucherType={activeVoucherType} isSales={isSales} onSwitchToManual={() => setActiveMode('manual')} />}
       </div>
 
       <style>{`@keyframes scan{0%{transform:translateY(-100%)}50%{transform:translateY(100%)}100%{transform:translateY(-100%)}}`}</style>

@@ -1,304 +1,422 @@
-import React, { useState, useEffect } from 'react';
-import { Search, HelpCircle, Plus, X, Check, ArrowUpDown, RefreshCw, Settings, ChevronLeft } from 'lucide-react';
+import React, { useState } from 'react';
+import { Search, Plus, X, Trash2, Pencil, CheckCircle, Shield, Users, Building, Calendar, Mail, Key, User, ChevronDown } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { toast } from 'sonner';
 
-const RolePanel = ({ mode: propMode, isDark }) => {
-  const [activeTab, setActiveTab] = useState(propMode || 'Manage Roles');
-  const [isAddRoleOpen, setIsAddRoleOpen] = useState(false);
+export default function RolePanel({ mode: propMode, isDark }) {
+  const [activeTab, setActiveTab] = useState(propMode || 'Manage Users');
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
-  useEffect(() => {
-    if (propMode) {
-      setActiveTab(propMode);
-    }
-  }, [propMode]);
+  // Create User Form State
+  const [userForm, setUserForm] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    role: 'Accountant',
+    company: 'Finbook Advisors LLP',
+    password: '',
+    confirmPassword: '',
+    status: 'Active'
+  });
 
-  const IconButton = ({ icon: Icon, color, onClick, label, isPrimary, border }) => {
-    const toneMap = {
-      red:     '#EF4444',
-      purple:  '#8B5CF6',
-      blue:    '#38bdf8',
-      emerald: '#10B981',
-      indigo:  '#6366F1',
-      slate:   'var(--app-text)',
-    };
-    const tone = toneMap[color] || 'var(--app-text)';
+  const [users, setUsers] = useState([
+    { id: 'usr-1', name: 'Admin User', email: 'admin@finbook.com', company: 'Finbook Advisors LLP', role: 'Super Admin', status: 'Active', lastLogin: 'Today, 18:25' },
+    { id: 'usr-2', name: 'Rahul Sharma', email: 'rahul@greeline.com', company: 'Greenline Ventures', role: 'Accountant', status: 'Active', lastLogin: 'Today, 14:10' },
+    { id: 'usr-3', name: 'Vikram Singh', email: 'vikram@finolax.com', company: 'Finolax Advisors', role: 'Data Operator', status: 'Active', lastLogin: 'Yesterday, 10:15' },
+    { id: 'usr-4', name: 'Anjali Gupta', email: 'anjali@apex.com', company: 'Apex Holdings', role: 'Accountant', status: 'Inactive', lastLogin: '12-Jun-2026 15:40' }
+  ]);
 
-    if (label) {
-      return (
-        <button
-          onClick={onClick}
-          className="h-9 px-3.5 rounded-lg flex items-center gap-1.5 font-semibold text-[12px] transition-all shadow-sm active:scale-95"
-          style={
-            isPrimary
-              ? {
-                  color: '#fff',
-                  background: isDark ? 'linear-gradient(135deg, #0284c7 0%, #38bdf8 100%)' : 'var(--app-accent-gradient)',
-                }
-              : {
-                  border: '1px solid var(--app-border)',
-                  color: tone,
-                  backgroundColor: 'var(--app-control-bg)',
-                }
-          }
-        >
-          <Icon size={14} strokeWidth={2.5} />
-          {label}
-        </button>
-      );
-    }
-
-    return (
-      <button
-        onClick={onClick}
-        className="h-9 w-9 rounded-lg border flex items-center justify-center transition-all active:scale-90 hover:bg-[var(--app-control-hover)] shadow-sm"
-        style={{
-          borderColor: border ? tone + '40' : 'var(--app-border)',
-          color: tone,
-          backgroundColor: 'var(--app-control-bg)',
-        }}
-      >
-        <Icon size={14} strokeWidth={2.5} />
-      </button>
-    );
-  };
-
-  const TableHead = ({ label, sortable, center, width, borderRight }) => (
-    <th 
-      className={`p-3 border-b text-[11px] font-black tracking-tight ${center ? 'text-center' : ''} ${borderRight ? 'border-r' : ''}`} 
-      style={{ borderColor: 'var(--app-row-border)', color: 'var(--app-muted)', width: width }}
-    >
-      <div className={`flex items-center gap-1.5 ${sortable ? 'cursor-pointer hover:opacity-80 transition' : ''}`}>
-        {label} {sortable && <ArrowUpDown size={11} className="opacity-30" />}
-      </div>
-    </th>
-  );
-
-  return (
-    <div className="flex flex-col gap-4 h-full animate-in fade-in duration-500 overflow-hidden relative">
-      {/* Header */}
-      <div 
-        className="rounded-xl border p-3.5 shrink-0" 
-        style={{ 
-          borderColor: 'var(--app-border)', 
-          backgroundColor: 'var(--app-panel-bg)' 
-        }}
-      >
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-3">
-            <div 
-              className="h-10 w-10 rounded-xl flex items-center justify-center text-white shadow-sm"
-              style={{ background: isDark ? 'linear-gradient(135deg, #0284c7 0%, #38bdf8 100%)' : 'var(--app-accent-gradient)' }}
-            >
-              <Check size={18} strokeWidth={2.5} />
-            </div>
-            <div>
-              <h1 
-                className="text-[17px] font-semibold tracking-tight leading-tight" 
-                style={{ color: isDark ? '#f97316' : 'var(--app-accent)' }}
-              >
-                {activeTab}
-              </h1>
-              <p className="text-[11.5px] mt-0.5" style={{ color: 'var(--app-muted)' }}>
-                {activeTab === 'Manage Roles' ? 'Configure and manage system-wide access roles.' : 'Manage specific user permissions and company assignments.'}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex gap-2 items-center flex-wrap">
-            {activeTab === 'Manage Roles' && (
-              <IconButton 
-                icon={Plus} 
-                color="blue" 
-                label="Add Role" 
-                isPrimary 
-                onClick={() => setIsAddRoleOpen(true)} 
-              />
-            )}
-            <IconButton icon={RefreshCw} color="emerald" onClick={() => {}} />
-            <IconButton icon={Settings} color="slate" onClick={() => {}} />
-            <IconButton icon={HelpCircle} color="purple" border />
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between gap-3 mt-3 flex-wrap">
-          <div className="flex-1 min-w-[240px] max-w-[420px]">
-            <div className="relative group">
-              <Search 
-                className="absolute left-3 top-1/2 -translate-y-1/2 transition-colors" 
-                style={{ color: 'var(--app-muted)' }} 
-                size={14} 
-              />
-              <input
-                type="text"
-                placeholder="Search..."
-                className="w-full h-9 rounded-lg border pl-9 pr-3 text-[12.5px] outline-none transition-all focus-ring"
-                style={{ 
-                  backgroundColor: 'var(--app-control-bg)', 
-                  borderColor: 'var(--app-border)', 
-                  color: 'var(--app-text)' 
-                }}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Panel Content */}
-      <div 
-        className="flex-1 overflow-hidden rounded-xl border shadow-sm flex flex-col" 
-        style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-panel-bg)' }}
-      >
-        <div className="overflow-x-auto h-full themed-scrollbar">
-          <table className="w-full text-left border-collapse">
-            <thead className="sticky top-0 z-10">
-              <tr style={{ backgroundColor: 'var(--app-table-head-bg)' }}>
-                {activeTab === 'Manage Roles' ? (
-                  <>
-                    <TableHead label="Sr No." borderRight width="100px" />
-                    <TableHead label="Name" borderRight sortable />
-                    <TableHead label="Created At" borderRight />
-                    <TableHead label="Created By" borderRight />
-                    <TableHead label="Action" width="100px" />
-                  </>
-                ) : (
-                  <>
-                    <TableHead label="User Name" borderRight sortable />
-                    <TableHead label="Email ID" borderRight sortable />
-                    <TableHead label="Company Name" borderRight sortable />
-                    <TableHead label="Role" borderRight />
-                    <TableHead label="UserType" borderRight sortable />
-                    <TableHead label="Action" width="100px" />
-                  </>
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td colSpan={10} className="p-12">
-                  <div className="flex flex-col items-center justify-center gap-3 text-center">
-                    <div 
-                      className="h-12 w-12 rounded-full flex items-center justify-center shadow-sm" 
-                      style={{ backgroundColor: 'var(--app-accent-soft)', color: 'var(--app-accent)' }}
-                    >
-                      <HelpCircle size={22} />
-                    </div>
-                    <div>
-                      <p className="text-[14px] font-bold uppercase tracking-tight" style={{ color: isDark ? '#f97316' : 'var(--app-text)' }}>
-                        No {activeTab} Data found
-                      </p>
-                      <p className="text-[12px] mt-1" style={{ color: 'var(--app-muted)' }}>
-                        Create or assign permissions to get started.
-                      </p>
-                    </div>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {isAddRoleOpen && <AddRoleModal onClose={() => setIsAddRoleOpen(false)} isDark={isDark} />}
-    </div>
-  );
-};
-
-/* --- Add Role Modal --- */
-const AddRoleModal = ({ onClose, isDark }) => {
-  const permissions = [
-    { id: 'upgrade', label: 'Upgrade Plan' },
-    { id: 'download', label: 'Download Exe' },
-    {
-      id: 'dashboard', label: 'Dashboard', children: [
-        { id: 'dash_bus', label: 'Business data', options: ['Enable'] },
-        { id: 'dash_acc', label: 'Accountant related data', options: ['Enable'] },
-        { id: 'dash_usr', label: 'User data/CA', options: ['Enable'] },
-      ]
-    },
-    {
-      id: 'business', label: 'Business', children: [
-        { id: 'bus_mng_bus', label: 'Manage Business', options: ['Enable', 'Add', 'Edit', 'Delete'] },
-        { id: 'bus_mng_cmp', label: 'Manage Company', options: ['Enable', 'Add', 'Edit', 'Delete', 'Assign Credits'] },
-      ]
-    },
-    {
-      id: 'allocations', label: 'Allocations', children: [
-        { id: 'alloc_acc', label: 'Allocate Accountant', options: ['Enable', 'Add', 'Edit', 'Delete'] },
-      ]
-    }
+  // Permission Matrix Modules & columns
+  const modulesList = [
+    'Dashboard', 'Manual Entry', 'Bulk Upload', 'Masters', 'Approval', 
+    'AI Processing', 'Tally Connector', 'Document Archive', 'Configuration'
   ];
 
+  const permissionActions = ['Create', 'Edit', 'Delete', 'Approve', 'Post To Tally'];
+
+  // Track checkboxes state
+  const [matrixState, setMatrixState] = useState(
+    modulesList.reduce((acc, mod) => {
+      acc[mod] = permissionActions.reduce((actAcc, action) => {
+        actAcc[action] = mod === 'Dashboard' ? true : false;
+        return actAcc;
+      }, {});
+      return acc;
+    }, {})
+  );
+
+  const handleCheckboxChange = (mod, action) => {
+    setMatrixState(prev => ({
+      ...prev,
+      [mod]: {
+        ...prev[mod],
+        [action]: !prev[mod][action]
+      }
+    }));
+  };
+
+  const handleCreateUser = (e) => {
+    e.preventDefault();
+    if (!userForm.name || !userForm.email || !userForm.password) {
+      toast.error('Name, Email and Password are required.');
+      return;
+    }
+    if (userForm.password !== userForm.confirmPassword) {
+      toast.error('Passwords do not match.');
+      return;
+    }
+    const newUser = {
+      id: 'usr-' + Date.now(),
+      name: userForm.name,
+      email: userForm.email,
+      company: userForm.company,
+      role: userForm.role,
+      status: userForm.status,
+      lastLogin: 'Never logged in'
+    };
+    setUsers(prev => [newUser, ...prev]);
+    setUserForm({ name: '', email: '', phone: '', role: 'Accountant', company: 'Finbook Advisors LLP', password: '', confirmPassword: '', status: 'Active' });
+    setShowCreateForm(false);
+    toast.success('System User registered successfully!');
+  };
+
+  const handleDeleteUser = (id) => {
+    setUsers(prev => prev.filter(u => u.id !== id));
+    toast.success('User access profile removed');
+  };
+
+  // Spec Summary Cards: Total Users, Active Users, Roles, Pending Invites
+  const stats = [
+    { label: 'Total Users', count: users.length, color: 'text-blue-800 dark:text-blue-300', countColor: 'text-blue-950 dark:text-blue-50', cardBg: 'bg-blue-50/80 border-blue-200/80 dark:bg-blue-950/20 dark:border-blue-900/30' },
+    { label: 'Active Users', count: users.filter(u => u.status === 'Active').length, color: 'text-emerald-800 dark:text-emerald-300', countColor: 'text-emerald-950 dark:text-emerald-50', cardBg: 'bg-emerald-50/80 border-emerald-200/80 dark:bg-emerald-950/20 dark:border-emerald-900/30' },
+    { label: 'Roles', count: '4 roles', color: 'text-purple-800 dark:text-purple-300', countColor: 'text-purple-950 dark:text-purple-50', cardBg: 'bg-purple-50/80 border-purple-200/80 dark:bg-purple-950/20 dark:border-purple-900/30' },
+    { label: 'Pending Invites', count: '1 invite', color: 'text-amber-800 dark:text-amber-300', countColor: 'text-amber-950 dark:text-amber-50', cardBg: 'bg-amber-50/80 border-amber-200/80 dark:bg-amber-950/20 dark:border-amber-900/30' }
+  ];
+
+  const filteredUsers = users.filter(u => 
+    u.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    u.company.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
-    <div className="fixed inset-0 z-[500] flex items-center justify-center p-4 animate-in fade-in duration-300">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div 
-        className="relative w-[700px] h-[85vh] rounded-2xl shadow-2xl flex flex-col animate-in zoom-in-95 duration-300 border overflow-hidden"
-        style={{ backgroundColor: 'var(--app-panel-bg)', borderColor: 'var(--app-border)' }}
-      >
-        <div className="px-6 py-4 flex items-center justify-between border-b" style={{ borderColor: 'var(--app-border)' }}>
-          <h2 className="text-[16px] font-black tracking-tight" style={{ color: isDark ? '#f97316' : 'var(--app-accent)' }}>Add Role</h2>
-          <button onClick={onClose} className="p-1.5 rounded-lg transition-colors hover:bg-black/5 dark:hover:bg-white/5" style={{ color: 'var(--app-muted)' }}><X size={18} /></button>
+    <div className="flex flex-col gap-2.5 h-full overflow-y-auto pr-1 text-[13px] text-slate-700 dark:text-slate-200">
+      
+      {/* Title Header */}
+      <div className="rounded-xl border px-3 py-2 flex items-center justify-between shrink-0 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm">
+        <div>
+          <h1 className="text-[18px] md:text-[20px] font-extrabold tracking-tight text-slate-900 dark:text-[var(--app-heading)]">User & Role Management</h1>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+            Configure system user credentials, security policies, and custom access permission matrix grids.
+          </p>
         </div>
+        <button
+          onClick={() => setShowCreateForm(p => !p)}
+          className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10.5px] rounded-lg flex items-center gap-1 transition-all uppercase shrink-0 shadow-sm"
+        >
+          {showCreateForm ? <X size={12} /> : <Plus size={12} />}
+          {showCreateForm ? 'Close Form' : 'Create User'}
+        </button>
+      </div>
 
-        <div className="flex-1 overflow-y-auto p-8 themed-scrollbar">
-          <div className="space-y-6">
-            <input
-              type="text"
-              placeholder="Role Name *"
-              className="w-full h-10 border rounded-lg px-4 text-[13px] font-bold outline-none focus:border-blue-400 transition-colors shadow-sm"
-              style={{ backgroundColor: 'var(--app-control-bg)', borderColor: 'var(--app-border)', color: 'var(--app-text)' }}
-            />
+      {/* Summary Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5 shrink-0">
+        {stats.map((s, idx) => (
+          <div key={idx} className={`p-2 border rounded-xl flex flex-col justify-between transition-all ${s.cardBg}`}>
+            <span className={`text-[10px] uppercase font-bold tracking-wider leading-none block ${s.color}`}>{s.label}</span>
+            <span className={`text-[15px] font-extrabold mt-1 block leading-none ${s.countColor}`}>{s.count}</span>
+          </div>
+        ))}
+      </div>
 
-            <div className="flex justify-center border-b pb-6" style={{ borderColor: 'var(--app-border)' }}>
-              <label className="flex items-center gap-2 cursor-pointer px-3 py-1.5 rounded-lg border transition-colors" style={{ backgroundColor: 'var(--app-accent-soft)', borderColor: 'var(--app-accent)', color: 'var(--app-accent)' }}>
-                <input type="checkbox" className="w-3.5 h-3.5 rounded border-gray-300 accent-blue-600 shadow-sm" />
-                <span className="text-[12px] font-bold">Select All Permissions</span>
-              </label>
+      {/* Create User Pop-up Modal */}
+      {showCreateForm && (
+        <div className="fixed inset-0 z-50 flex items-start md:items-center justify-center bg-black/50 backdrop-blur-[2px] p-0 md:p-4 overflow-y-auto select-none">
+          <div className="bg-white dark:bg-slate-900 border-0 md:border border-slate-200 dark:border-slate-800 rounded-none md:rounded-xl shadow-2xl max-w-5xl w-full h-full md:h-auto md:max-h-[95vh] flex flex-col my-0 md:my-4 overflow-hidden">
+            {/* Header */}
+            <div className="px-4 py-2.5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center shrink-0 bg-white dark:bg-slate-900 rounded-t-none md:rounded-t-xl">
+              <div>
+                <h2 className="text-base md:text-lg font-bold text-slate-900 dark:text-white">Create System User</h2>
+                <p className="text-[10px] md:text-xs text-slate-500 dark:text-slate-400 mt-0.5">Register a new system user profile in one view</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCreateForm(false)}
+                className="text-slate-400 hover:text-slate-650 dark:hover:text-slate-250 transition-colors p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
+              >
+                <X size={16} />
+              </button>
             </div>
 
-            <div className="space-y-4">
-              {permissions.map((group) => (
-                <div key={group.id} className="border-b pb-4 last:border-0" style={{ borderColor: 'var(--app-border)' }}>
-                  <label className="flex items-center gap-3 cursor-pointer group mb-3">
-                    <input type="checkbox" className="w-4 h-4 rounded border-gray-300 accent-blue-600 shadow-sm" />
-                    <span className="text-[13px] font-bold transition-colors group-hover:text-blue-600" style={{ color: 'var(--app-text)' }}>{group.label}</span>
-                  </label>
+            {/* Form Body */}
+            <form onSubmit={handleCreateUser} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+              {/* Fields - grouped into 3 columns, no scrolling needed on typical displays */}
+              <div className="flex-1 p-3 md:p-4 space-y-3 overflow-y-auto md:overflow-visible">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  
+                  {/* Column 1: Profile Info */}
+                  <div className="space-y-3">
+                    <div className="space-y-2 border rounded-xl p-3 bg-slate-50/40 dark:bg-slate-950/20 border-slate-200 dark:border-slate-800">
+                      <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 font-bold border-b border-slate-200 dark:border-slate-800 pb-1 mb-2">
+                        <User size={13} />
+                        <span className="text-[11px] uppercase tracking-wider font-black">1. User Info</span>
+                      </div>
 
-                  {group.children && (
-                    <div className="ml-8 space-y-4">
-                      {group.children.map(child => (
-                        <div key={child.id} className="space-y-2">
-                          <label className="flex items-center gap-3 cursor-pointer group">
-                            <input type="checkbox" className="w-4 h-4 rounded border-gray-300 accent-blue-600 shadow-sm" />
-                            <span className="text-[12px] font-bold transition-colors group-hover:text-blue-600" style={{ color: 'var(--app-muted)' }}>{child.label}</span>
-                          </label>
-                          <div className="ml-8 flex flex-wrap gap-6">
-                            {child.options.map(opt => (
-                              <label key={opt} className="flex items-center gap-2 cursor-pointer group">
-                                <input type="checkbox" className="w-3.5 h-3.5 rounded border-gray-300 accent-blue-600 shadow-sm" />
-                                <span className="text-[11px] font-bold transition-colors group-hover:text-blue-600" style={{ color: 'var(--app-muted)' }}>{opt}</span>
-                              </label>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
+                      <div>
+                        <label className="text-[9px] font-bold text-slate-500 mb-0.5 block uppercase tracking-wide">User Name *</label>
+                        <input
+                          type="text"
+                          required
+                          value={userForm.name}
+                          onChange={(e) => setUserForm(prev => ({ ...prev, name: e.target.value }))}
+                          placeholder="e.g. Rahul Sharma"
+                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[9px] font-bold text-slate-500 mb-0.5 block uppercase tracking-wide">Email Address *</label>
+                        <input
+                          type="email"
+                          required
+                          value={userForm.email}
+                          onChange={(e) => setUserForm(prev => ({ ...prev, email: e.target.value }))}
+                          placeholder="e.g. rahul@company.com"
+                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[9px] font-bold text-slate-500 mb-0.5 block uppercase tracking-wide">Phone Number</label>
+                        <input
+                          type="text"
+                          value={userForm.phone}
+                          onChange={(e) => setUserForm(prev => ({ ...prev, phone: e.target.value }))}
+                          placeholder="e.g. +91 98765 43210"
+                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                        />
+                      </div>
                     </div>
-                  )}
+                  </div>
+
+                  {/* Column 2: Organization details */}
+                  <div className="space-y-3">
+                    <div className="space-y-2 border rounded-xl p-3 bg-slate-50/40 dark:bg-slate-950/20 border-slate-200 dark:border-slate-800">
+                      <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 font-bold border-b border-slate-200 dark:border-slate-800 pb-1 mb-2">
+                        <Users size={13} />
+                        <span className="text-[11px] uppercase tracking-wider font-black">2. Organization</span>
+                      </div>
+
+                      <div>
+                        <label className="text-[9px] font-bold text-slate-500 mb-0.5 block uppercase tracking-wide">Assigned Role</label>
+                        <div className="relative">
+                          <select
+                            value={userForm.role}
+                            onChange={(e) => setUserForm(prev => ({ ...prev, role: e.target.value }))}
+                            className="w-full appearance-none h-8 rounded-lg border px-2.5 pr-8 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                          >
+                            <option value="Super Admin">Super Admin</option>
+                            <option value="Accountant">Accountant</option>
+                            <option value="Data Operator">Data Operator</option>
+                            <option value="Auditor">Auditor</option>
+                          </select>
+                          <ChevronDown size={13} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-[9px] font-bold text-slate-500 mb-0.5 block uppercase tracking-wide">Assigned Company</label>
+                        <div className="relative">
+                          <select
+                            value={userForm.company}
+                            onChange={(e) => setUserForm(prev => ({ ...prev, company: e.target.value }))}
+                            className="w-full appearance-none h-8 rounded-lg border px-2.5 pr-8 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                          >
+                            <option value="Finbook Advisors LLP">Finbook Advisors LLP</option>
+                            <option value="Greenline Ventures">Greenline Ventures</option>
+                            <option value="Apex Holdings">Apex Holdings</option>
+                          </select>
+                          <ChevronDown size={13} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Column 3: Security */}
+                  <div className="space-y-3">
+                    <div className="space-y-2 border rounded-xl p-3 bg-slate-50/40 dark:bg-slate-950/20 border-slate-200 dark:border-slate-800">
+                      <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 font-bold border-b border-slate-200 dark:border-slate-800 pb-1 mb-2">
+                        <Key size={13} />
+                        <span className="text-[11px] uppercase tracking-wider font-black">3. Security Settings</span>
+                      </div>
+
+                      <div>
+                        <label className="text-[9px] font-bold text-slate-500 mb-0.5 block uppercase tracking-wide">Password *</label>
+                        <input
+                          type="password"
+                          required
+                          value={userForm.password}
+                          onChange={(e) => setUserForm(prev => ({ ...prev, password: e.target.value }))}
+                          placeholder="••••••••"
+                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[9px] font-bold text-slate-500 mb-0.5 block uppercase tracking-wide">Confirm Password *</label>
+                        <input
+                          type="password"
+                          required
+                          value={userForm.confirmPassword}
+                          onChange={(e) => setUserForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                          placeholder="••••••••"
+                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
                 </div>
-              ))}
+              </div>
+
+              {/* Modal Footer Buttons */}
+              <div className="flex justify-end gap-2 p-3 md:p-4 border-t border-slate-100 dark:border-slate-800 text-[10px] font-bold uppercase tracking-wider shrink-0 bg-white dark:bg-slate-900 rounded-b-none md:rounded-b-xl">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateForm(false)}
+                  className="px-4 py-1.5 border rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 transition-colors"
+                  style={{ borderColor: 'var(--app-border)' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition-all font-bold"
+                >
+                  Save User
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Main Grid split: Top/Left User Table, Bottom/Right Checkbox Matrix */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 flex-1 overflow-hidden">
+        
+        {/* Left/User Table */}
+        <div className="lg:col-span-7 flex flex-col border rounded-xl overflow-hidden bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm">
+          <div className="p-2 border-b flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/10 border-slate-200 dark:border-slate-800 shrink-0" style={{ backgroundColor: 'var(--app-table-head-bg)' }}>
+            <div className="relative w-64">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
+              <input
+                type="text"
+                placeholder="Search registered accounts..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full h-7 pl-7 pr-2 rounded border text-[11px] outline-none bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+              />
             </div>
+          </div>
+
+          <div className="overflow-auto themed-scrollbar flex-1">
+            <table className="w-full text-left border-collapse min-w-[500px] text-[13px]">
+              <thead>
+                <tr className="bg-slate-50 dark:bg-slate-900/60 border-b text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-800" style={{ backgroundColor: 'var(--app-table-head-bg)' }}>
+                  <th className="p-2 w-12 text-center" style={{ color: 'var(--app-muted)' }}>Sr.</th>
+                  <th className="p-2 border-r border-slate-200 dark:border-slate-800" style={{ color: 'var(--app-muted)' }}>Name</th>
+                  <th className="p-2 border-r border-slate-200 dark:border-slate-800" style={{ color: 'var(--app-muted)' }}>Email</th>
+                  <th className="p-2 border-r border-slate-200 dark:border-slate-800" style={{ color: 'var(--app-muted)' }}>Role</th>
+                  <th className="p-2 border-r border-slate-200 dark:border-slate-800" style={{ color: 'var(--app-muted)' }}>Company</th>
+                  <th className="p-2 border-r border-slate-200 dark:border-slate-800 text-center" style={{ color: 'var(--app-muted)' }}>Status</th>
+                  <th className="p-2 border-r border-slate-200 dark:border-slate-800 text-center" style={{ color: 'var(--app-muted)' }}>Last Login</th>
+                  <th className="p-2 text-center w-16" style={{ color: 'var(--app-muted)' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredUsers.map((user, idx) => (
+                  <tr key={user.id} className="border-b hover:bg-slate-50/50 dark:hover:bg-slate-900/10 font-medium text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800">
+                    <td className="p-2 text-center text-slate-500">{idx + 1}</td>
+                    <td className="p-2 border-r font-semibold text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800">{user.name}</td>
+                    <td className="p-2 border-r border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400">{user.email}</td>
+                    <td className="p-2 border-r border-slate-200 dark:border-slate-800 text-indigo-500 dark:text-indigo-400 font-semibold">{user.role}</td>
+                    <td className="p-2 border-r border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400">{user.company}</td>
+                    
+                    <td className="p-2 border-r border-slate-200 dark:border-slate-800 text-center">
+                      <span className={`px-1.5 py-0.5 rounded border text-[10.5px] font-bold ${
+                        user.status === 'Active' 
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-250 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30' 
+                          : 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800/40 dark:text-slate-400 dark:border-slate-700/50'
+                      }`}>
+                        {user.status}
+                      </span>
+                    </td>
+
+                    <td className="p-2 border-r border-slate-200 dark:border-slate-800 text-center text-slate-500 font-mono text-[11px]">{user.lastLogin}</td>
+                    <td className="p-2 text-center">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button className="hover:text-blue-500"><Pencil size={12} /></button>
+                        {user.name !== 'Admin User' && (
+                          <button className="hover:text-rose-500" onClick={() => handleDeleteUser(user.id)}><Trash2 size={12} /></button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="p-4 border-t flex items-center justify-end gap-3" style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-panel-bg)' }}>
-          <button onClick={onClose} className="px-4 py-2 rounded-lg text-[12px] font-bold transition-colors hover:bg-black/5 dark:hover:bg-white/5" style={{ color: 'var(--app-muted)' }}>Cancel</button>
-          <button className="px-6 py-2 rounded-lg text-[12px] font-bold text-white shadow-lg transition-transform active:scale-95" style={{ background: isDark ? 'linear-gradient(135deg, #0284c7 0%, #38bdf8 100%)' : 'var(--app-accent-gradient)' }}>
-            Create Role
-          </button>
+        {/* Right/Checkbox Permission Matrix */}
+        <div className="lg:col-span-5 flex flex-col border rounded-xl overflow-hidden bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm">
+          <h3 className="text-[14px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-300 border-b p-2.5 border-slate-200 dark:border-slate-800 flex items-center gap-1.5 shrink-0" style={{ backgroundColor: 'var(--app-table-head-bg)' }}>
+            <Shield size={13} className="text-purple-500" /> Role Permission Matrix Grid
+          </h3>
+
+          <div className="overflow-auto themed-scrollbar flex-1">
+            <table className="w-full text-left border-collapse text-[12px]">
+              <thead>
+                <tr className="bg-slate-50 dark:bg-slate-900/60 border-b text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-800" style={{ backgroundColor: 'var(--app-table-head-bg)' }}>
+                  <th className="p-2 border-r border-slate-200 dark:border-slate-800 font-semibold w-24" style={{ color: 'var(--app-muted)' }}>Module</th>
+                  {permissionActions.map(action => (
+                    <th key={action} className="p-2 text-center border-r border-slate-200 dark:border-slate-800 w-16" style={{ color: 'var(--app-muted)' }}>{action}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {modulesList.map(mod => (
+                  <tr key={mod} className="border-b hover:bg-slate-50/30 dark:hover:bg-slate-900/5 border-slate-200 dark:border-slate-800">
+                    <td className="p-2 border-r font-semibold text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800">{mod}</td>
+                    {permissionActions.map(action => (
+                      <td key={action} className="p-2 text-center border-r border-slate-200 dark:border-slate-800">
+                        <input
+                          type="checkbox"
+                          checked={matrixState[mod]?.[action] || false}
+                          onChange={() => handleCheckboxChange(mod, action)}
+                          className="w-3.5 h-3.5 accent-blue-600 rounded cursor-pointer"
+                        />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="p-2.5 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/10 flex justify-end shrink-0">
+            <button
+              onClick={() => toast.success('Role permissions matrix saved successfully!')}
+              className="px-4 py-1 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] uppercase shadow rounded transition-colors"
+            >
+              Save Permission Matrix
+            </button>
+          </div>
         </div>
+
       </div>
+
     </div>
   );
-};
-
-export default RolePanel;
+}

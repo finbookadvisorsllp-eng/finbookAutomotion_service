@@ -6,7 +6,8 @@
 export const LOGIN_PATH = '/login'
 
 export const LABEL_TO_PATH = {
-  'User Data': '/',
+  
+  'Dashboard': '/',
 
   // Manage
   'Manage Company': '/companies',
@@ -48,12 +49,43 @@ export const LABEL_TO_PATH = {
   'Manage Roles': '/roles',
   'Manage User Permission': '/roles/permissions',
 
-  // Documents
-  'My Documents': '/documents',
+  // Voucher Entries
+  'Manual Entry': '/sales/new',
+  'Bulk Upload': '/bulk-upload',
 
-  // Master data
-  'Party Ledger': '/master/party-ledger',
-  'Stock Ledger': '/master/stock-ledger',
+  // Automation
+  'AI Processing Center': '/automation/ai-processing',
+  'Approval Center': '/automation/approval-center',
+
+  // Tally Integration
+  'Tally Connector': '/tally/connector',
+
+  // Documents
+  'Document Archive': '/documents/archive',
+
+  // Company Management
+  'Companies': '/admin/companies',
+  'Clients': '/admin/clients',
+
+  // Administration / Settings
+  'User & Role Management': '/admin/users-roles',
+  'Configuration': '/settings/configuration',
+
+  // Voucher Children
+  'Sales Order': '/sales/orders',
+  'Sales Invoice': '/sales/invoices',
+  'Credit Note': '/sales/credit-notes',
+  'Purchase Order': '/purchase/orders',
+  'Purchase Invoice': '/purchase/invoices',
+  'Debit Note': '/purchase/debit-notes',
+  'Payment': '/fund-flow/cash-payment',
+  'Receipt': '/fund-flow/bank-payment',
+  'Contra': '/fund-flow/contra',
+  'Bank Transaction': '/bank/inbox',
+
+  // Masters
+  'Ledger Master': '/master/party-ledger',
+  'Item Master': '/master/stock-ledger',
 }
 
 export const PATH_TO_LABEL = Object.fromEntries(

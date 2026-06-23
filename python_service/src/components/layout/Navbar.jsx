@@ -3,13 +3,19 @@ import { motion, AnimatePresence } from 'motion/react'
 import {
   Bell,
   ChevronDown,
-  Command,
   Menu,
   Moon,
-  Search,
-  Sparkles,
   Sun,
+  RefreshCw,
+  HelpCircle,
+  CheckCircle2,
+  Search,
+  ArrowLeft,
+  Building2,
+  Calendar
 } from 'lucide-react'
+import { useLocation } from 'react-router-dom'
+import { useAppStore } from '../../stores/useAppStore'
 
 function Navbar({
   isDark,
@@ -18,19 +24,27 @@ function Navbar({
   companies,
   selectedCompany,
   onCompanyChange,
-  subscriptionMessage,
-  credits,
   onMobileNavToggle,
 }) {
+  const location = useLocation()
+  const approvalCenterView = useAppStore((s) => s.approvalCenterView)
+  const isApprovalDetail = location.pathname.startsWith('/automation/approval-center') && approvalCenterView === 'detail'
+
   const [isCompanyOpen, setIsCompanyOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [globalQuery, setGlobalQuery] = useState('')
+  const [selectedFy, setSelectedFy] = useState(localStorage.getItem('selectedFy') || 'FY 2023-24')
+  const [isFyOpen, setIsFyOpen] = useState(false)
+
   const dropdownRef = useRef(null)
+  const fyDropdownRef = useRef(null)
 
   useEffect(() => {
     const handleOutsideClick = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setIsCompanyOpen(false)
+      }
+      if (fyDropdownRef.current && !fyDropdownRef.current.contains(event.target)) {
+        setIsFyOpen(false)
       }
     }
     document.addEventListener('mousedown', handleOutsideClick)
@@ -49,256 +63,284 @@ function Navbar({
     setIsCompanyOpen(false)
   }
 
+  const handleFyChange = (fy) => {
+    localStorage.setItem('selectedFy', fy)
+    setSelectedFy(fy)
+    window.dispatchEvent(new Event('fy-changed'))
+  }
+
   return (
     <header
-      className="flex items-center justify-between gap-2 sm:gap-4 px-3 sm:px-5 py-2.5 sm:py-3 border-b"
-      style={{ borderColor: 'var(--app-border)', backgroundColor: 'transparent' }}
+      className="flex items-center justify-between gap-4 px-4 border-b shrink-0 flex-wrap sm:flex-nowrap py-2.5"
+      style={{
+        borderColor: 'var(--app-border)',
+        backgroundColor: 'var(--app-panel-bg)',
+        minHeight: '56px',
+        height: '56px',
+      }}
     >
-      {/* Mobile hamburger */}
-      <button
-        type="button"
-        onClick={onMobileNavToggle}
-        className="md:hidden inline-flex h-9 w-9 items-center justify-center rounded-lg border focus-ring shrink-0"
-        style={{
-          borderColor: 'var(--app-border)',
-          color: 'var(--app-heading)',
-          backgroundColor: 'var(--app-control-bg)',
-        }}
-        aria-label="Open navigation"
-      >
-        <Menu size={16} />
-      </button>
-
-      {/* Brand */}
-      <motion.div
-        whileHover={{ scale: 1.01 }}
-        className="flex items-center gap-2 sm:gap-2.5 cursor-pointer select-none shrink-0"
-      >
-        <div
-          className="relative h-9 w-9 rounded-xl flex items-center justify-center text-white font-black text-base shadow-lg"
-          style={{ background: 'var(--app-accent-gradient)' }}
-        >
-          <span className="relative z-10">f</span>
-          <div className="absolute inset-0 rounded-xl bg-white/10 mix-blend-overlay" />
-        </div>
-        <div className="leading-none hidden xs:block">
-          <div className="text-[16px] sm:text-[18px] font-semibold tracking-tight" style={{ color: 'var(--app-heading)' }}>
-            finbook<span style={{ color: 'var(--app-accent)' }}>.ai</span>
-          </div>
-          <div className="text-[10px] mt-1 font-medium hidden sm:block" style={{ color: 'var(--app-muted)' }}>
-            Customer workspace
-          </div>
-        </div>
-      </motion.div>
-
-      {/* Global search — command-palette style */}
-      <div className="hidden md:flex flex-1 max-w-[460px]">
-        <label
-          className="group flex w-full items-center gap-2.5 rounded-xl border px-3 py-2 transition-all focus-within:shadow-sm"
+      {/* Left side: Company & FY dropdowns */}
+      <div className="flex items-center gap-3">
+        {/* Mobile Hamburger */}
+        <button
+          type="button"
+          onClick={onMobileNavToggle}
+          className="md:hidden inline-flex h-9 w-9 items-center justify-center rounded-lg border shrink-0"
           style={{
             borderColor: 'var(--app-border)',
+            color: 'var(--app-heading)',
             backgroundColor: 'var(--app-control-bg)',
           }}
+          aria-label="Open navigation"
         >
-          <Search size={15} style={{ color: 'var(--app-muted)' }} />
-          <input
-            type="text"
-            value={globalQuery}
-            onChange={(e) => setGlobalQuery(e.target.value)}
-            placeholder="Search invoices, vouchers, parties…"
-            className="flex-1 bg-transparent text-[13px] outline-none placeholder:opacity-60"
-            style={{ color: 'var(--app-heading)' }}
-          />
-          <span
-            className="hidden sm:inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-medium"
-            style={{
-              borderColor: 'var(--app-border)',
-              color: 'var(--app-muted)',
-              backgroundColor: 'transparent',
-            }}
+          <Menu size={16} />
+        </button>
+
+        {isApprovalDetail ? (
+          <button
+            type="button"
+            onClick={() => useAppStore.getState().setApprovalCenterView('list')}
+            className="flex items-center gap-1.5 text-blue-600 hover:text-blue-700 font-extrabold text-[12.5px] transition-all ml-1"
           >
-            <Command size={10} /> K
-          </span>
-        </label>
+            <ArrowLeft size={14} className="stroke-[2.5]" /> Back to Approval Center
+          </button>
+        ) : (
+          <>
+            {/* Company Dropdown Selector */}
+            <div className="flex flex-col items-start">
+              <span className="text-[9px] font-extrabold text-[var(--app-muted)] uppercase tracking-widest leading-none mb-1 opacity-80">Company</span>
+              <div className="relative" ref={dropdownRef}>
+                <motion.button
+                  whileHover={{ scale: 1.01, borderColor: 'var(--app-accent)' }}
+                  whileTap={{ scale: 0.99 }}
+                  type="button"
+                  onClick={() => setIsCompanyOpen((p) => !p)}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-lg border px-2.5 text-[12px] font-semibold transition-all shadow-sm"
+                  style={{
+                    borderColor: 'var(--app-border)',
+                    color: 'var(--app-heading)',
+                    backgroundColor: 'var(--app-control-bg)',
+                  }}
+                >
+                  <div className="flex h-5 w-5 items-center justify-center rounded-md bg-blue-500/10 text-blue-500 shrink-0">
+                    <Building2 size={11} strokeWidth={2.5} />
+                  </div>
+                  <span className="truncate max-w-[155px] tracking-wide text-slate-800 dark:text-slate-200">{selectedCompany || 'Select Company'}</span>
+                  <ChevronDown size={12} className="text-[var(--app-muted)] shrink-0 ml-0.5" />
+                </motion.button>
+ 
+                <AnimatePresence>
+                  {isCompanyOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -6, scale: 0.98 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -6, scale: 0.98 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute left-0 z-50 mt-1 w-[250px] rounded-xl border p-2 shadow-2xl glass-surface"
+                      style={{ borderColor: 'var(--app-border)' }}
+                    >
+                      <div
+                        className="mb-2 flex items-center gap-2 rounded-lg border px-2 py-1.5"
+                        style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-control-bg)' }}
+                      >
+                        <Search size={12} style={{ color: 'var(--app-muted)' }} />
+                        <input
+                          type="text"
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          placeholder="Search company…"
+                          className="w-full bg-transparent text-[11px] outline-none"
+                          style={{ color: 'var(--app-heading)' }}
+                        />
+                      </div>
+                      <div className="themed-scrollbar max-h-[200px] overflow-y-auto space-y-0.5">
+                        {filteredCompanies.length ? (
+                          filteredCompanies.map((company) => {
+                            const active = company === selectedCompany
+                            return (
+                              <button
+                                type="button"
+                                key={company}
+                                onClick={() => handleCompanySelect(company)}
+                                className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-left text-[11px] transition-colors hover:bg-[var(--app-control-hover)]"
+                                style={{
+                                  color: active ? 'var(--app-accent)' : 'var(--app-heading)',
+                                  backgroundColor: active ? 'var(--app-accent-soft)' : 'transparent',
+                                  fontWeight: active ? 600 : 500,
+                                }}
+                              >
+                                <span className="truncate">{company}</span>
+                                {active && (
+                                  <span
+                                    className="h-1.5 w-1.5 rounded-full shrink-0 animate-pulse"
+                                    style={{ backgroundColor: 'var(--app-accent)' }}
+                                  />
+                                )}
+                              </button>
+                            )
+                          })
+                        ) : (
+                          <p className="px-2 py-3 text-center text-[11px]" style={{ color: 'var(--app-muted)' }}>
+                            No company found
+                          </p>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
+ 
+            {/* Financial Year Dropdown Selector */}
+            <div className="flex flex-col items-start">
+              <span className="text-[9px] font-extrabold text-[var(--app-muted)] uppercase tracking-widest leading-none mb-1 opacity-80">Financial Year</span>
+              <div className="relative" ref={fyDropdownRef}>
+                <motion.button
+                  whileHover={{ scale: 1.01, borderColor: 'var(--app-accent)' }}
+                  whileTap={{ scale: 0.99 }}
+                  type="button"
+                  onClick={() => setIsFyOpen((p) => !p)}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-lg border px-2.5 text-[12px] font-semibold transition-all shadow-sm"
+                  style={{
+                    borderColor: 'var(--app-border)',
+                    color: 'var(--app-heading)',
+                    backgroundColor: 'var(--app-control-bg)',
+                  }}
+                >
+                  <div className="flex h-5 w-5 items-center justify-center rounded-md bg-amber-500/10 text-amber-500 shrink-0">
+                    <Calendar size={11} strokeWidth={2.5} />
+                  </div>
+                  <span className="truncate tracking-wide text-slate-800 dark:text-slate-200">{selectedFy}</span>
+                  <ChevronDown size={12} className="text-[var(--app-muted)] shrink-0 ml-0.5" />
+                </motion.button>
+ 
+                <AnimatePresence>
+                  {isFyOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -6, scale: 0.98 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -6, scale: 0.98 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute left-0 z-50 mt-1 w-[130px] rounded-xl border p-1 shadow-2xl glass-surface"
+                      style={{ borderColor: 'var(--app-border)' }}
+                    >
+                      {['FY 2023-24', 'FY 2024-25'].map((fy) => {
+                        const active = fy === selectedFy
+                        return (
+                          <button
+                            type="button"
+                            key={fy}
+                            onClick={() => {
+                              handleFyChange(fy)
+                              setIsFyOpen(false)
+                            }}
+                            className="flex w-full items-center rounded-lg px-2.5 py-1.5 text-left text-[11px] font-medium transition-colors hover:bg-[var(--app-control-hover)]"
+                            style={{
+                              color: active ? 'var(--app-accent)' : 'var(--app-heading)',
+                              backgroundColor: active ? 'var(--app-accent-soft)' : 'transparent',
+                            }}
+                          >
+                            {fy}
+                          </button>
+                        )
+                      })}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
-      {/* Right cluster */}
-      <div className="flex items-center gap-1.5 sm:gap-2 ml-auto">
-        {/* Subscription marquee */}
+      {/* Right side: Status indicators & utilities */}
+      <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap justify-end">
+        {/* Tally Status Pill */}
         <div
-          className="hidden xl:flex relative w-[200px] overflow-hidden rounded-lg border px-2.5 py-1 text-[10.5px] font-medium"
-          style={{
-            borderColor: 'var(--app-danger-border)',
-            backgroundColor: 'var(--app-danger-bg)',
-            color: 'var(--app-danger-text)',
-          }}
+          className="flex items-center gap-2 rounded-xl border px-3 py-1 text-[11px] font-medium shadow-sm bg-[var(--app-control-bg)]"
+          style={{ borderColor: 'var(--app-border)' }}
         >
-          <Sparkles size={11} className="shrink-0 mr-1.5" />
-          <div className="flex justify-center overflow-hidden flex-1">
-            <span className="inline-block whitespace-nowrap [animation:marqueeRightToLeft_10s_linear_infinite]">
-              {subscriptionMessage}
-            </span>
+          <div className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-500 shrink-0">
+            <CheckCircle2 size={12} strokeWidth={2.5} />
+          </div>
+          <div className="leading-none text-left">
+            <div className="text-[9px] font-semibold text-[var(--app-muted)]">Tally Status</div>
+            <div className="text-[10px] font-bold text-emerald-500 mt-0.5">Connected</div>
           </div>
         </div>
 
-        {/* Theme toggle */}
+        {/* Sync Status Pill */}
+        <div
+          className="flex items-center gap-2 rounded-xl border px-3 py-1 text-[11px] font-medium shadow-sm bg-[var(--app-control-bg)]"
+          style={{ borderColor: 'var(--app-border)' }}
+        >
+          <div className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-500 shrink-0">
+            <RefreshCw size={11} strokeWidth={2.5} />
+          </div>
+          <div className="leading-none text-left">
+            <div className="text-[9px] font-semibold text-[var(--app-muted)]">Sync Status</div>
+            <div className="text-[10px] font-bold text-emerald-500 mt-0.5">Synced</div>
+          </div>
+        </div>
+
+        {/* Theme Toggle */}
         <motion.button
           whileTap={{ scale: 0.94 }}
           type="button"
           onClick={onModeToggle}
-          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border focus-ring transition-colors"
+          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border transition-colors bg-[var(--app-control-bg)]"
           style={{
             borderColor: 'var(--app-border)',
             color: 'var(--app-heading)',
-            backgroundColor: 'var(--app-control-bg)',
           }}
           aria-label="Toggle theme"
         >
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.span
-              key={mode}
-              initial={{ opacity: 0, rotate: -90, scale: 0.6 }}
-              animate={{ opacity: 1, rotate: 0, scale: 1 }}
-              exit={{ opacity: 0, rotate: 90, scale: 0.6 }}
-              transition={{ duration: 0.22 }}
-              className="flex"
-            >
-              {isDark ? <Sun size={14} /> : <Moon size={14} />}
-            </motion.span>
-          </AnimatePresence>
+          {isDark ? <Sun size={13} /> : <Moon size={13} />}
         </motion.button>
-
-        {/* Company picker */}
-        <div className="relative" ref={dropdownRef}>
-          <motion.button
-            whileTap={{ scale: 0.98 }}
-            type="button"
-            onClick={() => setIsCompanyOpen((p) => !p)}
-            className="inline-flex h-8 max-w-[140px] sm:max-w-none sm:min-w-[170px] items-center justify-between gap-2 rounded-lg border px-2.5 text-[12px] font-medium focus-ring"
-            style={{
-              borderColor: 'var(--app-border)',
-              color: 'var(--app-heading)',
-              backgroundColor: 'var(--app-control-bg)',
-            }}
-          >
-            <div className="flex items-center gap-1.5 min-w-0">
-              <span
-                className="h-1.5 w-1.5 rounded-full shrink-0"
-                style={{ background: 'var(--app-accent-gradient)' }}
-              />
-              <span className="truncate">{selectedCompany || 'Select company'}</span>
-            </div>
-            <ChevronDown size={13} style={{ color: 'var(--app-muted)' }} />
-          </motion.button>
-
-          <AnimatePresence>
-            {isCompanyOpen && (
-              <motion.div
-                initial={{ opacity: 0, y: -6, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -6, scale: 0.98 }}
-                transition={{ duration: 0.16 }}
-                className="absolute right-0 z-30 mt-2 w-[260px] rounded-xl border p-2 shadow-2xl glass-surface"
-                style={{ borderColor: 'var(--app-border)' }}
-              >
-                <div
-                  className="mb-2 flex items-center gap-2 rounded-lg border px-2.5 py-1.5"
-                  style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-control-bg)' }}
-                >
-                  <Search size={13} style={{ color: 'var(--app-muted)' }} />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search company…"
-                    className="w-full bg-transparent text-xs outline-none"
-                    style={{ color: 'var(--app-heading)' }}
-                  />
-                </div>
-                <div className="themed-scrollbar max-h-[220px] overflow-y-auto">
-                  {filteredCompanies.length ? (
-                    filteredCompanies.map((company) => {
-                      const active = company === selectedCompany
-                      return (
-                        <button
-                          type="button"
-                          key={company}
-                          onClick={() => handleCompanySelect(company)}
-                          className="flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-[12px] transition-colors hover:bg-[var(--app-control-hover)]"
-                          style={{
-                            color: active ? 'var(--app-accent)' : 'var(--app-heading)',
-                            backgroundColor: active ? 'var(--app-accent-soft)' : 'transparent',
-                            fontWeight: active ? 600 : 500,
-                          }}
-                        >
-                          <span className="truncate">{company}</span>
-                          {active && (
-                            <span
-                              className="h-1.5 w-1.5 rounded-full"
-                              style={{ background: 'var(--app-accent-gradient)' }}
-                            />
-                          )}
-                        </button>
-                      )
-                    })
-                  ) : (
-                    <p className="px-2 py-3 text-center text-xs" style={{ color: 'var(--app-muted)' }}>
-                      No company found
-                    </p>
-                  )}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* Credits */}
-        <span
-          className="hidden lg:inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-[11px] font-semibold"
-          style={{
-            borderColor: 'var(--app-border)',
-            backgroundColor: 'var(--app-accent-soft)',
-            color: 'var(--app-accent)',
-          }}
-        >
-          <Sparkles size={11} />
-          {credits} credits
-        </span>
 
         {/* Notifications */}
         <button
           type="button"
-          className="hidden sm:inline-flex relative h-8 w-8 items-center justify-center rounded-lg border focus-ring"
+          className="relative h-8 w-8 items-center justify-center rounded-lg border bg-[var(--app-control-bg)]"
           style={{
             borderColor: 'var(--app-border)',
             color: 'var(--app-heading)',
-            backgroundColor: 'var(--app-control-bg)',
           }}
           aria-label="Notifications"
         >
-          <Bell size={14} />
-          <span className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-rose-500 ring-2 ring-[var(--app-panel-bg)]" />
+          <Bell size={13} />
+          <span
+            className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full text-[8.5px] font-bold text-white bg-red-500"
+          >
+            3
+          </span>
         </button>
 
-        {/* Profile */}
+        {/* Help */}
         <button
           type="button"
-          className="inline-flex h-8 items-center gap-1.5 rounded-lg border pl-1 pr-2 focus-ring"
+          className="h-8 w-8 items-center justify-center rounded-lg border bg-[var(--app-control-bg)]"
           style={{
             borderColor: 'var(--app-border)',
             color: 'var(--app-heading)',
-            backgroundColor: 'var(--app-control-bg)',
           }}
-          aria-label="Profile"
+          aria-label="Help"
         >
-          <span
-            className="h-6 w-6 rounded-md flex items-center justify-center text-white text-[10px] font-bold"
-            style={{ background: 'var(--app-accent-gradient)' }}
-          >
-            FA
-          </span>
-          <ChevronDown size={12} style={{ color: 'var(--app-muted)' }} />
+          <HelpCircle size={13} />
         </button>
+
+        {/* Profile Avatar */}
+        <div className="flex items-center gap-1 cursor-pointer ml-1 select-none">
+          <div
+            className="h-8 w-8 rounded-full flex items-center justify-center font-bold text-[12px] text-white shrink-0"
+            style={{
+              backgroundColor: '#1E293B',
+            }}
+          >
+            R
+          </div>
+          <ChevronDown size={12} className="text-[var(--app-muted)] shrink-0" />
+        </div>
       </div>
     </header>
   )

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Plus, CheckCircle2, Trash2, RefreshCw, Search, Download,
   ArrowUpDown, MessageSquare, ChevronLeft, ChevronRight, Edit3,
@@ -10,8 +11,39 @@ import VoucherEntryEngine from '../vouchers/VoucherEntryEngine';
 import { useFundFlowStore } from '../../stores/useFundFlowStore';
 
 const PettyCashPanel = ({ mode, isDark, voucherType, title: customTitle }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [viewMode, setViewMode] = useState('inbox'); // 'inbox', 'manual', 'ocr', 'csv'
   const [selectedIds, setSelectedIds] = useState([]);
+
+  useEffect(() => {
+    if (location.state?.openManual) {
+      window.history.replaceState({}, document.title);
+      setViewMode('manual');
+    }
+  }, [location.state]);
+
+  const handleBack = (activeType) => {
+    if (activeType === voucherType) {
+      setViewMode('inbox');
+      fetchTransactions();
+    } else {
+      if (['sales_invoice', 'sales_order', 'credit_note'].includes(activeType)) {
+        navigate('/sales/inbox', { state: { openManual: true } });
+      } else if (['purchase_invoice', 'purchase_order', 'debit_note'].includes(activeType)) {
+        navigate('/purchase/inbox', { state: { openManual: true } });
+      } else if (activeType === 'cash_payment') {
+        navigate('/fund-flow/cash-payment', { state: { openManual: true } });
+      } else if (activeType === 'bank_payment') {
+        navigate('/fund-flow/bank-payment', { state: { openManual: true } });
+      } else if (activeType === 'contra') {
+        navigate('/fund-flow/contra', { state: { openManual: true } });
+      } else {
+        setViewMode('inbox');
+        fetchTransactions();
+      }
+    }
+  };
 
   // Zustand Store
   const {
@@ -265,7 +297,7 @@ const PettyCashPanel = ({ mode, isDark, voucherType, title: customTitle }) => {
       {/* VoucherEntryEngine overlay for Create/Edit mode */}
       {viewMode !== 'inbox' && voucherType && (
         <div className="absolute inset-0 z-40">
-          <VoucherEntryEngine isDark={isDark} defaultMode={viewMode} voucherType={voucherType} onBack={() => { setViewMode('inbox'); fetchTransactions(); }} />
+          <VoucherEntryEngine isDark={isDark} defaultMode={viewMode} voucherType={voucherType} onBack={handleBack} />
         </div>
       )}
 
@@ -363,8 +395,8 @@ const PettyCashPanel = ({ mode, isDark, voucherType, title: customTitle }) => {
         <div className="overflow-x-auto h-full themed-scrollbar">
           <table className="w-full text-left border-collapse min-w-[1100px]">
             <thead className="sticky top-0 z-10">
-              <tr style={{ backgroundColor: isDark ? 'var(--app-table-head-bg)' : '#fcfdfe' }}>
-                <th className="p-1.5 border-b border-r w-10 text-center" style={{ borderColor: '#e2e8f0' }}>
+              <tr style={{ backgroundColor: 'var(--app-table-head-bg)' }}>
+                <th className="p-1.5 border-b border-r w-10 text-center" style={{ borderColor: 'var(--app-row-border)' }}>
                   <input
                     type="checkbox"
                     className="w-3 h-3 rounded border-gray-300 accent-indigo-600 shadow-sm cursor-pointer"
