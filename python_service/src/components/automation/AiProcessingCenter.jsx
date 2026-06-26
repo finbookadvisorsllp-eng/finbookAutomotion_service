@@ -1476,7 +1476,7 @@ export default function AiProcessingCenter() {
           </div>
 
           {/* --- TOP TABS CATEGORIES NAVIGATION BAR --- */}
-          <div className="flex items-center gap-4.5 border-b border-[var(--app-border)] overflow-x-auto shrink-0 pb-1.5 pt-0.5">
+          <div className="flex items-center gap-4.5 border-b border-[var(--app-border)] overflow-x-auto shrink-0 pb-1.5 pt-0.5 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             {tabCategories.map((catName) => {
               const isActive = activeCategory === catName;
               return (
