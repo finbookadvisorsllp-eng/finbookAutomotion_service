@@ -1,11 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Download, ExternalLink, FileText } from 'lucide-react';
+import { Download, ExternalLink, FileText, FileSignature, Layers, ScanLine } from 'lucide-react';
 import { toast } from 'sonner';
+import DataTable from '../ui/DataTable';
+import StatCard from '../ui/StatCard';
+import Badge from '../ui/Badge';
 
 // Import backend API clients
 import salesApi from '../../services/salesApi';
 import purchaseApi from '../../services/purchaseApi';
 import fundflowApi from '../../services/fundflowApi';
+
+const STATUS_LABEL = { draft: 'Draft', pending_approval: 'Pending Approval', approved: 'Approved', posted_to_tally: 'Posted To Tally', rejected: 'Rejected' };
+const STATUS_TONE = { draft: 'neutral', pending_approval: 'warning', approved: 'success', posted_to_tally: 'accent', rejected: 'danger' };
 
 export default function DocumentArchivePanel() {
   const [archives, setArchives] = useState([]);
@@ -195,47 +201,63 @@ export default function DocumentArchivePanel() {
   });
 
   const stats = [
-    { label: 'Total Archives', count: allArchives.length, color: 'text-[var(--app-accent)] dark:text-[var(--app-accent)] bg-[var(--app-accent-soft)]' },
-    { label: 'Manual Vouchers', count: allArchives.filter(a => a.category === 'Manual Entry').length, color: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10' },
-    { label: 'Bulk Batches', count: allArchives.filter(a => a.category === 'Bulk Upload').length, color: 'text-[var(--app-accent)] dark:text-[var(--app-accent)] bg-[var(--app-accent-soft)]' },
-    { label: 'OCR Scans', count: allArchives.filter(a => a.category === 'OCR Upload').length, color: 'text-rose-600 dark:text-rose-400 bg-rose-500/10' }
+    { label: 'Total Archives', value: allArchives.length, icon: FileText },
+    { label: 'Manual Vouchers', value: allArchives.filter(a => a.category === 'Manual Entry').length, icon: FileSignature },
+    { label: 'Bulk Batches', value: allArchives.filter(a => a.category === 'Bulk Upload').length, icon: Layers },
+    { label: 'OCR Scans', value: allArchives.filter(a => a.category === 'OCR Upload').length, icon: ScanLine },
+  ];
+
+  const docColumns = [
+    { key: 'sr', header: 'Sr', width: '48px', align: 'center', render: (_r, i) => <span style={{ color: 'var(--app-muted)' }}>{i + 1}</span> },
+    { key: 'name', header: 'Document Name', sortable: true, render: (r) => (
+      <div className="flex items-center gap-1.5">
+        <FileText size={13} style={{ color: 'var(--app-muted)' }} />
+        <span className="font-semibold truncate max-w-[200px]" style={{ color: 'var(--app-heading)' }} title={r.name}>{r.name}</span>
+        <span className="text-[10px] shrink-0" style={{ color: 'var(--app-muted)' }}>({r.size})</span>
+      </div>
+    ) },
+    { key: 'category', header: 'Category', sortable: true, render: (r) => <span style={{ color: 'var(--app-text)' }}>{r.category}</span> },
+    { key: 'type', header: 'Voucher Type', render: (r) => <span className="font-semibold" style={{ color: 'var(--app-accent)' }}>{r.type}</span> },
+    { key: 'linkedVoucher', header: 'Linked Voucher', sortable: true, render: (r) => <span className="font-semibold" style={{ color: 'var(--app-heading)' }}>{r.linkedVoucher}</span> },
+    { key: 'date', header: 'Upload Date', align: 'center', sortable: true, render: (r) => <span style={{ color: 'var(--app-muted)' }}>{r.date}</span> },
+    { key: 'uploadedBy', header: 'Uploaded By', render: (r) => <span style={{ color: 'var(--app-text)' }}>{r.uploadedBy}</span> },
+    { key: 'status', header: 'Status', align: 'center', sortable: true, render: (r) => <Badge tone={STATUS_TONE[r.status] || 'neutral'}>{STATUS_LABEL[r.status] || r.status}</Badge> },
+    { key: 'act', header: '', align: 'center', width: '124px', render: (r) => (
+      <div className="flex items-center justify-center gap-1">
+        <button onClick={() => toast.info(`Previewing ${r.name}`)} className="px-1.5 py-0.5 rounded-md border border-[var(--app-border)] hover:bg-[var(--app-control-hover)] text-[var(--app-text)] text-[10px] font-bold">Preview</button>
+        <button onClick={() => handleDownload(r.name)} title="Download" aria-label="Download" className="p-1 rounded-md hover:bg-[var(--app-control-hover)] hover:text-[var(--app-accent)]" style={{ color: 'var(--app-muted)' }}><Download size={12} /></button>
+        <button onClick={() => toast.info(`Linked voucher: ${r.linkedVoucher}`)} title="Open Voucher" aria-label="Open Voucher" className="p-1 rounded-md hover:bg-[var(--app-control-hover)] hover:text-[var(--app-accent)]" style={{ color: 'var(--app-muted)' }}><ExternalLink size={12} /></button>
+      </div>
+    ) },
   ];
 
   return (
-    <div className="flex flex-col gap-2.5 h-full overflow-y-auto pr-1 text-[13px] text-[var(--app-text)]">
-      
-      {/* Header Banner */}
-      <div className="rounded-lg border px-3 py-2 flex items-center justify-between shrink-0 bg-[var(--app-panel-bg)] border-[var(--app-border)]">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[var(--app-heading)]">Document Archive</h1>
-          <p className="text-[11px] text-[var(--app-muted)] mt-0.5">
-            Store and retrieve every uploaded document, ledger attachment and OCR scan.
-          </p>
+    <div className="flex flex-col gap-2.5 h-full overflow-hidden p-1 text-[13px] text-[var(--app-text)]">
+
+      {/* Header */}
+      <div className="rounded-xl border px-3 py-2.5 flex items-center gap-2.5 shrink-0 bg-[var(--app-panel-bg)] border-[var(--app-border)] shadow-sm">
+        <div className="h-9 w-9 rounded-xl flex items-center justify-center text-white shrink-0" style={{ background: 'var(--app-accent-gradient)', boxShadow: 'var(--app-shadow)' }}>
+          <FileText size={17} strokeWidth={2.2} />
+        </div>
+        <div className="min-w-0">
+          <h1 className="text-[17px] font-extrabold tracking-tight text-[var(--app-heading)] leading-none">Document Archive</h1>
+          <p className="text-[10px] text-[var(--app-muted)] mt-1 truncate">Store and retrieve every uploaded document, ledger attachment and OCR scan.</p>
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5 shrink-0">
-        {stats.map((s, idx) => (
-          <div key={idx} className="p-2 border rounded bg-[var(--app-panel-bg)] border-[var(--app-border)] flex flex-col justify-between">
-            <span className="text-[11px] text-[var(--app-muted)] uppercase font-semibold tracking-wider leading-none block">{s.label}</span>
-            <span className="text-[15px] font-bold mt-1 text-[var(--app-heading)] block leading-none">{s.count}</span>
-          </div>
-        ))}
+      {/* KPI cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 shrink-0">
+        {stats.map((s, i) => <StatCard key={s.label} index={i} label={s.label} value={s.value} icon={s.icon} />)}
       </div>
 
-
-
-      {/* Category Filters */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 border-b border-[var(--app-border)] shrink-0">
+      {/* Category tabs */}
+      <div className="flex items-center gap-4 overflow-x-auto border-b border-[var(--app-border)] shrink-0">
         {categories.map(cat => (
           <button
             key={cat}
             onClick={() => setActiveCategory(cat)}
-            className={`px-2.5 py-1 text-[11px] font-bold tracking-wide whitespace-nowrap transition-all uppercase border-b-2 -mb-1 ${
-              activeCategory === cat 
-                ? 'border-[var(--app-accent)] text-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold' 
-                : 'border-transparent text-slate-400 hover:text-slate-600'
+            className={`pb-1.5 text-[11px] font-bold tracking-wide whitespace-nowrap transition-all uppercase border-b-2 -mb-px ${
+              activeCategory === cat ? 'border-[var(--app-accent)] text-[var(--app-accent)]' : 'border-transparent text-[var(--app-muted)] hover:text-[var(--app-heading)]'
             }`}
           >
             {cat}
@@ -243,16 +265,14 @@ export default function DocumentArchivePanel() {
         ))}
       </div>
 
-      {/* Status Filters */}
-      <div className="flex items-center gap-1.5 overflow-x-auto py-1 shrink-0">
+      {/* Status pills */}
+      <div className="flex items-center gap-1.5 overflow-x-auto shrink-0">
         {statuses.map(st => (
           <button
             key={st}
             onClick={() => setActiveStatus(st)}
             className={`px-3 py-1 text-[10.5px] font-bold tracking-wide whitespace-nowrap transition-all uppercase rounded-full border ${
-              activeStatus === st 
-                ? 'bg-[var(--app-accent)] border-[var(--app-accent)] text-white shadow-sm' 
-                : 'bg-[var(--app-panel-bg)] border-[var(--app-border)] text-slate-500 hover:text-slate-700'
+              activeStatus === st ? 'bg-[var(--app-accent)] border-[var(--app-accent)] text-white shadow-sm' : 'bg-[var(--app-panel-bg)] border-[var(--app-border)] text-[var(--app-muted)] hover:text-[var(--app-heading)]'
             }`}
           >
             {st}
@@ -260,123 +280,18 @@ export default function DocumentArchivePanel() {
         ))}
       </div>
 
-      {/* Search Toolbar */}
-      <div className="border rounded px-2.5 py-2 flex items-center justify-between bg-[var(--app-panel-bg)] border-[var(--app-border)] shrink-0">
-        <div className="relative max-w-xs flex-1 group">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
-          <input
-            type="text"
-            placeholder="Search archived files..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full h-7 pl-8 pr-2.5 rounded border text-[11px] outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
-          />
-        </div>
+      {/* Archive table */}
+      <div className="flex-1 min-h-0">
+        <DataTable
+          minWidth="960px"
+          data={filteredArchives}
+          rowKey={(r) => r.id}
+          loading={loading}
+          emptyText="No documents match."
+          columns={docColumns}
+          search={{ value: search, onChange: setSearch, placeholder: 'Search archived files…' }}
+        />
       </div>
-
-      {/* Archives Table */}
-      <div className="border rounded flex-1 overflow-hidden flex flex-col bg-[var(--app-panel-bg)] border-[var(--app-border)]">
-        <div className="overflow-auto themed-scrollbar flex-1">
-          <table className="w-full text-left border-collapse min-w-[900px] text-[13px]">
-            <thead>
-              <tr className="bg-[var(--app-content-bg)] border-b text-[var(--app-muted)] border-[var(--app-border)]">
-                <th className="p-2 w-12 text-center">Sr.</th>
-                <th className="p-2 border-r border-[var(--app-border)] w-[240px]">Document Name</th>
-                <th className="p-2 border-r border-[var(--app-border)]">Category</th>
-                <th className="p-2 border-r border-[var(--app-border)]">Voucher Type</th>
-                <th className="p-2 border-r border-[var(--app-border)]">Linked Voucher</th>
-                <th className="p-2 border-r border-[var(--app-border)] text-center">Upload Date</th>
-                <th className="p-2 border-r border-[var(--app-border)]">Uploaded By</th>
-                <th className="p-2 border-r border-[var(--app-border)] text-center">Status</th>
-                <th className="p-2 text-center w-28">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={9} className="p-8 text-center text-slate-400 font-medium">
-                    Loading archived files...
-                  </td>
-                </tr>
-              ) : filteredArchives.length > 0 ? (
-                filteredArchives.map((item, index) => {
-                  const statusColors = item.status === 'posted_to_tally'
-                    ? 'bg-[var(--app-accent-soft)] text-[var(--app-accent)] dark:text-[var(--app-accent)] border-[var(--app-accent)]' 
-                    : item.status === 'approved'
-                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
-                    : item.status === 'rejected'
-                    ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20'
-                    : item.status === 'pending_approval'
-                    ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
-                    : 'bg-slate-500/10 text-[var(--app-text)] border-slate-500/20'; // draft
-
-                  const statusLabels = {
-                    'draft': 'Draft',
-                    'pending_approval': 'Pending Approval',
-                    'approved': 'Approved',
-                    'posted_to_tally': 'Posted To Tally',
-                    'rejected': 'Rejected'
-                  };
-
-                  return (
-                    <tr key={item.id} className="border-b hover:bg-slate-50/50 dark:hover:bg-slate-900/10 font-medium text-[var(--app-text)] border-[var(--app-border)]">
-                      <td className="p-2 text-center text-slate-500">{index + 1}</td>
-                      <td className="p-2 border-r font-semibold text-[var(--app-heading)] border-[var(--app-border)]">
-                        <div className="flex items-center gap-1.5">
-                          <FileText size={13} className="text-slate-400" />
-                          <span className="truncate max-w-[200px]">{item.name}</span>
-                          <span className="text-[10px] text-slate-500 font-semibold shrink-0">({item.size})</span>
-                        </div>
-                      </td>
-                      <td className="p-2 border-r border-[var(--app-border)] text-[var(--app-text)]">{item.category}</td>
-                      <td className="p-2 border-r border-[var(--app-border)] text-[var(--app-accent)] dark:text-[var(--app-accent)] font-semibold">{item.type}</td>
-                      <td className="p-2 border-r border-[var(--app-border)] font-semibold text-[var(--app-heading)]">{item.linkedVoucher}</td>
-                      <td className="p-2 border-r border-[var(--app-border)] text-center text-slate-500">{item.date}</td>
-                      <td className="p-2 border-r border-[var(--app-border)] text-[var(--app-text)]">{item.uploadedBy}</td>
-                      <td className="p-2 border-r border-[var(--app-border)] text-center">
-                        <span className={`px-1.5 py-0.2 rounded border text-[11px] font-semibold ${statusColors}`}>
-                          {statusLabels[item.status] || item.status}
-                        </span>
-                      </td>
-                      <td className="p-2 text-center">
-                        <div className="flex items-center justify-center gap-1">
-                          <button
-                            onClick={() => toast.info(`Previewing ${item.name}`)}
-                            className="px-1.5 py-0.5 rounded border border-[var(--app-border)] hover:bg-slate-100 dark:hover:bg-slate-800 text-[var(--app-text)] text-[10px] font-bold"
-                          >
-                            Preview
-                          </button>
-                          <button
-                            onClick={() => handleDownload(item.name)}
-                            className="p-1 text-slate-400 hover:text-[var(--app-accent)]"
-                            title="Download"
-                          >
-                            <Download size={12} />
-                          </button>
-                          <button
-                            onClick={() => toast.info(`Linked voucher: ${item.linkedVoucher}`)}
-                            className="p-1 text-slate-400 hover:text-[var(--app-accent)]"
-                            title="Open Voucher"
-                          >
-                            <ExternalLink size={12} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              ) : (
-                <tr>
-                  <td colSpan={9} className="p-8 text-center text-slate-400 font-medium">
-                    No documents match.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
     </div>
   );
 }

@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
-import { Search, Plus, RefreshCw, Layers, User, Trash2, Eye, Pencil, CheckCircle, X, Shield, Phone, Mail, MapPin, Globe } from 'lucide-react';
+import { Plus, Users, User, Trash2, Pencil, CheckCircle, X, Shield, Mail, MapPin, Layers } from 'lucide-react';
 import { toast } from 'sonner';
+import DataTable from '../ui/DataTable';
+import StatCard from '../ui/StatCard';
+import Badge from '../ui/Badge';
 
 export default function ClientManagementPanel() {
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -28,10 +31,26 @@ export default function ClientManagementPanel() {
   ]);
 
   const stats = [
-    { label: 'Total Client Profiles', count: clientsList.length, color: 'text-[var(--app-accent)] dark:text-[var(--app-accent)]', countColor: 'text-[var(--app-accent)] dark:text-[var(--app-accent)]', cardBg: 'bg-[var(--app-accent-soft)] border-[var(--app-border)] dark:bg-[var(--app-accent-soft)] dark:border-[var(--app-border)]' },
-    { label: 'Active Clients', count: clientsList.filter(c => c.status === 'Active').length, color: 'text-emerald-800 dark:text-emerald-300', countColor: 'text-emerald-950 dark:text-emerald-50', cardBg: 'bg-emerald-50/80 border-emerald-200/80 dark:bg-emerald-950/20 dark:border-emerald-900/30' },
-    { label: 'Assigned Entities', count: new Set(clientsList.map(c => c.company)).size, color: 'text-[var(--app-accent)] dark:text-[var(--app-accent)]', countColor: 'text-[var(--app-accent)] dark:text-[var(--app-accent)]', cardBg: 'bg-[var(--app-accent-soft)] border-[var(--app-border)] dark:bg-[var(--app-accent-soft)] dark:border-[var(--app-border)]' },
-    { label: 'Pending Invitations', count: '1', color: 'text-amber-800 dark:text-amber-300', countColor: 'text-amber-950 dark:text-amber-50', cardBg: 'bg-amber-50/80 border-amber-200/80 dark:bg-amber-950/20 dark:border-amber-900/30' }
+    { label: 'Total Profiles', value: clientsList.length, icon: Users },
+    { label: 'Active Clients', value: clientsList.filter(c => c.status === 'Active').length, icon: CheckCircle },
+    { label: 'Assigned Entities', value: new Set(clientsList.map(c => c.company)).size, icon: Layers },
+    { label: 'Pending Invites', value: 1, icon: Mail },
+  ];
+
+  const columns = [
+    { key: 'sr', header: 'Sr', width: '52px', align: 'center', render: (_r, i) => <span style={{ color: 'var(--app-muted)' }}>{i + 1}</span> },
+    { key: 'name', header: 'Client Name', sortable: true, render: (c) => <span className="font-bold" style={{ color: 'var(--app-heading)' }}>{c.name}</span> },
+    { key: 'company', header: 'Company', sortable: true, render: (c) => <span style={{ color: 'var(--app-text)' }}>{c.company}</span> },
+    { key: 'mobile', header: 'Mobile', render: (c) => <span className="font-mono">{c.mobile}</span> },
+    { key: 'email', header: 'Email', sortable: true, render: (c) => <span style={{ color: 'var(--app-text)' }}>{c.email}</span> },
+    { key: 'assignedUsers', header: 'Assigned Users', render: (c) => <span className="italic text-[12px]" style={{ color: 'var(--app-muted)' }}>{c.assignedUsers}</span> },
+    { key: 'status', header: 'Status', align: 'center', sortable: true, sortValue: (c) => c.status, render: (c) => <Badge tone={c.status === 'Active' ? 'success' : 'neutral'}>{c.status}</Badge> },
+    { key: 'act', header: '', align: 'center', width: '84px', render: (c) => (
+      <div className="flex items-center justify-center gap-1">
+        <button title="Edit" aria-label="Edit" className="p-1 rounded-md hover:bg-[var(--app-control-hover)] hover:text-[var(--app-accent)]" style={{ color: 'var(--app-muted)' }}><Pencil size={11} /></button>
+        <button onClick={() => handleDeleteClient(c.id)} title="Delete" aria-label="Delete" className="p-1 rounded-md hover:bg-[var(--app-control-hover)] hover:text-rose-500" style={{ color: 'var(--app-muted)' }}><Trash2 size={12} /></button>
+      </div>
+    ) },
   ];
 
   const handleCreateClient = (e) => {
@@ -67,33 +86,28 @@ export default function ClientManagementPanel() {
   );
 
   return (
-    <div className="flex flex-col gap-2.5 h-full overflow-y-auto pr-1 text-[13px] text-[var(--app-text)]">
-      
-      {/* Title Header */}
-      <div className="rounded-xl border px-3 py-2 flex items-center justify-between shrink-0 bg-[var(--app-panel-bg)] border-[var(--app-border)] shadow-sm">
-        <div>
-          <h1 className="text-[18px] md:text-[20px] font-extrabold tracking-tight text-[var(--app-heading)]">Client Management</h1>
-          <p className="text-[11px] text-[var(--app-muted)] mt-0.5">
-            Configure client portfolios, tax profiles, and assigned operation roles.
-          </p>
+    <div className="flex flex-col gap-2.5 h-full overflow-hidden p-1 text-[13px] text-[var(--app-text)]">
+
+      {/* Header */}
+      <div className="rounded-xl border px-3 py-2.5 flex items-center justify-between gap-3 shrink-0 bg-[var(--app-panel-bg)] border-[var(--app-border)] shadow-sm">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="h-9 w-9 rounded-xl flex items-center justify-center text-white shrink-0" style={{ background: 'var(--app-accent-gradient)', boxShadow: 'var(--app-shadow)' }}>
+            <Users size={17} strokeWidth={2.2} />
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-[17px] font-extrabold tracking-tight text-[var(--app-heading)] leading-none">Client Management</h1>
+            <p className="text-[10px] text-[var(--app-muted)] mt-1 truncate">Configure client portfolios, tax profiles and assigned operation roles.</p>
+          </div>
         </div>
-        <button
-          onClick={() => setShowCreateForm(p => !p)}
-          className="px-3.5 py-1.5 bg-[var(--app-accent)] hover:opacity-90 text-white font-bold text-[10.5px] rounded-lg flex items-center gap-1 transition-all uppercase shrink-0 shadow-sm"
-        >
-          {showCreateForm ? <X size={12} /> : <Plus size={12} />}
-          {showCreateForm ? 'Close Form' : 'New Client'}
+        <button onClick={() => setShowCreateForm(p => !p)} className="h-8 px-3 bg-[var(--app-accent)] hover:opacity-90 text-white font-bold text-[11px] rounded-lg flex items-center gap-1.5 transition-all shrink-0 shadow-xs">
+          {showCreateForm ? <X size={13} /> : <Plus size={13} />}
+          {showCreateForm ? 'Close' : 'New Client'}
         </button>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5 shrink-0">
-        {stats.map((s, idx) => (
-          <div key={idx} className={`p-2 border rounded-xl flex flex-col justify-between transition-all ${s.cardBg}`}>
-            <span className={`text-[10px] uppercase font-bold tracking-wider leading-none block ${s.color}`}>{s.label}</span>
-            <span className={`text-[15px] font-extrabold mt-1 block leading-none ${s.countColor}`}>{s.count}</span>
-          </div>
-        ))}
+      {/* KPI cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 shrink-0">
+        {stats.map((s, i) => <StatCard key={s.label} index={i} label={s.label} value={s.value} icon={s.icon} />)}
       </div>
 
       {/* Client Pop-up Modal */}
@@ -109,7 +123,7 @@ export default function ClientManagementPanel() {
               <button
                 type="button"
                 onClick={() => setShowCreateForm(false)}
-                className="text-slate-400 hover:text-[var(--app-text)] dark:hover:text-[var(--app-muted)] transition-colors p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
+                className="text-[var(--app-muted)] hover:text-[var(--app-text)] dark:hover:text-[var(--app-muted)] transition-colors p-1 hover:bg-[var(--app-control-hover)] rounded-lg"
               >
                 <X size={16} />
               </button>
@@ -130,7 +144,7 @@ export default function ClientManagementPanel() {
                       </div>
 
                       <div>
-                        <label className="text-[9px] font-bold text-slate-500 mb-0.5 block uppercase tracking-wide">Client Name *</label>
+                        <label className="text-[9px] font-bold text-[var(--app-muted)] mb-0.5 block uppercase tracking-wide">Client Name *</label>
                         <input
                           type="text"
                           required
@@ -142,7 +156,7 @@ export default function ClientManagementPanel() {
                       </div>
 
                       <div>
-                        <label className="text-[9px] font-bold text-slate-500 mb-0.5 block uppercase tracking-wide">Email Address *</label>
+                        <label className="text-[9px] font-bold text-[var(--app-muted)] mb-0.5 block uppercase tracking-wide">Email Address *</label>
                         <input
                           type="email"
                           required
@@ -154,7 +168,7 @@ export default function ClientManagementPanel() {
                       </div>
 
                       <div>
-                        <label className="text-[9px] font-bold text-slate-500 mb-0.5 block uppercase tracking-wide">Phone Number</label>
+                        <label className="text-[9px] font-bold text-[var(--app-muted)] mb-0.5 block uppercase tracking-wide">Phone Number</label>
                         <input
                           type="text"
                           value={form.phone}
@@ -175,7 +189,7 @@ export default function ClientManagementPanel() {
                       </div>
 
                       <div>
-                        <label className="text-[9px] font-bold text-slate-500 mb-0.5 block uppercase tracking-wide">Company Name *</label>
+                        <label className="text-[9px] font-bold text-[var(--app-muted)] mb-0.5 block uppercase tracking-wide">Company Name *</label>
                         <input
                           type="text"
                           required
@@ -187,7 +201,7 @@ export default function ClientManagementPanel() {
                       </div>
 
                       <div>
-                        <label className="text-[9px] font-bold text-slate-500 mb-0.5 block uppercase tracking-wide">GSTIN Number</label>
+                        <label className="text-[9px] font-bold text-[var(--app-muted)] mb-0.5 block uppercase tracking-wide">GSTIN Number</label>
                         <input
                           type="text"
                           value={form.gstin}
@@ -198,7 +212,7 @@ export default function ClientManagementPanel() {
                       </div>
 
                       <div>
-                        <label className="text-[9px] font-bold text-slate-500 mb-0.5 block uppercase tracking-wide">PAN Number</label>
+                        <label className="text-[9px] font-bold text-[var(--app-muted)] mb-0.5 block uppercase tracking-wide">PAN Number</label>
                         <input
                           type="text"
                           value={form.pan}
@@ -219,7 +233,7 @@ export default function ClientManagementPanel() {
                       </div>
 
                       <div>
-                        <label className="text-[9px] font-bold text-slate-500 mb-0.5 block uppercase tracking-wide">Address</label>
+                        <label className="text-[9px] font-bold text-[var(--app-muted)] mb-0.5 block uppercase tracking-wide">Address</label>
                         <input
                           type="text"
                           value={form.address}
@@ -231,7 +245,7 @@ export default function ClientManagementPanel() {
 
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <label className="text-[9px] font-bold text-slate-500 mb-0.5 block uppercase tracking-wide">City</label>
+                          <label className="text-[9px] font-bold text-[var(--app-muted)] mb-0.5 block uppercase tracking-wide">City</label>
                           <input
                             type="text"
                             value={form.city}
@@ -241,7 +255,7 @@ export default function ClientManagementPanel() {
                           />
                         </div>
                         <div>
-                          <label className="text-[9px] font-bold text-slate-500 mb-0.5 block uppercase tracking-wide">State</label>
+                          <label className="text-[9px] font-bold text-[var(--app-muted)] mb-0.5 block uppercase tracking-wide">State</label>
                           <input
                             type="text"
                             value={form.state}
@@ -253,7 +267,7 @@ export default function ClientManagementPanel() {
                       </div>
 
                       <div>
-                        <label className="text-[9px] font-bold text-slate-500 mb-0.5 block uppercase tracking-wide">Notes</label>
+                        <label className="text-[9px] font-bold text-[var(--app-muted)] mb-0.5 block uppercase tracking-wide">Notes</label>
                         <textarea
                           rows={1.5}
                           value={form.notes}
@@ -273,7 +287,7 @@ export default function ClientManagementPanel() {
                 <button
                   type="button"
                   onClick={() => setShowCreateForm(false)}
-                  className="px-4 py-1.5 border rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-[var(--app-text)] transition-colors"
+                  className="px-4 py-1.5 border rounded-lg hover:bg-[var(--app-control-hover)] text-[var(--app-text)] transition-colors"
                   style={{ borderColor: 'var(--app-border)' }}
                 >
                   Cancel
@@ -290,80 +304,17 @@ export default function ClientManagementPanel() {
         </div>
       )}
 
-      {/* Filter toolbar */}
-      <div className="border rounded px-2.5 py-2 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2 bg-[var(--app-panel-bg)] border-[var(--app-border)] shrink-0" style={{ borderColor: 'var(--app-border)' }}>
-        
-        {/* Search */}
-        <div className="relative max-w-xs flex-1 group">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
-          <input
-            type="text"
-            placeholder="Search clients..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full h-7 pl-8 pr-2.5 rounded border text-[11px] outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
-          />
-        </div>
+      {/* Client table */}
+      <div className="flex-1 min-h-0">
+        <DataTable
+          minWidth="900px"
+          data={filteredClients}
+          rowKey={(c) => c.id}
+          emptyText="No client profiles found."
+          columns={columns}
+          search={{ value: searchQuery, onChange: setSearchQuery, placeholder: 'Search clients…' }}
+        />
       </div>
-
-      {/* Client Table Grid */}
-      <div className="border rounded-xl flex-1 overflow-hidden flex flex-col bg-[var(--app-panel-bg)] border-[var(--app-border)] shadow-sm">
-        <div className="overflow-auto themed-scrollbar flex-1">
-          <table className="w-full text-left border-collapse min-w-[900px] text-[13px]">
-            <thead>
-              <tr className="bg-[var(--app-content-bg)] border-b text-[var(--app-muted)] border-[var(--app-border)]" style={{ backgroundColor: 'var(--app-table-head-bg)' }}>
-                <th className="p-2 w-12 text-center" style={{ color: 'var(--app-muted)' }}>Sr.</th>
-                <th className="p-2 border-r border-[var(--app-border)]" style={{ color: 'var(--app-muted)' }}>Client Name</th>
-                <th className="p-2 border-r border-[var(--app-border)]" style={{ color: 'var(--app-muted)' }}>Company</th>
-                <th className="p-2 border-r border-[var(--app-border)]" style={{ color: 'var(--app-muted)' }}>Mobile</th>
-                <th className="p-2 border-r border-[var(--app-border)]" style={{ color: 'var(--app-muted)' }}>Email</th>
-                <th className="p-2 border-r border-[var(--app-border)]" style={{ color: 'var(--app-muted)' }}>Assigned Users</th>
-                <th className="p-2 border-r border-[var(--app-border)] text-center" style={{ color: 'var(--app-muted)' }}>Status</th>
-                <th className="p-2 text-center w-24" style={{ color: 'var(--app-muted)' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredClients.length > 0 ? (
-                filteredClients.map((client, index) => (
-                  <tr key={client.id} className="border-b hover:bg-slate-50/50 dark:hover:bg-slate-900/10 font-medium text-[var(--app-text)] border-[var(--app-border)]">
-                    <td className="p-2 text-center text-slate-500">{index + 1}</td>
-                    <td className="p-2 border-r font-bold text-[var(--app-heading)] border-[var(--app-border)]">{client.name}</td>
-                    <td className="p-2 border-r text-[var(--app-text)]">{client.company}</td>
-                    <td className="p-2 border-r text-[var(--app-text)] font-mono">{client.mobile}</td>
-                    <td className="p-2 border-r text-[var(--app-text)]">{client.email}</td>
-                    <td className="p-2 border-r text-[var(--app-muted)] italic text-[12px]">{client.assignedUsers}</td>
-                    
-                    <td className="p-2 border-r text-center">
-                      <span className={`px-1.5 py-0.5 rounded border text-[10.5px] font-bold ${
-                        client.status === 'Active' 
-                          ? 'bg-emerald-50 text-emerald-700 border-emerald-250 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30' 
-                          : 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800/40 dark:text-slate-400 dark:border-slate-700/50'
-                      }`}>
-                        {client.status}
-                      </span>
-                    </td>
-
-                    <td className="p-2 text-center">
-                      <div className="flex items-center justify-center gap-1.5">
-                        <button className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-[var(--app-accent)] rounded transition-colors"><Pencil size={11} /></button>
-                        <button className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-rose-500 rounded transition-colors" onClick={() => handleDeleteClient(client.id)}><Trash2 size={12} /></button>
-                      </div>
-                    </td>
-
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={8} className="p-8 text-center text-slate-400 font-medium">
-                    No client profiles found.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
     </div>
   );
 }

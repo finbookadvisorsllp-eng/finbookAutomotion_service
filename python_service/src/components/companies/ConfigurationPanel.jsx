@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Settings, Search, Plus, X, Trash2, Pencil, CheckCircle, RefreshCw, Sliders, Database, Layers, Terminal } from 'lucide-react';
+import { Settings, CheckCircle, Sliders, Database, Terminal } from 'lucide-react';
 import { toast } from 'sonner';
+import StatCard from '../ui/StatCard';
 
 export default function ConfigurationPanel() {
   const [activeSection, setActiveSection] = useState('General Settings');
@@ -47,33 +48,29 @@ export default function ConfigurationPanel() {
   };
 
   const stats = [
-    { label: 'Active Parameters', count: '14 system vars', color: 'text-[var(--app-accent)] dark:text-[var(--app-accent)] bg-[var(--app-accent-soft)]' },
-    { label: 'OCR Model Version', count: 'v4.2-Pro', color: 'text-[var(--app-accent)] dark:text-[var(--app-accent)] bg-[var(--app-accent-soft)]' },
-    { label: 'Tally Port Sync', count: 'Port 9000', color: 'text-[var(--app-accent)] dark:text-[var(--app-accent)] bg-[var(--app-accent-soft)]' },
-    { label: 'System status', count: '100% Operational', color: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10' }
+    { label: 'Active Parameters', value: '14 vars', icon: Sliders },
+    { label: 'OCR Model', value: 'v4.2-Pro', icon: Database },
+    { label: 'Tally Port', value: 'Port 9000', icon: Terminal },
+    { label: 'System Status', value: '100% OK', icon: CheckCircle },
   ];
 
   return (
-    <div className="flex flex-col h-full overflow-hidden text-[13px] text-[var(--app-text)]">
-      
-      {/* Title Header */}
-      <div className="rounded-lg border px-3 py-2 flex items-center justify-between shrink-0 bg-[var(--app-panel-bg)] border-[var(--app-border)] mb-2">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[var(--app-heading)]">System Configuration</h1>
-          <p className="text-[11px] text-[var(--app-muted)] mt-0.5">
-            Configure system execution parameters, notification channels, Tally settings and OCR thresholds.
-          </p>
+    <div className="flex flex-col gap-2.5 h-full overflow-hidden p-1 text-[13px] text-[var(--app-text)]">
+
+      {/* Header */}
+      <div className="rounded-xl border px-3 py-2.5 flex items-center gap-2.5 shrink-0 bg-[var(--app-panel-bg)] border-[var(--app-border)] shadow-sm">
+        <div className="h-9 w-9 rounded-xl flex items-center justify-center text-white shrink-0" style={{ background: 'var(--app-accent-gradient)', boxShadow: 'var(--app-shadow)' }}>
+          <Settings size={17} strokeWidth={2.2} />
+        </div>
+        <div className="min-w-0">
+          <h1 className="text-[17px] font-extrabold tracking-tight text-[var(--app-heading)] leading-none">System Configuration</h1>
+          <p className="text-[10px] text-[var(--app-muted)] mt-1 truncate">Execution parameters, notification channels, Tally settings and OCR thresholds.</p>
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5 shrink-0 mb-2.5">
-        {stats.map((s, idx) => (
-          <div key={idx} className="p-2 border rounded bg-[var(--app-panel-bg)] border-[var(--app-border)] flex flex-col justify-between">
-            <span className="text-[11px] text-[var(--app-muted)] uppercase font-semibold tracking-wider leading-none block">{s.label}</span>
-            <span className="text-[15px] font-bold mt-1 text-[var(--app-heading)] block leading-none">{s.count}</span>
-          </div>
-        ))}
+      {/* KPI cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 shrink-0">
+        {stats.map((s, i) => <StatCard key={s.label} index={i} label={s.label} value={s.value} icon={s.icon} />)}
       </div>
 
       {/* Main Grid: Left Settings Menu, Right Form */}
@@ -90,7 +87,7 @@ export default function ConfigurationPanel() {
                 className={`w-full text-left px-3 py-2 rounded text-[12.5px] font-semibold transition-colors ${
                   isActive 
                     ? 'bg-[var(--app-accent)] text-white font-bold' 
-                    : 'text-[var(--app-text)] hover:bg-slate-100 dark:hover:bg-slate-900/50'
+                    : 'text-[var(--app-text)] hover:bg-[var(--app-control-hover)]'
                 }`}
               >
                 {section}
@@ -107,7 +104,7 @@ export default function ConfigurationPanel() {
             {activeSection === 'General Settings' && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[12px] font-semibold text-slate-500 mb-0.5 block">System Name</label>
+                  <label className="text-[12px] font-semibold text-[var(--app-muted)] mb-0.5 block">System Name</label>
                   <input
                     type="text"
                     value={generalConfig.systemName}
@@ -116,7 +113,7 @@ export default function ConfigurationPanel() {
                   />
                 </div>
                 <div>
-                  <label className="text-[12px] font-semibold text-slate-500 mb-0.5 block">Timezone</label>
+                  <label className="text-[12px] font-semibold text-[var(--app-muted)] mb-0.5 block">Timezone</label>
                   <input
                     type="text"
                     value={generalConfig.timezone}
@@ -125,7 +122,7 @@ export default function ConfigurationPanel() {
                   />
                 </div>
                 <div>
-                  <label className="text-[12px] font-semibold text-slate-500 mb-0.5 block">Date Format</label>
+                  <label className="text-[12px] font-semibold text-[var(--app-muted)] mb-0.5 block">Date Format</label>
                   <input
                     type="text"
                     value={generalConfig.dateFormat}
@@ -134,7 +131,7 @@ export default function ConfigurationPanel() {
                   />
                 </div>
                 <div>
-                  <label className="text-[12px] font-semibold text-slate-500 mb-0.5 block">Base Currency</label>
+                  <label className="text-[12px] font-semibold text-[var(--app-muted)] mb-0.5 block">Base Currency</label>
                   <input
                     type="text"
                     value={generalConfig.currency}
@@ -148,7 +145,7 @@ export default function ConfigurationPanel() {
             {activeSection === 'Tally Settings' && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[12px] font-semibold text-slate-500 mb-0.5 block">Tally Server IP Address</label>
+                  <label className="text-[12px] font-semibold text-[var(--app-muted)] mb-0.5 block">Tally Server IP Address</label>
                   <input
                     type="text"
                     value={tallyConfig.serverIp}
@@ -157,7 +154,7 @@ export default function ConfigurationPanel() {
                   />
                 </div>
                 <div>
-                  <label className="text-[12px] font-semibold text-slate-500 mb-0.5 block">Vite / Tally Connector Port</label>
+                  <label className="text-[12px] font-semibold text-[var(--app-muted)] mb-0.5 block">Vite / Tally Connector Port</label>
                   <input
                     type="text"
                     value={tallyConfig.port}
@@ -166,7 +163,7 @@ export default function ConfigurationPanel() {
                   />
                 </div>
                 <div>
-                  <label className="text-[12px] font-semibold text-slate-500 mb-0.5 block">Tally Default Company</label>
+                  <label className="text-[12px] font-semibold text-[var(--app-muted)] mb-0.5 block">Tally Default Company</label>
                   <input
                     type="text"
                     value={tallyConfig.companyName}
@@ -177,7 +174,7 @@ export default function ConfigurationPanel() {
                 <div className="flex items-center justify-between border rounded p-3 border-[var(--app-border)]/80">
                   <div className="flex flex-col">
                     <span className="font-semibold text-[var(--app-heading)] text-[12px]">Auto Sync Trigger</span>
-                    <span className="text-[10px] text-slate-400">Trigger sync runs automatically</span>
+                    <span className="text-[10px] text-[var(--app-muted)]">Trigger sync runs automatically</span>
                   </div>
                   <input
                     type="checkbox"
@@ -192,7 +189,7 @@ export default function ConfigurationPanel() {
             {activeSection === 'OCR Settings' && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[12px] font-semibold text-slate-500 mb-0.5 block">Minimum Classification Confidence (%)</label>
+                  <label className="text-[12px] font-semibold text-[var(--app-muted)] mb-0.5 block">Minimum Classification Confidence (%)</label>
                   <input
                     type="number"
                     value={ocrConfig.minConfidence}
@@ -201,7 +198,7 @@ export default function ConfigurationPanel() {
                   />
                 </div>
                 <div>
-                  <label className="text-[12px] font-semibold text-slate-500 mb-0.5 block">OCR Engine Preference</label>
+                  <label className="text-[12px] font-semibold text-[var(--app-muted)] mb-0.5 block">OCR Engine Preference</label>
                   <select
                     value={ocrConfig.enginePreference}
                     onChange={(e) => setOcrConfig(prev => ({ ...prev, enginePreference: e.target.value }))}
@@ -214,7 +211,7 @@ export default function ConfigurationPanel() {
                 <div className="flex items-center justify-between border rounded p-3 border-[var(--app-border)]/80 md:col-span-2">
                   <div className="flex flex-col">
                     <span className="font-semibold text-[var(--app-heading)] text-[12px]">Auto Extract Line Items</span>
-                    <span className="text-[10px] text-slate-400">Perform itemized inventory table classification</span>
+                    <span className="text-[10px] text-[var(--app-muted)]">Perform itemized inventory table classification</span>
                   </div>
                   <input
                     type="checkbox"
@@ -227,7 +224,7 @@ export default function ConfigurationPanel() {
             )}
 
             {!['General Settings', 'Tally Settings', 'OCR Settings'].includes(activeSection) && (
-              <div className="p-8 text-center text-slate-400 font-semibold border border-dashed rounded border-[var(--app-border)]">
+              <div className="p-8 text-center text-[var(--app-muted)] font-semibold border border-dashed rounded border-[var(--app-border)]">
                 Configurations for {activeSection} are managed by default profiles. Contact Super Admin to request edits.
               </div>
             )}
