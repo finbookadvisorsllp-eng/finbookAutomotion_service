@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { Mail, Lock, Loader2, ShieldCheck, Zap, BarChart3 } from 'lucide-react'
 import { useAppStore } from '../../stores/useAppStore'
 import Button from '../ui/Button'
+import OpenDoodle from '../ui/OpenDoodle'
 
 // Auth scaffold. Issues a local stub token until the backend /auth/login is live.
 // Swap the stub for a real axios call (api.post('/auth/login', ...)) once the
@@ -74,6 +75,7 @@ export default function Login() {
         </div>
 
         <div className="space-y-6">
+          <OpenDoodle name="strolling" float className="w-48 h-36 -ml-2" tint="var(--app-accent)" />
           <h2 className="text-[28px] font-extrabold tracking-tight leading-tight max-w-md" style={{ color: 'var(--app-heading)' }}>
             The automation layer for your accounting practice.
           </h2>

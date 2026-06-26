@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { Check, Loader2, Sparkles } from 'lucide-react'
+import OpenDoodle from './OpenDoodle'
 
 const DEFAULT_STEPS = [
   'Reading invoices…',
@@ -21,6 +22,7 @@ export default function ThinkingLoader({ steps = DEFAULT_STEPS, interval = 850, 
 
   return (
     <div className={`flex flex-col items-center justify-center gap-3 ${className}`}>
+      <OpenDoodle name="meditating" float className="w-28 h-20" tint="var(--app-accent)" />
       <div className="flex items-center gap-2">
         <span className="h-9 w-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'var(--app-accent-soft)', color: 'var(--app-accent)' }}>
           <Sparkles size={17} strokeWidth={2.2} />

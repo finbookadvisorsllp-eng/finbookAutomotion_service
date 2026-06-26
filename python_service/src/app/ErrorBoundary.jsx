@@ -1,5 +1,5 @@
 import { Component } from 'react'
-import Doodle from '../components/ui/Doodle'
+import OpenDoodle from '../components/ui/OpenDoodle'
 
 // Safety net. A thrown error below renders the themed fallback instead of a
 // white screen. `compact` = inline (per-route) vs full-screen (top-level).
@@ -29,7 +29,7 @@ export default class ErrorBoundary extends Component {
       <div className={dark ? 'dark' : ''} style={{ display: 'contents' }}>
         <div className={`${compact ? 'h-full' : 'min-h-screen'} flex items-center justify-center p-6`} style={{ backgroundColor: 'var(--app-bg)', color: 'var(--app-heading)' }}>
           <div className="max-w-md w-full rounded-2xl border p-7 text-center" style={{ backgroundColor: 'var(--app-panel-bg)', borderColor: 'var(--app-border)', boxShadow: 'var(--app-shadow-lg)' }}>
-            <Doodle name="error" className="w-40 h-28 mx-auto" style={{ color: 'var(--app-muted)' }} />
+            <OpenDoodle name="laying" className="w-44 h-32 mx-auto" tint="var(--app-muted)" />
             <h1 className="text-[16px] font-bold mt-3" style={{ color: 'var(--app-heading)' }}>Something went wrong</h1>
             <p className="text-[12px] mt-1.5 break-words" style={{ color: 'var(--app-muted)' }}>
               {String(this.state.error?.message ?? this.state.error)}
