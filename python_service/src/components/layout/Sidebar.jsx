@@ -129,13 +129,10 @@ function Sidebar({ activeItem, onItemClick, collapsed, onToggle }) {
       {/* Logo */}
       <div className="flex items-center justify-between px-4 py-3.5 border-b shrink-0" style={{ borderColor: 'var(--app-border)' }}>
         <div className="flex items-center gap-2.5">
-          <div className="relative h-7 w-7 flex items-center justify-center shrink-0">
-            <svg viewBox="0 0 100 100" className="h-full w-full" style={{ color: 'var(--app-accent)', fill: 'var(--app-accent)' }}>
+          <div className="h-8 w-8 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'var(--app-accent-gradient)', boxShadow: 'var(--app-shadow)' }}>
+            <svg viewBox="0 0 100 100" className="h-4 w-4" style={{ fill: '#fff' }}>
               <polygon points="50,5 95,27.5 95,72.5 50,95 5,72.5 5,27.5" />
             </svg>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="h-2.5 w-2.5 border-2 border-white rotate-45 transform"></div>
-            </div>
           </div>
           {!collapsed && <span className="text-[16px] font-extrabold tracking-tight leading-tight truncate" style={{ color: 'var(--app-heading)' }}>TallyHub</span>}
         </div>
