@@ -5,10 +5,12 @@ import {
   FileSpreadsheet, Image, ChevronRight, ChevronLeft, RefreshCw, Check,
   Search, Filter, Info, Eye, Edit2, MoreVertical, Plus, X, FolderOpen, Scan,
   SlidersHorizontal, Download, LayoutList, Grid, Database, Calendar, ArrowLeft,
-  Settings, CheckCircle, ShieldAlert, Brain, ZoomIn, ZoomOut, Maximize2, Minimize2,
-  ChevronDown, ChevronUp, ArrowUpDown, CheckSquare, Square, Trash, ListFilter, PlayCircle
+  Settings, CheckCircle, ShieldAlert, ZoomIn, ZoomOut, Maximize2, Minimize2,
+  ChevronDown, ChevronUp, CheckSquare, Square, Trash, ListFilter, PlayCircle
 } from 'lucide-react';
 import ObjectDoodle from '../ui/ObjectDoodle';
+import DataTable from '../ui/DataTable';
+import StatCard from '../ui/StatCard';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 
@@ -939,8 +941,6 @@ export default function AiProcessingCenter() {
   const [sortDirection, setSortDirection] = useState('desc');
 
   // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
 
   // Document Viewer specific states
   const [viewerMode, setViewerMode] = useState('pdf'); // 'pdf' or 'image'
@@ -1211,21 +1211,6 @@ export default function AiProcessingCenter() {
     return result;
   }, [documents, searchQuery, activeCategory, statusFilter, sortColumn, sortDirection]);
 
-  // Paginated docs for table
-  const paginatedDocs = useMemo(() => {
-    const startIndex = (currentPage - 1) * pageSize;
-    return filteredAndSortedDocs.slice(startIndex, startIndex + pageSize);
-  }, [filteredAndSortedDocs, currentPage, pageSize]);
-
-  const totalPagesCount = Math.ceil(filteredAndSortedDocs.length / pageSize) || 1;
-
-  // Reset page if filters shrink the count
-  useEffect(() => {
-    if (currentPage > totalPagesCount) {
-      setCurrentPage(1);
-    }
-  }, [totalPagesCount, currentPage]);
-
   // Icon mapping helper
   const getDocIcon = (fileType) => {
     if (fileType === 'excel' || fileType === 'csv') {
@@ -1301,27 +1286,27 @@ export default function AiProcessingCenter() {
   };
 
   // --- Bulk selectors ---
-  const handleWorkspaceSelectAll = (e) => {
-    if (e.target.checked) {
-      setCheckedWorkspaceIds(paginatedDocs.map(d => d.id));
-    } else {
-      setCheckedWorkspaceIds([]);
-    }
-  };
-
   const handleWorkspaceSelectRow = (id) => {
     setCheckedWorkspaceIds(prev =>
       prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
     );
   };
 
-  const handleSort = (column) => {
-    if (sortColumn === column) {
-      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortColumn(column);
-      setSortDirection('asc');
-    }
+  const openReview = (id) => {
+    setActiveWorkspaceDocId(id);
+    setViewMode('review');
+  };
+
+  const bulkSetStatus = (status, verb) => {
+    syncDocuments(documents.map(d => checkedWorkspaceIds.includes(d.id) ? { ...d, status } : d));
+    setCheckedWorkspaceIds([]);
+    (status === 'Rejected' ? toast.error : toast.success)(`${verb} ${checkedWorkspaceIds.length} document(s)`);
+  };
+
+  const bulkDelete = () => {
+    syncDocuments(documents.filter(d => !checkedWorkspaceIds.includes(d.id)));
+    setCheckedWorkspaceIds([]);
+    toast.success('Deleted selected documents');
   };
 
   // Page Scroll Snapping inside viewer
@@ -1458,24 +1443,36 @@ export default function AiProcessingCenter() {
 
           {/* Title Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-2 border-[var(--app-border)]">
-            <div>
-              <h2 className="text-base font-extrabold text-[var(--app-heading)] dark:text-white flex items-center gap-2">
-                <Brain className="text-[var(--app-accent)]" size={16} />
-                <span>OCR Upload</span>
-                <span className="px-2 py-0.5 bg-[var(--app-accent-soft)] text-[var(--app-accent)] dark:bg-[var(--app-accent-soft)] dark:text-[var(--app-accent)] border border-[var(--app-border)] dark:border-[var(--app-border)]/60 rounded text-[9.5px] font-extrabold uppercase">
-                  Document Queue
-                </span>
-              </h2>
-              <p className="text-[var(--app-muted)] text-[10px] mt-0.5 font-medium">Verify and approve automatically extracted accounting documents.</p>
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="h-9 w-9 rounded-xl flex items-center justify-center text-white shrink-0" style={{ background: 'var(--app-accent-gradient)', boxShadow: 'var(--app-shadow)' }}>
+                <Scan size={17} strokeWidth={2.2} />
+              </div>
+              <div className="min-w-0">
+                <h2 className="text-base font-extrabold text-[var(--app-heading)] dark:text-white flex items-center gap-2">
+                  <span>OCR Upload</span>
+                  <span className="px-2 py-0.5 bg-[var(--app-accent-soft)] text-[var(--app-accent)] border border-[var(--app-border)] rounded text-[9.5px] font-extrabold uppercase">
+                    Document Queue
+                  </span>
+                </h2>
+                <p className="text-[var(--app-muted)] text-[10px] mt-0.5 font-medium truncate">Verify and approve automatically extracted accounting documents.</p>
+              </div>
             </div>
 
             <button
               onClick={() => setIsUploadModalOpen(true)}
-              className="h-8 px-3 bg-[var(--app-accent)] hover:opacity-90 text-white rounded-lg transition flex items-center justify-center gap-1.5 font-bold shadow-xs text-[11px] cursor-pointer"
+              className="h-8 px-3 bg-[var(--app-accent)] hover:opacity-90 text-white rounded-lg transition flex items-center justify-center gap-1.5 font-bold shadow-xs text-[11px] cursor-pointer shrink-0"
             >
               <UploadCloud size={13} />
               <span>Upload Documents</span>
             </button>
+          </div>
+
+          {/* KPI cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 shrink-0">
+            <StatCard index={0} label="Total Documents" value={documents.length} icon={FileText} />
+            <StatCard index={1} label="Processing" value={documents.filter(d => d.status === 'Processing').length} icon={PlayCircle} />
+            <StatCard index={2} label="Pending Approval" value={documents.filter(d => d.status === 'Pending Approval').length} icon={AlertCircle} />
+            <StatCard index={3} label="Approved" value={documents.filter(d => d.status === 'Approved').length} icon={CheckCircle2} />
           </div>
 
           {/* --- TOP TABS CATEGORIES NAVIGATION BAR --- */}
@@ -1485,13 +1482,10 @@ export default function AiProcessingCenter() {
               return (
                 <button
                   key={catName}
-                  onClick={() => {
-                    setActiveCategory(catName);
-                    setCurrentPage(1);
-                  }}
+                  onClick={() => setActiveCategory(catName)}
                   className={`pb-1 text-[11px] font-bold tracking-wide whitespace-nowrap transition-all uppercase border-b-2 -mb-2 flex items-center gap-1.5 ${
                     isActive
-                      ? 'border-[var(--app-accent)] text-[var(--app-accent)] dark:border-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold'
+                      ? 'border-[var(--app-accent)] text-[var(--app-accent)] font-bold'
                       : 'border-transparent text-[var(--app-muted)] hover:text-[var(--app-heading)]'
                   }`}
                 >
@@ -1501,29 +1495,18 @@ export default function AiProcessingCenter() {
             })}
           </div>
 
-          {/* Table Toolbar controls */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-xl p-3 shadow-3xs shrink-0">
-            {/* Search and Filters */}
-            <div className="flex items-center gap-3 w-full sm:w-auto">
-              <div className="relative w-full sm:w-64">
-                <input
-                  type="text"
-                  placeholder="Search document, party, invoice no..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full h-8 rounded-lg border pl-8 pr-8 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)] font-medium"
-                />
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--app-muted)]" size={13} />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery('')}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--app-muted)] hover:text-[var(--app-heading)]"
-                  >
-                    <X size={12} />
-                  </button>
-                )}
-              </div>
-
+          {/* Document queue */}
+          <DataTable
+            minWidth="1040px"
+            data={filteredAndSortedDocs}
+            rowKey={(d) => d.id}
+            emptyText="No documents match the filter criteria."
+            selectable
+            selectedKeys={checkedWorkspaceIds}
+            onToggleRow={handleWorkspaceSelectRow}
+            onToggleAll={(c) => setCheckedWorkspaceIds(c ? filteredAndSortedDocs.map(d => d.id) : [])}
+            search={{ value: searchQuery, onChange: setSearchQuery, placeholder: 'Search document, party, invoice no…' }}
+            filters={
               <div className="flex items-center gap-1.5 shrink-0">
                 <ListFilter size={13} className="text-[var(--app-muted)]" />
                 <select
@@ -1538,264 +1521,44 @@ export default function AiProcessingCenter() {
                   <option value="Rejected">Rejected</option>
                 </select>
               </div>
-            </div>
-
-            {/* Selection Info and Bulk Actions */}
-            <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
-              <span className="text-[10px] font-bold text-[var(--app-muted)] uppercase">
-                {filteredAndSortedDocs.length} Total Documents
-              </span>
-
-              {checkedWorkspaceIds.length > 0 && (
-                <div className="flex items-center gap-2 bg-[var(--app-accent-soft)] dark:bg-[var(--app-accent-soft)] border border-[var(--app-border)] dark:border-[var(--app-border)] px-2 py-1 rounded-lg">
-                  <span className="text-[10px] font-bold text-[var(--app-accent)] dark:text-[var(--app-accent)] mr-2">{checkedWorkspaceIds.length} Selected</span>
-
-                  <button
-                    onClick={() => {
-                      const updated = documents.map(d => checkedWorkspaceIds.includes(d.id) ? { ...d, status: 'Approved' } : d);
-                      syncDocuments(updated);
-                      setCheckedWorkspaceIds([]);
-                      toast.success(`Approved ${checkedWorkspaceIds.length} vouchers successfully`);
-                    }}
-                    className="h-6 px-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[10px] font-bold flex items-center gap-1"
-                  >
-                    <Check size={10} />
-                    <span>Approve</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      const updated = documents.map(d => checkedWorkspaceIds.includes(d.id) ? { ...d, status: 'Rejected' } : d);
-                      syncDocuments(updated);
-                      setCheckedWorkspaceIds([]);
-                      toast.error(`Rejected ${checkedWorkspaceIds.length} vouchers`);
-                    }}
-                    className="h-6 px-2 bg-rose-600 hover:bg-rose-700 text-white rounded text-[10px] font-bold flex items-center gap-1"
-                  >
-                    <X size={10} />
-                    <span>Reject</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      const updated = documents.filter(d => !checkedWorkspaceIds.includes(d.id));
-                      syncDocuments(updated);
-                      setCheckedWorkspaceIds([]);
-                      toast.success(`Deleted selected documents`);
-                    }}
-                    className="h-6 px-2 bg-slate-600 hover:bg-slate-700 text-white rounded text-[10px] font-bold flex items-center gap-1"
-                  >
-                    <Trash size={10} />
-                    <span>Delete</span>
-                  </button>
-
-                  <button
-                    onClick={() => setCheckedWorkspaceIds([])}
-                    className="text-[var(--app-muted)] hover:text-[var(--app-heading)] text-[10px] font-bold ml-1"
-                  >
-                    Clear
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Table Container */}
-          <div className="flex-grow border border-[var(--app-border)] bg-[var(--app-panel-bg)] rounded-xl overflow-hidden shadow-3xs flex flex-col">
-            <div className="flex-grow overflow-auto">
-              <table className="w-full text-left border-collapse text-[11px] min-w-[900px]">
-                <thead>
-                  <tr className="bg-[var(--app-content-bg)]/80 border-b text-[var(--app-muted)] border-[var(--app-border)] font-bold uppercase select-none sticky top-0 z-10">
-                    <th className="py-2.5 px-3 w-10 text-center">
-                      <input
-                        type="checkbox"
-                        className="rounded border-slate-350 text-[var(--app-accent)] cursor-pointer h-3.5 w-3.5"
-                        checked={paginatedDocs.length > 0 && paginatedDocs.every(d => checkedWorkspaceIds.includes(d.id))}
-                        onChange={handleWorkspaceSelectAll}
-                      />
-                    </th>
-                    <th className="py-2.5 px-3 cursor-pointer hover:bg-[var(--app-table-head-bg)]" onClick={() => handleSort('filename')}>
-                      <div className="flex items-center gap-1">
-                        <span>Document Name</span>
-                        <ArrowUpDown size={10} />
-                      </div>
-                    </th>
-                    <th className="py-2.5 px-3 cursor-pointer hover:bg-[var(--app-table-head-bg)]" onClick={() => handleSort('category')}>
-                      <div className="flex items-center gap-1">
-                        <span>Document Type</span>
-                        <ArrowUpDown size={10} />
-                      </div>
-                    </th>
-                    <th className="py-2.5 px-3 cursor-pointer hover:bg-[var(--app-table-head-bg)] text-center" onClick={() => handleSort('pages')}>
-                      <div className="flex items-center gap-1 justify-center">
-                        <span>Pages</span>
-                        <ArrowUpDown size={10} />
-                      </div>
-                    </th>
-                    <th className="py-2.5 px-3 cursor-pointer hover:bg-[var(--app-table-head-bg)]" onClick={() => handleSort('uploadDate')}>
-                      <div className="flex items-center gap-1">
-                        <span>Upload Date</span>
-                        <ArrowUpDown size={10} />
-                      </div>
-                    </th>
-                    <th className="py-2.5 px-3 cursor-pointer hover:bg-[var(--app-table-head-bg)]" onClick={() => handleSort('vendor')}>
-                      <div className="flex items-center gap-1">
-                        <span>Party Name</span>
-                        <ArrowUpDown size={10} />
-                      </div>
-                    </th>
-                    <th className="py-2.5 px-3 cursor-pointer hover:bg-[var(--app-table-head-bg)]" onClick={() => handleSort('docNo')}>
-                      <div className="flex items-center gap-1">
-                        <span>Invoice Number</span>
-                        <ArrowUpDown size={10} />
-                      </div>
-                    </th>
-                    <th className="py-2.5 px-3 cursor-pointer hover:bg-[var(--app-table-head-bg)] text-right" onClick={() => handleSort('amount')}>
-                      <div className="flex items-center gap-1 justify-end">
-                        <span>Amount</span>
-                        <ArrowUpDown size={10} />
-                      </div>
-                    </th>
-                    <th className="py-2.5 px-3 cursor-pointer hover:bg-[var(--app-table-head-bg)] text-center" onClick={() => handleSort('status')}>
-                      <div className="flex items-center gap-1 justify-center">
-                        <span>Status</span>
-                        <ArrowUpDown size={10} />
-                      </div>
-                    </th>
-                    <th className="py-2.5 px-3 w-16 text-center">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-150 dark:divide-slate-800/80">
-                  {paginatedDocs.length > 0 ? (
-                    paginatedDocs.map((doc) => {
-                      const isChecked = checkedWorkspaceIds.includes(doc.id);
-                      return (
-                        <tr
-                          key={doc.id}
-                          onClick={() => {
-                            setActiveWorkspaceDocId(doc.id);
-                            setViewMode('review');
-                          }}
-                          className="hover:bg-[var(--app-content-bg)]/50 cursor-pointer transition-colors"
-                        >
-                          <td className="py-3 px-3 text-center" onClick={(e) => e.stopPropagation()}>
-                            <input
-                              type="checkbox"
-                              className="rounded border-slate-350 text-[var(--app-accent)] cursor-pointer h-3.5 w-3.5"
-                              checked={isChecked}
-                              onChange={() => handleWorkspaceSelectRow(doc.id)}
-                            />
-                          </td>
-                          <td className="py-3 px-3 font-bold text-[var(--app-heading)]">
-                            <div className="flex items-center gap-2">
-                              {getDocIcon(doc.fileType)}
-                              <span title={doc.filename}>{doc.filename}</span>
-                            </div>
-                          </td>
-                          <td className="py-3 px-3">
-                            <span className={`px-2 py-0.5 rounded text-[9.5px] font-extrabold uppercase border ${getCategoryStyles(doc.category)}`}>
-                              {doc.category}
-                            </span>
-                          </td>
-                          <td className="py-3 px-3 text-center font-bold">{doc.pages || 1} {doc.pages === 1 ? 'Page' : 'Pages'}</td>
-                          <td className="py-3 px-3 font-semibold text-[var(--app-muted)]">{doc.uploadDate}</td>
-                          <td className="py-3 px-3 font-bold text-[var(--app-heading)] truncate max-w-[150px]" title={doc.vendor}>
-                            {doc.vendor || '—'}
-                          </td>
-                          <td className="py-3 px-3 font-mono font-bold">{doc.docNo || '—'}</td>
-                          <td className="py-3 px-3 text-right font-bold text-[var(--app-heading)]">
-                            ₹ {(doc.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                          </td>
-                          <td className="py-3 px-3 text-center">
-                            <span className={`px-2 py-0.5 rounded-full text-[9px] font-black border uppercase tracking-wider ${
-                              doc.status === 'Approved' ? 'bg-green-50/70 border-green-200 text-green-700 dark:bg-green-950/20 dark:border-green-900 dark:text-green-400' :
-                              doc.status === 'Rejected' ? 'bg-red-50/70 border-red-200 text-red-700 dark:bg-red-950/20 dark:border-red-900 dark:text-red-400' :
-                              doc.status === 'Processing' ? 'bg-amber-50/70 border-amber-200 text-amber-700 dark:bg-amber-950/20 dark:border-amber-900 dark:text-amber-400 animate-pulse' :
-                              'bg-[var(--app-accent-soft)] border-[var(--app-border)] text-[var(--app-accent)] dark:bg-[var(--app-accent-soft)] dark:border-[var(--app-border)] dark:text-[var(--app-accent)]'
-                            }`}>
-                              {doc.status}
-                            </span>
-                          </td>
-                          <td className="py-3 px-3 text-center" onClick={(e) => e.stopPropagation()}>
-                            <button
-                              onClick={() => {
-                                setActiveWorkspaceDocId(doc.id);
-                                setViewMode('review');
-                              }}
-                              className="p-1 border border-[var(--app-border)] bg-[var(--app-panel-bg)] hover:bg-[var(--app-content-bg)] rounded text-[var(--app-accent)] dark:text-[var(--app-accent)] transition"
-                              title="Review Document"
-                            >
-                              <Eye size={12} />
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  ) : (
-                    <tr>
-                      <td colSpan={10} className="py-12 text-center text-[var(--app-muted)] font-semibold">
-                        No documents match the filter criteria.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Pagination Footer */}
-            <div className="border-t border-[var(--app-border)] bg-[var(--app-content-bg)]/50 p-3 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0 select-none">
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold text-[var(--app-muted)] uppercase">Show</span>
-                <select
-                  value={pageSize}
-                  onChange={(e) => {
-                    setPageSize(Number(e.target.value));
-                    setCurrentPage(1);
-                  }}
-                  className="h-7 border rounded px-2 outline-none text-[10.5px] bg-[var(--app-panel-bg)] text-[var(--app-heading)] border-[var(--app-border)] font-bold"
-                >
-                  <option value={5}>5 Rows</option>
-                  <option value={10}>10 Rows</option>
-                  <option value={25}>25 Rows</option>
-                  <option value={50}>50 Rows</option>
-                </select>
-              </div>
-
-              <div className="text-[10.5px] font-bold text-[var(--app-muted)] font-mono">
-                Showing {filteredAndSortedDocs.length === 0 ? 0 : (currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, filteredAndSortedDocs.length)} of {filteredAndSortedDocs.length} documents
-              </div>
-
-              <div className="flex items-center gap-1.5">
-                <button
-                  disabled={currentPage === 1}
-                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                  className="h-7 w-7 border rounded flex items-center justify-center bg-[var(--app-panel-bg)] border-[var(--app-border)] text-[var(--app-heading)] disabled:opacity-50 hover:bg-[var(--app-content-bg)] transition"
-                >
-                  <ChevronLeft size={13} />
+            }
+            actions={checkedWorkspaceIds.length > 0 ? (
+              <>
+                <span className="text-[10px] font-bold text-[var(--app-accent)] px-1.5">{checkedWorkspaceIds.length} selected</span>
+                <button onClick={() => bulkSetStatus('Approved', 'Approved')} className="h-7 px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-bold flex items-center gap-1"><Check size={11} />Approve</button>
+                <button onClick={() => bulkSetStatus('Rejected', 'Rejected')} className="h-7 px-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-bold flex items-center gap-1"><X size={11} />Reject</button>
+                <button onClick={bulkDelete} className="h-7 px-2.5 border border-[var(--app-border)] bg-[var(--app-panel-bg)] hover:bg-[var(--app-content-bg)] text-[var(--app-heading)] rounded-lg text-[10px] font-bold flex items-center gap-1"><Trash size={11} />Delete</button>
+                <button onClick={() => setCheckedWorkspaceIds([])} className="text-[var(--app-muted)] hover:text-[var(--app-heading)] text-[10px] font-bold ml-1">Clear</button>
+              </>
+            ) : null}
+            columns={[
+              { key: 'filename', header: 'Document Name', sortable: true, render: (d) => (
+                <button onClick={() => openReview(d.id)} className="flex items-center gap-2 font-bold text-left hover:text-[var(--app-accent)] transition-colors" style={{ color: 'var(--app-heading)' }}>
+                  {getDocIcon(d.fileType)}
+                  <span className="truncate max-w-[210px]" title={d.filename}>{d.filename}</span>
                 </button>
-                {Array.from({ length: totalPagesCount }, (_, i) => i + 1).map(pageNum => (
-                  <button
-                    key={pageNum}
-                    onClick={() => setCurrentPage(pageNum)}
-                    className={`h-7 w-7 rounded flex items-center justify-center font-bold text-[10.5px] border transition ${
-                      currentPage === pageNum
-                        ? 'bg-[var(--app-accent)] border-[var(--app-accent)] text-white shadow-3xs'
-                        : 'bg-[var(--app-panel-bg)] border-[var(--app-border)] text-[var(--app-heading)] hover:bg-[var(--app-content-bg)]'
-                    }`}
-                  >
-                    {pageNum}
-                  </button>
-                ))}
-                <button
-                  disabled={currentPage === totalPagesCount}
-                  onClick={() => setCurrentPage(prev => Math.min(totalPagesCount, prev + 1))}
-                  className="h-7 w-7 border rounded flex items-center justify-center bg-[var(--app-panel-bg)] border-[var(--app-border)] text-[var(--app-heading)] disabled:opacity-50 hover:bg-[var(--app-content-bg)] transition"
-                >
-                  <ChevronRight size={13} />
-                </button>
-              </div>
-            </div>
-          </div>
+              ) },
+              { key: 'category', header: 'Type', render: (d) => (
+                <span className={`px-2 py-0.5 rounded text-[9.5px] font-extrabold uppercase border ${getCategoryStyles(d.category)}`}>{d.category}</span>
+              ) },
+              { key: 'pages', header: 'Pages', align: 'center', sortable: true, sortValue: (d) => parseInt(d.pages || 1), render: (d) => <span className="font-bold">{d.pages || 1}</span> },
+              { key: 'uploadDate', header: 'Upload Date', sortable: true, render: (d) => <span className="font-semibold" style={{ color: 'var(--app-muted)' }}>{d.uploadDate}</span> },
+              { key: 'vendor', header: 'Party Name', sortable: true, render: (d) => <span className="font-bold truncate block max-w-[150px]" title={d.vendor} style={{ color: 'var(--app-heading)' }}>{d.vendor || '—'}</span> },
+              { key: 'docNo', header: 'Invoice No', sortable: true, render: (d) => <span className="font-mono font-bold">{d.docNo || '—'}</span> },
+              { key: 'amount', header: 'Amount', align: 'right', sortable: true, sortValue: (d) => parseFloat(d.amount || 0), render: (d) => <span className="font-bold tabular-nums" style={{ color: 'var(--app-heading)' }}>₹ {(d.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span> },
+              { key: 'status', header: 'Status', align: 'center', sortable: true, render: (d) => (
+                <span className={`px-2 py-0.5 rounded-full text-[9px] font-black border uppercase tracking-wider ${
+                  d.status === 'Approved' ? 'bg-green-50/70 border-green-200 text-green-700 dark:bg-green-950/20 dark:border-green-900 dark:text-green-400' :
+                  d.status === 'Rejected' ? 'bg-red-50/70 border-red-200 text-red-700 dark:bg-red-950/20 dark:border-red-900 dark:text-red-400' :
+                  d.status === 'Processing' ? 'bg-amber-50/70 border-amber-200 text-amber-700 dark:bg-amber-950/20 dark:border-amber-900 dark:text-amber-400 animate-pulse' :
+                  'bg-[var(--app-accent-soft)] border-[var(--app-border)] text-[var(--app-accent)]'
+                }`}>{d.status}</span>
+              ) },
+              { key: 'act', header: '', align: 'center', width: '56px', render: (d) => (
+                <button onClick={() => openReview(d.id)} title="Review Document" className="p-1 border border-[var(--app-border)] bg-[var(--app-panel-bg)] hover:bg-[var(--app-content-bg)] rounded-md text-[var(--app-accent)] transition"><Eye size={12} /></button>
+              ) },
+            ]}
+          />
         </div>
       ) : (
         // ==========================================
