@@ -1105,7 +1105,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                               fetchNextVoucherNumber(activeType);
                             }
                           }}
-                          className="w-full h-7 px-2 rounded-sm border text-[10px] font-bold outline-none bg-[var(--app-panel-bg)]"
+                          className="w-full h-7 px-2 rounded-lg border text-[10px] font-bold outline-none bg-[var(--app-panel-bg)]"
                           style={{ borderColor: theme.border, color: theme.text }}
                         >
                           <option value="Default">Auto (System Generated)</option>
@@ -1217,7 +1217,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                     <select
                                       value={row.costCenter || ''}
                                       onChange={e => updateLedgerRow(idx, 'costCenter', e.target.value)}
-                                      className="w-full h-7 px-1.5 border text-[10px] font-bold outline-none rounded-sm"
+                                      className="w-full h-7 px-1.5 border text-[10px] font-bold outline-none rounded-lg"
                                       style={{ borderColor: theme.border, color: theme.text, backgroundColor: theme.inputBg }}
                                     >
                                       <option value="">Select Cost Center</option>
@@ -1233,7 +1233,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                     placeholder="Enter description"
                                     value={row.description || ''}
                                     onChange={e => updateLedgerRow(idx, 'description', e.target.value)}
-                                    className="w-full h-7 px-1.5 border text-[10px] font-bold outline-none rounded-sm"
+                                    className="w-full h-7 px-1.5 border text-[10px] font-bold outline-none rounded-lg"
                                     style={{ borderColor: theme.border, color: theme.text, backgroundColor: theme.inputBg }}
                                   />
                                 </td>
@@ -1246,7 +1246,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                       const val = e.target.value;
                                       updateLedgerRow(idx, 'amount', val);
                                     }}
-                                    className="w-full h-7 px-1.5 border text-[10px] font-black outline-none rounded-sm text-right"
+                                    className="w-full h-7 px-1.5 border text-[10px] font-black outline-none rounded-lg text-right"
                                     style={{ borderColor: theme.border, color: theme.text, backgroundColor: theme.inputBg }}
                                   />
                                 </td>
@@ -1396,7 +1396,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                             placeholder="0.00"
                                             value={row.allocationAmount || ''}
                                             onChange={e => handleAllocationChange(idx, e.target.value)}
-                                            className="w-full h-7 px-1.5 border text-[10px] font-black outline-none rounded-sm text-right"
+                                            className="w-full h-7 px-1.5 border text-[10px] font-black outline-none rounded-lg text-right"
                                             style={{
                                               borderColor: theme.border,
                                               color: theme.text,
@@ -1412,7 +1412,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                             </table>
                           </div>
 
-                          <div className="flex justify-between items-center px-2.5 py-1.5 border rounded-sm bg-[var(--app-content-bg)] text-[10px] font-black text-[var(--app-heading)]" style={{ borderColor: theme.border }}>
+                          <div className="flex justify-between items-center px-2.5 py-1.5 border rounded-lg bg-[var(--app-content-bg)] text-[10px] font-black text-[var(--app-heading)]" style={{ borderColor: theme.border }}>
                             <div className="flex gap-1 items-center">
                               <span className="uppercase text-[var(--app-muted)] tracking-wider">
                                 {activeType === 'cash_payment' ? 'Total Bill Amount (₹)' : 'Total Outstanding Amount (₹)'}
@@ -3597,7 +3597,7 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
       <div className="relative flex-1">
         <div
           onClick={() => setIsOpen(!isOpen)}
-          className={`w-full ${compact ? 'h-7 px-1.5' : 'h-10 px-2'} rounded-sm border flex items-center justify-between cursor-pointer transition-all duration-300 group/input ${isOpen ? 'border-[var(--app-accent)]' : 'hover:border-[var(--app-accent)]'}`}
+          className={`w-full ${compact ? 'h-7 px-1.5' : 'h-10 px-2'} rounded-lg border flex items-center justify-between cursor-pointer transition-all duration-300 group/input ${isOpen ? 'border-[var(--app-accent)]' : 'hover:border-[var(--app-accent)]'}`}
           style={{ backgroundColor: theme.inputBg, borderColor: isOpen ? theme.accent : theme.border }}
         >
           <span className={`${compact ? 'text-[10px]' : 'text-[11px]'} font-bold truncate transition-colors ${value ? (isDark ? 'text-[var(--app-accent)]' : 'text-[var(--app-accent)]') : 'text-[var(--app-muted)]'}`}>
@@ -3610,14 +3610,14 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
         </div>
 
         {isOpen && (
-          <div className="absolute top-full left-0 right-0 mt-1 rounded-sm border shadow-2xl z-50 overflow-hidden" style={{ backgroundColor: isDark ? '#1e293b' : '#fff', borderColor: theme.border }}>
+          <div className="absolute top-full left-0 right-0 mt-1 rounded-lg border shadow-2xl z-50 overflow-hidden" style={{ backgroundColor: isDark ? '#1e293b' : '#fff', borderColor: theme.border }}>
             <div className="p-1.5 border-b" style={{ borderColor: theme.border }}>
               <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--app-muted)]" size={11} />
                 <input
                   type="text" value={search} onChange={e => setSearch(e.target.value)}
                   placeholder="Search by Name, GSTIN, Phone..."
-                  className="w-full h-8 px-8 text-[11px] font-semibold outline-none transition-all border focus:border-[var(--app-accent)] rounded-sm"
+                  className="w-full h-8 px-8 text-[11px] font-semibold outline-none transition-all border focus:border-[var(--app-accent)] rounded-lg"
                   style={{ backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.text }}
                   autoFocus
                 />
@@ -3708,7 +3708,7 @@ const InputField = ({ label, placeholder, value, onChange, type = 'text', readOn
               onChange={handleTextChange}
               placeholder="dd-mm-yyyy"
               readOnly={readOnly}
-              className={`w-full ${compact ? 'h-7 px-1.5 text-[10px]' : 'h-10 px-2 text-[11px]'} rounded-sm border font-bold outline-none transition-all duration-300 focus:ring-0 ${isDark ? 'placeholder:text-white/10' : 'placeholder:text-[var(--app-muted)]'} ${align === 'right' ? 'text-right' : ''} ${readOnly ? (isDark ? 'cursor-not-allowed opacity-60 bg-slate-800/20' : 'cursor-not-allowed bg-[var(--app-content-bg)]/50') : 'hover:border-[var(--app-accent)]'}`}
+              className={`w-full ${compact ? 'h-7 px-1.5 text-[10px]' : 'h-10 px-2 text-[11px]'} rounded-lg border font-bold outline-none transition-all duration-300 focus:ring-0 ${isDark ? 'placeholder:text-white/10' : 'placeholder:text-[var(--app-muted)]'} ${align === 'right' ? 'text-right' : ''} ${readOnly ? (isDark ? 'cursor-not-allowed opacity-60 bg-slate-800/20' : 'cursor-not-allowed bg-[var(--app-content-bg)]/50') : 'hover:border-[var(--app-accent)]'}`}
               style={{ backgroundColor: readOnly ? theme.headerBg : theme.inputBg, borderColor: theme.border, color: readOnly ? theme.accent : theme.text }}
             />
             {Icon && !readOnly && (
@@ -3731,7 +3731,7 @@ const InputField = ({ label, placeholder, value, onChange, type = 'text', readOn
             onChange={(e) => onChange && onChange(e.target.value)}
             readOnly={readOnly}
             placeholder={placeholder}
-            className={`w-full ${compact ? 'h-7 px-1.5 text-[10px]' : 'h-10 px-2 text-[11px]'} rounded-sm border font-bold outline-none transition-all duration-300 focus:ring-0 ${isDark ? 'placeholder:text-white/10' : 'placeholder:text-[var(--app-muted)]'} ${align === 'right' ? 'text-right' : ''} ${readOnly ? (isDark ? 'cursor-not-allowed opacity-60 bg-slate-800/20' : 'cursor-not-allowed bg-[var(--app-content-bg)]/50') : 'hover:border-[var(--app-accent)]'}`}
+            className={`w-full ${compact ? 'h-7 px-1.5 text-[10px]' : 'h-10 px-2 text-[11px]'} rounded-lg border font-bold outline-none transition-all duration-300 focus:ring-0 ${isDark ? 'placeholder:text-white/10' : 'placeholder:text-[var(--app-muted)]'} ${align === 'right' ? 'text-right' : ''} ${readOnly ? (isDark ? 'cursor-not-allowed opacity-60 bg-slate-800/20' : 'cursor-not-allowed bg-[var(--app-content-bg)]/50') : 'hover:border-[var(--app-accent)]'}`}
             style={{ backgroundColor: readOnly ? theme.headerBg : theme.inputBg, borderColor: theme.border, color: readOnly ? theme.accent : theme.text }}
           />
         )}

@@ -891,7 +891,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
             <div className="flex flex-col gap-3">
 
               {/* A. Voucher Details Section (Flat UI, No Cards, No Rounded) */}
-              <div className="p-2.5 bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-lg mb-0 shrink-0">
+              <div className="p-2.5 bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-xl shadow-sm mb-0 shrink-0">
                 <h3 className="text-[10px] font-black uppercase tracking-wider text-[var(--app-heading)] mb-1.5">Voucher Details</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-x-3 gap-y-3">
 
@@ -915,7 +915,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                     <select
                       value={form.voucherType || 'purchase_invoice'}
                       onChange={(e) => updateForm({ voucherType: e.target.value })}
-                      className="w-full h-7.5 px-3 rounded-sm border text-[11px] font-bold outline-none bg-[var(--app-panel-bg)]"
+                      className="w-full h-7.5 px-3 rounded-lg border text-[11px] font-bold outline-none bg-[var(--app-panel-bg)]"
                       style={{ borderColor: theme.border, color: theme.text }}
                     >
                       <option value="purchase_invoice">Purchase Invoice</option>
@@ -932,7 +932,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                     <select
                       value={form.voucherNumberSeries || 'Default'}
                       onChange={(e) => updateForm({ voucherNumberSeries: e.target.value })}
-                      className="w-full h-7.5 px-3 rounded-sm border text-[11px] font-bold outline-none bg-[var(--app-panel-bg)]"
+                      className="w-full h-7.5 px-3 rounded-lg border text-[11px] font-bold outline-none bg-[var(--app-panel-bg)]"
                       style={{ borderColor: theme.border, color: theme.text }}
                     >
                       <option value="Default">Default</option>
@@ -1061,7 +1061,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
 
               {/* B. Item Details Section (Flat UI, No Cards, No Rounded) */}
               {activeTab === 'With Item Invoice' && (
-                <div className="p-3 bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-lg mb-0 shrink-0 flex flex-col">
+                <div className="p-3 bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-xl shadow-sm mb-0 shrink-0 flex flex-col">
                   <div className="flex items-center justify-between mb-2">
                   <h3 className="text-[10px] font-black uppercase tracking-wider text-[var(--app-heading)]">Item Details</h3>
                   <div className="flex items-center gap-2">
@@ -1550,7 +1550,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                 </div>
 
                 {/* Tax & Statutory Ledger Details */}
-                <div className="p-2.5 bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-lg shadow-[0_2px_8px_-3px_rgba(0,0,0,0.05)] flex flex-col gap-2">
+                <div className="p-2.5 bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-xl shadow-sm shadow-[0_2px_8px_-3px_rgba(0,0,0,0.05)] flex flex-col gap-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <div className="p-1 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-500 dark:text-emerald-400 rounded-lg border border-emerald-100 dark:border-emerald-900/50 flex items-center justify-center">
@@ -1955,7 +1955,7 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
         <div className="relative flex-1">
           <div
             onClick={() => !disabled && setIsOpen(!isOpen)}
-            className={`w-full ${compact ? 'h-7.5' : 'h-10'} ${rounded ? 'rounded-lg' : 'rounded-sm'} border px-2 flex items-center justify-between cursor-pointer transition-all duration-300 group/input ${isOpen ? 'border-[var(--app-accent)]' : 'hover:border-[var(--app-accent)]'} ${disabled ? 'bg-[var(--app-table-head-bg)] cursor-not-allowed' : ''}`}
+            className={`w-full ${compact ? 'h-7.5' : 'h-10'} ${rounded ? 'rounded-lg' : 'rounded-lg'} border px-2 flex items-center justify-between cursor-pointer transition-all duration-300 group/input ${isOpen ? 'border-[var(--app-accent)]' : 'hover:border-[var(--app-accent)]'} ${disabled ? 'bg-[var(--app-table-head-bg)] cursor-not-allowed' : ''}`}
             style={{ backgroundColor: disabled ? undefined : theme.inputBg, borderColor: isOpen ? theme.accent : theme.border }}
           >
             <span className={`text-[11px] font-bold truncate transition-colors ${value ? (isDark ? 'text-[var(--app-accent)]' : 'text-[var(--app-accent)]') : 'text-[var(--app-muted)]'}`}>
@@ -1969,7 +1969,7 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
 
           {isOpen && (
             <div
-              className={`absolute top-full left-0 right-0 mt-1 border ${rounded ? 'rounded-lg' : 'rounded-sm'} shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 flex flex-col max-h-[200px] z-50`}
+              className={`absolute top-full left-0 right-0 mt-1 border ${rounded ? 'rounded-lg' : 'rounded-lg'} shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 flex flex-col max-h-[200px] z-50`}
               style={{
                 backgroundColor: isDark ? '#111318' : '#ffffff',
                 borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#ECEEF2',
@@ -2078,7 +2078,7 @@ const InputField = ({ label, placeholder, value, icon: Icon, type = "text", comp
               onChange={handleTextChange}
               placeholder="dd-mm-yyyy"
               readOnly={readOnly}
-              className={`w-full ${compact ? 'h-7.5 px-2' : 'h-10 px-2'} rounded-sm border text-[11px] font-bold outline-none transition-all duration-300 focus:ring-0 ${isDark ? 'placeholder:text-white/10' : 'placeholder:text-[var(--app-muted)]'} ${align === 'right' ? 'text-right' : ''} ${readOnly ? (isDark ? 'cursor-not-allowed opacity-60 bg-slate-800/20' : 'cursor-not-allowed bg-[var(--app-content-bg)]/50') : 'hover:border-[var(--app-accent)]'}`}
+              className={`w-full ${compact ? 'h-7.5 px-2' : 'h-10 px-2'} rounded-lg border text-[11px] font-bold outline-none transition-all duration-300 focus:ring-0 ${isDark ? 'placeholder:text-white/10' : 'placeholder:text-[var(--app-muted)]'} ${align === 'right' ? 'text-right' : ''} ${readOnly ? (isDark ? 'cursor-not-allowed opacity-60 bg-slate-800/20' : 'cursor-not-allowed bg-[var(--app-content-bg)]/50') : 'hover:border-[var(--app-accent)]'}`}
               style={{ backgroundColor: readOnly ? theme.headerBg : theme.inputBg, borderColor: theme.border, color: readOnly ? theme.accent : theme.text }}
             />
             {Icon && !readOnly && (
@@ -2101,7 +2101,7 @@ const InputField = ({ label, placeholder, value, icon: Icon, type = "text", comp
             onChange={(e) => onChange && onChange(e.target.value)}
             readOnly={readOnly}
             placeholder={placeholder}
-            className={`w-full ${compact ? 'h-7.5 px-2' : 'h-10 px-2'} rounded-sm border text-[11px] font-bold outline-none transition-all duration-300 focus:ring-0 ${isDark ? 'placeholder:text-white/10' : 'placeholder:text-[var(--app-muted)]'} ${align === 'right' ? 'text-right' : ''} ${readOnly ? (isDark ? 'cursor-not-allowed opacity-60 bg-slate-800/20' : 'cursor-not-allowed bg-[var(--app-content-bg)]/50') : 'hover:border-[var(--app-accent)]'}`}
+            className={`w-full ${compact ? 'h-7.5 px-2' : 'h-10 px-2'} rounded-lg border text-[11px] font-bold outline-none transition-all duration-300 focus:ring-0 ${isDark ? 'placeholder:text-white/10' : 'placeholder:text-[var(--app-muted)]'} ${align === 'right' ? 'text-right' : ''} ${readOnly ? (isDark ? 'cursor-not-allowed opacity-60 bg-slate-800/20' : 'cursor-not-allowed bg-[var(--app-content-bg)]/50') : 'hover:border-[var(--app-accent)]'}`}
             style={{ backgroundColor: readOnly ? theme.headerBg : theme.inputBg, borderColor: theme.border, color: readOnly ? theme.accent : theme.text }}
           />
         )}
