@@ -4,5 +4,5 @@ import OpenDoodle from './OpenDoodle'
 const SRC = { morning: 'coffee', afternoon: 'sitting-reading', evening: 'meditating', night: 'laying' }
 
 export default function HeroDoodle({ tod = 'afternoon', className = '', style }) {
-  return <OpenDoodle name={SRC[tod] || SRC.afternoon} className={className} tint="var(--app-muted)" float style={style} />
+  return <OpenDoodle name={SRC[tod] || SRC.afternoon} className={className} tint="var(--app-accent)" float style={style} />
 }

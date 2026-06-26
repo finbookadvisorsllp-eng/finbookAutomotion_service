@@ -5,7 +5,7 @@ import { motion } from 'motion/react'
 // light/dark. One component for every doodle slot in the app.
 //   name  — file in /public/doodles (without .svg)
 //   tint  — any CSS color (default muted); float — gentle bob
-export default function OpenDoodle({ name = 'unboxing', className = '', tint = 'var(--app-muted)', float = false, style }) {
+export default function OpenDoodle({ name = 'unboxing', className = '', tint = 'var(--app-accent)', float = false, style }) {
   const url = `url(/doodles/${name}.svg)`
   const Comp = float ? motion.span : 'span'
   const anim = float ? { animate: { y: [0, -6, 0] }, transition: { duration: 4.5, repeat: Infinity, ease: 'easeInOut' } } : {}
