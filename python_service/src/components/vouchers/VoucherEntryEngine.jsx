@@ -34,7 +34,7 @@ const VoucherEntryEngine = ({ isDark, defaultMode = 'manual', voucherType = 'sal
     const isActive = activeMode === mode;
     return (
       <button onClick={() => setActiveMode(mode)}
-        className={`flex items-center gap-1.5 py-1 px-2.5 rounded-lg font-black text-[9.5px] uppercase tracking-widest transition-all ${isActive ? 'bg-[var(--app-accent)] text-white shadow-md' : 'hover:bg-slate-100/50'}`}
+        className={`flex items-center gap-1.5 py-1 px-2.5 rounded-lg font-black text-[9.5px] uppercase tracking-widest transition-all ${isActive ? 'bg-[var(--app-accent)] text-white shadow-md' : 'hover:bg-[var(--app-table-head-bg)]/50'}`}
         style={{ backgroundColor: isActive ? theme.accent : 'transparent', color: isActive ? '#fff' : theme.mutedText }}>
         <Icon size={11.5} strokeWidth={isActive ? 3 : 2.5} />{label}
       </button>
@@ -53,7 +53,7 @@ const VoucherEntryEngine = ({ isDark, defaultMode = 'manual', voucherType = 'sal
           <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 w-full relative z-10">
             <div className="flex items-center gap-2">
               {onBack && (
-                <button onClick={() => handleBack(activeVoucherType)} className="p-1 rounded-md border hover:bg-slate-100 transition-colors"
+                <button onClick={() => handleBack(activeVoucherType)} className="p-1 rounded-md border hover:bg-[var(--app-table-head-bg)] transition-colors"
                   style={{ color: theme.text, borderColor: theme.border, backgroundColor: theme.panel }}>
                   <X size={11.5} strokeWidth={3} />
                 </button>
@@ -121,7 +121,7 @@ const OcrPanel = ({ isDark, theme, voucherType, isSales, onSwitchToManual }) => 
         <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ background: 'linear-gradient(90deg,transparent,#8b5cf6,transparent)', animation: 'shimmer 2s infinite' }} />
         <div className="w-8 h-8 rounded-lg bg-[var(--app-accent-soft)] text-[var(--app-accent)] flex items-center justify-center relative z-10"><Bot size={16} /></div>
         <h3 className="font-bold text-lg relative z-10" style={{ color: theme.text }}>AI Smart Scanning</h3>
-        {ocr.file && <button onClick={clearOcr} className="ml-auto text-slate-400 hover:text-red-500 transition-colors z-10"><X size={16} /></button>}
+        {ocr.file && <button onClick={clearOcr} className="ml-auto text-[var(--app-muted)] hover:text-red-500 transition-colors z-10"><X size={16} /></button>}
       </div>
 
       <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -155,12 +155,12 @@ const OcrPanel = ({ isDark, theme, voucherType, isSales, onSwitchToManual }) => 
                 <div className="px-3 py-2 border-b flex items-center gap-2" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>
                   <Eye size={14} className="text-[var(--app-accent)]" />
                   <span className="text-[11px] font-bold" style={{ color: theme.text }}>{ocr.file.name}</span>
-                  <span className="ml-auto text-[10px] text-slate-400">{(ocr.file.size / 1024).toFixed(0)} KB</span>
+                  <span className="ml-auto text-[10px] text-[var(--app-muted)]">{(ocr.file.size / 1024).toFixed(0)} KB</span>
                 </div>
                 {ocr.file.type === 'application/pdf' ? (
                   <iframe src={ocr.previewUrl} className="w-full h-[340px] border-0" title="PDF Preview" />
                 ) : (
-                  <img src={ocr.previewUrl} alt="Invoice Preview" className="w-full h-[340px] object-contain bg-slate-50" />
+                  <img src={ocr.previewUrl} alt="Invoice Preview" className="w-full h-[340px] object-contain bg-[var(--app-content-bg)]" />
                 )}
               </div>
 
@@ -177,7 +177,7 @@ const OcrPanel = ({ isDark, theme, voucherType, isSales, onSwitchToManual }) => 
               )}
 
               {ocr.error && (
-                <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 border border-red-200 text-red-600 text-[11px] font-bold">
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 border border-red-200 text-red-500 text-[11px] font-bold">
                   <AlertCircle size={14} />{ocr.error}
                 </div>
               )}
@@ -277,10 +277,10 @@ const CsvUploadPanel = ({ isDark, theme, voucherType, isSales }) => {
   return (
     <div className="rounded-2xl border shadow-sm overflow-auto h-full" style={{ backgroundColor: theme.panel, borderColor: theme.border }}>
       <div className="px-6 py-4 border-b flex items-center gap-3" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>
-        <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center"><FileSpreadsheet size={16} /></div>
+        <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center"><FileSpreadsheet size={16} /></div>
         <h3 className="font-bold text-lg" style={{ color: theme.text }}>Bulk CSV Upload</h3>
         <button onClick={() => downloadSampleCsv(voucherType)}
-          className="ml-auto flex items-center gap-2 px-3 py-1.5 rounded-md border text-xs font-bold hover:bg-emerald-50 text-emerald-600 transition-colors"
+          className="ml-auto flex items-center gap-2 px-3 py-1.5 rounded-md border text-xs font-bold hover:bg-emerald-50 text-emerald-500 transition-colors"
           style={{ borderColor: theme.border }}>
           <Download size={14} /> Sample CSV
         </button>
@@ -294,7 +294,7 @@ const CsvUploadPanel = ({ isDark, theme, voucherType, isSales }) => {
             className={`border-2 border-dashed rounded-xl p-10 flex flex-col items-center justify-center text-center transition-all ${dragOver ? 'border-emerald-500 bg-emerald-50/10' : 'hover:border-emerald-400'}`}
             style={{ borderColor: dragOver ? '#10b981' : theme.border }}>
             <label className="cursor-pointer flex flex-col items-center gap-4">
-              <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600"><UploadCloud size={32} /></div>
+              <div className="w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500"><UploadCloud size={32} /></div>
               <h4 className="text-base font-bold" style={{ color: theme.text }}>Drag & Drop your CSV file</h4>
               <p className="text-sm" style={{ color: theme.mutedText }}>Supports .csv, .xlsx up to 10MB</p>
               <span className="px-6 py-2.5 rounded-lg font-bold text-sm bg-emerald-600 hover:bg-emerald-700 text-white shadow-md">Browse Files</span>
@@ -303,12 +303,12 @@ const CsvUploadPanel = ({ isDark, theme, voucherType, isSales }) => {
           </div>
         ) : (
           <div className="flex items-center gap-3 p-4 rounded-xl border" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>
-            <FileText size={20} className="text-emerald-600 shrink-0" />
+            <FileText size={20} className="text-emerald-500 shrink-0" />
             <div className="flex-1 min-w-0">
               <p className="font-bold text-sm truncate" style={{ color: theme.text }}>{csv.file.name}</p>
               <p className="text-[11px]" style={{ color: theme.mutedText }}>{(csv.file.size / 1024).toFixed(1)} KB</p>
             </div>
-            <button onClick={clearCsv} className="text-slate-400 hover:text-red-500 transition-colors shrink-0"><X size={16} /></button>
+            <button onClick={clearCsv} className="text-[var(--app-muted)] hover:text-red-500 transition-colors shrink-0"><X size={16} /></button>
           </div>
         )}
 
@@ -318,8 +318,8 @@ const CsvUploadPanel = ({ isDark, theme, voucherType, isSales }) => {
             <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>
               <div className="flex items-center gap-3">
                 <span className="text-sm font-bold" style={{ color: theme.text }}>Preview</span>
-                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded">{csv.preview.validCount} valid</span>
-                {csv.preview.failedCount > 0 && <span className="text-[10px] font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded">{csv.preview.failedCount} errors</span>}
+                <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded">{csv.preview.validCount} valid</span>
+                {csv.preview.failedCount > 0 && <span className="text-[10px] font-bold text-red-500 bg-red-500/10 px-2 py-0.5 rounded">{csv.preview.failedCount} errors</span>}
               </div>
               <span className="text-[11px]" style={{ color: theme.mutedText }}>{csv.preview.totalRows} total rows</span>
             </div>
@@ -346,7 +346,7 @@ const CsvUploadPanel = ({ isDark, theme, voucherType, isSales }) => {
             </div>
             {csv.preview.errors?.length > 0 && (
               <div className="p-4 border-t bg-red-50" style={{ borderColor: theme.border }}>
-                <p className="text-[11px] font-black text-red-600 mb-2">Row Errors:</p>
+                <p className="text-[11px] font-black text-red-500 mb-2">Row Errors:</p>
                 {csv.preview.errors.slice(0, 5).map((e, i) => (
                   <p key={i} className="text-[11px] text-red-500">Row {e.row}: {e.message}</p>
                 ))}
@@ -356,7 +356,7 @@ const CsvUploadPanel = ({ isDark, theme, voucherType, isSales }) => {
         )}
 
         {csv.error && (
-          <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 border border-red-200 text-red-600 text-[11px] font-bold">
+          <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 border border-red-200 text-red-500 text-[11px] font-bold">
             <AlertCircle size={14} />{csv.error}
           </div>
         )}
@@ -370,7 +370,7 @@ const CsvUploadPanel = ({ isDark, theme, voucherType, isSales }) => {
 
       {/* Footer Actions */}
       <div className="px-6 py-4 border-t flex items-center justify-end gap-3 sticky bottom-0" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>
-        <button onClick={clearCsv} className="px-5 py-2 rounded-lg font-bold text-sm border hover:bg-slate-50 transition-colors" style={{ borderColor: theme.border, color: theme.text }}>
+        <button onClick={clearCsv} className="px-5 py-2 rounded-lg font-bold text-sm border hover:bg-[var(--app-content-bg)] transition-colors" style={{ borderColor: theme.border, color: theme.text }}>
           Cancel
         </button>
         {csv.file && !csv.preview && (

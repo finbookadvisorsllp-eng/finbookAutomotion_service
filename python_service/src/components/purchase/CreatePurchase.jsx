@@ -504,8 +504,8 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
     if (!isLedgerModalOpen) return null;
     return (
       <div className="fixed inset-0 bg-black/30 backdrop-blur-[2px] z-[100] flex items-center justify-center p-4 animate-in fade-in duration-300">
-        <div className="bg-white rounded-xl shadow-2xl w-[600px] p-8 relative animate-in zoom-in-95 duration-200" style={{ backgroundColor: theme.panel, borderColor: theme.border }}>
-          <button onClick={() => setIsLedgerModalOpen(false)} className="absolute right-4 top-4 w-8 h-8 flex items-center justify-center rounded-full border text-slate-400 hover:text-red-500 transition-colors" style={{ borderColor: theme.border }}>
+        <div className="bg-[var(--app-panel-bg)] rounded-xl shadow-2xl w-[600px] p-8 relative animate-in zoom-in-95 duration-200" style={{ backgroundColor: theme.panel, borderColor: theme.border }}>
+          <button onClick={() => setIsLedgerModalOpen(false)} className="absolute right-4 top-4 w-8 h-8 flex items-center justify-center rounded-full border text-[var(--app-muted)] hover:text-red-500 transition-colors" style={{ borderColor: theme.border }}>
             <X size={16} />
           </button>
           <h2 className="text-[14px] font-black text-[var(--app-accent)] mb-8 tracking-tight">Add Ledger</h2>
@@ -524,8 +524,8 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                 <InputField placeholder="Credit Period" />
                 <div className="flex items-center h-9 mt-1 px-2">
                   <label className="flex items-center gap-2 cursor-pointer group">
-                    <input type="checkbox" className="w-4 h-4 rounded border-slate-200 accent-[var(--app-accent)] cursor-pointer" defaultChecked />
-                    <span className="text-[11px] font-bold text-slate-600 group-hover:text-[var(--app-accent)] transition-colors" style={{ color: theme.text }}>Maintain Balance Bill by Bill</span>
+                    <input type="checkbox" className="w-4 h-4 rounded border-[var(--app-border)] accent-[var(--app-accent)] cursor-pointer" defaultChecked />
+                    <span className="text-[11px] font-bold text-[var(--app-heading)] group-hover:text-[var(--app-accent)] transition-colors" style={{ color: theme.text }}>Maintain Balance Bill by Bill</span>
                   </label>
                 </div>
               </>
@@ -545,8 +545,8 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
     if (!isStockModalOpen) return null;
     return (
       <div className="fixed inset-0 bg-black/30 backdrop-blur-[2px] z-[100] flex items-center justify-center p-4 animate-in fade-in duration-300">
-        <div className="bg-white rounded-xl shadow-2xl w-[700px] p-8 relative animate-in zoom-in-95 duration-200" style={{ backgroundColor: theme.panel, borderColor: theme.border }}>
-          <button onClick={() => setIsStockModalOpen(false)} className="absolute right-4 top-4 w-8 h-8 flex items-center justify-center rounded-full border text-slate-400 hover:text-red-500 transition-colors" style={{ borderColor: theme.border }}>
+        <div className="bg-[var(--app-panel-bg)] rounded-xl shadow-2xl w-[700px] p-8 relative animate-in zoom-in-95 duration-200" style={{ backgroundColor: theme.panel, borderColor: theme.border }}>
+          <button onClick={() => setIsStockModalOpen(false)} className="absolute right-4 top-4 w-8 h-8 flex items-center justify-center rounded-full border text-[var(--app-muted)] hover:text-red-500 transition-colors" style={{ borderColor: theme.border }}>
             <X size={16} />
           </button>
           <h2 className="text-[14px] font-black text-[var(--app-accent)] mb-8 tracking-tight">Add Stock Ledger</h2>
@@ -569,12 +569,12 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
             <SearchableDropdown label="Type Of Supply" value="Goods" options={['Goods', 'Services']} />
 
             <label className="flex items-center gap-2 cursor-pointer group mt-1 pl-1">
-              <input type="checkbox" className="w-4 h-4 rounded border-slate-200 accent-[var(--app-accent)] cursor-pointer" />
-              <span className="text-[11px] font-bold text-slate-600 group-hover:text-[var(--app-accent)] transition-colors" style={{ color: theme.text }}>RCM Applicable</span>
+              <input type="checkbox" className="w-4 h-4 rounded border-[var(--app-border)] accent-[var(--app-accent)] cursor-pointer" />
+              <span className="text-[11px] font-bold text-[var(--app-heading)] group-hover:text-[var(--app-accent)] transition-colors" style={{ color: theme.text }}>RCM Applicable</span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer group mt-1 pl-1">
-              <input type="checkbox" className="w-4 h-4 rounded border-slate-200 accent-[var(--app-accent)] cursor-pointer" />
-              <span className="text-[11px] font-bold text-slate-600 group-hover:text-[var(--app-accent)] transition-colors" style={{ color: theme.text }}>ITC Ineligible</span>
+              <input type="checkbox" className="w-4 h-4 rounded border-[var(--app-border)] accent-[var(--app-accent)] cursor-pointer" />
+              <span className="text-[11px] font-bold text-[var(--app-heading)] group-hover:text-[var(--app-accent)] transition-colors" style={{ color: theme.text }}>ITC Ineligible</span>
             </label>
           </div>
           <div className="flex justify-center mt-6">
@@ -709,7 +709,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
 
   return (
     <ThemeContext.Provider value={{ theme, isDark }}>
-      <div className="flex flex-col h-full animate-in fade-in duration-500 overflow-hidden bg-slate-50 dark:bg-[#0b0c10]" style={{ backgroundColor: theme.bg }}>
+      <div className="flex flex-col h-full animate-in fade-in duration-500 overflow-hidden bg-[var(--app-content-bg)]" style={{ backgroundColor: theme.bg }}>
         <style>{`
           .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
           .custom-scrollbar::-webkit-scrollbar-track { background: ${theme.scrollbarTrack}; }
@@ -719,9 +719,9 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
         `}</style>
 
         {/* ─── 1. Compact Header Row ─── */}
-        <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-1.5 shrink-0 border-b bg-white dark:bg-[#0d0f12]" style={{ borderColor: theme.border }}>
+        <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-1.5 shrink-0 border-b bg-[var(--app-panel-bg)]" style={{ borderColor: theme.border }}>
           <div className="flex items-center gap-4">
-            <h1 className="text-[13px] font-black tracking-tight text-slate-800 dark:text-white uppercase">
+            <h1 className="text-[13px] font-black tracking-tight text-[var(--app-heading)] dark:text-white uppercase">
               {form.voucherType === 'debit_note'
                 ? 'Create Debit Note'
                 : form.voucherType === 'purchase_order'
@@ -730,21 +730,21 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
             </h1>
 
             {/* Tabs Selector */}
-            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/50 p-0.5 rounded-none border border-slate-200 dark:border-slate-800">
+            <div className="flex items-center gap-1 bg-[var(--app-table-head-bg)] p-0.5 rounded-lg border border-[var(--app-border)]">
               <button
                 onClick={() => handleTabChange('With Item Invoice')}
-                className={`px-3 py-0.5 rounded-none text-[9.5px] font-black uppercase tracking-tight transition-all ${activeTab === 'With Item Invoice'
+                className={`px-3 py-0.5 rounded-lg text-[11px] font-black uppercase tracking-tight transition-all ${activeTab === 'With Item Invoice'
                     ? 'bg-emerald-600 text-white shadow-sm'
-                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'
+                    : 'text-[var(--app-muted)] hover:text-[var(--app-heading)]'
                   }`}
               >
                 With Item
               </button>
               <button
                 onClick={() => handleTabChange('Without Item Invoice')}
-                className={`px-3 py-0.5 rounded-none text-[9.5px] font-black uppercase tracking-tight transition-all ${activeTab === 'Without Item Invoice'
+                className={`px-3 py-0.5 rounded-lg text-[11px] font-black uppercase tracking-tight transition-all ${activeTab === 'Without Item Invoice'
                     ? 'bg-emerald-600 text-white shadow-sm'
-                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'
+                    : 'text-[var(--app-muted)] hover:text-[var(--app-heading)]'
                   }`}
               >
                 Without Item
@@ -757,7 +757,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
             <button
               onClick={handleSaveDraft}
               disabled={loading.save}
-              className="px-3 py-1 rounded-none border text-[9.5px] font-black transition-all hover:bg-slate-50 dark:hover:bg-slate-800 shadow-sm uppercase tracking-wider text-slate-600 dark:text-slate-300 flex items-center gap-1"
+              className="px-3 py-1 rounded-lg border text-[11px] font-black transition-all hover:bg-[var(--app-content-bg)] shadow-sm uppercase tracking-wider text-[var(--app-heading)] flex items-center gap-1"
               style={{ borderColor: theme.border }}
             >
               {loading.save ? <Loader2 size={10} className="animate-spin" /> : null}
@@ -766,30 +766,30 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
             <button
               onClick={handlePushToReview}
               disabled={loading.save}
-              className="px-3 py-1 rounded-none text-[9.5px] font-black transition-all hover:scale-[1.02] shadow-sm uppercase tracking-wider text-slate-800 bg-[#FCD34D] hover:bg-[#FBBF24] flex items-center gap-1"
+              className="px-3 py-1 rounded-lg text-[11px] font-black transition-all hover:scale-[1.02] shadow-sm uppercase tracking-wider text-[var(--app-heading)] bg-[#FCD34D] hover:bg-[#FBBF24] flex items-center gap-1"
             >
               Review
             </button>
             <button
               onClick={handlePostToTally}
-              className="px-3 py-1 rounded-none text-[9.5px] font-black text-white bg-[var(--app-accent)] hover:opacity-90 shadow-sm transition-all hover:scale-[1.02] uppercase tracking-wider"
+              className="px-3 py-1 rounded-lg text-[11px] font-black text-white bg-[var(--app-accent)] hover:opacity-90 shadow-sm transition-all hover:scale-[1.02] uppercase tracking-wider"
             >
               Post Tally
             </button>
             <button
               onClick={handleCancel}
-              className="px-3 py-1 rounded-none border text-[9.5px] font-black hover:bg-red-50 hover:text-red-500 transition-all uppercase tracking-wider text-slate-400"
+              className="px-3 py-1 rounded-lg border text-[11px] font-black hover:bg-red-50 hover:text-red-500 transition-all uppercase tracking-wider text-[var(--app-muted)]"
               style={{ borderColor: theme.border }}
             >
               Cancel
             </button>
-            <button className="p-1.5 rounded-none border text-slate-400 hover:text-[var(--app-accent)] transition-all" style={{ borderColor: theme.border }}>
+            <button className="p-1.5 rounded-lg border text-[var(--app-muted)] hover:text-[var(--app-accent)] transition-all" style={{ borderColor: theme.border }}>
               <Settings size={12} />
             </button>
             {onBack && (
               <button
                 onClick={onBack}
-                className="p-1.5 text-slate-400 hover:text-red-500 border hover:bg-red-50 hover:border-red-200 transition-all rounded-none ml-1.5 flex items-center justify-center"
+                className="p-1.5 text-[var(--app-muted)] hover:text-red-500 border hover:bg-red-50 hover:border-red-200 transition-all rounded-lg ml-1.5 flex items-center justify-center"
                 style={{ borderColor: theme.border }}
                 title="Close Form"
               >
@@ -800,7 +800,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
         </div>
 
         {/* ─── 2. Voucher Types & Summary Row ─── */}
-        <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-0.75 bg-white dark:bg-[#0d0f12] border-b shrink-0" style={{ borderColor: theme.border }}>
+        <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-0.75 bg-[var(--app-panel-bg)] border-b shrink-0" style={{ borderColor: theme.border }}>
           {/* Voucher Types */}
           {!onSaveSuccess && (
             <div className="flex gap-1.5 overflow-x-auto no-scrollbar py-0.5">
@@ -833,15 +833,15 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                         toast.info(`${type.label} configuration is pending.`);
                       }
                     }}
-                    className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-none border text-left min-w-[120px] shrink-0 transition-all ${isSelected
+                    className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg border text-left min-w-[120px] shrink-0 transition-all ${isSelected
                         ? 'bg-emerald-50/50 dark:bg-emerald-950/10 border-emerald-500 text-emerald-700 dark:text-emerald-400 shadow-sm'
-                        : 'bg-white dark:bg-[#12161a] border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-50'
+                        : 'bg-[var(--app-panel-bg)] border-[var(--app-border)] text-[var(--app-muted)] hover:bg-[var(--app-content-bg)]'
                       }`}
                   >
-                    <type.icon size={11} className={isSelected ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'} />
+                    <type.icon size={11} className={isSelected ? 'text-emerald-500 dark:text-emerald-400' : 'text-[var(--app-muted)]'} />
                     <div>
                       <span className="text-[7px] block font-black tracking-wider opacity-60 uppercase">{type.section}</span>
-                      <span className="text-[9px] font-black">{type.label}</span>
+                      <span className="text-[11px] font-black">{type.label}</span>
                     </div>
                   </button>
                 );
@@ -850,34 +850,34 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
           )}
 
           {/* Amount Summary Cards */}
-          <div className="flex items-center flex-wrap gap-1 text-[9.5px]">
+          <div className="flex items-center flex-wrap gap-1 text-[11px]">
             {activeTab === 'With Item Invoice' && (
-              <div className="flex items-center gap-1 px-2 py-0.5 rounded-none bg-slate-50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800">
-                <span className="text-slate-400 font-bold uppercase tracking-wider text-[7.5px]">Items:</span>
-                <span className="font-black text-slate-700 dark:text-slate-300">{form.productLines.length}</span>
+              <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[var(--app-content-bg)] border border-[var(--app-border)]">
+                <span className="text-[var(--app-muted)] font-bold uppercase tracking-wider text-[7.5px]">Items:</span>
+                <span className="font-black text-[var(--app-heading)]">{form.productLines.length}</span>
               </div>
             )}
-            <div className="flex items-center gap-1 px-2 py-0.5 rounded-none bg-slate-50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800">
-              <span className="text-slate-400 font-bold uppercase tracking-wider text-[7.5px]">Disc:</span>
-              <span className="font-black text-slate-700 dark:text-slate-300">₹ {form.entryTab === 'with_item' ? form.productLines.reduce((acc, l) => acc + (parseFloat(l.discountPercent) || 0), 0).toFixed(2) : "0.00"}</span>
+            <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[var(--app-content-bg)] border border-[var(--app-border)]">
+              <span className="text-[var(--app-muted)] font-bold uppercase tracking-wider text-[7.5px]">Disc:</span>
+              <span className="font-black text-[var(--app-heading)]">₹ {form.entryTab === 'with_item' ? form.productLines.reduce((acc, l) => acc + (parseFloat(l.discountPercent) || 0), 0).toFixed(2) : "0.00"}</span>
             </div>
-            <div className="flex items-center gap-1 px-2 py-0.5 rounded-none bg-slate-50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800">
-              <span className="text-slate-400 font-bold uppercase tracking-wider text-[7.5px]">Taxable:</span>
-              <span className="font-black text-slate-700 dark:text-slate-300">₹ {parseFloat(form.baseTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+            <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[var(--app-content-bg)] border border-[var(--app-border)]">
+              <span className="text-[var(--app-muted)] font-bold uppercase tracking-wider text-[7.5px]">Taxable:</span>
+              <span className="font-black text-[var(--app-heading)]">₹ {parseFloat(form.baseTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
             </div>
-            <div className="flex items-center gap-1 px-2 py-0.5 rounded-none bg-slate-50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800">
-              <span className="text-slate-400 font-bold uppercase tracking-wider text-[7.5px]">Tax:</span>
-              <span className="font-black text-slate-700 dark:text-slate-300">₹ {((parseFloat(form.cgstTotal) || 0) + (parseFloat(form.sgstTotal) || 0) + (parseFloat(form.igstTotal) || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+            <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[var(--app-content-bg)] border border-[var(--app-border)]">
+              <span className="text-[var(--app-muted)] font-bold uppercase tracking-wider text-[7.5px]">Tax:</span>
+              <span className="font-black text-[var(--app-heading)]">₹ {((parseFloat(form.cgstTotal) || 0) + (parseFloat(form.sgstTotal) || 0) + (parseFloat(form.igstTotal) || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
             </div>
-            <div className="flex items-center gap-1 px-2 py-0.5 rounded-none bg-slate-50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800">
-              <span className="text-slate-400 font-bold uppercase tracking-wider text-[7.5px]">Subtotal:</span>
-              <span className="font-black text-slate-700 dark:text-slate-300">₹ {parseFloat(form.subTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+            <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[var(--app-content-bg)] border border-[var(--app-border)]">
+              <span className="text-[var(--app-muted)] font-bold uppercase tracking-wider text-[7.5px]">Subtotal:</span>
+              <span className="font-black text-[var(--app-heading)]">₹ {parseFloat(form.subTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
             </div>
-            <div className="flex items-center gap-1 px-2 py-0.5 rounded-none bg-slate-50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800">
-              <span className="text-slate-400 font-bold uppercase tracking-wider text-[7.5px]">Round:</span>
-              <span className="font-black text-slate-700 dark:text-slate-300">{isRoundOffChecked ? `₹ ${form.roundOff || "0.00"}` : "₹ 0.00"}</span>
+            <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[var(--app-content-bg)] border border-[var(--app-border)]">
+              <span className="text-[var(--app-muted)] font-bold uppercase tracking-wider text-[7.5px]">Round:</span>
+              <span className="font-black text-[var(--app-heading)]">{isRoundOffChecked ? `₹ ${form.roundOff || "0.00"}` : "₹ 0.00"}</span>
             </div>
-            <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-none bg-[var(--app-accent)] text-white shadow-md">
+            <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-[var(--app-accent)] text-white shadow-md">
               <span className="text-[7.5px] font-black uppercase tracking-wider opacity-85">Net:</span>
               <span className="font-black text-[11px]">₹ {parseFloat(isRoundOffChecked ? (form.grandTotal || 0) : (form.subTotal || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
             </div>
@@ -887,12 +887,12 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
         {/* ─── 3. Main Body ─── */}
         <div className="flex-1 overflow-hidden flex flex-col">
           {/* Form Area */}
-          <div className="flex-1 p-2 overflow-y-auto custom-scrollbar bg-white dark:bg-[#0b0c10]">
+          <div className="flex-1 p-2 overflow-y-auto custom-scrollbar bg-[var(--app-panel-bg)]">
             <div className="flex flex-col gap-3">
 
               {/* A. Voucher Details Section (Flat UI, No Cards, No Rounded) */}
-              <div className="p-2.5 bg-white dark:bg-[#0d0f12] border border-slate-200 dark:border-slate-800 rounded-none mb-0 shrink-0">
-                <h3 className="text-[10px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">Voucher Details</h3>
+              <div className="p-2.5 bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-lg mb-0 shrink-0">
+                <h3 className="text-[10px] font-black uppercase tracking-wider text-[var(--app-heading)] mb-1.5">Voucher Details</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-x-3 gap-y-3">
 
                   {/* Row 1: Voucher Date | Voucher Type | Voucher Number Series | Voucher No. */}
@@ -909,13 +909,13 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
 
                   {/* Voucher Type — clickable select, auto-set from header but editable */}
                   <div className="col-span-1 relative">
-                    <label className="text-[9px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 text-slate-600 dark:text-slate-400" style={{ backgroundColor: theme.panel }}>
+                    <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 text-[var(--app-heading)]" style={{ backgroundColor: theme.panel }}>
                       Voucher Type
                     </label>
                     <select
                       value={form.voucherType || 'purchase_invoice'}
                       onChange={(e) => updateForm({ voucherType: e.target.value })}
-                      className="w-full h-7.5 px-3 rounded-sm border text-[11px] font-bold outline-none bg-white dark:bg-[#12161a]"
+                      className="w-full h-7.5 px-3 rounded-sm border text-[11px] font-bold outline-none bg-[var(--app-panel-bg)]"
                       style={{ borderColor: theme.border, color: theme.text }}
                     >
                       <option value="purchase_invoice">Purchase Invoice</option>
@@ -926,13 +926,13 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
 
                   {/* Voucher Number Series */}
                   <div className="col-span-1 relative">
-                    <label className="text-[9px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 text-slate-600 dark:text-slate-400" style={{ backgroundColor: theme.panel }}>
+                    <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 text-[var(--app-heading)]" style={{ backgroundColor: theme.panel }}>
                       Voucher Number Series
                     </label>
                     <select
                       value={form.voucherNumberSeries || 'Default'}
                       onChange={(e) => updateForm({ voucherNumberSeries: e.target.value })}
-                      className="w-full h-7.5 px-3 rounded-sm border text-[11px] font-bold outline-none bg-white dark:bg-[#12161a]"
+                      className="w-full h-7.5 px-3 rounded-sm border text-[11px] font-bold outline-none bg-[var(--app-panel-bg)]"
                       style={{ borderColor: theme.border, color: theme.text }}
                     >
                       <option value="Default">Default</option>
@@ -1043,14 +1043,14 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
 
                   {/* Narration */}
                   <div className={(form.consigneeLedger && form.consigneeLedger !== 'Same as Party' && form.consigneeLedger !== form.partyLedger) ? 'col-span-3 relative flex flex-col gap-1' : 'col-span-4 relative flex flex-col gap-1'}>
-                    <label className="text-[9px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 text-slate-600 dark:text-slate-400" style={{ backgroundColor: theme.panel }}>
+                    <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 text-[var(--app-heading)]" style={{ backgroundColor: theme.panel }}>
                       Narration
                     </label>
                     <input
                       type="text"
                       value={form.narration || ''}
                       onChange={(e) => updateForm({ narration: e.target.value })}
-                      className="w-full h-7.5 px-3 rounded-none border text-[11px] font-bold outline-none focus:border-[var(--app-accent)] bg-white dark:bg-[#12161a]"
+                      className="w-full h-7.5 px-3 rounded-lg border text-[11px] font-bold outline-none focus:border-[var(--app-accent)] bg-[var(--app-panel-bg)]"
                       placeholder="Enter narration here..."
                       style={{ borderColor: theme.border, color: theme.text }}
                     />
@@ -1061,25 +1061,25 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
 
               {/* B. Item Details Section (Flat UI, No Cards, No Rounded) */}
               {activeTab === 'With Item Invoice' && (
-                <div className="p-3 bg-white dark:bg-[#0d0f12] border border-slate-200 dark:border-slate-800 rounded-none mb-0 shrink-0 flex flex-col">
+                <div className="p-3 bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-lg mb-0 shrink-0 flex flex-col">
                   <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-[10px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-300">Item Details</h3>
+                  <h3 className="text-[10px] font-black uppercase tracking-wider text-[var(--app-heading)]">Item Details</h3>
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => addRow(activeTab === 'With Item Invoice' ? 'product' : 'purchase')}
-                      className="px-2 py-1 rounded-none border border-slate-200 dark:border-slate-800 text-[9px] font-black text-slate-600 dark:text-slate-300 bg-white dark:bg-[#12161a] hover:bg-slate-50 flex items-center gap-1 shadow-sm uppercase"
+                      className="px-2 py-1 rounded-lg border border-[var(--app-border)] text-[11px] font-black text-[var(--app-heading)] bg-[var(--app-panel-bg)] hover:bg-[var(--app-content-bg)] flex items-center gap-1 shadow-sm uppercase"
                     >
                       <Plus size={10} strokeWidth={3} /> Add Line
                     </button>
                     <button
                       onClick={() => setIsLedgerModalOpen(true)}
-                      className="px-2 py-1 rounded-none border border-slate-200 dark:border-slate-800 text-[9px] font-black text-slate-600 dark:text-slate-300 bg-white dark:bg-[#12161a] hover:bg-slate-50 flex items-center gap-1 shadow-sm uppercase"
+                      className="px-2 py-1 rounded-lg border border-[var(--app-border)] text-[11px] font-black text-[var(--app-heading)] bg-[var(--app-panel-bg)] hover:bg-[var(--app-content-bg)] flex items-center gap-1 shadow-sm uppercase"
                     >
                       <Plus size={10} /> Add Ledger
                     </button>
                     <button
                       onClick={() => setIsStockModalOpen(true)}
-                      className="px-2 py-1 rounded-none border border-slate-200 dark:border-slate-800 text-[9px] font-black text-slate-600 dark:text-slate-300 bg-white dark:bg-[#12161a] hover:bg-slate-50 flex items-center gap-1 shadow-sm uppercase"
+                      className="px-2 py-1 rounded-lg border border-[var(--app-border)] text-[11px] font-black text-[var(--app-heading)] bg-[var(--app-panel-bg)] hover:bg-[var(--app-content-bg)] flex items-center gap-1 shadow-sm uppercase"
                     >
                       <Plus size={10} /> Add Item
                     </button>
@@ -1107,8 +1107,8 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                         {(form.purchaseLines || []).map((row, idx) => {
                           const tax = calculateRowTax(row.amount, row.gstRate, isInterstate);
                           return (
-                            <tr key={row.id} className="border-b hover:bg-slate-50/50 dark:hover:bg-slate-800/30 overflow-visible" style={{ borderColor: theme.border }}>
-                              <td className="px-1 py-0.5 text-center font-bold text-slate-400 border-r text-[10px]" style={{ borderColor: theme.border }}>{idx + 1}</td>
+                            <tr key={row.id} className="border-b hover:bg-[var(--app-content-bg)]/50 overflow-visible" style={{ borderColor: theme.border }}>
+                              <td className="px-1 py-0.5 text-center font-bold text-[var(--app-muted)] border-r text-[10px]" style={{ borderColor: theme.border }}>{idx + 1}</td>
                               <td className="px-1 py-0.5 border-r relative z-10 focus-within:z-50" style={{ borderColor: theme.border }}>
                                 <SearchableDropdown
                                   placeholder="Search Item / Ledger"
@@ -1126,7 +1126,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                                   value={row.description || ''}
                                   onChange={(e) => updatePurchaseLine(row.id, { description: e.target.value })}
                                   placeholder="Description"
-                                  className="w-full h-6 px-2 border-t rounded-none outline-none text-[9px] bg-transparent"
+                                  className="w-full h-6 px-2 border-t rounded-lg outline-none text-[11px] bg-transparent"
                                   style={{ borderColor: theme.border, color: theme.mutedText }}
                                 />
                               </td>
@@ -1136,7 +1136,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                                   value={row.hsnSacCode || ''}
                                   onChange={(e) => updatePurchaseLine(row.id, { hsnSacCode: e.target.value })}
                                   placeholder="HSN"
-                                  className="w-full h-7 px-2 rounded border outline-none text-[10px] bg-white dark:bg-[#12161a] transition-all focus:border-[var(--app-accent)]"
+                                  className="w-full h-7 px-2 rounded border outline-none text-[10px] bg-[var(--app-panel-bg)] transition-all focus:border-[var(--app-accent)]"
                                   style={{ borderColor: theme.border, color: theme.text }}
                                 />
                               </td>
@@ -1146,7 +1146,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                                   value={row.amount || ''}
                                   onChange={(e) => updatePurchaseLine(row.id, { amount: parseFloat(e.target.value) || 0 })}
                                   placeholder="0.00"
-                                  className="w-full h-7 px-2 rounded border outline-none text-right font-bold text-[10px] bg-white dark:bg-[#12161a] transition-all focus:border-[var(--app-accent)]"
+                                  className="w-full h-7 px-2 rounded border outline-none text-right font-bold text-[10px] bg-[var(--app-panel-bg)] transition-all focus:border-[var(--app-accent)]"
                                   style={{ borderColor: theme.border, color: theme.text }}
                                 />
                               </td>
@@ -1154,7 +1154,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                                 <select
                                   value={row.gstRate || 0}
                                   onChange={(e) => updatePurchaseLine(row.id, { gstRate: parseFloat(e.target.value) || 0 })}
-                                  className="w-full h-7 px-1.5 rounded border outline-none text-[10px] bg-white dark:bg-[#12161a] cursor-pointer transition-all focus:border-[var(--app-accent)]"
+                                  className="w-full h-7 px-1.5 rounded border outline-none text-[10px] bg-[var(--app-panel-bg)] cursor-pointer transition-all focus:border-[var(--app-accent)]"
                                   style={{ borderColor: theme.border, color: theme.text }}
                                 >
                                   <option value={0}>0%</option>
@@ -1164,25 +1164,25 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                                   <option value={28}>28%</option>
                                 </select>
                               </td>
-                              <td className="px-1.5 py-1 text-right font-bold text-slate-800 dark:text-slate-200 text-[10px] border-r" style={{ borderColor: theme.border }}>
+                              <td className="px-1.5 py-1 text-right font-bold text-[var(--app-heading)] text-[10px] border-r" style={{ borderColor: theme.border }}>
                                 {tax.cgst.toFixed(2)}
                               </td>
-                              <td className="px-1.5 py-1 text-right font-bold text-slate-800 dark:text-slate-200 text-[10px] border-r" style={{ borderColor: theme.border }}>
+                              <td className="px-1.5 py-1 text-right font-bold text-[var(--app-heading)] text-[10px] border-r" style={{ borderColor: theme.border }}>
                                 {tax.sgst.toFixed(2)}
                               </td>
-                              <td className="px-1.5 py-1 text-right font-bold text-slate-800 dark:text-slate-200 text-[10px] border-r" style={{ borderColor: theme.border }}>
+                              <td className="px-1.5 py-1 text-right font-bold text-[var(--app-heading)] text-[10px] border-r" style={{ borderColor: theme.border }}>
                                 {tax.igst.toFixed(2)}
                               </td>
-                              <td className="px-1.5 py-1 text-right font-bold text-slate-900 dark:text-slate-100 text-[10px] border-r" style={{ borderColor: theme.border }}>
+                              <td className="px-1.5 py-1 text-right font-bold text-[var(--app-heading)] text-[10px] border-r" style={{ borderColor: theme.border }}>
                                 {tax.totalTax.toFixed(2)}
                               </td>
-                              <td className="px-1.5 py-1 text-right font-black text-slate-950 dark:text-slate-50 text-[10px] border-r" style={{ borderColor: theme.border }}>
+                              <td className="px-1.5 py-1 text-right font-black text-slate-950 text-[10px] border-r" style={{ borderColor: theme.border }}>
                                 ₹{tax.netAmount.toFixed(2)}
                               </td>
                               <td className="px-0 py-0 text-center">
                                 <button
                                   onClick={() => removeRow('purchase', row.id)}
-                                  className="p-0.5 rounded-none text-slate-400 hover:text-red-500 transition-colors"
+                                  className="p-0.5 rounded-lg text-[var(--app-muted)] hover:text-red-500 transition-colors"
                                 >
                                   <X size={12} />
                                 </button>
@@ -1211,8 +1211,8 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                       <tbody>
                         {(form.productLines || []).map((row, idx) => {
                           return (
-                            <tr key={row.id} className="border-b hover:bg-slate-50/50 dark:hover:bg-slate-800/30 overflow-visible" style={{ borderColor: theme.border }}>
-                              <td className="px-1 py-0.5 text-center font-bold text-slate-400 border-r text-[10px]" style={{ borderColor: theme.border }}>{idx + 1}</td>
+                            <tr key={row.id} className="border-b hover:bg-[var(--app-content-bg)]/50 overflow-visible" style={{ borderColor: theme.border }}>
+                              <td className="px-1 py-0.5 text-center font-bold text-[var(--app-muted)] border-r text-[10px]" style={{ borderColor: theme.border }}>{idx + 1}</td>
                               <td className="px-1 py-0.5 border-r relative z-10 focus-within:z-50" style={{ borderColor: theme.border }}>
                                 <SearchableDropdown
                                   placeholder="Search Item / Ledger"
@@ -1236,7 +1236,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                                   value={row.description || ''}
                                   onChange={(e) => updateProductLine(row.id, { description: e.target.value })}
                                   placeholder="Description"
-                                  className="w-full h-6 px-2 border-t rounded-none outline-none text-[9px] bg-transparent"
+                                  className="w-full h-6 px-2 border-t rounded-lg outline-none text-[11px] bg-transparent"
                                   style={{ borderColor: theme.border, color: theme.mutedText }}
                                 />
                               </td>
@@ -1246,7 +1246,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                                   value={row.hsnSacCode || ''}
                                   onChange={(e) => updateProductLine(row.id, { hsnSacCode: e.target.value })}
                                   placeholder="HSN"
-                                  className="w-full h-7 px-2 rounded border outline-none text-[10px] bg-white dark:bg-[#12161a] transition-all focus:border-[var(--app-accent)]"
+                                  className="w-full h-7 px-2 rounded border outline-none text-[10px] bg-[var(--app-panel-bg)] transition-all focus:border-[var(--app-accent)]"
                                   style={{ borderColor: theme.border, color: theme.text }}
                                 />
                               </td>
@@ -1254,7 +1254,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                                 <select
                                   value={row.gstRate || 0}
                                   onChange={(e) => updateProductLine(row.id, { gstRate: parseFloat(e.target.value) || 0 })}
-                                  className="w-full h-7 px-1.5 rounded border outline-none text-[10px] bg-white dark:bg-[#12161a] cursor-pointer transition-all focus:border-[var(--app-accent)]"
+                                  className="w-full h-7 px-1.5 rounded border outline-none text-[10px] bg-[var(--app-panel-bg)] cursor-pointer transition-all focus:border-[var(--app-accent)]"
                                   style={{ borderColor: theme.border, color: theme.text }}
                                 >
                                   <option value={0}>0%</option>
@@ -1270,7 +1270,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                                   value={row.billQuantity || ''}
                                   onChange={(e) => updateProductLine(row.id, { billQuantity: parseFloat(e.target.value) || 0 })}
                                   placeholder="1"
-                                  className="w-full h-7 px-2 rounded border outline-none text-right text-[10px] bg-white dark:bg-[#12161a] transition-all focus:border-[var(--app-accent)]"
+                                  className="w-full h-7 px-2 rounded border outline-none text-right text-[10px] bg-[var(--app-panel-bg)] transition-all focus:border-[var(--app-accent)]"
                                   style={{ borderColor: theme.border, color: theme.text }}
                                 />
                               </td>
@@ -1278,7 +1278,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                                 <select
                                   value={row.unit || 'Nos'}
                                   onChange={(e) => updateProductLine(row.id, { unit: e.target.value })}
-                                  className="w-full h-7 px-1.5 rounded border outline-none text-[10px] bg-white dark:bg-[#12161a] cursor-pointer transition-all focus:border-[var(--app-accent)]"
+                                  className="w-full h-7 px-1.5 rounded border outline-none text-[10px] bg-[var(--app-panel-bg)] cursor-pointer transition-all focus:border-[var(--app-accent)]"
                                   style={{ borderColor: theme.border, color: theme.text }}
                                 >
                                   <option>Nos</option>
@@ -1295,7 +1295,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                                   value={row.billRate || ''}
                                   onChange={(e) => updateProductLine(row.id, { billRate: parseFloat(e.target.value) || 0 })}
                                   placeholder="0.00"
-                                  className="w-full h-7 px-2 rounded border outline-none text-right text-[10px] bg-white dark:bg-[#12161a] transition-all focus:border-[var(--app-accent)]"
+                                  className="w-full h-7 px-2 rounded border outline-none text-right text-[10px] bg-[var(--app-panel-bg)] transition-all focus:border-[var(--app-accent)]"
                                   style={{ borderColor: theme.border, color: theme.text }}
                                 />
                               </td>
@@ -1305,17 +1305,17 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                                   value={row.discountPercent || ''}
                                   onChange={(e) => updateProductLine(row.id, { discountPercent: parseFloat(e.target.value) || 0 })}
                                   placeholder="0"
-                                  className="w-full h-7 px-2 rounded border outline-none text-right text-[10px] bg-white dark:bg-[#12161a] transition-all focus:border-[var(--app-accent)]"
+                                  className="w-full h-7 px-2 rounded border outline-none text-right text-[10px] bg-[var(--app-panel-bg)] transition-all focus:border-[var(--app-accent)]"
                                   style={{ borderColor: theme.border, color: theme.text }}
                                 />
                               </td>
-                              <td className="px-1.5 py-1 text-right font-bold text-slate-800 dark:text-slate-200 text-[10px] border-r" style={{ borderColor: theme.border }}>
+                              <td className="px-1.5 py-1 text-right font-bold text-[var(--app-heading)] text-[10px] border-r" style={{ borderColor: theme.border }}>
                                 ₹{parseFloat(row.amount || 0).toFixed(2)}
                               </td>
                               <td className="px-0 py-0 text-center">
                                 <button
                                   onClick={() => removeRow('product', row.id)}
-                                  className="p-0.5 rounded-none text-slate-400 hover:text-red-500 transition-colors"
+                                  className="p-0.5 rounded-lg text-[var(--app-muted)] hover:text-red-500 transition-colors"
                                 >
                                   <X size={12} />
                                 </button>
@@ -1332,7 +1332,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                     <button
                       onClick={handleAiAutofill}
                       disabled={isAiAutofillLoading}
-                      className="px-4 py-1.5 rounded-none border border-[var(--app-border)] bg-[var(--app-accent-soft)] dark:bg-[var(--app-accent-soft)] text-[var(--app-accent)] dark:text-[var(--app-accent)] text-[11px] font-black flex items-center gap-1.5 hover:bg-[var(--app-accent-soft)] shadow-sm disabled:opacity-50"
+                      className="px-4 py-1.5 rounded-lg border border-[var(--app-border)] bg-[var(--app-accent-soft)] dark:bg-[var(--app-accent-soft)] text-[var(--app-accent)] dark:text-[var(--app-accent)] text-[11px] font-black flex items-center gap-1.5 hover:bg-[var(--app-accent-soft)] shadow-sm disabled:opacity-50"
                     >
                       {isAiAutofillLoading ? <Loader2 size={13} className="animate-spin" /> : <Bot size={13} />}
                       AI-Auto Fill Remaining
@@ -1347,13 +1347,13 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                 {/* Left Stack: Ledger Details & HSN Tax Detailes */}
                 <div className="flex flex-col gap-4">
                   {/* Ledger Details */}
-                  <div className="p-4 bg-white dark:bg-[#12161a] border border-slate-200 dark:border-slate-800 rounded-xl shadow-[0_2px_8px_-3px_rgba(0,0,0,0.05)] flex flex-col gap-3">
+                  <div className="p-4 bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-xl shadow-[0_2px_8px_-3px_rgba(0,0,0,0.05)] flex flex-col gap-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <div className="p-1.5 bg-[var(--app-accent-soft)] dark:bg-[var(--app-accent-soft)] text-[var(--app-accent)] dark:text-[var(--app-accent)] rounded-lg border border-[var(--app-border)] dark:border-[var(--app-border)] flex items-center justify-center">
                           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><line x1="10" y1="9" x2="8" y2="9"></line></svg>
                         </div>
-                        <span className="font-bold text-[13px] text-slate-800 dark:text-slate-200">Ledger Details</span>
+                        <span className="font-bold text-[13px] text-[var(--app-heading)]">Ledger Details</span>
                       </div>
                       <button
                        onClick={addPurchaseLine}
@@ -1366,7 +1366,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                     <div className="border rounded-lg overflow-visible" style={{ borderColor: theme.border }}>
                       <table className="w-full text-left text-[11px] border-collapse" style={{ borderColor: theme.border }}>
                         <thead>
-                          <tr className="border-b bg-slate-50/50 dark:bg-slate-900/20" style={{ borderColor: theme.border, color: theme.mutedText }}>
+                          <tr className="border-b bg-[var(--app-content-bg)]/50" style={{ borderColor: theme.border, color: theme.mutedText }}>
                             <th className="px-3 py-2 w-14 text-center border-r font-bold" style={{ borderColor: theme.border }}>Sr. No</th>
                             <th className="px-3 py-2 border-r font-bold" style={{ borderColor: theme.border }}>Ledger Name</th>
                             <th className="px-3 py-2 border-r font-bold" style={{ borderColor: theme.border }}>Description</th>
@@ -1376,8 +1376,8 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                         </thead>
                         <tbody>
                           {(form.purchaseLines || []).map((row, idx) => (
-                            <tr key={row.id} className="border-b last:border-b-0 hover:bg-slate-50/30 dark:hover:bg-slate-800/20" style={{ borderColor: theme.border }}>
-                              <td className="px-3 py-2 text-center font-bold text-slate-700 dark:text-slate-300 border-r" style={{ borderColor: theme.border }}>{idx + 1}</td>
+                            <tr key={row.id} className="border-b last:border-b-0 hover:bg-[var(--app-content-bg)]/30" style={{ borderColor: theme.border }}>
+                              <td className="px-3 py-2 text-center font-bold text-[var(--app-heading)] border-r" style={{ borderColor: theme.border }}>{idx + 1}</td>
                               <td className="p-2 border-r relative z-10 focus-within:z-50" style={{ borderColor: theme.border }}>
                                 <SearchableDropdown
                                   placeholder="Ledger name"
@@ -1394,7 +1394,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                                   value={row.description || ''}
                                   onChange={(e) => updatePurchaseLine(row.id, { description: e.target.value })}
                                   placeholder="Description"
-                                  className="w-full h-8 px-2 rounded-lg border outline-none text-[11px] font-bold bg-white dark:bg-[#12161a] transition-all focus:border-[var(--app-accent)]"
+                                  className="w-full h-8 px-2 rounded-lg border outline-none text-[11px] font-bold bg-[var(--app-panel-bg)] transition-all focus:border-[var(--app-accent)]"
                                   style={{ borderColor: theme.border, color: theme.text }}
                                 />
                               </td>
@@ -1404,14 +1404,14 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                                   value={row.amount || ''}
                                   onChange={(e) => updatePurchaseLine(row.id, { amount: parseFloat(e.target.value) || 0 })}
                                   placeholder="0.00"
-                                  className="w-full h-8 px-3 rounded-lg border outline-none text-right text-[11px] font-bold bg-white dark:bg-[#12161a] transition-all focus:border-[var(--app-accent)]"
+                                  className="w-full h-8 px-3 rounded-lg border outline-none text-right text-[11px] font-bold bg-[var(--app-panel-bg)] transition-all focus:border-[var(--app-accent)]"
                                   style={{ borderColor: theme.border, color: theme.text }}
                                 />
                               </td>
                               <td className="p-2 text-center">
                                 <button
                                   onClick={() => removePurchaseLine(row.id)}
-                                  className="w-8 h-8 rounded-lg bg-red-50 hover:bg-red-100 dark:bg-red-950/20 text-red-500 hover:text-red-600 border border-red-100 dark:border-red-900/50 flex items-center justify-center transition-colors mx-auto cursor-pointer"
+                                  className="w-8 h-8 rounded-lg bg-red-50 hover:bg-red-500/10 dark:bg-red-950/20 text-red-500 hover:text-red-500 border border-red-100 dark:border-red-900/50 flex items-center justify-center transition-colors mx-auto cursor-pointer"
                                 >
                                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14H6L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4h6v2"></path></svg>
                                 </button>
@@ -1424,7 +1424,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
 
                     <div className="flex justify-end mt-1 gap-2">
                       {activeTab === 'With Item Invoice' && (
-                        <div className="px-4 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg text-[11px] font-bold flex items-center gap-1.5 border border-slate-200 dark:border-slate-800">
+                        <div className="px-4 py-1.5 bg-[var(--app-table-head-bg)] text-[var(--app-heading)] rounded-lg text-[11px] font-bold flex items-center gap-1.5 border border-[var(--app-border)]">
                           <span>Ledger Total (₹)</span>
                           <span className="font-black">{parseFloat(form.ledgerAmount || 0).toFixed(2)}</span>
                         </div>
@@ -1437,13 +1437,13 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                   </div>
 
                   {/* HSN / Sales Tax Details */}
-                  <div className="p-4 bg-white dark:bg-[#12161a] border border-slate-200 dark:border-slate-800 rounded-xl shadow-[0_2px_8px_-3px_rgba(0,0,0,0.05)] flex flex-col gap-3">
+                  <div className="p-4 bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-xl shadow-[0_2px_8px_-3px_rgba(0,0,0,0.05)] flex flex-col gap-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <div className="p-1.5 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 rounded-lg border border-amber-100 dark:border-amber-900/50 flex items-center justify-center">
+                        <div className="p-1.5 bg-amber-50 dark:bg-amber-950/40 text-amber-500 dark:text-amber-400 rounded-lg border border-amber-100 dark:border-amber-900/50 flex items-center justify-center">
                           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><path d="M12.5 13.5a1.5 1.5 0 1 0-3 0 1.5 1.5 0 1 0 3 0z"></path><path d="M14.5 17.5a1.5 1.5 0 1 0-3 0 1.5 1.5 0 1 0 3 0z"></path><line x1="14" y1="12" x2="10" y2="18"></line></svg>
                         </div>
-                        <span className="font-bold text-[13px] text-slate-800 dark:text-slate-200">
+                        <span className="font-bold text-[13px] text-[var(--app-heading)]">
                           {activeTab === 'Without Item Invoice' ? 'Sales Tax Details' : 'HSN Tax Detailes'}
                         </span>
                       </div>
@@ -1455,9 +1455,9 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                               type="checkbox"
                               checked={isRoundOffChecked}
                               onChange={(e) => setIsRoundOffChecked(e.target.checked)}
-                              className="w-4 h-4 rounded border-slate-200 dark:border-slate-800 accent-emerald-600 cursor-pointer shadow-sm"
+                              className="w-4 h-4 rounded border-[var(--app-border)] accent-emerald-600 cursor-pointer shadow-sm"
                             />
-                            <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 group-hover:text-[var(--app-accent)] transition-colors">Round Off</span>
+                            <span className="text-[11px] font-bold text-[var(--app-heading)] group-hover:text-[var(--app-accent)] transition-colors">Round Off</span>
                           </label>
                         </div>
 
@@ -1478,7 +1478,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                     <div className="border rounded-lg overflow-hidden" style={{ borderColor: theme.border }}>
                       <table className="w-full text-left text-[11px] border-collapse" style={{ borderColor: theme.border }}>
                         <thead>
-                          <tr className="border-b bg-slate-50/50 dark:bg-slate-900/20" style={{ borderColor: theme.border, color: theme.mutedText }}>
+                          <tr className="border-b bg-[var(--app-content-bg)]/50" style={{ borderColor: theme.border, color: theme.mutedText }}>
                             <th className="px-3 py-2 border-r font-bold" style={{ borderColor: theme.border }}>
                               {activeTab === 'Without Item Invoice' ? 'Ledger Name' : 'Hsn no.'}
                             </th>
@@ -1496,7 +1496,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                             return (
                               <>
                                 {taxData.map((row, idx) => (
-                                  <tr key={idx} className="border-b last:border-b-0 hover:bg-slate-50/30 dark:hover:bg-slate-800/20" style={{ borderColor: theme.border, color: theme.text }}>
+                                  <tr key={idx} className="border-b last:border-b-0 hover:bg-[var(--app-content-bg)]/30" style={{ borderColor: theme.border, color: theme.text }}>
                                     <td className="px-3 py-2 border-r font-medium" style={{ borderColor: theme.border }}>{row[primaryKey]}</td>
                                     <td className="px-3 py-2 border-r text-right font-semibold" style={{ borderColor: theme.border }}>
                                       ₹ {row.taxableValue.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
@@ -1516,7 +1516,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                                   </tr>
                                 ))}
                                 {taxData.length > 0 && (
-                                  <tr className="font-bold bg-slate-50/30 dark:bg-slate-900/10 border-t" style={{ color: theme.text, borderColor: theme.border }}>
+                                  <tr className="font-bold bg-[var(--app-content-bg)]/30 border-t" style={{ color: theme.text, borderColor: theme.border }}>
                                     <td className="px-3 py-2 border-r" style={{ borderColor: theme.border }}>Total</td>
                                     <td className="px-3 py-2 border-r text-right font-black" style={{ borderColor: theme.border }}>
                                       ₹ {taxData.reduce((sum, r) => sum + r.taxableValue, 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
@@ -1537,7 +1537,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                                 )}
                                 {taxData.length === 0 && (
                                   <tr>
-                                    <td colSpan="6" className="px-3 py-4 text-center text-slate-400">No tax details available</td>
+                                    <td colSpan="6" className="px-3 py-4 text-center text-[var(--app-muted)]">No tax details available</td>
                                   </tr>
                                 )}
                               </>
@@ -1550,18 +1550,18 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                 </div>
 
                 {/* Tax & Statutory Ledger Details */}
-                <div className="p-2.5 bg-white dark:bg-[#12161a] border border-slate-200 dark:border-slate-800 rounded-none shadow-[0_2px_8px_-3px_rgba(0,0,0,0.05)] flex flex-col gap-2">
+                <div className="p-2.5 bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-lg shadow-[0_2px_8px_-3px_rgba(0,0,0,0.05)] flex flex-col gap-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <div className="p-1 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 rounded-none border border-emerald-100 dark:border-emerald-900/50 flex items-center justify-center">
+                      <div className="p-1 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-500 dark:text-emerald-400 rounded-lg border border-emerald-100 dark:border-emerald-900/50 flex items-center justify-center">
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="5" x2="5" y2="19"></line><circle cx="6.5" cy="6.5" r="2.5"></circle><circle cx="17.5" cy="17.5" r="2.5"></circle></svg>
                       </div>
-                      <span className="font-bold text-[12px] text-slate-800 dark:text-slate-200">Tax & Statutory Ledger Details</span>
-                      <span className="px-1.5 py-0.5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-455 rounded text-[9.5px] font-black uppercase tracking-wider">Auto Calculated</span>
+                      <span className="font-bold text-[12px] text-[var(--app-heading)]">Tax & Statutory Ledger Details</span>
+                      <span className="px-1.5 py-0.5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-455 rounded text-[11px] font-black uppercase tracking-wider">Auto Calculated</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-[10.5px] font-bold text-slate-600 dark:text-slate-400">TDS Applicable:</span>
-                      <div className="inline-flex rounded-none border border-slate-200 dark:border-slate-800 p-0.5 bg-slate-50 dark:bg-slate-900">
+                      <span className="text-[10.5px] font-bold text-[var(--app-heading)]">TDS Applicable:</span>
+                      <div className="inline-flex rounded-lg border border-[var(--app-border)] p-0.5 bg-[var(--app-content-bg)]">
                         <button
                           type="button"
                           onClick={() => {
@@ -1579,7 +1579,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                               }]
                             });
                           }}
-                          className={`px-2.5 py-0.5 text-[9.5px] font-black transition-all cursor-pointer ${isTdsApplicable ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-350'}`}
+                          className={`px-2.5 py-0.5 text-[11px] font-black transition-all cursor-pointer ${isTdsApplicable ? 'bg-emerald-600 text-white shadow-sm' : 'text-[var(--app-muted)] hover:text-[var(--app-heading)]'}`}
                         >
                           Yes
                         </button>
@@ -1589,7 +1589,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                             setIsTdsApplicable(false);
                             updateForm({ tdsDetails: [] });
                           }}
-                          className={`px-2.5 py-0.5 text-[9.5px] font-black transition-all cursor-pointer ${!isTdsApplicable ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-350'}`}
+                          className={`px-2.5 py-0.5 text-[11px] font-black transition-all cursor-pointer ${!isTdsApplicable ? 'bg-emerald-600 text-white shadow-sm' : 'text-[var(--app-muted)] hover:text-[var(--app-heading)]'}`}
                         >
                           No
                         </button>
@@ -1617,10 +1617,10 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                     return (
                       <div className="flex flex-col gap-2.5">
                         {/* Unified Table */}
-                        <div className="border rounded-none overflow-visible" style={{ borderColor: theme.border }}>
+                        <div className="border rounded-lg overflow-visible" style={{ borderColor: theme.border }}>
                           <table className="w-full text-left text-[11px] border-collapse" style={{ borderColor: theme.border }}>
                             <thead>
-                              <tr className="border-b bg-slate-50/50 dark:bg-slate-900/20" style={{ borderColor: theme.border, color: theme.mutedText }}>
+                              <tr className="border-b bg-[var(--app-content-bg)]/50" style={{ borderColor: theme.border, color: theme.mutedText }}>
                                 <th className="px-3 py-1.5 border-r font-bold w-1/4" style={{ borderColor: theme.border }}>Tax Component</th>
                                 <th className="px-3 py-1.5 border-r font-bold w-20 text-center" style={{ borderColor: theme.border }}>Rate (%)</th>
                                 <th className="px-3 py-1.5 border-r font-bold" style={{ borderColor: theme.border }}>Ledger (Select Ledger)</th>
@@ -1629,10 +1629,10 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                             </thead>
                             <tbody>
                               {/* CGST Row */}
-                              <tr className="border-b last:border-b-0 hover:bg-slate-50/30 dark:hover:bg-slate-800/20" style={{ borderColor: theme.border }}>
-                                <td className="px-3 py-1.5 border-r font-bold text-slate-700 dark:text-slate-300" style={{ borderColor: theme.border }}>CGST (Central GST)</td>
+                              <tr className="border-b last:border-b-0 hover:bg-[var(--app-content-bg)]/30" style={{ borderColor: theme.border }}>
+                                <td className="px-3 py-1.5 border-r font-bold text-[var(--app-heading)]" style={{ borderColor: theme.border }}>CGST (Central GST)</td>
                                 <td className="px-3 py-1.5 border-r text-center" style={{ borderColor: theme.border }}>
-                                  <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded text-[10px] font-bold">
+                                  <span className="px-1.5 py-0.5 bg-[var(--app-table-head-bg)] text-[var(--app-heading)] rounded text-[10px] font-bold">
                                     {cgstRateVal}%
                                   </span>
                                 </td>
@@ -1651,17 +1651,17 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                                     type="text"
                                     readOnly
                                     value={`₹ ${cgstAmtVal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
-                                    className="w-full h-7.5 px-3 rounded-none outline-none text-right text-[11px] font-bold bg-slate-50 dark:bg-[#161a1f] border border-slate-200 dark:border-slate-800 text-slate-500"
+                                    className="w-full h-7.5 px-3 rounded-lg outline-none text-right text-[11px] font-bold bg-[var(--app-content-bg)] border border-[var(--app-border)] text-[var(--app-muted)]"
                                     style={{ color: theme.mutedText }}
                                   />
                                 </td>
                               </tr>
 
                               {/* SGST Row */}
-                              <tr className="border-b last:border-b-0 hover:bg-slate-50/30 dark:hover:bg-slate-800/20" style={{ borderColor: theme.border }}>
-                                <td className="px-3 py-1.5 border-r font-bold text-slate-700 dark:text-slate-300" style={{ borderColor: theme.border }}>SGST (State GST)</td>
+                              <tr className="border-b last:border-b-0 hover:bg-[var(--app-content-bg)]/30" style={{ borderColor: theme.border }}>
+                                <td className="px-3 py-1.5 border-r font-bold text-[var(--app-heading)]" style={{ borderColor: theme.border }}>SGST (State GST)</td>
                                 <td className="px-3 py-1.5 border-r text-center" style={{ borderColor: theme.border }}>
-                                  <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded text-[10px] font-bold">
+                                  <span className="px-1.5 py-0.5 bg-[var(--app-table-head-bg)] text-[var(--app-heading)] rounded text-[10px] font-bold">
                                     {sgstRateVal}%
                                   </span>
                                 </td>
@@ -1680,17 +1680,17 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                                     type="text"
                                     readOnly
                                     value={`₹ ${sgstAmtVal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
-                                    className="w-full h-7.5 px-3 rounded-none outline-none text-right text-[11px] font-bold bg-slate-50 dark:bg-[#161a1f] border border-slate-200 dark:border-slate-800 text-slate-500"
+                                    className="w-full h-7.5 px-3 rounded-lg outline-none text-right text-[11px] font-bold bg-[var(--app-content-bg)] border border-[var(--app-border)] text-[var(--app-muted)]"
                                     style={{ color: theme.mutedText }}
                                   />
                                 </td>
                               </tr>
 
                               {/* IGST Row */}
-                              <tr className="border-b last:border-b-0 hover:bg-slate-50/30 dark:hover:bg-slate-800/20" style={{ borderColor: theme.border }}>
-                                <td className="px-3 py-1.5 border-r font-bold text-slate-700 dark:text-slate-300" style={{ borderColor: theme.border }}>IGST (Integrated GST)</td>
+                              <tr className="border-b last:border-b-0 hover:bg-[var(--app-content-bg)]/30" style={{ borderColor: theme.border }}>
+                                <td className="px-3 py-1.5 border-r font-bold text-[var(--app-heading)]" style={{ borderColor: theme.border }}>IGST (Integrated GST)</td>
                                 <td className="px-3 py-1.5 border-r text-center" style={{ borderColor: theme.border }}>
-                                  <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded text-[10px] font-bold">
+                                  <span className="px-1.5 py-0.5 bg-[var(--app-table-head-bg)] text-[var(--app-heading)] rounded text-[10px] font-bold">
                                     {igstRateVal}%
                                   </span>
                                 </td>
@@ -1709,17 +1709,17 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                                     type="text"
                                     readOnly
                                     value={`₹ ${igstAmtVal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
-                                    className="w-full h-7.5 px-3 rounded-none outline-none text-right text-[11px] font-bold bg-slate-50 dark:bg-[#161a1f] border border-slate-200 dark:border-slate-800 text-slate-500"
+                                    className="w-full h-7.5 px-3 rounded-lg outline-none text-right text-[11px] font-bold bg-[var(--app-content-bg)] border border-[var(--app-border)] text-[var(--app-muted)]"
                                     style={{ color: theme.mutedText }}
                                   />
                                 </td>
                               </tr>
 
                               {/* CESS Row */}
-                              <tr className="border-b last:border-b-0 hover:bg-slate-50/30 dark:hover:bg-slate-800/20" style={{ borderColor: theme.border }}>
-                                <td className="px-3 py-1.5 border-r font-bold text-slate-700 dark:text-slate-300" style={{ borderColor: theme.border }}>CESS (Cess)</td>
+                              <tr className="border-b last:border-b-0 hover:bg-[var(--app-content-bg)]/30" style={{ borderColor: theme.border }}>
+                                <td className="px-3 py-1.5 border-r font-bold text-[var(--app-heading)]" style={{ borderColor: theme.border }}>CESS (Cess)</td>
                                 <td className="px-3 py-1.5 border-r text-center" style={{ borderColor: theme.border }}>
-                                  <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded text-[10px] font-bold">
+                                  <span className="px-1.5 py-0.5 bg-[var(--app-table-head-bg)] text-[var(--app-heading)] rounded text-[10px] font-bold">
                                     0%
                                   </span>
                                 </td>
@@ -1738,7 +1738,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                                     type="text"
                                     readOnly
                                     value="₹ 0.00"
-                                    className="w-full h-7.5 px-3 rounded-none outline-none text-right text-[11px] font-bold bg-slate-50 dark:bg-[#161a1f] border border-slate-200 dark:border-slate-800 text-slate-500"
+                                    className="w-full h-7.5 px-3 rounded-lg outline-none text-right text-[11px] font-bold bg-[var(--app-content-bg)] border border-[var(--app-border)] text-[var(--app-muted)]"
                                     style={{ color: theme.mutedText }}
                                   />
                                 </td>
@@ -1746,8 +1746,8 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
 
                               {/* TDS Row */}
                               {isTdsApplicable && (
-                                <tr className="border-b last:border-b-0 hover:bg-slate-50/30 dark:hover:bg-slate-800/20" style={{ borderColor: theme.border }}>
-                                  <td className="px-3 py-1.5 border-r font-bold text-slate-700 dark:text-slate-300" style={{ borderColor: theme.border }}>TDS (If Applicable)</td>
+                                <tr className="border-b last:border-b-0 hover:bg-[var(--app-content-bg)]/30" style={{ borderColor: theme.border }}>
+                                  <td className="px-3 py-1.5 border-r font-bold text-[var(--app-heading)]" style={{ borderColor: theme.border }}>TDS (If Applicable)</td>
                                   <td className="px-3 py-1.5 border-r text-center" style={{ borderColor: theme.border }}>
                                     <div className="flex items-center justify-center gap-1">
                                       <input
@@ -1765,7 +1765,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                                           }];
                                           updateForm({ tdsDetails: updatedTds });
                                         }}
-                                        className="w-12 h-6 px-1 text-center rounded border outline-none text-[10px] font-bold bg-white dark:bg-[#12161a]"
+                                        className="w-12 h-6 px-1 text-center rounded border outline-none text-[10px] font-bold bg-[var(--app-panel-bg)]"
                                         style={{ borderColor: theme.border, color: theme.text }}
                                       />
                                       <span className="text-[10px] font-bold">%</span>
@@ -1792,7 +1792,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                                       type="text"
                                       readOnly
                                       value={`₹ ${tdsAmt.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
-                                      className="w-full h-7.5 px-3 rounded-none outline-none text-right text-[11px] font-bold bg-slate-50 dark:bg-[#161a1f] border border-slate-200 dark:border-slate-800 text-slate-500"
+                                      className="w-full h-7.5 px-3 rounded-lg outline-none text-right text-[11px] font-bold bg-[var(--app-content-bg)] border border-[var(--app-border)] text-[var(--app-muted)]"
                                       style={{ color: theme.mutedText }}
                                     />
                                   </td>
@@ -1811,17 +1811,17 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                         )}
 
                         {/* Bottom Net Summary Cards */}
-                        <div className="grid grid-cols-3 gap-3.5 bg-slate-50/40 dark:bg-slate-900/5 p-3.5 border" style={{ borderColor: theme.border }}>
+                        <div className="grid grid-cols-3 gap-3.5 bg-[var(--app-content-bg)]/40 p-3.5 border" style={{ borderColor: theme.border }}>
                           <div className="flex flex-col gap-1 border-r pr-2" style={{ borderColor: theme.border }}>
-                            <span className="text-[10px] font-black uppercase tracking-tight text-slate-500 dark:text-slate-400">Invoice Amount (Incl. Tax)</span>
-                            <span className="text-[13.5px] font-black text-slate-800 dark:text-slate-200">
+                            <span className="text-[10px] font-black uppercase tracking-tight text-[var(--app-muted)]">Invoice Amount (Incl. Tax)</span>
+                            <span className="text-[13.5px] font-black text-[var(--app-heading)]">
                               ₹ {invoiceAmt.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                             </span>
                           </div>
                           {isTdsApplicable ? (
                             <div className="flex flex-col gap-1 border-r pr-2" style={{ borderColor: theme.border }}>
-                              <span className="text-[10px] font-black uppercase tracking-tight text-slate-500 dark:text-slate-400">Add: TDS Amount</span>
-                              <span className="text-[13.5px] font-black text-emerald-600 dark:text-emerald-400">
+                              <span className="text-[10px] font-black uppercase tracking-tight text-[var(--app-muted)]">Add: TDS Amount</span>
+                              <span className="text-[13.5px] font-black text-emerald-500 dark:text-emerald-400">
                                 + ₹ {tdsAmt.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                               </span>
                             </div>
@@ -1830,7 +1830,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                           )}
                           <div className="flex flex-col gap-1 p-2 bg-emerald-500/10 dark:bg-emerald-950/20 border border-emerald-500/20 dark:border-emerald-900/50 rounded-lg">
                             <span className="text-[10px] font-black uppercase tracking-tight text-emerald-700 dark:text-emerald-400">Amount Payable</span>
-                            <span className="text-[14.5px] font-black text-emerald-600 dark:text-emerald-400">
+                            <span className="text-[14.5px] font-black text-emerald-500 dark:text-emerald-400">
                               ₹ {payableAmt.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                             </span>
                           </div>
@@ -1888,7 +1888,7 @@ const SummaryItem = ({ label, value, isLast }) => {
   const { theme, isDark } = useContext(ThemeContext);
   return (
     <div className="flex items-center gap-2 px-5 h-9 shrink-0 group">
-      <span className="text-[9px] font-black uppercase tracking-widest opacity-60 group-hover:opacity-100 transition-opacity" style={{ color: theme.mutedText }}>{label}</span>
+      <span className="text-[11px] font-black uppercase tracking-widest opacity-60 group-hover:opacity-100 transition-opacity" style={{ color: theme.mutedText }}>{label}</span>
       <span className="text-[11.5px] font-black px-2.5 py-0.5 rounded-lg shadow-sm border transition-all group-hover:scale-105" style={{ backgroundColor: theme.accentSoft, color: theme.accent, borderColor: isDark ? 'rgba(79, 70, 229, 0.2)' : 'transparent' }}>{value}</span>
       {!isLast && <div className="h-4 w-[1.5px] ml-4 opacity-10" style={{ backgroundColor: theme.text }} />}
     </div>
@@ -1905,10 +1905,10 @@ const FormSection = ({ title, children, hasSettings = true, defaultOpen = true, 
         <h3 className="text-[10.5px] font-black uppercase tracking-[0.15em]" style={{ color: theme.text }}>{title}</h3>
         <div className="flex gap-2.5 items-center">
           {headerAction}
-          {hasSettings && <button className="text-slate-400 hover:text-[var(--app-accent)] transition-all hover:scale-110 active:scale-90"><Settings size={13} /></button>}
+          {hasSettings && <button className="text-[var(--app-muted)] hover:text-[var(--app-accent)] transition-all hover:scale-110 active:scale-90"><Settings size={13} /></button>}
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className="w-6 h-6 rounded-full border flex items-center justify-center text-slate-400 hover:bg-slate-50 transition-all hover:rotate-180 active:scale-90"
+            className="w-6 h-6 rounded-full border flex items-center justify-center text-[var(--app-muted)] hover:bg-[var(--app-content-bg)] transition-all hover:rotate-180 active:scale-90"
             style={{ borderColor: theme.border }}
           >
             {isOpen ? <Minus size={11} strokeWidth={3} /> : <Plus size={11} strokeWidth={3} />}
@@ -1947,7 +1947,7 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
   return (
     <div className={`relative flex flex-col gap-1 w-full group ${disabled ? 'opacity-50 pointer-events-none' : ''}`} ref={dropdownRef} style={{ zIndex: isOpen ? 50 : 1 }}>
       {label && (
-        <label className="text-[9px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 text-slate-600 dark:text-slate-400 group-focus-within:text-[var(--app-accent)] transition-colors" style={{ backgroundColor: theme.panel }}>
+        <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 text-[var(--app-heading)] group-focus-within:text-[var(--app-accent)] transition-colors" style={{ backgroundColor: theme.panel }}>
           {label}
         </label>
       )}
@@ -1955,13 +1955,13 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
         <div className="relative flex-1">
           <div
             onClick={() => !disabled && setIsOpen(!isOpen)}
-            className={`w-full ${compact ? 'h-7.5' : 'h-10'} ${rounded ? 'rounded-lg' : 'rounded-sm'} border px-2 flex items-center justify-between cursor-pointer transition-all duration-300 group/input ${isOpen ? 'border-[var(--app-accent)]' : 'hover:border-[var(--app-accent)]'} ${disabled ? 'bg-slate-100 dark:bg-slate-900 cursor-not-allowed' : ''}`}
+            className={`w-full ${compact ? 'h-7.5' : 'h-10'} ${rounded ? 'rounded-lg' : 'rounded-sm'} border px-2 flex items-center justify-between cursor-pointer transition-all duration-300 group/input ${isOpen ? 'border-[var(--app-accent)]' : 'hover:border-[var(--app-accent)]'} ${disabled ? 'bg-[var(--app-table-head-bg)] cursor-not-allowed' : ''}`}
             style={{ backgroundColor: disabled ? undefined : theme.inputBg, borderColor: isOpen ? theme.accent : theme.border }}
           >
-            <span className={`text-[11px] font-bold truncate transition-colors ${value ? (isDark ? 'text-[var(--app-accent)]' : 'text-[var(--app-accent)]') : 'text-slate-400'}`}>
+            <span className={`text-[11px] font-bold truncate transition-colors ${value ? (isDark ? 'text-[var(--app-accent)]' : 'text-[var(--app-accent)]') : 'text-[var(--app-muted)]'}`}>
               {value || placeholder}
             </span>
-            <div className="flex items-center gap-1 text-slate-400 group-hover/input:text-[var(--app-accent)] transition-colors">
+            <div className="flex items-center gap-1 text-[var(--app-muted)] group-hover/input:text-[var(--app-accent)] transition-colors">
               {value && !disabled && <X size={11} className="hover:text-red-500 transition-colors" onClick={(e) => { e.stopPropagation(); onChange(''); }} />}
               <ChevronDown size={12} className={`transition-transform duration-300 ease-out ${isOpen ? 'rotate-180 text-[var(--app-accent)]' : ''}`} />
             </div>
@@ -1993,7 +1993,7 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
                       className="w-full h-8 px-8 text-[11px] font-semibold outline-none transition-all rounded-md border focus:border-[var(--app-accent)]"
                       style={{ backgroundColor: 'var(--app-control-bg)', borderColor: 'var(--app-border)', color: 'var(--app-heading)' }}
                     />
-                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={11} />
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--app-muted)]" size={11} />
                   </div>
                 </div>
               )}
@@ -2001,7 +2001,7 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
                 {filteredOptions.length > 0 ? filteredOptions.map((opt, idx) => (
                   <div
                     key={idx}
-                    className={`px-3 py-1.5 text-[11px] font-semibold cursor-pointer rounded-md transition-colors ${value === opt ? 'text-white font-bold' : 'hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-[var(--app-accent)] dark:hover:text-[var(--app-accent)]'}`}
+                    className={`px-3 py-1.5 text-[11px] font-semibold cursor-pointer rounded-md transition-colors ${value === opt ? 'text-white font-bold' : 'hover:bg-[var(--app-table-head-bg)] hover:text-[var(--app-accent)] dark:hover:text-[var(--app-accent)]'}`}
                     style={{
                       backgroundColor: value === opt ? 'var(--app-accent)' : 'transparent',
                       color: value === opt ? '#ffffff' : 'var(--app-text)'
@@ -2012,8 +2012,8 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
                   </div>
                 )) : (
                   <div className="p-3 text-center">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">No results for "{search}"</p>
-                    <button onClick={() => { onChange && onChange(search); setIsOpen(false); }} className="text-[9px] font-black text-[var(--app-accent)] hover:underline">Add "{search}" as new</button>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-[var(--app-muted)] mb-1">No results for "{search}"</p>
+                    <button onClick={() => { onChange && onChange(search); setIsOpen(false); }} className="text-[11px] font-black text-[var(--app-accent)] hover:underline">Add "{search}" as new</button>
                   </div>
                 )}
               </div>
@@ -2021,7 +2021,7 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
           )}
         </div>
         {hasAdd && (
-          <button className="w-8 h-8 rounded-none border flex items-center justify-center text-emerald-500 hover:bg-emerald-500/10 transition-all shadow-sm shrink-0" style={{ borderColor: 'rgba(16, 185, 129, 0.2)' }}>
+          <button className="w-8 h-8 rounded-lg border flex items-center justify-center text-emerald-500 hover:bg-emerald-500/10 transition-all shadow-sm shrink-0" style={{ borderColor: 'rgba(16, 185, 129, 0.2)' }}>
             <Plus size={14} strokeWidth={3} />
           </button>
         )}
@@ -2065,7 +2065,7 @@ const InputField = ({ label, placeholder, value, icon: Icon, type = "text", comp
   return (
     <div className="relative flex flex-col gap-1 w-full group">
       {label && (
-        <label className="text-[9px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 text-slate-600 dark:text-slate-400 group-focus-within:text-[var(--app-accent)] transition-colors" style={{ backgroundColor: theme.panel }}>
+        <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 text-[var(--app-heading)] group-focus-within:text-[var(--app-accent)] transition-colors" style={{ backgroundColor: theme.panel }}>
           {label}
         </label>
       )}
@@ -2078,12 +2078,12 @@ const InputField = ({ label, placeholder, value, icon: Icon, type = "text", comp
               onChange={handleTextChange}
               placeholder="dd-mm-yyyy"
               readOnly={readOnly}
-              className={`w-full ${compact ? 'h-7.5 px-2' : 'h-10 px-2'} rounded-sm border text-[11px] font-bold outline-none transition-all duration-300 focus:ring-0 ${isDark ? 'placeholder:text-white/10' : 'placeholder:text-slate-300'} ${align === 'right' ? 'text-right' : ''} ${readOnly ? (isDark ? 'cursor-not-allowed opacity-60 bg-slate-800/20' : 'cursor-not-allowed bg-slate-50/50') : 'hover:border-[var(--app-accent)]'}`}
+              className={`w-full ${compact ? 'h-7.5 px-2' : 'h-10 px-2'} rounded-sm border text-[11px] font-bold outline-none transition-all duration-300 focus:ring-0 ${isDark ? 'placeholder:text-white/10' : 'placeholder:text-[var(--app-muted)]'} ${align === 'right' ? 'text-right' : ''} ${readOnly ? (isDark ? 'cursor-not-allowed opacity-60 bg-slate-800/20' : 'cursor-not-allowed bg-[var(--app-content-bg)]/50') : 'hover:border-[var(--app-accent)]'}`}
               style={{ backgroundColor: readOnly ? theme.headerBg : theme.inputBg, borderColor: theme.border, color: readOnly ? theme.accent : theme.text }}
             />
             {Icon && !readOnly && (
               <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center cursor-pointer">
-                <Icon size={12} className="text-slate-400 hover:text-[var(--app-accent)] transition-colors pointer-events-none" />
+                <Icon size={12} className="text-[var(--app-muted)] hover:text-[var(--app-accent)] transition-colors pointer-events-none" />
                 <input
                   type="date"
                   value={toDbDate(value)}
@@ -2101,11 +2101,11 @@ const InputField = ({ label, placeholder, value, icon: Icon, type = "text", comp
             onChange={(e) => onChange && onChange(e.target.value)}
             readOnly={readOnly}
             placeholder={placeholder}
-            className={`w-full ${compact ? 'h-7.5 px-2' : 'h-10 px-2'} rounded-sm border text-[11px] font-bold outline-none transition-all duration-300 focus:ring-0 ${isDark ? 'placeholder:text-white/10' : 'placeholder:text-slate-300'} ${align === 'right' ? 'text-right' : ''} ${readOnly ? (isDark ? 'cursor-not-allowed opacity-60 bg-slate-800/20' : 'cursor-not-allowed bg-slate-50/50') : 'hover:border-[var(--app-accent)]'}`}
+            className={`w-full ${compact ? 'h-7.5 px-2' : 'h-10 px-2'} rounded-sm border text-[11px] font-bold outline-none transition-all duration-300 focus:ring-0 ${isDark ? 'placeholder:text-white/10' : 'placeholder:text-[var(--app-muted)]'} ${align === 'right' ? 'text-right' : ''} ${readOnly ? (isDark ? 'cursor-not-allowed opacity-60 bg-slate-800/20' : 'cursor-not-allowed bg-[var(--app-content-bg)]/50') : 'hover:border-[var(--app-accent)]'}`}
             style={{ backgroundColor: readOnly ? theme.headerBg : theme.inputBg, borderColor: theme.border, color: readOnly ? theme.accent : theme.text }}
           />
         )}
-        {type !== "date" && Icon && <Icon className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[var(--app-accent)] transition-colors pointer-events-none" size={12} />}
+        {type !== "date" && Icon && <Icon className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--app-muted)] group-focus-within:text-[var(--app-accent)] transition-colors pointer-events-none" size={12} />}
       </div>
     </div>
   );

@@ -674,37 +674,37 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
 
       return (
         <div className="rounded-xl border p-2 shadow-sm" style={{ borderColor: theme.border, backgroundColor: theme.panel }}>
-          <h3 className="text-[8.5px] font-black uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-1">
+          <h3 className="text-[10px] font-black uppercase tracking-wider text-[var(--app-muted)] mb-2 flex items-center gap-1">
             <Wallet size={10} /> Live Balance Panel (Contra)
           </h3>
-          <div className="grid grid-cols-2 gap-2 text-[9px]">
+          <div className="grid grid-cols-2 gap-2 text-[11px]">
             <div className="flex flex-col gap-1 border-r pr-2" style={{ borderColor: theme.border }}>
               <span className="text-[7.5px] font-black uppercase text-emerald-500 truncate">Source: {form.sourceLedger || 'Select Source'}</span>
               <div className="flex justify-between">
-                <span className="text-slate-400">Opening:</span>
+                <span className="text-[var(--app-muted)]">Opening:</span>
                 <span style={{ color: theme.text }}>{formatCur(sourceBal)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">Transfer:</span>
+                <span className="text-[var(--app-muted)]">Transfer:</span>
                 <span className="text-red-500">-{formatCur(transferAmt)}</span>
               </div>
               <div className="flex justify-between font-extrabold border-t pt-0.5" style={{ borderColor: theme.border }}>
-                <span className="text-slate-400">Closing:</span>
+                <span className="text-[var(--app-muted)]">Closing:</span>
                 <span style={{ color: theme.text }}>{formatCur(sourceClosing)}</span>
               </div>
             </div>
             <div className="flex flex-col gap-1 pl-2">
               <span className="text-[7.5px] font-black uppercase text-[var(--app-accent)] truncate">Dest: {form.destinationLedger || 'Select Dest'}</span>
               <div className="flex justify-between">
-                <span className="text-slate-400">Opening:</span>
+                <span className="text-[var(--app-muted)]">Opening:</span>
                 <span style={{ color: theme.text }}>{formatCur(destBal)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">Received:</span>
+                <span className="text-[var(--app-muted)]">Received:</span>
                 <span className="text-emerald-500">+{formatCur(receivedAmt)}</span>
               </div>
               <div className="flex justify-between font-extrabold border-t pt-0.5" style={{ borderColor: theme.border }}>
-                <span className="text-slate-400">Closing:</span>
+                <span className="text-[var(--app-muted)]">Closing:</span>
                 <span style={{ color: theme.text }}>{formatCur(destClosing)}</span>
               </div>
             </div>
@@ -715,22 +715,22 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
 
     return (
       <div className="rounded-xl border p-2 shadow-sm" style={{ borderColor: theme.border, backgroundColor: theme.panel }}>
-        <h3 className="text-[8.5px] font-black uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-1">
+        <h3 className="text-[10px] font-black uppercase tracking-wider text-[var(--app-muted)] mb-2 flex items-center gap-1">
           <Wallet size={10} /> Live Balance Panel ({isBank ? 'Bank' : 'Cash'})
         </h3>
         <div className="grid grid-cols-3 gap-2 text-center">
           <div className="flex flex-col gap-0.5">
-            <span className="text-[7.5px] font-black uppercase tracking-wider text-slate-400">Opening Balance</span>
+            <span className="text-[7.5px] font-black uppercase tracking-wider text-[var(--app-muted)]">Opening Balance</span>
             <span className="text-[10.5px] font-extrabold" style={{ color: theme.text }}>{formatCur(openingBal)}</span>
           </div>
           <div className="flex flex-col gap-0.5 border-x px-1" style={{ borderColor: theme.border }}>
-            <span className="text-[7.5px] font-black uppercase tracking-wider text-slate-400">Voucher Amount</span>
+            <span className="text-[7.5px] font-black uppercase tracking-wider text-[var(--app-muted)]">Voucher Amount</span>
             <span className={`text-[10.5px] font-black ${activeType === 'cash_payment' ? 'text-red-500' : 'text-emerald-500'}`}>
               {activeType === 'cash_payment' ? '-' : '+'} {formatCur(amountVal)}
             </span>
           </div>
           <div className="flex flex-col gap-0.5">
-            <span className="text-[7.5px] font-black uppercase tracking-wider text-slate-400">Closing Balance</span>
+            <span className="text-[7.5px] font-black uppercase tracking-wider text-[var(--app-muted)]">Closing Balance</span>
             <span className={`text-[10.5px] font-black ${closingBal < 0 ? 'text-rose-500' : 'text-[#09B6B9]'}`}>{formatCur(closingBal)}</span>
           </div>
         </div>
@@ -760,10 +760,10 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
 
     return (
       <div className="rounded-xl border p-2 shadow-sm" style={{ borderColor: theme.border, backgroundColor: theme.panel }}>
-        <h3 className="text-[8.5px] font-black uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-1">
+        <h3 className="text-[10px] font-black uppercase tracking-wider text-[var(--app-muted)] mb-2 flex items-center gap-1">
           <ArrowRightLeft size={10} /> Accounting Entry Preview
         </h3>
-        <div className="bg-slate-900/90 dark:bg-slate-950/80 rounded-lg p-2 font-mono text-[9.5px] space-y-1 border border-slate-800 shadow-inner">
+        <div className="bg-slate-900/90 rounded-lg p-2 font-mono text-[11px] space-y-1 border border-[var(--app-border)] shadow-inner">
           <div className="flex justify-between items-center text-[var(--app-accent)]">
             <span className="truncate max-w-[70%]">
               <span className="font-extrabold text-[var(--app-accent)] mr-1.5">Dr</span>
@@ -813,45 +813,45 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
 
     return (
       <div className="rounded-xl border p-3 shadow-sm animate-in fade-in duration-200" style={{ borderColor: theme.border, backgroundColor: theme.panel }}>
-        <h3 className="text-[8.5px] font-black uppercase tracking-wider text-slate-400 mb-2.5 flex items-center gap-1">
+        <h3 className="text-[10px] font-black uppercase tracking-wider text-[var(--app-muted)] mb-2.5 flex items-center gap-1">
           <BookText size={10} /> Voucher Summary
         </h3>
         <div className="flex flex-col gap-2 text-[10px]">
           <div className="flex justify-between items-center py-0.5 border-b border-dashed" style={{ borderColor: theme.border }}>
-            <span className="text-slate-400 font-bold">Current Balance:</span>
+            <span className="text-[var(--app-muted)] font-bold">Current Balance:</span>
             <span className="font-extrabold" style={{ color: theme.text }}>{currentBal}</span>
           </div>
           <div className="flex justify-between items-center py-0.5 border-b border-dashed" style={{ borderColor: theme.border }}>
-            <span className="text-slate-400 font-bold">Total Outstanding:</span>
+            <span className="text-[var(--app-muted)] font-bold">Total Outstanding:</span>
             <span className="font-extrabold" style={{ color: theme.text }}>{formatCur(totalOutstanding)}</span>
           </div>
           <div className="flex justify-between items-center py-0.5 border-b border-dashed" style={{ borderColor: theme.border }}>
-            <span className="text-slate-400 font-bold">{activeType === 'bank_payment' ? 'Receipt Amount:' : 'Payment Amount:'}</span>
+            <span className="text-[var(--app-muted)] font-bold">{activeType === 'bank_payment' ? 'Receipt Amount:' : 'Payment Amount:'}</span>
             <span className="font-black text-[var(--app-accent)] dark:text-[var(--app-accent)]">{formatCur(amountVal)}</span>
           </div>
           <div className="flex justify-between items-center py-0.5 border-b border-dashed" style={{ borderColor: theme.border }}>
-            <span className="text-slate-400 font-bold">Allocated Amount:</span>
-            <span className="font-black text-emerald-600 dark:text-emerald-400">{formatCur(allocatedAmount)}</span>
+            <span className="text-[var(--app-muted)] font-bold">Allocated Amount:</span>
+            <span className="font-black text-emerald-500 dark:text-emerald-400">{formatCur(allocatedAmount)}</span>
           </div>
           {activeType === 'bank_payment' && (
             <div className="flex justify-between items-center py-0.5 border-b border-dashed" style={{ borderColor: theme.border }}>
-              <span className="text-slate-400 font-bold">Advance Receipt:</span>
+              <span className="text-[var(--app-muted)] font-bold">Advance Receipt:</span>
               <span className="font-extrabold text-[#09B6B9]">{formatCur(advanceReceipt)}</span>
             </div>
           )}
           <div className="flex justify-between items-center py-0.5 border-b border-dashed" style={{ borderColor: theme.border }}>
-            <span className="text-slate-400 font-bold">Remaining Outstanding:</span>
+            <span className="text-[var(--app-muted)] font-bold">Remaining Outstanding:</span>
             <span className="font-extrabold" style={{ color: theme.text }}>{formatCur(remainingOutstanding)}</span>
           </div>
           <div className="flex justify-between items-center py-0.5 border-b border-dashed" style={{ borderColor: theme.border }}>
-            <span className="text-slate-400 font-bold">Difference:</span>
-            <span className={`font-black ${difference === 0 ? 'text-slate-600 dark:text-slate-300' : 'text-rose-500'}`}>
+            <span className="text-[var(--app-muted)] font-bold">Difference:</span>
+            <span className={`font-black ${difference === 0 ? 'text-[var(--app-heading)]' : 'text-rose-500'}`}>
               {formatCur(difference)}
             </span>
           </div>
           <div className="flex justify-between items-center py-1 mt-1">
-            <span className="text-slate-400 font-black uppercase tracking-wider text-[8px]">Status:</span>
-            <span className={`px-2 py-0.5 text-[8.5px] font-black uppercase tracking-wider shadow-sm text-white ${status === 'Balanced' ? 'bg-emerald-600' : 'bg-rose-600'}`}>
+            <span className="text-[var(--app-muted)] font-black uppercase tracking-wider text-[10px]">Status:</span>
+            <span className={`px-2 py-0.5 text-[10px] font-black uppercase tracking-wider shadow-sm text-white ${status === 'Balanced' ? 'bg-emerald-600' : 'bg-rose-600'}`}>
               {status}
             </span>
           </div>
@@ -882,9 +882,9 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
         `}</style>
 
         {/* Top Header Row (Same style as Purchase) */}
-        <div className="flex items-center justify-between px-4 py-1.5 bg-white dark:bg-[#0d0f12] border-b shrink-0" style={{ borderColor: theme.border }}>
+        <div className="flex items-center justify-between px-4 py-1.5 bg-[var(--app-panel-bg)] border-b shrink-0" style={{ borderColor: theme.border }}>
           <div className="flex items-center gap-2">
-            <h1 className="text-[12px] md:text-[13px] font-black uppercase tracking-tight text-slate-800 dark:text-slate-200">
+            <h1 className="text-[12px] md:text-[13px] font-black uppercase tracking-tight text-[var(--app-heading)]">
               {activeType === 'cash_payment' ? 'CREATE PAYMENT VOUCHER' :
                 activeType === 'bank_payment' ? 'CREATE RECEIPT VOUCHER' : 'CREATE CONTRA VOUCHER'}
             </h1>
@@ -893,7 +893,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
             <button
               onClick={handleSaveDraft}
               disabled={loading.save}
-              className="px-3 py-1 rounded-none border text-[9.5px] font-black transition-all hover:bg-slate-50 dark:hover:bg-slate-800 shadow-sm uppercase tracking-wider text-slate-600 dark:text-slate-300 flex items-center gap-1"
+              className="px-3 py-1 rounded-lg border text-[11px] font-black transition-all hover:bg-[var(--app-content-bg)] shadow-sm uppercase tracking-wider text-[var(--app-heading)] flex items-center gap-1"
               style={{ borderColor: theme.border, backgroundColor: theme.inputBg }}
             >
               Draft
@@ -901,9 +901,9 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
             <button
               onClick={handlePushToReview}
               disabled={loading.save || isUnbalanced}
-              className={`px-3 py-1 rounded-none text-[9.5px] font-black transition-all shadow-sm uppercase tracking-wider flex items-center gap-1 ${(loading.save || isUnbalanced)
-                  ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed opacity-50'
-                  : 'hover:scale-[1.02] text-slate-800 bg-[#FCD34D] hover:bg-[#FBBF24]'
+              className={`px-3 py-1 rounded-lg text-[11px] font-black transition-all shadow-sm uppercase tracking-wider flex items-center gap-1 ${(loading.save || isUnbalanced)
+                  ? 'bg-[var(--app-border)] text-[var(--app-muted)] cursor-not-allowed opacity-50'
+                  : 'hover:scale-[1.02] text-[var(--app-heading)] bg-[#FCD34D] hover:bg-[#FBBF24]'
                 }`}
             >
               Review
@@ -911,8 +911,8 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
             <button
               onClick={handlePostToTally}
               disabled={isUnbalanced}
-              className={`px-3 py-1 rounded-none text-[9.5px] font-black shadow-sm transition-all uppercase tracking-wider ${isUnbalanced
-                  ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed opacity-50'
+              className={`px-3 py-1 rounded-lg text-[11px] font-black shadow-sm transition-all uppercase tracking-wider ${isUnbalanced
+                  ? 'bg-[var(--app-border)] text-[var(--app-muted)] cursor-not-allowed opacity-50'
                   : 'hover:scale-[1.02] text-white bg-[var(--app-accent)] hover:opacity-90'
                 }`}
             >
@@ -920,17 +920,17 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
             </button>
             <button
               onClick={handleCancel}
-              className="px-3 py-1 rounded-none border text-[9.5px] font-black hover:bg-red-50 hover:text-red-500 transition-all uppercase tracking-wider text-slate-400"
+              className="px-3 py-1 rounded-lg border text-[11px] font-black hover:bg-red-50 hover:text-red-500 transition-all uppercase tracking-wider text-[var(--app-muted)]"
               style={{ borderColor: theme.border }}
             >
               Cancel
             </button>
-            <button className="p-1.5 rounded-none border text-slate-400 hover:text-[var(--app-accent)] transition-all" style={{ borderColor: theme.border }}>
+            <button className="p-1.5 rounded-lg border text-[var(--app-muted)] hover:text-[var(--app-accent)] transition-all" style={{ borderColor: theme.border }}>
               <Settings size={12} />
             </button>
             <button
               onClick={handleCancel}
-              className="p-1.5 rounded-none border text-slate-400 hover:text-red-500 transition-all hover:bg-red-50"
+              className="p-1.5 rounded-lg border text-[var(--app-muted)] hover:text-red-500 transition-all hover:bg-red-50"
               style={{ borderColor: theme.border, backgroundColor: theme.inputBg }}
             >
               <X size={12} strokeWidth={3} />
@@ -939,7 +939,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
         </div>
 
         {/* Voucher Types & Summary Row (Same style as Purchase) */}
-        <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-0.75 bg-white dark:bg-[#0d0f12] border-b shrink-0" style={{ borderColor: theme.border }}>
+        <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-0.75 bg-[var(--app-panel-bg)] border-b shrink-0" style={{ borderColor: theme.border }}>
           {/* Voucher Types Switcher */}
           {!onSaveSuccess && (
             <div className="flex gap-1.5 overflow-x-auto no-scrollbar py-0.5">
@@ -955,15 +955,15 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                   <button
                     key={type.id}
                     onClick={() => handleVoucherTypeSwitch(type.id)}
-                    className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-none border text-left min-w-[120px] shrink-0 transition-all ${isSelected
+                    className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg border text-left min-w-[120px] shrink-0 transition-all ${isSelected
                       ? 'bg-[#09B6B9]/10 border-[#09B6B9] text-[#09B6B9] shadow-sm'
-                      : 'bg-white dark:bg-[#12161a] border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-50'
+                      : 'bg-[var(--app-panel-bg)] border-[var(--app-border)] text-[var(--app-muted)] hover:bg-[var(--app-content-bg)]'
                       }`}
                   >
-                    <type.icon size={11} className={isSelected ? 'text-[#09B6B9]' : 'text-slate-400'} />
+                    <type.icon size={11} className={isSelected ? 'text-[#09B6B9]' : 'text-[var(--app-muted)]'} />
                     <div>
                       <span className="text-[7px] block font-black tracking-wider opacity-60 uppercase">{type.section}</span>
-                      <span className="text-[9px] font-black">{type.label}</span>
+                      <span className="text-[11px] font-black">{type.label}</span>
                     </div>
                   </button>
                 );
@@ -980,34 +980,34 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
             const isValidated = Math.abs(totalLedgerAmountVal - totalAllocatedVal) < 0.01 && totalLedgerAmountVal > 0;
 
             return (
-              <div className="flex items-center flex-wrap gap-1 text-[9.5px]">
-                <div className="flex items-center gap-1 px-2 py-0.5 rounded-none bg-slate-50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800">
-                  <span className="text-slate-400 font-bold uppercase tracking-wider text-[7.5px]">TOTAL LEDGER AMOUNT (₹):</span>
-                  <span className="font-black text-slate-700 dark:text-slate-300">
+              <div className="flex items-center flex-wrap gap-1 text-[11px]">
+                <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[var(--app-content-bg)] border border-[var(--app-border)]">
+                  <span className="text-[var(--app-muted)] font-bold uppercase tracking-wider text-[7.5px]">TOTAL LEDGER AMOUNT (₹):</span>
+                  <span className="font-black text-[var(--app-heading)]">
                     ₹ {totalLedgerAmountVal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </span>
                 </div>
-                <div className="flex items-center gap-1 px-2 py-0.5 rounded-none bg-slate-50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800">
-                  <span className="text-slate-400 font-bold uppercase tracking-wider text-[7.5px]">
+                <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[var(--app-content-bg)] border border-[var(--app-border)]">
+                  <span className="text-[var(--app-muted)] font-bold uppercase tracking-wider text-[7.5px]">
                     {activeType === 'cash_payment' ? 'TOTAL BILL AMOUNT (₹):' : 'TOTAL INVOICE AMOUNT (₹):'}
                   </span>
-                  <span className="font-black text-slate-700 dark:text-slate-300">
+                  <span className="font-black text-[var(--app-heading)]">
                     ₹ {totalBillAmountVal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </span>
                 </div>
-                <div className="flex items-center gap-1 px-2 py-0.5 rounded-none bg-slate-50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800">
-                  <span className="text-slate-400 font-bold uppercase tracking-wider text-[7.5px]">TOTAL ALLOCATED AMOUNT (₹):</span>
-                  <span className="font-black text-slate-700 dark:text-slate-300">
+                <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[var(--app-content-bg)] border border-[var(--app-border)]">
+                  <span className="text-[var(--app-muted)] font-bold uppercase tracking-wider text-[7.5px]">TOTAL ALLOCATED AMOUNT (₹):</span>
+                  <span className="font-black text-[var(--app-heading)]">
                     ₹ {totalAllocatedVal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </span>
                 </div>
-                <div className="flex items-center gap-1 px-2 py-0.5 rounded-none bg-slate-50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800">
-                  <span className="text-slate-400 font-bold uppercase tracking-wider text-[7.5px]">REMAINING UNALLOCATED (₹):</span>
-                  <span className="font-black text-emerald-600 dark:text-emerald-400">
+                <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[var(--app-content-bg)] border border-[var(--app-border)]">
+                  <span className="text-[var(--app-muted)] font-bold uppercase tracking-wider text-[7.5px]">REMAINING UNALLOCATED (₹):</span>
+                  <span className="font-black text-emerald-500 dark:text-emerald-400">
                     ₹ {totalUnallocatedVal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </span>
                 </div>
-                <div className={`flex items-center gap-1 px-2 py-0.5 rounded-none shadow-md text-white ${isValidated ? 'bg-emerald-600' : 'bg-rose-600'}`}>
+                <div className={`flex items-center gap-1 px-2 py-0.5 rounded-lg shadow-md text-white ${isValidated ? 'bg-emerald-600' : 'bg-rose-600'}`}>
                   <span className="text-[7.5px] font-black uppercase tracking-wider opacity-85">VALIDATION STATUS:</span>
                   <span className="font-black text-[10px] flex items-center gap-1">
                     {isValidated ? (
@@ -1020,26 +1020,26 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
               </div>
             );
           })() : (
-            <div className="flex items-center flex-wrap gap-1 text-[9.5px]">
-              <div className="flex items-center gap-1 px-2 py-0.5 rounded-none bg-slate-50 dark:bg-[#12161a] border border-slate-100 dark:border-slate-800">
-                <span className="text-slate-400 font-bold uppercase tracking-wider text-[7.5px]">Total Debit:</span>
-                <span className="font-black text-slate-700 dark:text-slate-300">
+            <div className="flex items-center flex-wrap gap-1 text-[11px]">
+              <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[var(--app-content-bg)] border border-[var(--app-border)]">
+                <span className="text-[var(--app-muted)] font-bold uppercase tracking-wider text-[7.5px]">Total Debit:</span>
+                <span className="font-black text-[var(--app-heading)]">
                   ₹ {(form.totalDebit || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                 </span>
               </div>
-              <div className="flex items-center gap-1 px-2 py-0.5 rounded-none bg-slate-50 dark:bg-[#12161a] border border-slate-100 dark:border-slate-800">
-                <span className="text-slate-400 font-bold uppercase tracking-wider text-[7.5px]">Total Credit:</span>
-                <span className="font-black text-slate-700 dark:text-slate-300">
+              <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[var(--app-content-bg)] border border-[var(--app-border)]">
+                <span className="text-[var(--app-muted)] font-bold uppercase tracking-wider text-[7.5px]">Total Credit:</span>
+                <span className="font-black text-[var(--app-heading)]">
                   ₹ {(form.totalCredit || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                 </span>
               </div>
-              <div className="flex items-center gap-1 px-2 py-0.5 rounded-none bg-slate-50 dark:bg-[#12161a] border border-slate-100 dark:border-slate-800">
-                <span className="text-slate-400 font-bold uppercase tracking-wider text-[7.5px]">Difference:</span>
-                <span className="font-black text-slate-700 dark:text-slate-300">
+              <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[var(--app-content-bg)] border border-[var(--app-border)]">
+                <span className="text-[var(--app-muted)] font-bold uppercase tracking-wider text-[7.5px]">Difference:</span>
+                <span className="font-black text-[var(--app-heading)]">
                   ₹ {(form.difference || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                 </span>
               </div>
-              <div className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-none shadow-md text-white ${form.difference === 0 ? 'bg-emerald-600' : 'bg-rose-600'}`}>
+              <div className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg shadow-md text-white ${form.difference === 0 ? 'bg-emerald-600' : 'bg-rose-600'}`}>
                 <span className="text-[7.5px] font-black uppercase tracking-wider opacity-85">Status:</span>
                 <span className="font-black text-[10px]">
                   {form.difference === 0 ? 'Balanced' : 'Unbalanced'}
@@ -1050,7 +1050,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
         </div>
 
         {/* Main Body Two-Column Grid Wrapper */}
-        <div className="flex-1 p-1.5 overflow-y-auto themed-scrollbar bg-white dark:bg-[#0b0c10]">
+        <div className="flex-1 p-1.5 overflow-y-auto themed-scrollbar bg-[var(--app-panel-bg)]">
           {isPaymentOrReceipt ? (() => {
             if (activeType === 'cash_payment' || activeType === 'bank_payment') {
               const totalLedgerAmountVal = (form.ledgerRows || []).reduce((acc, r) => acc + (parseFloat(r.amount) || 0), 0);
@@ -1066,11 +1066,11 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
               const hasBillsToAllocate = selectedPartyDetails && selectedPartyDetails.pendingBills?.length > 0;
 
               return (
-                <div className="flex flex-col gap-2 pb-2 w-full text-slate-800 dark:text-slate-200">
+                <div className="flex flex-col gap-2 pb-2 w-full text-[var(--app-heading)]">
 
 
                   {/* Voucher Details Card */}
-                  <div className="rounded-lg border p-2.5 shadow-sm bg-white dark:bg-[#12161a]" style={{ borderColor: theme.border }}>
+                  <div className="rounded-lg border p-2.5 shadow-sm bg-[var(--app-panel-bg)]" style={{ borderColor: theme.border }}>
                     <div className="grid grid-cols-12 gap-2">
                       <div className="col-span-12 md:col-span-3">
                         <InputField
@@ -1093,7 +1093,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                         />
                       </div>
                       <div className="col-span-12 md:col-span-3 relative">
-                        <label className="text-[9px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 text-slate-600 dark:text-slate-400" style={{ backgroundColor: isDark ? '#12161a' : '#fff' }}>
+                        <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 text-[var(--app-heading)]" style={{ backgroundColor: isDark ? '#12161a' : '#fff' }}>
                           3. Voucher Reference Number
                         </label>
                         <select
@@ -1105,7 +1105,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                               fetchNextVoucherNumber(activeType);
                             }
                           }}
-                          className="w-full h-7 px-2 rounded-sm border text-[10px] font-bold outline-none bg-white dark:bg-[#12161a]"
+                          className="w-full h-7 px-2 rounded-sm border text-[10px] font-bold outline-none bg-[var(--app-panel-bg)]"
                           style={{ borderColor: theme.border, color: theme.text }}
                         >
                           <option value="Default">Auto (System Generated)</option>
@@ -1146,9 +1146,9 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                   </div>
 
                   {/* Transaction Details Card */}
-                  <div className="rounded-lg border p-2.5 shadow-sm bg-white dark:bg-[#12161a]" style={{ borderColor: theme.border }}>
+                  <div className="rounded-lg border p-2.5 shadow-sm bg-[var(--app-panel-bg)]" style={{ borderColor: theme.border }}>
                     <div className="flex items-center justify-between mb-2">
-                      <h3 className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                      <h3 className="text-xs font-black uppercase tracking-wider text-[var(--app-heading)]">
                         Transaction Details
                       </h3>
                       <label className="flex items-center gap-1.5 cursor-pointer select-none">
@@ -1161,27 +1161,27 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                           }}
                           className="w-3.5 h-3.5 rounded accent-[var(--app-accent)] cursor-pointer"
                         />
-                        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                        <span className="text-[10px] font-bold text-[var(--app-muted)]">
                           Enable Cost Center Allocation
                         </span>
                       </label>
                     </div>
 
-                    <div className="overflow-visible border rounded-none" style={{ borderColor: theme.border }}>
+                    <div className="overflow-visible border rounded-lg" style={{ borderColor: theme.border }}>
                       <table className="w-full text-left border-collapse min-w-[800px]">
                         <thead>
                           <tr style={{ backgroundColor: theme.headerBg }}>
-                            <th className="p-1 border text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 w-12 text-center" style={{ borderColor: theme.border }}>#</th>
-                            <th className="p-1 border text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400" style={{ borderColor: theme.border }}>Ledger Name *</th>
+                            <th className="p-1 border text-[11px] font-black uppercase tracking-wider text-[var(--app-muted)] w-12 text-center" style={{ borderColor: theme.border }}>#</th>
+                            <th className="p-1 border text-[11px] font-black uppercase tracking-wider text-[var(--app-muted)]" style={{ borderColor: theme.border }}>Ledger Name *</th>
                             {form.costCenterApplicable && (
-                              <th className="p-1 border text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 w-48" style={{ borderColor: theme.border }}>Cost Center (Optional)</th>
+                              <th className="p-1 border text-[11px] font-black uppercase tracking-wider text-[var(--app-muted)] w-48" style={{ borderColor: theme.border }}>Cost Center (Optional)</th>
                             )}
-                            <th className="p-1 border text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400" style={{ borderColor: theme.border }}>Description</th>
-                            <th className="p-1 border text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 w-44 text-right" style={{ borderColor: theme.border }}>Amount (₹)</th>
-                            <th className="p-1 border text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 w-60 text-center" style={{ borderColor: theme.border }}>
+                            <th className="p-1 border text-[11px] font-black uppercase tracking-wider text-[var(--app-muted)]" style={{ borderColor: theme.border }}>Description</th>
+                            <th className="p-1 border text-[11px] font-black uppercase tracking-wider text-[var(--app-muted)] w-44 text-right" style={{ borderColor: theme.border }}>Amount (₹)</th>
+                            <th className="p-1 border text-[11px] font-black uppercase tracking-wider text-[var(--app-muted)] w-60 text-center" style={{ borderColor: theme.border }}>
                               {activeType === 'cash_payment' ? 'Outstanding Bills' : 'Outstanding Invoices'} (From Selected Ledger)
                             </th>
-                            <th className="p-1 border text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 w-16 text-center" style={{ borderColor: theme.border }}>Action</th>
+                            <th className="p-1 border text-[11px] font-black uppercase tracking-wider text-[var(--app-muted)] w-16 text-center" style={{ borderColor: theme.border }}>Action</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1192,8 +1192,8 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                             const hasOutstanding = isParty && pendingBillsCount > 0;
 
                             return (
-                              <tr key={row.id || idx} className="hover:bg-slate-50/20">
-                                <td className="p-1 border text-center text-[10px] font-bold text-slate-400" style={{ borderColor: theme.border }}>
+                              <tr key={row.id || idx} className="hover:bg-[var(--app-content-bg)]/20">
+                                <td className="p-1 border text-center text-[10px] font-bold text-[var(--app-muted)]" style={{ borderColor: theme.border }}>
                                   {idx + 1}
                                 </td>
                                 <td className="p-1 border relative z-10 focus-within:z-50" style={{ borderColor: theme.border }}>
@@ -1264,7 +1264,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                       {activeType === 'cash_payment' ? 'View Bills' : 'View Invoices'} ({pendingBillsCount})
                                     </button>
                                   ) : (
-                                    <span className="text-slate-400">—</span>
+                                    <span className="text-[var(--app-muted)]">—</span>
                                   )}
                                 </td>
                                 <td className="p-1 border text-center" style={{ borderColor: theme.border }}>
@@ -1292,7 +1292,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                         <Plus size={8} strokeWidth={3} /> Add Row
                       </button>
                       <div className="flex items-center gap-1.5">
-                        <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">Total Ledger Amount:</span>
+                        <span className="text-[11px] font-black uppercase tracking-wider text-[var(--app-muted)]">Total Ledger Amount:</span>
                         <span className="text-[12.5px] font-black text-[var(--app-accent)] dark:text-[var(--app-accent)]">
                           ₹ {totalLedgerAmountVal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
@@ -1302,16 +1302,16 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
 
                   {/* Outstanding Bills Card */}
                   {showBillAllocation && (
-                    <div className="rounded-lg border p-2.5 shadow-sm bg-white dark:bg-[#12161a]" style={{ borderColor: theme.border }}>
+                    <div className="rounded-lg border p-2.5 shadow-sm bg-[var(--app-panel-bg)]" style={{ borderColor: theme.border }}>
                       <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                        <h3 className="text-xs font-black uppercase tracking-wider text-[var(--app-heading)]">
                           {activeType === 'cash_payment' ? 'Outstanding Bills Allocation' : 'Outstanding Sales Invoices Allocation'} (Auto Fetched)
                         </h3>
                         {hasBillsToAllocate && (
                           <button
                             type="button"
                             onClick={handleAiAutoAllocate}
-                            className="px-2.5 py-1 border border-[var(--app-accent)] bg-[var(--app-accent-soft)] text-[var(--app-accent)] dark:text-[var(--app-accent)] hover:opacity-90/20 text-[9.5px] font-black uppercase rounded transition-all"
+                            className="px-2.5 py-1 border border-[var(--app-accent)] bg-[var(--app-accent-soft)] text-[var(--app-accent)] dark:text-[var(--app-accent)] hover:opacity-90/20 text-[11px] font-black uppercase rounded transition-all"
                           >
                             {activeType === 'cash_payment' ? 'Auto Allocate Bills' : 'Auto Allocate Receipts'}
                           </button>
@@ -1319,28 +1319,28 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                       </div>
 
                         <div className="flex flex-col gap-2">
-                          <div className="overflow-x-auto themed-scrollbar border rounded-none" style={{ borderColor: theme.border }}>
+                          <div className="overflow-x-auto themed-scrollbar border rounded-lg" style={{ borderColor: theme.border }}>
                             <table className="w-full text-left border-collapse min-w-[800px]">
                               <thead>
                                 <tr style={{ backgroundColor: theme.headerBg }}>
-                                  <th className="p-1 border text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 w-12 text-center" style={{ borderColor: theme.border }}>#</th>
-                                  <th className="p-1 border text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400" style={{ borderColor: theme.border }}>
+                                  <th className="p-1 border text-[11px] font-black uppercase tracking-wider text-[var(--app-muted)] w-12 text-center" style={{ borderColor: theme.border }}>#</th>
+                                  <th className="p-1 border text-[11px] font-black uppercase tracking-wider text-[var(--app-muted)]" style={{ borderColor: theme.border }}>
                                     {activeType === 'cash_payment' ? 'Bill Reference Number' : 'Invoice Reference Number'}
                                   </th>
-                                  <th className="p-1 border text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 w-32" style={{ borderColor: theme.border }}>
+                                  <th className="p-1 border text-[11px] font-black uppercase tracking-wider text-[var(--app-muted)] w-32" style={{ borderColor: theme.border }}>
                                     {activeType === 'cash_payment' ? 'Bill Date' : 'Invoice Date'}
                                   </th>
                                   {activeType === 'cash_payment' ? (
                                     <>
-                                      <th className="p-1 border text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 w-44 text-right" style={{ borderColor: theme.border }}>Bill Amount (₹)</th>
-                                      <th className="p-1 border text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 w-32" style={{ borderColor: theme.border }}>Due Date</th>
-                                      <th className="p-1 border text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 w-44 text-right" style={{ borderColor: theme.border }}>Amount Allocation (₹)</th>
+                                      <th className="p-1 border text-[11px] font-black uppercase tracking-wider text-[var(--app-muted)] w-44 text-right" style={{ borderColor: theme.border }}>Bill Amount (₹)</th>
+                                      <th className="p-1 border text-[11px] font-black uppercase tracking-wider text-[var(--app-muted)] w-32" style={{ borderColor: theme.border }}>Due Date</th>
+                                      <th className="p-1 border text-[11px] font-black uppercase tracking-wider text-[var(--app-muted)] w-44 text-right" style={{ borderColor: theme.border }}>Amount Allocation (₹)</th>
                                     </>
                                   ) : (
                                     <>
-                                      <th className="p-1 border text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 w-40 text-right" style={{ borderColor: theme.border }}>Invoice Amount (₹)</th>
-                                      <th className="p-1 border text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 w-40 text-right" style={{ borderColor: theme.border }}>Outstanding Amount (₹)</th>
-                                      <th className="p-1 border text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 w-40 text-right" style={{ borderColor: theme.border }}>Amount Received (₹)</th>
+                                      <th className="p-1 border text-[11px] font-black uppercase tracking-wider text-[var(--app-muted)] w-40 text-right" style={{ borderColor: theme.border }}>Invoice Amount (₹)</th>
+                                      <th className="p-1 border text-[11px] font-black uppercase tracking-wider text-[var(--app-muted)] w-40 text-right" style={{ borderColor: theme.border }}>Outstanding Amount (₹)</th>
+                                      <th className="p-1 border text-[11px] font-black uppercase tracking-wider text-[var(--app-muted)] w-40 text-right" style={{ borderColor: theme.border }}>Amount Received (₹)</th>
                                     </>
                                   )}
                                 </tr>
@@ -1348,27 +1348,27 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                               <tbody>
                                 {!activeLedgerName ? (
                                   <tr>
-                                    <td colSpan={6} className="p-3 text-center text-[10px] text-slate-400 italic font-black uppercase text-rose-500 dark:text-rose-400" style={{ borderColor: theme.border }}>
+                                    <td colSpan={6} className="p-3 text-center text-[10px] text-[var(--app-muted)] italic font-black uppercase text-rose-500 dark:text-rose-400" style={{ borderColor: theme.border }}>
                                       No Outstanding allocations bills found.
                                     </td>
                                   </tr>
                                 ) : !hasBillsToAllocate ? (
                                   <tr>
-                                    <td colSpan={6} className="p-3 text-center text-[10px] text-slate-400 italic font-black uppercase text-rose-500 dark:text-rose-400" style={{ borderColor: theme.border }}>
+                                    <td colSpan={6} className="p-3 text-center text-[10px] text-[var(--app-muted)] italic font-black uppercase text-rose-500 dark:text-rose-400" style={{ borderColor: theme.border }}>
                                       {activeType === 'cash_payment' ? `No pending bills available to allocate for "${activeLedgerName}".` : "No Outstanding Sales Invoices Found"}
                                     </td>
                                   </tr>
                                 ) : (
                                   (form.billRows || []).map((row, idx) => {
                                     return (
-                                      <tr key={row.id || idx} className="hover:bg-slate-50/20">
-                                        <td className="p-1 border text-center text-[10px] font-bold text-slate-400" style={{ borderColor: theme.border }}>
+                                      <tr key={row.id || idx} className="hover:bg-[var(--app-content-bg)]/20">
+                                        <td className="p-1 border text-center text-[10px] font-bold text-[var(--app-muted)]" style={{ borderColor: theme.border }}>
                                           {idx + 1}
                                         </td>
                                         <td className="p-1 border font-bold text-[10px]" style={{ borderColor: theme.border, color: theme.text }}>
                                           {row.billNo || '—'}
                                         </td>
-                                        <td className="p-1 border text-slate-500 text-[10px] font-bold" style={{ borderColor: theme.border }}>
+                                        <td className="p-1 border text-[var(--app-muted)] text-[10px] font-bold" style={{ borderColor: theme.border }}>
                                           {row.date || '—'}
                                         </td>
                                         {activeType === 'cash_payment' ? (
@@ -1376,7 +1376,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                             <td className="p-1 border text-right font-bold text-[10px]" style={{ borderColor: theme.border, color: theme.text }}>
                                               ₹ {(row.pendingAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                             </td>
-                                            <td className="p-1 border text-slate-500 text-[10px] font-bold" style={{ borderColor: theme.border }}>
+                                            <td className="p-1 border text-[var(--app-muted)] text-[10px] font-bold" style={{ borderColor: theme.border }}>
                                               {row.dueDate || '—'}
                                             </td>
                                           </>
@@ -1412,9 +1412,9 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                             </table>
                           </div>
 
-                          <div className="flex justify-between items-center px-2.5 py-1.5 border rounded-sm bg-slate-50 dark:bg-slate-900/10 text-[10px] font-black text-slate-700 dark:text-slate-300" style={{ borderColor: theme.border }}>
+                          <div className="flex justify-between items-center px-2.5 py-1.5 border rounded-sm bg-[var(--app-content-bg)] text-[10px] font-black text-[var(--app-heading)]" style={{ borderColor: theme.border }}>
                             <div className="flex gap-1 items-center">
-                              <span className="uppercase text-slate-400 tracking-wider">
+                              <span className="uppercase text-[var(--app-muted)] tracking-wider">
                                 {activeType === 'cash_payment' ? 'Total Bill Amount (₹)' : 'Total Outstanding Amount (₹)'}
                               </span>
                               <span className="text-[11.5px] text-[#1E3A8A] dark:text-[var(--app-accent)]">
@@ -1422,7 +1422,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                               </span>
                             </div>
                             <div className="flex gap-1 items-center">
-                              <span className="uppercase text-slate-400 tracking-wider">
+                              <span className="uppercase text-[var(--app-muted)] tracking-wider">
                                 {activeType === 'cash_payment' ? 'Total Allocated Amount (₹)' : 'Total Received Amount (₹)'}
                               </span>
                               <span className="text-[11.5px] text-[#1E3A8A] dark:text-[var(--app-accent)]">
@@ -1430,10 +1430,10 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                               </span>
                             </div>
                             <div className="flex gap-1 items-center">
-                              <span className="uppercase text-slate-400 tracking-wider">
+                              <span className="uppercase text-[var(--app-muted)] tracking-wider">
                                 {activeType === 'cash_payment' ? 'Remaining Unallocated (₹)' : 'Remaining Unallocated Amount (₹)'}
                               </span>
-                              <span className={`text-[11.5px] ${totalUnallocatedVal === 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                              <span className={`text-[11.5px] ${totalUnallocatedVal === 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
                                 ₹ {totalUnallocatedVal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                               </span>
                             </div>
@@ -1443,8 +1443,8 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                     )}
 
                   {/* Instrument / Payment Details Card */}
-                  <div className="rounded-lg border p-2.5 shadow-sm bg-white dark:bg-[#12161a]" style={{ borderColor: theme.border }}>
-                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-2">
+                  <div className="rounded-lg border p-2.5 shadow-sm bg-[var(--app-panel-bg)]" style={{ borderColor: theme.border }}>
+                    <h3 className="text-xs font-black uppercase tracking-wider text-[var(--app-heading)] mb-2">
                       {activeType === 'cash_payment' ? 'Instrument / Payment Details (Optional)' : 'Instrument / Receipt Details (Optional)'}
                     </h3>
                     <div className="grid grid-cols-12 gap-2">
@@ -1532,8 +1532,8 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
 
                   {/* Footer Message */}
                   <div className={`flex items-center gap-1.5 font-bold text-[11px] p-1.5 border border-dashed rounded ${isValidated
-                      ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50/20 dark:bg-emerald-950/10 border-emerald-500/20'
-                      : 'text-rose-600 dark:text-rose-400 bg-rose-50/20 dark:bg-rose-950/10 border-rose-500/20'
+                      ? 'text-emerald-500 dark:text-emerald-400 bg-emerald-50/20 dark:bg-emerald-950/10 border-emerald-500/20'
+                      : 'text-rose-500 dark:text-rose-400 bg-rose-50/20 dark:bg-rose-950/10 border-rose-500/20'
                     }`}>
                     {isValidated ? <CheckCircle2 size={12} /> : <X size={12} />}
                     <span>
@@ -1561,21 +1561,21 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                 <button
                   type="button"
                   onClick={addBillRow}
-                  className="px-2.5 py-1 rounded-none border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 text-[9.5px] font-black uppercase flex items-center gap-1 transition-all"
+                  className="px-2.5 py-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 hover:bg-emerald-500/20 text-[11px] font-black uppercase flex items-center gap-1 transition-all"
                 >
                   <Plus size={10} strokeWidth={3} /> Add Line
                 </button>
                 <button
                   type="button"
                   onClick={() => toast.info('Add Ledger option clicked (Not implemented)')}
-                  className="px-2.5 py-1 rounded-none border border-[var(--app-accent)] bg-[var(--app-accent-soft)] text-[var(--app-accent)] dark:text-[var(--app-accent)] hover:bg-[var(--app-accent-soft)] text-[9.5px] font-black uppercase flex items-center gap-1 transition-all"
+                  className="px-2.5 py-1 rounded-lg border border-[var(--app-accent)] bg-[var(--app-accent-soft)] text-[var(--app-accent)] dark:text-[var(--app-accent)] hover:bg-[var(--app-accent-soft)] text-[11px] font-black uppercase flex items-center gap-1 transition-all"
                 >
                   <Plus size={10} strokeWidth={3} /> Add Ledger
                 </button>
                 <button
                   type="button"
                   onClick={() => toast.info('Add Item option clicked (Not implemented)')}
-                  className="px-2.5 py-1 rounded-none border border-[var(--app-accent)] bg-[var(--app-accent-soft)] text-[var(--app-accent)] dark:text-[var(--app-accent)] hover:bg-[var(--app-accent-soft)] text-[9.5px] font-black uppercase flex items-center gap-1 transition-all"
+                  className="px-2.5 py-1 rounded-lg border border-[var(--app-accent)] bg-[var(--app-accent-soft)] text-[var(--app-accent)] dark:text-[var(--app-accent)] hover:bg-[var(--app-accent-soft)] text-[11px] font-black uppercase flex items-center gap-1 transition-all"
                 >
                   <Plus size={10} strokeWidth={3} /> Add Item
                 </button>
@@ -1674,7 +1674,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                           <button
                             type="button"
                             onClick={() => setShowBillAllocation(true)}
-                            className="px-3 py-1.5 border text-[9px] font-black uppercase tracking-wider text-[var(--app-accent)] dark:text-[var(--app-accent)] hover:bg-[var(--app-accent-soft)] dark:hover:bg-[var(--app-accent-soft)] transition-all flex items-center gap-1 shrink-0 mt-1"
+                            className="px-3 py-1.5 border text-[11px] font-black uppercase tracking-wider text-[var(--app-accent)] dark:text-[var(--app-accent)] hover:bg-[var(--app-accent-soft)] dark:hover:bg-[var(--app-accent-soft)] transition-all flex items-center gap-1 shrink-0 mt-1"
                             style={{ borderColor: theme.border }}
                           >
                             <Eye size={10} /> {activeType === 'bank_payment' ? "View Invoices" : "View Bills"}
@@ -1821,25 +1821,25 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                     <table className="w-full text-left border-collapse min-w-[800px]">
                       <thead>
                         <tr style={{ backgroundColor: theme.headerBg }}>
-                          <th className="p-2 border text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 w-12 text-center" style={{ borderColor: theme.border }}>#</th>
-                          <th className="p-2 border text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400" style={{ borderColor: theme.border }}>Ledger Name *</th>
-                          <th className="p-2 border text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400" style={{ borderColor: theme.border }}>Description</th>
-                          <th className="p-2 border text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 w-44 text-right" style={{ borderColor: theme.border }}>Amount (₹)</th>
-                          <th className="p-2 border text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 w-40" style={{ borderColor: theme.border }}>Cost Center</th>
-                          <th className="p-2 border text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 w-16 text-center" style={{ borderColor: theme.border }}>Action</th>
+                          <th className="p-2 border text-[11px] font-black uppercase tracking-wider text-[var(--app-muted)] w-12 text-center" style={{ borderColor: theme.border }}>#</th>
+                          <th className="p-2 border text-[11px] font-black uppercase tracking-wider text-[var(--app-muted)]" style={{ borderColor: theme.border }}>Ledger Name *</th>
+                          <th className="p-2 border text-[11px] font-black uppercase tracking-wider text-[var(--app-muted)]" style={{ borderColor: theme.border }}>Description</th>
+                          <th className="p-2 border text-[11px] font-black uppercase tracking-wider text-[var(--app-muted)] w-44 text-right" style={{ borderColor: theme.border }}>Amount (₹)</th>
+                          <th className="p-2 border text-[11px] font-black uppercase tracking-wider text-[var(--app-muted)] w-40" style={{ borderColor: theme.border }}>Cost Center</th>
+                          <th className="p-2 border text-[11px] font-black uppercase tracking-wider text-[var(--app-muted)] w-16 text-center" style={{ borderColor: theme.border }}>Action</th>
                         </tr>
                       </thead>
                       <tbody>
                         {(form.ledgerRows || []).map((row, idx) => (
-                          <tr key={row.id || idx} className="hover:bg-slate-50/20">
+                          <tr key={row.id || idx} className="hover:bg-[var(--app-content-bg)]/20">
                             <td className="p-1 border text-center" style={{ borderColor: theme.border }}>
-                              <span className="text-[11px] font-bold text-slate-400">{idx + 1}</span>
+                              <span className="text-[11px] font-bold text-[var(--app-muted)]">{idx + 1}</span>
                             </td>
                             <td className="p-1 border" style={{ borderColor: theme.border }}>
                               <select
                                 value={row.ledgerName || ''}
                                 onChange={e => updateLedgerRow(idx, 'ledgerName', e.target.value)}
-                                className="w-full h-7 px-2 border text-[11px] font-bold outline-none rounded-none"
+                                className="w-full h-7 px-2 border text-[11px] font-bold outline-none rounded-lg"
                                 style={{ borderColor: isDark ? '#475569' : '#94a3b8', color: theme.text, backgroundColor: theme.inputBg }}
                               >
                                 <option value="" disabled style={{ color: '#94a3b8' }}>Select Ledger...</option>
@@ -1855,7 +1855,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                 placeholder="Enter description"
                                 value={row.description || ''}
                                 onChange={e => updateLedgerRow(idx, 'description', e.target.value)}
-                                className="w-full h-7 px-2 border text-[11px] font-bold outline-none rounded-none"
+                                className="w-full h-7 px-2 border text-[11px] font-bold outline-none rounded-lg"
                                 style={{ borderColor: isDark ? '#475569' : '#94a3b8', color: theme.text, backgroundColor: theme.inputBg }}
                               />
                             </td>
@@ -1865,7 +1865,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                 placeholder="0.00"
                                 value={row.amount || ''}
                                 onChange={e => updateLedgerRow(idx, 'amount', e.target.value)}
-                                className="w-full h-7 px-2 border text-[11px] font-black outline-none rounded-none text-right"
+                                className="w-full h-7 px-2 border text-[11px] font-black outline-none rounded-lg text-right"
                                 style={{ borderColor: isDark ? '#475569' : '#94a3b8', color: theme.text, backgroundColor: theme.inputBg }}
                               />
                             </td>
@@ -1873,7 +1873,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                               <select
                                 value={row.costCenter || ''}
                                 onChange={e => updateLedgerRow(idx, 'costCenter', e.target.value)}
-                                className="w-full h-7 px-2 border text-[11px] font-bold outline-none rounded-none"
+                                className="w-full h-7 px-2 border text-[11px] font-bold outline-none rounded-lg"
                                 style={{ borderColor: isDark ? '#475569' : '#94a3b8', color: theme.text, backgroundColor: theme.inputBg }}
                               >
                                 <option value="">Select...</option>
@@ -1900,13 +1900,13 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                     <button
                       type="button"
                       onClick={addLedgerRow}
-                      className="px-3 py-1.5 rounded-none border border-[var(--app-accent)] bg-[var(--app-accent-soft)] text-[var(--app-accent)] dark:text-[var(--app-accent)] hover:bg-[var(--app-accent-soft)] text-[9.5px] font-black uppercase flex items-center gap-1 transition-all"
+                      className="px-3 py-1.5 rounded-lg border border-[var(--app-accent)] bg-[var(--app-accent-soft)] text-[var(--app-accent)] dark:text-[var(--app-accent)] hover:bg-[var(--app-accent-soft)] text-[11px] font-black uppercase flex items-center gap-1 transition-all"
                     >
                       <Plus size={10} strokeWidth={3} /> Add Ledger
                     </button>
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Total Ledger Amount:</span>
-                      <span className="text-[14px] font-black text-emerald-600 dark:text-emerald-400">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-[var(--app-muted)]">Total Ledger Amount:</span>
+                      <span className="text-[14px] font-black text-emerald-500 dark:text-emerald-400">
                         ₹ {(form.ledgerRows || []).reduce((acc, r) => acc + (parseFloat(r.amount) || 0), 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     </div>
@@ -1930,24 +1930,24 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                           <table className="w-full text-left border-collapse min-w-[800px]">
                             <thead>
                               <tr style={{ backgroundColor: theme.headerBg }}>
-                                <th className="p-2 border text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 w-16 text-center" style={{ borderColor: theme.border }}>#</th>
-                                <th className="p-2 border text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400" style={{ borderColor: theme.border }}>Invoice No</th>
-                                <th className="p-2 border text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 w-36" style={{ borderColor: theme.border }}>Invoice Date</th>
-                                <th className="p-2 border text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 w-48 text-right" style={{ borderColor: theme.border }}>Pending Amount (₹)</th>
-                                <th className="p-2 border text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 w-48 text-right" style={{ borderColor: theme.border }}>Receiving Amount (₹)</th>
+                                <th className="p-2 border text-[11px] font-black uppercase tracking-wider text-[var(--app-muted)] w-16 text-center" style={{ borderColor: theme.border }}>#</th>
+                                <th className="p-2 border text-[11px] font-black uppercase tracking-wider text-[var(--app-muted)]" style={{ borderColor: theme.border }}>Invoice No</th>
+                                <th className="p-2 border text-[11px] font-black uppercase tracking-wider text-[var(--app-muted)] w-36" style={{ borderColor: theme.border }}>Invoice Date</th>
+                                <th className="p-2 border text-[11px] font-black uppercase tracking-wider text-[var(--app-muted)] w-48 text-right" style={{ borderColor: theme.border }}>Pending Amount (₹)</th>
+                                <th className="p-2 border text-[11px] font-black uppercase tracking-wider text-[var(--app-muted)] w-48 text-right" style={{ borderColor: theme.border }}>Receiving Amount (₹)</th>
                               </tr>
                             </thead>
                             <tbody>
                               {(form.billRows || []).map((row, idx) => {
                                 return (
-                                  <tr key={row.id || idx} className="hover:bg-slate-50/20">
+                                  <tr key={row.id || idx} className="hover:bg-[var(--app-content-bg)]/20">
                                     <td className="p-2 border text-center" style={{ borderColor: theme.border }}>
-                                      <span className="text-[11px] font-bold text-slate-400">{idx + 1}</span>
+                                      <span className="text-[11px] font-bold text-[var(--app-muted)]">{idx + 1}</span>
                                     </td>
                                     <td className="p-2 border font-bold text-[11px]" style={{ borderColor: theme.border, color: theme.text }}>
                                       {row.billNo || '—'}
                                     </td>
-                                    <td className="p-2 border text-slate-500 text-[11px] font-bold" style={{ borderColor: theme.border }}>
+                                    <td className="p-2 border text-[var(--app-muted)] text-[11px] font-bold" style={{ borderColor: theme.border }}>
                                       {row.date || '—'}
                                     </td>
                                     <td className="p-2 border text-right font-bold text-[11px]" style={{ borderColor: theme.border, color: theme.text }}>
@@ -1959,7 +1959,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                         placeholder="0.00"
                                         value={row.allocationAmount || ''}
                                         onChange={e => handleAllocationChange(idx, e.target.value)}
-                                        className="w-full h-8 px-2 border text-[11px] font-black outline-none rounded-none text-right"
+                                        className="w-full h-8 px-2 border text-[11px] font-black outline-none rounded-lg text-right"
                                         style={{
                                           borderColor: isDark ? '#475569' : '#94a3b8',
                                           color: theme.text,
@@ -1984,11 +1984,11 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                               </span>
                             </div>
                             <div className="flex items-center gap-2">
-                              <span className="text-[9.5px] font-black uppercase text-slate-400">Handle excess as:</span>
+                              <span className="text-[11px] font-black uppercase text-[var(--app-muted)]">Handle excess as:</span>
                               <select
                                 value={form.excessOption || ''}
                                 onChange={e => setFormValue('excessOption', e.target.value)}
-                                className="h-8 px-2 border text-[11px] font-black outline-none rounded-none w-48"
+                                className="h-8 px-2 border text-[11px] font-black outline-none rounded-lg w-48"
                                 style={{
                                   borderColor: isDark ? '#475569' : '#cbd5e1',
                                   color: theme.text,
@@ -2017,13 +2017,13 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                           </div>
                           <div className="flex flex-col items-end gap-2 text-right">
                             <div className="flex items-center gap-2">
-                              <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Total Receipt:</span>
+                              <span className="text-[10px] font-black uppercase tracking-wider text-[var(--app-muted)]">Total Receipt:</span>
                               <span className="text-[14px] font-black" style={{ color: theme.text }}>
                                 ₹ {totalAllocated.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </span>
                             </div>
                             <div className="flex items-center gap-2">
-                              <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Total Unallocated:</span>
+                              <span className="text-[10px] font-black uppercase tracking-wider text-[var(--app-muted)]">Total Unallocated:</span>
                               <span className="text-[14px] font-black text-rose-500">
                                 ₹ {totalUnallocated.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </span>
@@ -2034,13 +2034,13 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                     </FormSection>
                   ) : form.partyLedger ? (
                     <div className="text-center py-2.5">
-                      <p className="text-[11px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50/50 dark:bg-amber-950/10 border border-dashed border-amber-200/50 p-3">
+                      <p className="text-[11px] font-bold text-amber-500 dark:text-amber-400 bg-amber-50/50 dark:bg-amber-950/10 border border-dashed border-amber-200/50 p-3">
                         No pending invoices available for allocation.
                       </p>
                     </div>
                   ) : (
                     <div className="text-center py-2.5">
-                      <p className="text-[11px] font-bold text-slate-400 italic">
+                      <p className="text-[11px] font-bold text-[var(--app-muted)] italic">
                         Please select a party ledger.
                       </p>
                     </div>
@@ -2056,7 +2056,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                     }}
                   >
                     {!form.partyLedger ? (
-                      <div className="p-2 text-center text-[10px] text-slate-400 font-medium italic">
+                      <div className="p-2 text-center text-[10px] text-[var(--app-muted)] font-medium italic">
                         Please select a party ledger.
                       </div>
                     ) : selectedPartyDetails?.pendingBills && selectedPartyDetails.pendingBills.length > 0 ? (
@@ -2065,24 +2065,24 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                           <table className="w-full text-left border-collapse min-w-[800px]">
                             <thead>
                               <tr style={{ backgroundColor: theme.headerBg }}>
-                                <th className="p-2 border text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 w-16 text-center" style={{ borderColor: theme.border }}>#</th>
-                                <th className="p-2 border text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400" style={{ borderColor: theme.border }}>Bill No</th>
-                                <th className="p-2 border text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 w-36" style={{ borderColor: theme.border }}>Bill Date</th>
-                                <th className="p-2 border text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 w-48 text-right" style={{ borderColor: theme.border }}>Pending Amount (₹)</th>
-                                <th className="p-2 border text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 w-48 text-right" style={{ borderColor: theme.border }}>Paying Amount (₹)</th>
+                                <th className="p-2 border text-[11px] font-black uppercase tracking-wider text-[var(--app-muted)] w-16 text-center" style={{ borderColor: theme.border }}>#</th>
+                                <th className="p-2 border text-[11px] font-black uppercase tracking-wider text-[var(--app-muted)]" style={{ borderColor: theme.border }}>Bill No</th>
+                                <th className="p-2 border text-[11px] font-black uppercase tracking-wider text-[var(--app-muted)] w-36" style={{ borderColor: theme.border }}>Bill Date</th>
+                                <th className="p-2 border text-[11px] font-black uppercase tracking-wider text-[var(--app-muted)] w-48 text-right" style={{ borderColor: theme.border }}>Pending Amount (₹)</th>
+                                <th className="p-2 border text-[11px] font-black uppercase tracking-wider text-[var(--app-muted)] w-48 text-right" style={{ borderColor: theme.border }}>Paying Amount (₹)</th>
                               </tr>
                             </thead>
                             <tbody>
                               {(form.billRows || []).map((row, idx) => {
                                 return (
-                                  <tr key={row.id || idx} className="hover:bg-slate-50/20">
+                                  <tr key={row.id || idx} className="hover:bg-[var(--app-content-bg)]/20">
                                     <td className="p-2 border text-center" style={{ borderColor: theme.border }}>
-                                      <span className="text-[11px] font-bold text-slate-400">{idx + 1}</span>
+                                      <span className="text-[11px] font-bold text-[var(--app-muted)]">{idx + 1}</span>
                                     </td>
                                     <td className="p-2 border font-bold text-[11px]" style={{ borderColor: theme.border, color: theme.text }}>
                                       {row.billNo || '—'}
                                     </td>
-                                    <td className="p-2 border text-slate-500 text-[11px] font-bold" style={{ borderColor: theme.border }}>
+                                    <td className="p-2 border text-[var(--app-muted)] text-[11px] font-bold" style={{ borderColor: theme.border }}>
                                       {row.date || '—'}
                                     </td>
                                     <td className="p-2 border text-right font-bold text-[11px]" style={{ borderColor: theme.border, color: theme.text }}>
@@ -2094,7 +2094,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                         placeholder="0.00"
                                         value={row.allocationAmount || ''}
                                         onChange={e => handleAllocationChange(idx, e.target.value)}
-                                        className="w-full h-8 px-2 border text-[11px] font-black outline-none rounded-none text-right"
+                                        className="w-full h-8 px-2 border text-[11px] font-black outline-none rounded-lg text-right"
                                         style={{
                                           borderColor: isDark ? '#475569' : '#94a3b8',
                                           color: theme.text,
@@ -2122,13 +2122,13 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                           </div>
                           <div className="flex flex-col items-end gap-2 text-right">
                             <div className="flex items-center gap-2">
-                              <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Total Payment:</span>
+                              <span className="text-[10px] font-black uppercase tracking-wider text-[var(--app-muted)]">Total Payment:</span>
                               <span className="text-[14px] font-black" style={{ color: theme.text }}>
                                 ₹ {totalAllocated.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </span>
                             </div>
                             <div className="flex items-center gap-2">
-                              <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Total Unallocated:</span>
+                              <span className="text-[10px] font-black uppercase tracking-wider text-[var(--app-muted)]">Total Unallocated:</span>
                               <span className="text-[14px] font-black text-rose-500">
                                 ₹ {totalUnallocated.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </span>
@@ -2138,7 +2138,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                       </div>
                     ) : (
                       <div className="text-center py-2.5">
-                        <p className="text-[11px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50/50 dark:bg-amber-950/10 border border-dashed border-amber-200/50 p-3">
+                        <p className="text-[11px] font-bold text-amber-500 dark:text-amber-400 bg-amber-50/50 dark:bg-amber-950/10 border border-dashed border-amber-200/50 p-3">
                           No pending bills for this party
                         </p>
                       </div>
@@ -2373,7 +2373,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                             backgroundColor: isDark ? 'rgba(16, 185, 129, 0.03)' : '#f0fdf4'
                           }}
                         >
-                          <h4 className="text-[10px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                          <h4 className="text-[10px] font-black uppercase tracking-wider text-emerald-500 dark:text-emerald-400">
                             (DR) SOURCE ACCOUNT
                           </h4>
                           <div className="flex flex-col gap-2">
@@ -2407,8 +2407,8 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                         </div>
 
                         {/* Middle Arrow */}
-                        <ArrowRight className="text-slate-400 shrink-0 hidden md:block" size={20} />
-                        <ChevronDown className="text-slate-400 shrink-0 md:hidden" size={20} />
+                        <ArrowRight className="text-[var(--app-muted)] shrink-0 hidden md:block" size={20} />
+                        <ChevronDown className="text-[var(--app-muted)] shrink-0 md:hidden" size={20} />
 
                         {/* Blue CR Panel */}
                         <div
@@ -2460,21 +2460,21 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                       <div className="flex flex-col gap-1.5 text-[10px] h-full justify-between py-1">
                         <div className="flex flex-col gap-2">
                           <div className="flex justify-between items-center py-1 border-b border-dashed" style={{ borderColor: theme.border }}>
-                            <span className="text-slate-400 font-bold">Source Amount (Dr)</span>
-                            <span className="font-extrabold text-emerald-600 dark:text-emerald-400">{formatCur(sourceAmt)}</span>
+                            <span className="text-[var(--app-muted)] font-bold">Source Amount (Dr)</span>
+                            <span className="font-extrabold text-emerald-500 dark:text-emerald-400">{formatCur(sourceAmt)}</span>
                           </div>
                           <div className="flex justify-between items-center py-1 border-b border-dashed" style={{ borderColor: theme.border }}>
-                            <span className="text-slate-400 font-bold">Destination Amount (Cr)</span>
+                            <span className="text-[var(--app-muted)] font-bold">Destination Amount (Cr)</span>
                             <span className="font-extrabold text-[var(--app-accent)] dark:text-[var(--app-accent)]">{formatCur(destAmt)}</span>
                           </div>
                           <div className="flex justify-between items-center py-1 border-b border-dashed" style={{ borderColor: theme.border }}>
-                            <span className="text-slate-400 font-bold">Difference</span>
+                            <span className="text-[var(--app-muted)] font-bold">Difference</span>
                             <span className="font-extrabold text-rose-500">{formatCur(differenceVal)}</span>
                           </div>
                         </div>
                         <div className="flex justify-between items-center pt-2">
-                          <span className="text-slate-400 font-black uppercase tracking-wider text-[8px]">Status</span>
-                          <span className={`px-2 py-0.5 text-[8.5px] font-black uppercase tracking-wider shadow-sm text-white ${isBalanced ? 'bg-emerald-600' : 'bg-rose-600'}`}>
+                          <span className="text-[var(--app-muted)] font-black uppercase tracking-wider text-[10px]">Status</span>
+                          <span className={`px-2 py-0.5 text-[10px] font-black uppercase tracking-wider shadow-sm text-white ${isBalanced ? 'bg-emerald-600' : 'bg-rose-600'}`}>
                             {statusLabel}
                           </span>
                         </div>
@@ -2592,7 +2592,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                       {/* Contra Source (From) */}
                       <div className="rounded-lg border p-2" style={{ borderColor: theme.border, backgroundColor: isDark ? 'rgba(16, 185, 129, 0.03)' : '#f0fdf4' }}>
-                        <h4 className="text-[10px] font-black uppercase tracking-wider text-emerald-600 mb-1.5 flex items-center gap-1">
+                        <h4 className="text-[10px] font-black uppercase tracking-wider text-emerald-500 mb-1.5 flex items-center gap-1">
                           <Wallet size={11} /> Source (From)
                         </h4>
                         <div className="space-y-2">
@@ -2635,19 +2635,19 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                         {/* Payment Mode (Cash/Bank Selection) */}
                         <div className="flex flex-col gap-1">
-                          <label className="text-[9px] md:text-[10px] font-black uppercase tracking-widest leading-none mb-1.5" style={{ color: theme.mutedText }}>Payment Mode</label>
-                          <div className="flex gap-1 bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg w-max border" style={{ borderColor: theme.border }}>
+                          <label className="text-[11px] md:text-[10px] font-black uppercase tracking-widest leading-none mb-1.5" style={{ color: theme.mutedText }}>Payment Mode</label>
+                          <div className="flex gap-1 bg-[var(--app-table-head-bg)] p-0.5 rounded-lg w-max border" style={{ borderColor: theme.border }}>
                             <button
                               type="button"
                               onClick={() => handlePaymentModeChange('cash')}
-                              className={`px-4 py-1.5 rounded-md text-[10px] font-black tracking-wider uppercase transition-all duration-200 ${paymentMode === 'cash' ? 'bg-[#09B6B9] text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
+                              className={`px-4 py-1.5 rounded-md text-[10px] font-black tracking-wider uppercase transition-all duration-200 ${paymentMode === 'cash' ? 'bg-[#09B6B9] text-white shadow-sm' : 'text-[var(--app-muted)] hover:text-slate-200'}`}
                             >
                               Cash
                             </button>
                             <button
                               type="button"
                               onClick={() => handlePaymentModeChange('bank')}
-                              className={`px-4 py-1.5 rounded-md text-[10px] font-black tracking-wider uppercase transition-all duration-200 ${paymentMode === 'bank' ? 'bg-[#09B6B9] text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
+                              className={`px-4 py-1.5 rounded-md text-[10px] font-black tracking-wider uppercase transition-all duration-200 ${paymentMode === 'bank' ? 'bg-[#09B6B9] text-white shadow-sm' : 'text-[var(--app-muted)] hover:text-slate-200'}`}
                             >
                               Bank
                             </button>
@@ -2732,18 +2732,18 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                             style={{ backgroundColor: isDark ? 'rgba(9, 182, 185, 0.03)' : '#f0f9fa', borderColor: isDark ? 'rgba(9, 182, 185, 0.1)' : '#cffafe' }}>
                             <div className="flex justify-between items-center text-[10px]">
                               <div className="flex gap-1.5 items-center">
-                                <span className="text-[9px] font-black uppercase text-[#09B6B9] tracking-wider">Group:</span>
+                                <span className="text-[11px] font-black uppercase text-[#09B6B9] tracking-wider">Group:</span>
                                 <span style={{ color: theme.text }}>{selectedPartyDetails.groupName}</span>
                               </div>
                               <div className="flex gap-1.5 items-center">
-                                <span className="text-[9px] font-black uppercase text-[#09B6B9] tracking-wider">Ledger Balance:</span>
+                                <span className="text-[11px] font-black uppercase text-[#09B6B9] tracking-wider">Ledger Balance:</span>
                                 <span style={{ color: theme.text }}>
                                   ₹ {selectedPartyDetails.outstandingBalance?.toLocaleString('en-IN')} ({selectedPartyDetails.outstandingType})
                                 </span>
                               </div>
                             </div>
                             <div className="flex justify-between items-center border-t pt-1" style={{ borderColor: isDark ? 'rgba(9, 182, 185, 0.08)' : '#cffafe' }}>
-                              <span className="text-[9px] font-black uppercase text-[var(--app-accent)] tracking-wider">Party Outstanding:</span>
+                              <span className="text-[11px] font-black uppercase text-[var(--app-accent)] tracking-wider">Party Outstanding:</span>
                               <span className="text-[11.5px] font-black text-[var(--app-accent)] dark:text-[var(--app-accent)]">
                                 ₹ {partyOutstanding.toLocaleString('en-IN')}
                               </span>
@@ -2753,8 +2753,8 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                       })()}
                       {/* Bank instrument details are shown directly inside the Transaction Details card when Bank is active */}
                       {paymentMode === 'bank' && (
-                        <div className="mt-1.5 p-2 rounded-lg border border-dashed bg-slate-50/20 dark:bg-slate-800/5 animate-in fade-in duration-200" style={{ borderColor: theme.border }}>
-                          <h4 className="text-[9.5px] md:text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1.5 flex items-center gap-1">
+                        <div className="mt-1.5 p-2 rounded-lg border border-dashed bg-[var(--app-content-bg)]/20 animate-in fade-in duration-200" style={{ borderColor: theme.border }}>
+                          <h4 className="text-[11px] md:text-[10px] font-black uppercase tracking-wider text-[var(--app-muted)] mb-1.5 flex items-center gap-1">
                             <Landmark size={11} /> Bank Instrument Details
                           </h4>
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
@@ -2772,7 +2772,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
 
                       {/* Manual Toggles for Collapsibles */}
                       <div className="mt-1.5 pt-1.5 border-t flex flex-wrap items-center justify-between gap-2" style={{ borderColor: theme.border }}>
-                        <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Additional Details</span>
+                        <span className="text-[11px] font-black uppercase tracking-widest text-[var(--app-muted)]">Additional Details</span>
                         <div className="flex flex-wrap gap-2">
                           {isCreditor && (
                             <label className="flex items-center gap-1.5 cursor-pointer select-none">
@@ -2810,7 +2810,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                 }}
                                 className="w-3.5 h-3.5 rounded accent-[var(--app-accent)] cursor-pointer"
                               />
-                              <span className="text-[9.5px] md:text-[10px] font-black uppercase tracking-wider text-slate-400 hover:text-slate-200">Bill Allocation</span>
+                              <span className="text-[11px] md:text-[10px] font-black uppercase tracking-wider text-[var(--app-muted)] hover:text-slate-200">Bill Allocation</span>
                             </label>
                           )}
                           <label className="flex items-center gap-1.5 cursor-pointer select-none">
@@ -2840,7 +2840,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                               }}
                               className="w-3.5 h-3.5 rounded accent-[var(--app-accent)] cursor-pointer"
                             />
-                            <span className="text-[9.5px] md:text-[10px] font-black uppercase tracking-wider text-slate-400 hover:text-slate-200">Cost Center</span>
+                            <span className="text-[11px] md:text-[10px] font-black uppercase tracking-wider text-[var(--app-muted)] hover:text-slate-200">Cost Center</span>
                           </label>
                           <label className="flex items-center gap-1.5 cursor-pointer select-none">
                             <input
@@ -2861,7 +2861,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                               }}
                               className="w-3.5 h-3.5 rounded accent-[var(--app-accent)] cursor-pointer"
                             />
-                            <span className="text-[9.5px] md:text-[10px] font-black uppercase tracking-wider text-slate-400 hover:text-slate-200">GST</span>
+                            <span className="text-[11px] md:text-[10px] font-black uppercase tracking-wider text-[var(--app-muted)] hover:text-slate-200">GST</span>
                           </label>
                           <label className="flex items-center gap-1.5 cursor-pointer select-none">
                             <input
@@ -2882,7 +2882,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                               }}
                               className="w-3.5 h-3.5 rounded accent-[var(--app-accent)] cursor-pointer"
                             />
-                            <span className="text-[9.5px] md:text-[10px] font-black uppercase tracking-wider text-slate-400 hover:text-slate-200">TDS</span>
+                            <span className="text-[11px] md:text-[10px] font-black uppercase tracking-wider text-[var(--app-muted)] hover:text-slate-200">TDS</span>
                           </label>
                         </div>
                       </div>
@@ -2893,7 +2893,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                 {/* Narration Card */}
                 <FormSection title="Narration" zIndex={10} defaultOpen={true}>
                   <textarea
-                    className="w-full h-8 md:h-10 rounded-lg border p-1.5 text-xs md:text-[12.5px] font-bold outline-none transition-all focus:border-[var(--app-accent)] resize-none shadow-sm placeholder:text-slate-300"
+                    className="w-full h-8 md:h-10 rounded-lg border p-1.5 text-xs md:text-[12.5px] font-bold outline-none transition-all focus:border-[var(--app-accent)] resize-none shadow-sm placeholder:text-[var(--app-muted)]"
                     placeholder="Enter detailed narration here..."
                     value={form.narration || ''}
                     onChange={e => setFormValue('narration', e.target.value)}
@@ -2961,7 +2961,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                             e.stopPropagation();
                             addBillRow();
                           }}
-                          className="px-2 py-0.5 rounded-none border border-emerald-500/30 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 text-[9.5px] font-black uppercase flex items-center gap-1 transition-all mr-2"
+                          className="px-2 py-0.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 text-[11px] font-black uppercase flex items-center gap-1 transition-all mr-2"
                         >
                           <Plus size={10} strokeWidth={3} /> Add Row
                         </button>
@@ -2977,13 +2977,13 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                             return (
                               <div
                                 key={row.id || idx}
-                                className="p-2 rounded-none border flex flex-col gap-2 relative transition-all duration-200"
+                                className="p-2 rounded-lg border flex flex-col gap-2 relative transition-all duration-200"
                                 style={{ borderColor: theme.border, backgroundColor: theme.inputBg }}
                               >
                                 {/* Row 1: Bill Type & Reference Selector */}
                                 <div className="grid grid-cols-2 gap-2">
                                   <div className="flex flex-col gap-0.5">
-                                    <span className="text-[8px] font-black uppercase text-slate-400">Bill Type</span>
+                                    <span className="text-[10px] font-black uppercase text-[var(--app-muted)]">Bill Type</span>
                                     <select
                                       value={row.billType || ''}
                                       onChange={e => {
@@ -3013,7 +3013,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                         updateBillRow(idx, 'billAmount', 0);
                                         updateBillRow(idx, 'pendingAmount', 0);
                                       }}
-                                      className="w-full h-7.5 px-1.5 rounded-none border text-[11px] font-bold outline-none"
+                                      className="w-full h-7.5 px-1.5 rounded-lg border text-[11px] font-bold outline-none"
                                       style={{ borderColor: theme.border, color: theme.text, backgroundColor: theme.panel }}
                                     >
                                       <option value="Against Ref">Against Reference</option>
@@ -3025,12 +3025,12 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                   <div className="flex flex-col gap-0.5">
                                     {row.billType !== 'On Account' && (
                                       <>
-                                        <span className="text-[8px] font-black uppercase text-slate-400">Bill Reference</span>
+                                        <span className="text-[10px] font-black uppercase text-[var(--app-muted)]">Bill Reference</span>
                                         {row.billType === 'Against Ref' ? (
                                           <select
                                             value={row.billNo || ''}
                                             onChange={e => handleBillRefChange(idx, e.target.value)}
-                                            className="w-full h-7.5 px-1.5 rounded-none border text-[11px] font-bold outline-none"
+                                            className="w-full h-7.5 px-1.5 rounded-lg border text-[11px] font-bold outline-none"
                                             style={{ borderColor: theme.border, color: theme.text, backgroundColor: theme.panel }}
                                           >
                                             <option value="" disabled style={{ color: '#94a3b8' }}>
@@ -3051,7 +3051,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                               updateBillRow(idx, 'billRef', e.target.value);
                                               updateBillRow(idx, 'billNo', e.target.value);
                                             }}
-                                            className="w-full h-7.5 px-1.5 rounded-none border text-[11px] font-bold outline-none"
+                                            className="w-full h-7.5 px-1.5 rounded-lg border text-[11px] font-bold outline-none"
                                             style={{ borderColor: theme.border, color: theme.text, backgroundColor: theme.panel }}
                                           />
                                         )}
@@ -3062,38 +3062,38 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
 
                                 {/* Row 2: Selected Invoice Information Panel */}
                                 {row.billType === 'Against Ref' && row.billNo && (
-                                  <div className="p-2 rounded-none bg-slate-900/10 dark:bg-slate-950/40 text-[10.5px] border border-dashed flex flex-col gap-1" style={{ borderColor: theme.border }}>
+                                  <div className="p-2 rounded-lg bg-slate-900/10 text-[10.5px] border border-dashed flex flex-col gap-1" style={{ borderColor: theme.border }}>
                                     <div className="grid grid-cols-2 gap-x-4 gap-y-1 font-bold">
                                       <div className="flex justify-between col-span-2">
-                                        <span className="text-slate-400 font-semibold">Invoice No:</span>
+                                        <span className="text-[var(--app-muted)] font-semibold">Invoice No:</span>
                                         <span style={{ color: theme.text }}>{row.billNo}</span>
                                       </div>
                                       <div className="flex justify-between">
-                                        <span className="text-slate-400 font-semibold">Invoice Date:</span>
+                                        <span className="text-[var(--app-muted)] font-semibold">Invoice Date:</span>
                                         <span style={{ color: theme.text }}>{row.date ? toDisplayDate(row.date) : '-'}</span>
                                       </div>
                                       <div className="flex justify-between">
-                                        <span className="text-slate-400 font-semibold">Due Date:</span>
+                                        <span className="text-[var(--app-muted)] font-semibold">Due Date:</span>
                                         <span style={{ color: theme.text }}>{row.dueDate ? toDisplayDate(row.dueDate) : '-'}</span>
                                       </div>
                                       <div className="flex justify-between col-span-2 border-t pt-1" style={{ borderColor: theme.border }}>
-                                        <span className="text-slate-400 font-semibold">Original Invoice Amount:</span>
+                                        <span className="text-[var(--app-muted)] font-semibold">Original Invoice Amount:</span>
                                         <span style={{ color: theme.text }}>{row.billAmount ? `₹${row.billAmount.toLocaleString('en-IN')}` : '-'}</span>
                                       </div>
                                       <div className="flex justify-between col-span-2 border-t pt-1" style={{ borderColor: theme.border }}>
-                                        <span className="text-[var(--app-accent)] font-extrabold uppercase text-[8px] tracking-wider">Outstanding Before Payment:</span>
+                                        <span className="text-[var(--app-accent)] font-extrabold uppercase text-[10px] tracking-wider">Outstanding Before Payment:</span>
                                         <span className="font-black text-[var(--app-accent)] dark:text-[var(--app-accent)]">
                                           ₹ {row.pendingAmount ? row.pendingAmount.toLocaleString('en-IN') : '-'}
                                         </span>
                                       </div>
                                       <div className="flex justify-between col-span-2 border-t pt-1" style={{ borderColor: theme.border }}>
-                                        <span className="text-slate-400 font-semibold">Payment Amount:</span>
+                                        <span className="text-[var(--app-muted)] font-semibold">Payment Amount:</span>
                                         <span className="font-extrabold" style={{ color: theme.text }}>
                                           ₹ {form.amount ? parseFloat(form.amount).toLocaleString('en-IN') : '0.00'}
                                         </span>
                                       </div>
                                       <div className="flex justify-between col-span-2 border-t pt-1" style={{ borderColor: theme.border }}>
-                                        <span className="text-emerald-500 font-extrabold uppercase text-[8px] tracking-wider">Outstanding After Payment:</span>
+                                        <span className="text-emerald-500 font-extrabold uppercase text-[10px] tracking-wider">Outstanding After Payment:</span>
                                         <span className="font-black text-emerald-500">
                                           ₹ {outstandingAfter.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                         </span>
@@ -3103,27 +3103,27 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                 )}
 
                                 {row.billType === 'Against Ref' && !row.billNo && (
-                                  <div className="p-2 rounded-none bg-slate-50/50 dark:bg-slate-800/10 text-center text-slate-400 text-[10.5px] border border-dashed" style={{ borderColor: theme.border }}>
+                                  <div className="p-2 rounded-lg bg-[var(--app-content-bg)]/50 text-center text-[var(--app-muted)] text-[10.5px] border border-dashed" style={{ borderColor: theme.border }}>
                                     Please select a Bill Reference above to view invoice details and calculated outstanding.
                                   </div>
                                 )}
 
                                 {/* Simplifed read-only values for non-Against Ref single rows */}
                                 {row.billType !== 'Against Ref' && (
-                                  <div className="p-2 rounded-none bg-slate-900/10 dark:bg-slate-950/40 text-[10.5px] border border-dashed flex flex-col gap-1" style={{ borderColor: theme.border }}>
+                                  <div className="p-2 rounded-lg bg-slate-900/10 text-[10.5px] border border-dashed flex flex-col gap-1" style={{ borderColor: theme.border }}>
                                     <div className="grid grid-cols-2 gap-x-4 gap-y-1 font-bold">
                                       <div className="flex justify-between col-span-2">
-                                        <span className="text-slate-400 font-semibold">Bill Type:</span>
+                                        <span className="text-[var(--app-muted)] font-semibold">Bill Type:</span>
                                         <span style={{ color: theme.text }}>{row.billType}</span>
                                       </div>
                                       {row.billType !== 'On Account' && (
                                         <div className="flex justify-between col-span-2">
-                                          <span className="text-slate-400 font-semibold">Reference Name:</span>
+                                          <span className="text-[var(--app-muted)] font-semibold">Reference Name:</span>
                                           <span style={{ color: theme.text }}>{row.billRef || '-'}</span>
                                         </div>
                                       )}
                                       <div className="flex justify-between col-span-2 border-t pt-1" style={{ borderColor: theme.border }}>
-                                        <span className="text-slate-400 font-semibold">Payment Amount:</span>
+                                        <span className="text-[var(--app-muted)] font-semibold">Payment Amount:</span>
                                         <span className="font-extrabold" style={{ color: theme.text }}>
                                           ₹ {form.amount ? parseFloat(form.amount).toLocaleString('en-IN') : '0.00'}
                                         </span>
@@ -3138,13 +3138,13 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                           return (
                             <div
                               key={row.id || idx}
-                              className="p-2 rounded-none border flex flex-col gap-2 relative transition-all duration-200"
+                              className="p-2 rounded-lg border flex flex-col gap-2 relative transition-all duration-200"
                               style={{ borderColor: theme.border, backgroundColor: theme.inputBg }}
                             >
                               {/* Row 1: Bill Type & Reference Selector */}
                               <div className="grid grid-cols-2 gap-2">
                                 <div className="flex flex-col gap-0.5">
-                                  <span className="text-[8px] font-black uppercase text-slate-400">Bill Type</span>
+                                  <span className="text-[10px] font-black uppercase text-[var(--app-muted)]">Bill Type</span>
                                   <select
                                     value={row.billType || ''}
                                     onChange={e => {
@@ -3167,7 +3167,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                       updateBillRow(idx, 'billAmount', 0);
                                       updateBillRow(idx, 'pendingAmount', 0);
                                     }}
-                                    className="w-full h-7.5 px-1.5 rounded-none border text-[11px] font-bold outline-none"
+                                    className="w-full h-7.5 px-1.5 rounded-lg border text-[11px] font-bold outline-none"
                                     style={{ borderColor: theme.border, color: theme.text, backgroundColor: theme.panel }}
                                   >
                                     <option value="Against Ref">Against Reference</option>
@@ -3179,12 +3179,12 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                 <div className="flex flex-col gap-0.5">
                                   {row.billType !== 'On Account' && (
                                     <>
-                                      <span className="text-[8px] font-black uppercase text-slate-400">Bill Reference</span>
+                                      <span className="text-[10px] font-black uppercase text-[var(--app-muted)]">Bill Reference</span>
                                       {row.billType === 'Against Ref' ? (
                                         <select
                                           value={row.billNo || ''}
                                           onChange={e => handleBillRefChange(idx, e.target.value)}
-                                          className="w-full h-7.5 px-1.5 rounded-none border text-[11px] font-bold outline-none"
+                                          className="w-full h-7.5 px-1.5 rounded-lg border text-[11px] font-bold outline-none"
                                           style={{ borderColor: theme.border, color: theme.text, backgroundColor: theme.panel }}
                                         >
                                           <option value="" disabled style={{ color: '#94a3b8' }}>
@@ -3205,7 +3205,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                             updateBillRow(idx, 'billRef', e.target.value);
                                             updateBillRow(idx, 'billNo', e.target.value);
                                           }}
-                                          className="w-full h-7.5 px-1.5 rounded-none border text-[11px] font-bold outline-none"
+                                          className="w-full h-7.5 px-1.5 rounded-lg border text-[11px] font-bold outline-none"
                                           style={{ borderColor: theme.border, color: theme.text, backgroundColor: theme.panel }}
                                         />
                                       )}
@@ -3216,27 +3216,27 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
 
                               {/* Row 2: Selected Invoice Information Panel */}
                               {row.billType === 'Against Ref' && row.billNo && (
-                                <div className="p-2 rounded-none bg-slate-900/10 dark:bg-slate-950/40 text-[10.5px] border border-dashed flex flex-col gap-1" style={{ borderColor: theme.border }}>
-                                  <h5 className="text-[8px] font-black uppercase tracking-wider text-[var(--app-accent)]">Selected Invoice Information Panel</h5>
+                                <div className="p-2 rounded-lg bg-slate-900/10 text-[10.5px] border border-dashed flex flex-col gap-1" style={{ borderColor: theme.border }}>
+                                  <h5 className="text-[10px] font-black uppercase tracking-wider text-[var(--app-accent)]">Selected Invoice Information Panel</h5>
                                   <div className="grid grid-cols-2 gap-x-4 gap-y-1 font-bold">
                                     <div className="flex justify-between">
-                                      <span className="text-slate-400 font-semibold">Invoice:</span>
+                                      <span className="text-[var(--app-muted)] font-semibold">Invoice:</span>
                                       <span style={{ color: theme.text }}>{row.billNo}</span>
                                     </div>
                                     <div className="flex justify-between">
-                                      <span className="text-slate-400 font-semibold">Invoice Date:</span>
+                                      <span className="text-[var(--app-muted)] font-semibold">Invoice Date:</span>
                                       <span style={{ color: theme.text }}>{row.date ? toDisplayDate(row.date) : '-'}</span>
                                     </div>
                                     <div className="flex justify-between">
-                                      <span className="text-slate-400 font-semibold">Due Date:</span>
+                                      <span className="text-[var(--app-muted)] font-semibold">Due Date:</span>
                                       <span style={{ color: theme.text }}>{row.dueDate ? toDisplayDate(row.dueDate) : '-'}</span>
                                     </div>
                                     <div className="flex justify-between">
-                                      <span className="text-slate-400 font-semibold">Original Amount:</span>
+                                      <span className="text-[var(--app-muted)] font-semibold">Original Amount:</span>
                                       <span style={{ color: theme.text }}>{row.billAmount ? `₹${row.billAmount.toLocaleString('en-IN')}` : '-'}</span>
                                     </div>
                                     <div className="flex justify-between col-span-2 border-t pt-1 mt-0.5" style={{ borderColor: theme.border }}>
-                                      <span className="text-[var(--app-accent)] font-extrabold uppercase text-[8px] tracking-wider">Selected Bill Outstanding:</span>
+                                      <span className="text-[var(--app-accent)] font-extrabold uppercase text-[10px] tracking-wider">Selected Bill Outstanding:</span>
                                       <span className="font-black text-[var(--app-accent)] dark:text-[var(--app-accent)]">
                                         ₹ {row.pendingAmount ? row.pendingAmount.toLocaleString('en-IN') : '-'}
                                       </span>
@@ -3249,13 +3249,13 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                               <div className="flex items-end justify-between gap-3 pt-1 border-t" style={{ borderColor: theme.border }}>
                                 <div className="flex-1 grid grid-cols-2 gap-2">
                                   <div className="flex flex-col gap-0.5">
-                                    <span className="text-[8px] font-black uppercase text-slate-400">Payment Amount</span>
+                                    <span className="text-[10px] font-black uppercase text-[var(--app-muted)]">Payment Amount</span>
                                     <input
                                       type="number"
                                       value={row.allocationAmount || ''}
                                       onChange={e => handleAllocationChange(idx, e.target.value)}
                                       placeholder="0.00"
-                                      className="w-full h-7.5 px-1.5 rounded-none border text-[11px] font-black outline-none focus:border-[var(--app-accent)] text-right"
+                                      className="w-full h-7.5 px-1.5 rounded-lg border text-[11px] font-black outline-none focus:border-[var(--app-accent)] text-right"
                                       style={{ borderColor: theme.border, color: theme.text, backgroundColor: theme.panel }}
                                     />
                                   </div>
@@ -3269,7 +3269,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                       </>
                                     ) : (
                                       <div className="flex flex-col items-end">
-                                        <span className="text-[7.5px] font-black uppercase text-slate-400">Type</span>
+                                        <span className="text-[7.5px] font-black uppercase text-[var(--app-muted)]">Type</span>
                                         <span className="text-[11px] font-black" style={{ color: theme.text }}>{row.billType}</span>
                                       </div>
                                     )}
@@ -3279,7 +3279,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                 <button
                                   type="button"
                                   onClick={() => removeBillRow(row.id || row._id)}
-                                  className="w-7.5 h-7.5 rounded-none border border-red-200 bg-white dark:bg-slate-800 shadow-sm flex items-center justify-center text-red-500 hover:bg-red-50 hover:text-red-600 transition-all shrink-0"
+                                  className="w-7.5 h-7.5 rounded-lg border border-red-200 bg-[var(--app-panel-bg)] shadow-sm flex items-center justify-center text-red-500 hover:bg-red-50 hover:text-red-500 transition-all shrink-0"
                                 >
                                   <Minus size={12} strokeWidth={3} />
                                 </button>
@@ -3294,16 +3294,16 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                           const voucherAmount = parseFloat(form.amount) || 0;
                           const remainingUnallocated = Math.round((voucherAmount - totalAllocated) * 100) / 100;
                           return (
-                            <div className="mt-2.5 px-3 py-2 flex flex-wrap items-center justify-between border rounded-none shadow-sm text-[10px] md:text-[11px] font-black uppercase tracking-widest gap-2" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>
+                            <div className="mt-2.5 px-3 py-2 flex flex-wrap items-center justify-between border rounded-lg shadow-sm text-[10px] md:text-[11px] font-black uppercase tracking-widest gap-2" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>
                               <div className="flex items-center gap-1.5">
                                 <span style={{ color: theme.mutedText }}>Total Allocated Amount:</span>
-                                <span className="bg-[var(--app-accent-soft)] text-[var(--app-accent)] dark:text-[var(--app-accent)] px-2 py-0.5 rounded-none border border-[var(--app-accent)]">
+                                <span className="bg-[var(--app-accent-soft)] text-[var(--app-accent)] dark:text-[var(--app-accent)] px-2 py-0.5 rounded-lg border border-[var(--app-accent)]">
                                   ₹ {totalAllocated.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                 </span>
                               </div>
                               <div className="flex items-center gap-1.5">
                                 <span style={{ color: theme.mutedText }}>Remaining Amount:</span>
-                                <span className={`px-2 py-0.5 rounded-none border shadow-sm ${Math.abs(remainingUnallocated) < 0.01 ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500 font-extrabold' : 'bg-rose-500/10 border-rose-500/20 text-rose-500 font-extrabold'}`}>
+                                <span className={`px-2 py-0.5 rounded-lg border shadow-sm ${Math.abs(remainingUnallocated) < 0.01 ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500 font-extrabold' : 'bg-rose-500/10 border-rose-500/20 text-rose-500 font-extrabold'}`}>
                                   ₹ {remainingUnallocated.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                 </span>
                               </div>
@@ -3519,7 +3519,7 @@ const FormSection = ({
 
   return (
     <div
-      className={`p-2.5 border rounded-none mb-0 shrink-0 flex flex-col gap-2 relative ${className}`}
+      className={`p-2.5 border rounded-lg mb-0 shrink-0 flex flex-col gap-2 relative ${className}`}
       style={{ borderColor: theme.border, backgroundColor: theme.panel, zIndex: isContentVisible ? zIndex : 1 }}
     >
       <div className="flex items-center justify-between mb-0.5">
@@ -3531,10 +3531,10 @@ const FormSection = ({
               onChange={(e) => {
                 onCheckboxChange && onCheckboxChange(e.target.checked);
               }}
-              className="w-3.5 h-3.5 rounded-none accent-[#09B6B9] cursor-pointer"
+              className="w-3.5 h-3.5 rounded-lg accent-[#09B6B9] cursor-pointer"
             />
           )}
-          <h3 className="text-[10px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-300">
+          <h3 className="text-[10px] font-black uppercase tracking-wider text-[var(--app-heading)]">
             {title}
           </h3>
         </div>
@@ -3585,7 +3585,7 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
   return (
     <div className="relative flex flex-col gap-1 w-full group" ref={dropdownRef} style={{ zIndex: isOpen ? 50 : 1 }}>
       {label && (
-        <label className="text-[9px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 text-slate-600 dark:text-slate-400 group-focus-within:text-[var(--app-accent)] transition-colors" style={{ backgroundColor: theme.panel }}>
+        <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 text-[var(--app-heading)] group-focus-within:text-[var(--app-accent)] transition-colors" style={{ backgroundColor: theme.panel }}>
           {label.startsWith('*') ? (
             <>
               <span className="text-red-500 mr-1">*</span>
@@ -3600,10 +3600,10 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
           className={`w-full ${compact ? 'h-7 px-1.5' : 'h-10 px-2'} rounded-sm border flex items-center justify-between cursor-pointer transition-all duration-300 group/input ${isOpen ? 'border-[var(--app-accent)]' : 'hover:border-[var(--app-accent)]'}`}
           style={{ backgroundColor: theme.inputBg, borderColor: isOpen ? theme.accent : theme.border }}
         >
-          <span className={`${compact ? 'text-[10px]' : 'text-[11px]'} font-bold truncate transition-colors ${value ? (isDark ? 'text-[var(--app-accent)]' : 'text-[var(--app-accent)]') : 'text-slate-400'}`}>
+          <span className={`${compact ? 'text-[10px]' : 'text-[11px]'} font-bold truncate transition-colors ${value ? (isDark ? 'text-[var(--app-accent)]' : 'text-[var(--app-accent)]') : 'text-[var(--app-muted)]'}`}>
             {value || placeholder}
           </span>
-          <div className="flex items-center gap-1 text-slate-400 group-hover/input:text-[var(--app-accent)] transition-colors">
+          <div className="flex items-center gap-1 text-[var(--app-muted)] group-hover/input:text-[var(--app-accent)] transition-colors">
             {value && <X size={11} className="hover:text-red-500 transition-colors" onClick={(e) => { e.stopPropagation(); onChange && onChange(''); }} />}
             <ChevronDown size={12} className={`transition-transform duration-300 ease-out ${isOpen ? 'rotate-180 text-[var(--app-accent)]' : ''}`} />
           </div>
@@ -3613,7 +3613,7 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
           <div className="absolute top-full left-0 right-0 mt-1 rounded-sm border shadow-2xl z-50 overflow-hidden" style={{ backgroundColor: isDark ? '#1e293b' : '#fff', borderColor: theme.border }}>
             <div className="p-1.5 border-b" style={{ borderColor: theme.border }}>
               <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={11} />
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--app-muted)]" size={11} />
                 <input
                   type="text" value={search} onChange={e => setSearch(e.target.value)}
                   placeholder="Search by Name, GSTIN, Phone..."
@@ -3629,7 +3629,7 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
                 const displayLabel = typeof opt === 'string' ? opt : (
                   <div className="flex flex-col py-0.5">
                     <span className="text-[11px] font-bold">{opt.name}</span>
-                    <span className="text-[9px] font-semibold text-slate-400 tracking-wider">
+                    <span className="text-[11px] font-semibold text-[var(--app-muted)] tracking-wider">
                       {opt.groupName}{opt.gstin ? ` | GSTIN: ${opt.gstin}` : ''}{opt.phone ? ` | Ph: ${opt.phone}` : ''}
                     </span>
                   </div>
@@ -3690,7 +3690,7 @@ const InputField = ({ label, placeholder, value, onChange, type = 'text', readOn
   return (
     <div className="relative flex flex-col gap-1 w-full group">
       {label && (
-        <label className="text-[9px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 text-slate-600 dark:text-slate-400 group-focus-within:text-[var(--app-accent)] transition-colors" style={{ backgroundColor: theme.panel }}>
+        <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 text-[var(--app-heading)] group-focus-within:text-[var(--app-accent)] transition-colors" style={{ backgroundColor: theme.panel }}>
           {label.startsWith('*') ? (
             <>
               <span className="text-red-500 mr-1">*</span>
@@ -3708,12 +3708,12 @@ const InputField = ({ label, placeholder, value, onChange, type = 'text', readOn
               onChange={handleTextChange}
               placeholder="dd-mm-yyyy"
               readOnly={readOnly}
-              className={`w-full ${compact ? 'h-7 px-1.5 text-[10px]' : 'h-10 px-2 text-[11px]'} rounded-sm border font-bold outline-none transition-all duration-300 focus:ring-0 ${isDark ? 'placeholder:text-white/10' : 'placeholder:text-slate-300'} ${align === 'right' ? 'text-right' : ''} ${readOnly ? (isDark ? 'cursor-not-allowed opacity-60 bg-slate-800/20' : 'cursor-not-allowed bg-slate-50/50') : 'hover:border-[var(--app-accent)]'}`}
+              className={`w-full ${compact ? 'h-7 px-1.5 text-[10px]' : 'h-10 px-2 text-[11px]'} rounded-sm border font-bold outline-none transition-all duration-300 focus:ring-0 ${isDark ? 'placeholder:text-white/10' : 'placeholder:text-[var(--app-muted)]'} ${align === 'right' ? 'text-right' : ''} ${readOnly ? (isDark ? 'cursor-not-allowed opacity-60 bg-slate-800/20' : 'cursor-not-allowed bg-[var(--app-content-bg)]/50') : 'hover:border-[var(--app-accent)]'}`}
               style={{ backgroundColor: readOnly ? theme.headerBg : theme.inputBg, borderColor: theme.border, color: readOnly ? theme.accent : theme.text }}
             />
             {Icon && !readOnly && (
               <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center cursor-pointer">
-                <Icon size={12} className="text-slate-400 hover:text-[var(--app-accent)] transition-colors pointer-events-none" />
+                <Icon size={12} className="text-[var(--app-muted)] hover:text-[var(--app-accent)] transition-colors pointer-events-none" />
                 <input
                   type="date"
                   value={toDbDate(value)}
@@ -3731,11 +3731,11 @@ const InputField = ({ label, placeholder, value, onChange, type = 'text', readOn
             onChange={(e) => onChange && onChange(e.target.value)}
             readOnly={readOnly}
             placeholder={placeholder}
-            className={`w-full ${compact ? 'h-7 px-1.5 text-[10px]' : 'h-10 px-2 text-[11px]'} rounded-sm border font-bold outline-none transition-all duration-300 focus:ring-0 ${isDark ? 'placeholder:text-white/10' : 'placeholder:text-slate-300'} ${align === 'right' ? 'text-right' : ''} ${readOnly ? (isDark ? 'cursor-not-allowed opacity-60 bg-slate-800/20' : 'cursor-not-allowed bg-slate-50/50') : 'hover:border-[var(--app-accent)]'}`}
+            className={`w-full ${compact ? 'h-7 px-1.5 text-[10px]' : 'h-10 px-2 text-[11px]'} rounded-sm border font-bold outline-none transition-all duration-300 focus:ring-0 ${isDark ? 'placeholder:text-white/10' : 'placeholder:text-[var(--app-muted)]'} ${align === 'right' ? 'text-right' : ''} ${readOnly ? (isDark ? 'cursor-not-allowed opacity-60 bg-slate-800/20' : 'cursor-not-allowed bg-[var(--app-content-bg)]/50') : 'hover:border-[var(--app-accent)]'}`}
             style={{ backgroundColor: readOnly ? theme.headerBg : theme.inputBg, borderColor: theme.border, color: readOnly ? theme.accent : theme.text }}
           />
         )}
-        {type !== 'date' && Icon && <Icon className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[var(--app-accent)] transition-colors" size={12} />}
+        {type !== 'date' && Icon && <Icon className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--app-muted)] group-focus-within:text-[var(--app-accent)] transition-colors" size={12} />}
       </div>
     </div>
   );
@@ -3745,14 +3745,14 @@ const SummaryBar = ({ entries, total }) => {
   const { theme } = useContext(ThemeContext) || {};
   if (!theme) return null;
   return (
-    <div className="mt-2.5 h-9 px-3.5 flex items-center justify-between border rounded-none shadow-sm text-[10px] md:text-[11px] font-black uppercase tracking-widest overflow-x-auto no-scrollbar" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>
+    <div className="mt-2.5 h-9 px-3.5 flex items-center justify-between border rounded-lg shadow-sm text-[10px] md:text-[11px] font-black uppercase tracking-widest overflow-x-auto no-scrollbar" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>
       <div className="flex items-center gap-1.5 shrink-0">
         <span style={{ color: theme.mutedText }}>Entries</span>
-        <span className="bg-[var(--app-accent-soft)] text-[var(--app-accent)] px-2 py-0.5 rounded-none text-[11px] border border-[var(--app-accent)]">{entries}</span>
+        <span className="bg-[var(--app-accent-soft)] text-[var(--app-accent)] px-2 py-0.5 rounded-lg text-[11px] border border-[var(--app-accent)]">{entries}</span>
       </div>
       <div className="flex items-center gap-1.5 shrink-0">
         <span style={{ color: theme.mutedText }}>Total</span>
-        <span className="bg-[var(--app-accent)] text-white px-2 py-0.5 rounded-none text-[11px] border border-[var(--app-accent)] shadow-md">{total}</span>
+        <span className="bg-[var(--app-accent)] text-white px-2 py-0.5 rounded-lg text-[11px] border border-[var(--app-accent)] shadow-md">{total}</span>
       </div>
     </div>
   );
