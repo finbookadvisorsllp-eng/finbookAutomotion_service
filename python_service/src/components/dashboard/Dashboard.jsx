@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import Navbar from '../layout/Navbar'
@@ -77,12 +77,23 @@ function Dashboard() {
     }
   }, [mobileNavOpen])
 
+  // Cursor-follow ambient glow — DOM-only (no re-render per move).
+  const glowRef = useRef(null)
+  const glowRaf = useRef(0)
+
   return (
     <div
       className={`h-screen overflow-hidden relative ${isDark ? 'dark' : ''}`}
       style={{ backgroundColor: 'var(--app-bg)', color: 'var(--app-heading)' }}
+      onMouseMove={(e) => {
+        const x = e.clientX, y = e.clientY
+        cancelAnimationFrame(glowRaf.current)
+        glowRaf.current = requestAnimationFrame(() => {
+          if (glowRef.current) glowRef.current.style.transform = `translate3d(${x - 300}px, ${y - 300}px, 0)`
+        })
+      }}
     >
-      {/* Ambient background — faint grid + one soft brand glow (kept light) */}
+      {/* Ambient background — faint grid + soft brand glow + cursor-follow light. */}
       <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
         <div className="absolute inset-0 app-grid-bg opacity-50" />
         <div
@@ -92,6 +103,15 @@ function Dashboard() {
               ? 'radial-gradient(circle, rgba(96,165,250,0.12) 0%, transparent 70%)'
               : 'radial-gradient(circle, rgba(37,99,235,0.10) 0%, transparent 70%)',
             animation: 'softPulse 18s ease-in-out infinite',
+          }}
+        />
+        <div
+          ref={glowRef}
+          className="absolute top-0 left-0 h-[600px] w-[600px] rounded-full blur-[140px] will-change-transform hidden md:block"
+          style={{
+            background: isDark
+              ? 'radial-gradient(circle, rgba(94,155,240,0.10) 0%, transparent 65%)'
+              : 'radial-gradient(circle, rgba(37,99,235,0.07) 0%, transparent 65%)',
           }}
         />
       </div>

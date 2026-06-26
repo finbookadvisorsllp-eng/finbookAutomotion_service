@@ -122,16 +122,24 @@ export default function DashboardTable() {
     )
   })
 
+  // Time-aware greeting — the workspace reacts to the moment, not a static title.
+  const hr = new Date().getHours()
+  const greeting = hr < 12
+    ? { icon: '☀️', text: 'Good morning' }
+    : hr < 17
+      ? { icon: '🌤️', text: 'Good afternoon' }
+      : { icon: '🌙', text: 'Good evening' }
+
   return (
     <div className="h-full flex flex-col overflow-hidden">
       {/* Dashboard Title & Inline Filters */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5 mb-2 shrink-0">
         <div>
-          <h1 className="text-[20px] font-extrabold tracking-tight" style={{ color: 'var(--app-heading)' }}>
-            Dashboard
+          <h1 className="text-[20px] font-extrabold tracking-tight flex items-center gap-2" style={{ color: 'var(--app-heading)' }}>
+            <span>{greeting.icon}</span> {greeting.text}
           </h1>
           <p className="text-[11px] font-medium mt-0.5" style={{ color: 'var(--app-muted)' }}>
-            Overview of your business operations and performance
+            Your business looks healthy today — here’s the latest.
           </p>
         </div>
 

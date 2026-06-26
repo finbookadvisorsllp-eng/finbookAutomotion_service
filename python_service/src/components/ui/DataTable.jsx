@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'motion/react'
-import { ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight, Loader2, Inbox } from 'lucide-react'
+import { ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react'
 import { SearchInput } from './Input'
+import EmptyState from './EmptyState'
 
 /**
  * Shared table shell. Replaces the hand-rolled <table> markup duplicated across
@@ -191,13 +192,8 @@ export default function DataTable({
                 })
               ) : (
                 <tr>
-                  <td colSpan={columns.length + (selectable ? 1 : 0)} className="px-4 py-16 text-center">
-                    <div className="flex flex-col items-center gap-2.5">
-                      <div className="h-11 w-11 rounded-2xl flex items-center justify-center" style={{ backgroundColor: 'var(--app-accent-soft)', color: 'var(--app-accent)' }}>
-                        <Inbox size={20} strokeWidth={1.8} />
-                      </div>
-                      <p className="text-[11px] font-semibold tracking-wide" style={{ color: 'var(--app-muted)' }}>{emptyText}</p>
-                    </div>
+                  <td colSpan={columns.length + (selectable ? 1 : 0)} className="px-4 py-12 text-center">
+                    <EmptyState compact message={emptyText} />
                   </td>
                 </tr>
               )}
