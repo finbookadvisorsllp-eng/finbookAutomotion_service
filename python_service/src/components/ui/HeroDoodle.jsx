@@ -1,47 +1,62 @@
 import { motion } from 'motion/react'
 
-// Animated greeting doodle: a friendly character that bobs + waves, with a
-// time-of-day badge (sun spins by day, moon by night) and twinkling sparkles.
-// transform-box:view-box maps px transform-origins to viewBox units so the
-// wave rotates around the shoulder cleanly.
-export default function HeroDoodle({ tod = 'day', className = '', style }) {
-  const s = { fill: 'none', stroke: 'currentColor', strokeWidth: 3.4, strokeLinecap: 'round', strokeLinejoin: 'round' }
-  const a = { ...s, stroke: 'var(--app-accent)' }
-  const rays = [0, 45, 90, 135, 180, 225, 270, 315]
+// Refined hero graphic: a glassy analytics card with a line chart that draws
+// itself, a tracing pulse dot, and a slowly-rotating import/export sync badge.
+// Abstract + premium (no character). currentColor tints the neutral strokes;
+// the accent carries the data. `tod` kept for call-site compat (unused).
+export default function HeroDoodle({ className = '', style }) {
+  const line = 'M40 108 L64 92 L88 98 L112 72 L136 82 L160 54'
+  const pts = [[40, 108], [64, 92], [88, 98], [112, 72], [136, 82], [160, 54]]
 
   return (
-    <svg viewBox="0 0 200 160" className={className} style={style} aria-hidden="true">
-      {/* time-of-day badge */}
-      {tod === 'night' ? (
-        <path {...a} d="M158 30 a16 16 0 1 0 12 25 a20 20 0 0 1 -12 -25 Z" />
-      ) : (
-        <motion.g style={{ transformBox: 'view-box', transformOrigin: '152px 38px' }} animate={{ rotate: 360 }} transition={{ duration: 44, repeat: Infinity, ease: 'linear' }}>
-          <circle {...a} cx="152" cy="38" r="11" />
-          {rays.map((d) => {
-            const r = d * Math.PI / 180
-            return <line key={d} {...a} x1={152 + Math.cos(r) * 17} y1={38 + Math.sin(r) * 17} x2={152 + Math.cos(r) * 23} y2={38 + Math.sin(r) * 23} />
-          })}
-        </motion.g>
-      )}
+    <svg viewBox="0 0 240 160" className={className} style={style} aria-hidden="true">
+      <defs>
+        <linearGradient id="hdFill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="var(--app-accent)" stopOpacity="0.22" />
+          <stop offset="100%" stopColor="var(--app-accent)" stopOpacity="0" />
+        </linearGradient>
+      </defs>
 
-      {/* character — gentle bob */}
-      <motion.g animate={{ y: [0, -6, 0] }} transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}>
-        <circle {...s} cx="70" cy="58" r="22" />
-        <circle cx="63" cy="56" r="2.4" fill="currentColor" stroke="none" />
-        <circle cx="78" cy="56" r="2.4" fill="currentColor" stroke="none" />
-        <path {...s} d="M62 65 q8 8 16 0" />
-        <path {...s} d="M70 80 v34 M70 114 l-14 22 M70 114 l14 22" />
-        <path {...s} d="M70 90 l-20 16" />
-        {/* waving arm */}
-        <motion.g style={{ transformBox: 'view-box', transformOrigin: '70px 90px' }} animate={{ rotate: [0, 20, 4, 18, 0] }} transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}>
-          <path {...a} d="M70 90 l22 -12 M92 78 l-1 -8 M92 78 l7 -3" />
-        </motion.g>
-      </motion.g>
+      {/* glass card */}
+      <rect x="22" y="26" width="156" height="110" rx="16" fill="var(--app-panel-bg)" stroke="currentColor" strokeOpacity="0.16" strokeWidth="2" />
+      {/* card header */}
+      <circle cx="38" cy="42" r="3" fill="var(--app-accent)" />
+      <rect x="48" y="39" width="42" height="5" rx="2.5" fill="currentColor" opacity="0.18" />
+      <rect x="48" y="48" width="26" height="4" rx="2" fill="currentColor" opacity="0.12" />
+      {/* gridlines */}
+      {[72, 92, 112].map((y) => <line key={y} x1="36" y1={y} x2="164" y2={y} stroke="currentColor" strokeOpacity="0.08" strokeWidth="1.5" />)}
 
-      {/* sparkles */}
-      <motion.path {...a} d="M36 28 l0 9 M31.5 32.5 l9 0" animate={{ opacity: [0.25, 1, 0.25] }} transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }} />
-      <motion.circle {...a} cx="118" cy="120" r="3" animate={{ opacity: [0.2, 0.9, 0.2], scale: [0.8, 1.1, 0.8] }} transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }} />
-      <motion.circle {...s} cx="34" cy="96" r="2.5" animate={{ opacity: [0.15, 0.7, 0.15] }} transition={{ duration: 3.6, repeat: Infinity, ease: 'easeInOut' }} />
+      {/* area + animated line */}
+      <motion.path
+        d={`${line} L160 122 L40 122 Z`} fill="url(#hdFill)"
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1, delay: 0.5 }}
+      />
+      <motion.path
+        d={line} fill="none" stroke="var(--app-accent)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
+        initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 1.4, ease: [0.22, 1, 0.36, 1] }}
+      />
+      {pts.map(([x, y], i) => (
+        <motion.circle key={i} cx={x} cy={y} r="2.6" fill="var(--app-panel-bg)" stroke="var(--app-accent)" strokeWidth="2"
+          initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.6 + i * 0.14 }} style={{ transformBox: 'view-box', transformOrigin: `${x}px ${y}px` }} />
+      ))}
+      {/* tracing pulse at the latest point */}
+      <motion.circle cx="160" cy="54" r="5" fill="var(--app-accent)" animate={{ opacity: [0.5, 0, 0.5], scale: [1, 2.4, 1] }} transition={{ duration: 2.2, repeat: Infinity, ease: 'easeOut' }} style={{ transformBox: 'view-box', transformOrigin: '160px 54px' }} />
+      <circle cx="160" cy="54" r="3.2" fill="var(--app-accent)" />
+
+      {/* import / export sync badge */}
+      <g transform="translate(198 44)">
+        <circle r="15" fill="var(--app-accent)" fillOpacity="0.1" stroke="var(--app-accent)" strokeOpacity="0.25" strokeWidth="1.5" />
+        <motion.g animate={{ rotate: 360 }} transition={{ duration: 9, repeat: Infinity, ease: 'linear' }} style={{ transformOrigin: '0px 0px' }}>
+          <path d="M-7 -2 A7 7 0 0 1 6 -3" fill="none" stroke="var(--app-accent)" strokeWidth="2.2" strokeLinecap="round" />
+          <path d="M6 -3 l-3 -2.5 M6 -3 l1 3.5" fill="none" stroke="var(--app-accent)" strokeWidth="2.2" strokeLinecap="round" />
+          <path d="M7 2 A7 7 0 0 1 -6 3" fill="none" stroke="var(--app-accent)" strokeWidth="2.2" strokeLinecap="round" />
+          <path d="M-6 3 l3 2.5 M-6 3 l-1 -3.5" fill="none" stroke="var(--app-accent)" strokeWidth="2.2" strokeLinecap="round" />
+        </motion.g>
+      </g>
+
+      {/* floating accents */}
+      <motion.circle cx="206" cy="110" r="3.5" fill="var(--app-accent)" animate={{ y: [0, -7, 0], opacity: [0.5, 1, 0.5] }} transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }} />
+      <motion.circle cx="30" cy="74" r="2.5" fill="currentColor" opacity="0.3" animate={{ y: [0, 6, 0] }} transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }} />
     </svg>
   )
 }
