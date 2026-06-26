@@ -80,13 +80,13 @@ export default function TallyConnectorPanel() {
   ];
 
   return (
-    <div className="flex flex-col gap-2.5 h-full overflow-y-auto pr-1 text-[13px] text-slate-700 dark:text-slate-200">
+    <div className="flex flex-col gap-2.5 h-full overflow-y-auto pr-1 text-[13px] text-[var(--app-text)]">
       
       {/* Title Header */}
-      <div className="rounded-xl border px-3 py-2 flex items-center justify-between shrink-0 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm">
+      <div className="rounded-xl border px-3 py-2 flex items-center justify-between shrink-0 bg-[var(--app-panel-bg)] border-[var(--app-border)] shadow-sm">
         <div>
-          <h1 className="text-[18px] md:text-[20px] font-extrabold tracking-tight text-slate-900 dark:text-[var(--app-heading)]">Tally Connector</h1>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+          <h1 className="text-[18px] md:text-[20px] font-extrabold tracking-tight text-[var(--app-heading)]">Tally Connector</h1>
+          <p className="text-[11px] text-[var(--app-muted)] mt-0.5">
             Configure integration parameters and monitor data sync logs with Tally ODBC / XML gateway.
           </p>
         </div>
@@ -106,8 +106,8 @@ export default function TallyConnectorPanel() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 flex-1 overflow-hidden">
         
         {/* Left Side: Configuration Form */}
-        <div className="lg:col-span-5 flex flex-col border rounded-xl p-3 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shrink-0 shadow-sm">
-          <h3 className="text-[14px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-300 border-b pb-2 mb-2.5 border-slate-200 dark:border-slate-800 flex items-center gap-1.5 shrink-0" style={{ backgroundColor: 'var(--app-table-head-bg)' }}>
+        <div className="lg:col-span-5 flex flex-col border rounded-xl p-3 bg-[var(--app-panel-bg)] border-[var(--app-border)] shrink-0 shadow-sm">
+          <h3 className="text-[14px] font-bold uppercase tracking-wider text-[var(--app-heading)] border-b pb-2 mb-2.5 border-[var(--app-border)] flex items-center gap-1.5 shrink-0" style={{ backgroundColor: 'var(--app-table-head-bg)' }}>
             <Plug size={13} className="text-[var(--app-accent)]" /> Tally ODBC Sync Settings
           </h3>
 
@@ -119,7 +119,7 @@ export default function TallyConnectorPanel() {
                   type="text"
                   value={form.serverIp}
                   onChange={(e) => setForm(prev => ({ ...prev, serverIp: e.target.value }))}
-                  className="w-full h-8 rounded border px-2.5 text-[13px] outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800"
+                  className="w-full h-8 rounded border px-2.5 text-[13px] outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)]"
                 />
               </div>
 
@@ -129,7 +129,7 @@ export default function TallyConnectorPanel() {
                   type="text"
                   value={form.port}
                   onChange={(e) => setForm(prev => ({ ...prev, port: e.target.value }))}
-                  className="w-full h-8 rounded border px-2.5 text-[13px] outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800"
+                  className="w-full h-8 rounded border px-2.5 text-[13px] outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)]"
                 />
               </div>
             </div>
@@ -140,7 +140,7 @@ export default function TallyConnectorPanel() {
                 type="text"
                 value={form.companyName}
                 onChange={(e) => setForm(prev => ({ ...prev, companyName: e.target.value }))}
-                className="w-full h-8 rounded border px-2.5 text-[13px] outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800"
+                className="w-full h-8 rounded border px-2.5 text-[13px] outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)]"
               />
             </div>
 
@@ -151,7 +151,7 @@ export default function TallyConnectorPanel() {
                   type="text"
                   value={form.username}
                   onChange={(e) => setForm(prev => ({ ...prev, username: e.target.value }))}
-                  className="w-full h-8 rounded border px-2.5 text-[13px] outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800"
+                  className="w-full h-8 rounded border px-2.5 text-[13px] outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)]"
                 />
               </div>
 
@@ -161,14 +161,14 @@ export default function TallyConnectorPanel() {
                   type="password"
                   value={form.password}
                   onChange={(e) => setForm(prev => ({ ...prev, password: e.target.value }))}
-                  className="w-full h-8 rounded border px-2.5 text-[13px] outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800"
+                  className="w-full h-8 rounded border px-2.5 text-[13px] outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)]"
                 />
               </div>
             </div>
 
-            <div className="flex items-center justify-between border-t border-b py-2 my-2 border-slate-100 dark:border-slate-800/80">
+            <div className="flex items-center justify-between border-t border-b py-2 my-2 border-[var(--app-border)]/80">
               <div className="flex flex-col">
-                <span className="font-semibold text-slate-800 dark:text-slate-200">Auto Sync Schedule</span>
+                <span className="font-semibold text-[var(--app-heading)]">Auto Sync Schedule</span>
                 <span className="text-[10px] text-slate-400">Trigger sync every 5 minutes</span>
               </div>
               <input
@@ -183,7 +183,7 @@ export default function TallyConnectorPanel() {
               <button
                 type="button"
                 onClick={handleTestConnection}
-                className="flex-1 py-1 text-[11px] uppercase font-bold rounded border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition-colors"
+                className="flex-1 py-1 text-[11px] uppercase font-bold rounded border border-[var(--app-border)] hover:bg-slate-100 dark:hover:bg-slate-800 text-[var(--app-text)] transition-colors"
               >
                 Test Connection
               </button>
@@ -206,19 +206,19 @@ export default function TallyConnectorPanel() {
         </div>
 
         {/* Right Side: Sync Logs Table */}
-        <div className="lg:col-span-7 flex flex-col border rounded-xl overflow-hidden bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm">
-          <h3 className="text-[14px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-300 border-b p-2.5 border-slate-200 dark:border-slate-800 flex items-center gap-1.5 shrink-0" style={{ backgroundColor: 'var(--app-table-head-bg)' }}>
+        <div className="lg:col-span-7 flex flex-col border rounded-xl overflow-hidden bg-[var(--app-panel-bg)] border-[var(--app-border)] shadow-sm">
+          <h3 className="text-[14px] font-bold uppercase tracking-wider text-[var(--app-heading)] border-b p-2.5 border-[var(--app-border)] flex items-center gap-1.5 shrink-0" style={{ backgroundColor: 'var(--app-table-head-bg)' }}>
             <Terminal size={13} className="text-[var(--app-accent)]" /> Connection Sync Logs
           </h3>
 
           <div className="overflow-auto themed-scrollbar flex-1">
             <table className="w-full text-left border-collapse min-w-[500px] text-[13px]">
               <thead>
-                <tr className="bg-slate-50 dark:bg-slate-900/60 border-b text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-800" style={{ backgroundColor: 'var(--app-table-head-bg)' }}>
-                  <th className="p-2 border-r border-slate-200 dark:border-slate-800 w-[120px]" style={{ color: 'var(--app-muted)' }}>Date</th>
-                  <th className="p-2 border-r border-slate-200 dark:border-slate-800" style={{ color: 'var(--app-muted)' }}>Operation</th>
-                  <th className="p-2 border-r border-slate-200 dark:border-slate-800 w-[100px]" style={{ color: 'var(--app-muted)' }}>Type</th>
-                  <th className="p-2 border-r border-slate-200 dark:border-slate-800 text-center w-[80px]" style={{ color: 'var(--app-muted)' }}>Status</th>
+                <tr className="bg-[var(--app-content-bg)] border-b text-[var(--app-muted)] border-[var(--app-border)]" style={{ backgroundColor: 'var(--app-table-head-bg)' }}>
+                  <th className="p-2 border-r border-[var(--app-border)] w-[120px]" style={{ color: 'var(--app-muted)' }}>Date</th>
+                  <th className="p-2 border-r border-[var(--app-border)]" style={{ color: 'var(--app-muted)' }}>Operation</th>
+                  <th className="p-2 border-r border-[var(--app-border)] w-[100px]" style={{ color: 'var(--app-muted)' }}>Type</th>
+                  <th className="p-2 border-r border-[var(--app-border)] text-center w-[80px]" style={{ color: 'var(--app-muted)' }}>Status</th>
                   <th className="p-2" style={{ color: 'var(--app-muted)' }}>Message</th>
                 </tr>
               </thead>
@@ -229,16 +229,16 @@ export default function TallyConnectorPanel() {
                     : 'bg-rose-50 text-rose-700 border-rose-250 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/30';
 
                   return (
-                    <tr key={log.id} className="border-b hover:bg-slate-50/50 dark:hover:bg-slate-900/10 font-medium text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800">
-                      <td className="p-2 border-r border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-mono text-[11px]">{log.date}</td>
-                      <td className="p-2 border-r border-slate-200 dark:border-slate-800 font-semibold text-slate-900 dark:text-slate-100">{log.operation}</td>
-                      <td className="p-2 border-r border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400">{log.type}</td>
-                      <td className="p-2 border-r border-slate-200 dark:border-slate-800 text-center">
+                    <tr key={log.id} className="border-b hover:bg-slate-50/50 dark:hover:bg-slate-900/10 font-medium text-[var(--app-text)] border-[var(--app-border)]">
+                      <td className="p-2 border-r border-[var(--app-border)] text-[var(--app-muted)] font-mono text-[11px]">{log.date}</td>
+                      <td className="p-2 border-r border-[var(--app-border)] font-semibold text-[var(--app-heading)]">{log.operation}</td>
+                      <td className="p-2 border-r border-[var(--app-border)] text-[var(--app-text)]">{log.type}</td>
+                      <td className="p-2 border-r border-[var(--app-border)] text-center">
                         <span className={`px-1.5 py-0.5 rounded border text-[10.5px] font-bold ${statusColors}`}>
                           {log.status}
                         </span>
                       </td>
-                      <td className="p-2 text-slate-500 dark:text-slate-400 text-[11px] leading-snug">{log.message}</td>
+                      <td className="p-2 text-[var(--app-muted)] text-[11px] leading-snug">{log.message}</td>
                     </tr>
                   );
                 })}

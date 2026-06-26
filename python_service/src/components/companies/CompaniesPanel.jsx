@@ -105,13 +105,13 @@ function CompaniesPanel({ onIconAction }) {
   ];
 
   return (
-    <div className="flex flex-col gap-2.5 h-full overflow-y-auto pr-1 text-[13px] text-slate-700 dark:text-slate-200">
+    <div className="flex flex-col gap-2.5 h-full overflow-y-auto pr-1 text-[13px] text-[var(--app-text)]">
       
       {/* Title Header */}
-      <div className="rounded-xl border px-3 py-2 flex items-center justify-between shrink-0 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm">
+      <div className="rounded-xl border px-3 py-2 flex items-center justify-between shrink-0 bg-[var(--app-panel-bg)] border-[var(--app-border)] shadow-sm">
         <div>
-          <h1 className="text-[18px] md:text-[20px] font-extrabold tracking-tight text-slate-900 dark:text-[var(--app-heading)]">Company Management</h1>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+          <h1 className="text-[18px] md:text-[20px] font-extrabold tracking-tight text-[var(--app-heading)]">Company Management</h1>
+          <p className="text-[11px] text-[var(--app-muted)] mt-0.5">
             Configure system tenants, enterprise businesses, GSTIN registrations, and fiscal scopes.
           </p>
         </div>
@@ -144,7 +144,7 @@ function CompaniesPanel({ onIconAction }) {
       />
 
       {/* Toolbar filters */}
-      <div className="border rounded px-2.5 py-2 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2 bg-white dark:bg-slate-950/20 border-slate-200 dark:border-slate-800 shrink-0">
+      <div className="border rounded px-2.5 py-2 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2 bg-[var(--app-panel-bg)] border-[var(--app-border)] shrink-0">
         
         {/* Search */}
         <div className="relative max-w-xs flex-1 group">
@@ -154,14 +154,14 @@ function CompaniesPanel({ onIconAction }) {
             placeholder="Search companies..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full h-7 pl-8 pr-2.5 rounded border text-[11px] outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
+            className="w-full h-7 pl-8 pr-2.5 rounded border text-[11px] outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
           />
         </div>
 
         <div className="flex items-center gap-2">
           <button
             onClick={() => refetch()}
-            className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 border rounded text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-800"
+            className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 border rounded text-[var(--app-muted)] border-[var(--app-border)]"
             type="button"
           >
             <RefreshCw size={13} />
@@ -170,32 +170,32 @@ function CompaniesPanel({ onIconAction }) {
       </div>
 
       {/* Company List Table Grid */}
-      <div className="border rounded-xl flex-1 overflow-hidden flex flex-col bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm">
+      <div className="border rounded-xl flex-1 overflow-hidden flex flex-col bg-[var(--app-panel-bg)] border-[var(--app-border)] shadow-sm">
         <div className="overflow-auto themed-scrollbar flex-1">
           <table className="w-full text-left border-collapse min-w-[900px] text-[13px]">
             <thead>
-              <tr className="bg-slate-50 dark:bg-slate-900/60 border-b text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-800" style={{ backgroundColor: 'var(--app-table-head-bg)' }}>
+              <tr className="bg-[var(--app-content-bg)] border-b text-[var(--app-muted)] border-[var(--app-border)]" style={{ backgroundColor: 'var(--app-table-head-bg)' }}>
                 <th className="p-2 w-12 text-center" style={{ color: 'var(--app-muted)' }}>Sr.</th>
-                <th className="p-2 border-r border-slate-200 dark:border-slate-800" style={{ color: 'var(--app-muted)' }}>Company Name</th>
-                <th className="p-2 border-r border-slate-200 dark:border-slate-800" style={{ color: 'var(--app-muted)' }}>GSTIN</th>
-                <th className="p-2 border-r border-slate-200 dark:border-slate-800" style={{ color: 'var(--app-muted)' }}>State</th>
-                <th className="p-2 border-r border-slate-200 dark:border-slate-800" style={{ color: 'var(--app-muted)' }}>Financial Year</th>
-                <th className="p-2 border-r border-slate-200 dark:border-slate-800 text-center" style={{ color: 'var(--app-muted)' }}>Status</th>
+                <th className="p-2 border-r border-[var(--app-border)]" style={{ color: 'var(--app-muted)' }}>Company Name</th>
+                <th className="p-2 border-r border-[var(--app-border)]" style={{ color: 'var(--app-muted)' }}>GSTIN</th>
+                <th className="p-2 border-r border-[var(--app-border)]" style={{ color: 'var(--app-muted)' }}>State</th>
+                <th className="p-2 border-r border-[var(--app-border)]" style={{ color: 'var(--app-muted)' }}>Financial Year</th>
+                <th className="p-2 border-r border-[var(--app-border)] text-center" style={{ color: 'var(--app-muted)' }}>Status</th>
                 <th className="p-2 text-center w-24" style={{ color: 'var(--app-muted)' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {filteredRows.length > 0 ? (
                 filteredRows.map((row) => (
-                  <tr key={row.id} className="border-b hover:bg-slate-50/50 dark:hover:bg-slate-900/10 font-medium text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800">
+                  <tr key={row.id} className="border-b hover:bg-slate-50/50 dark:hover:bg-slate-900/10 font-medium text-[var(--app-text)] border-[var(--app-border)]">
                     <td className="p-2 text-center text-slate-500">{row.id}</td>
                     
-                    <td className="p-2 border-r font-bold text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800">
+                    <td className="p-2 border-r font-bold text-[var(--app-heading)] border-[var(--app-border)]">
                       {row.businessName}
                     </td>
-                    <td className="p-2 border-r text-slate-550 dark:text-slate-400 font-mono font-semibold">{row.gstNumber}</td>
-                    <td className="p-2 border-r text-slate-550 dark:text-slate-400">{row.state}</td>
-                    <td className="p-2 border-r text-slate-550 dark:text-slate-400 font-semibold">{row.financialYear}</td>
+                    <td className="p-2 border-r text-[var(--app-text)] font-mono font-semibold">{row.gstNumber}</td>
+                    <td className="p-2 border-r text-[var(--app-text)]">{row.state}</td>
+                    <td className="p-2 border-r text-[var(--app-text)] font-semibold">{row.financialYear}</td>
                     
                     <td className="p-2 border-r text-center">
                       <span className="px-1.5 py-0.5 rounded border bg-emerald-50 text-emerald-700 border-emerald-250 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30 text-[10.5px] font-bold">

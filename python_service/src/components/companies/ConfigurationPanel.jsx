@@ -54,13 +54,13 @@ export default function ConfigurationPanel() {
   ];
 
   return (
-    <div className="flex flex-col h-full overflow-hidden text-[13px] text-slate-700 dark:text-slate-200">
+    <div className="flex flex-col h-full overflow-hidden text-[13px] text-[var(--app-text)]">
       
       {/* Title Header */}
-      <div className="rounded-lg border px-3 py-2 flex items-center justify-between shrink-0 bg-white dark:bg-[var(--app-panel-bg)] border-slate-200 dark:border-slate-800 mb-2">
+      <div className="rounded-lg border px-3 py-2 flex items-center justify-between shrink-0 bg-[var(--app-panel-bg)] border-[var(--app-border)] mb-2">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-[var(--app-heading)]">System Configuration</h1>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+          <h1 className="text-2xl font-bold tracking-tight text-[var(--app-heading)]">System Configuration</h1>
+          <p className="text-[11px] text-[var(--app-muted)] mt-0.5">
             Configure system execution parameters, notification channels, Tally settings and OCR thresholds.
           </p>
         </div>
@@ -69,9 +69,9 @@ export default function ConfigurationPanel() {
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5 shrink-0 mb-2.5">
         {stats.map((s, idx) => (
-          <div key={idx} className="p-2 border rounded bg-white dark:bg-slate-950/20 border-slate-200 dark:border-slate-800 flex flex-col justify-between">
-            <span className="text-[11px] text-slate-500 dark:text-slate-400 uppercase font-semibold tracking-wider leading-none block">{s.label}</span>
-            <span className="text-[15px] font-bold mt-1 text-slate-900 dark:text-slate-100 block leading-none">{s.count}</span>
+          <div key={idx} className="p-2 border rounded bg-[var(--app-panel-bg)] border-[var(--app-border)] flex flex-col justify-between">
+            <span className="text-[11px] text-[var(--app-muted)] uppercase font-semibold tracking-wider leading-none block">{s.label}</span>
+            <span className="text-[15px] font-bold mt-1 text-[var(--app-heading)] block leading-none">{s.count}</span>
           </div>
         ))}
       </div>
@@ -80,7 +80,7 @@ export default function ConfigurationPanel() {
       <div className="flex-1 flex gap-3 overflow-hidden min-h-0 relative pb-14">
         
         {/* Left Settings Menu */}
-        <div className="w-56 shrink-0 border rounded bg-white dark:bg-slate-950/25 border-slate-200 dark:border-slate-800 flex flex-col p-1.5 overflow-y-auto">
+        <div className="w-56 shrink-0 border rounded bg-[var(--app-panel-bg)] border-[var(--app-border)] flex flex-col p-1.5 overflow-y-auto">
           {sections.map(section => {
             const isActive = section === activeSection;
             return (
@@ -90,7 +90,7 @@ export default function ConfigurationPanel() {
                 className={`w-full text-left px-3 py-2 rounded text-[12.5px] font-semibold transition-colors ${
                   isActive 
                     ? 'bg-[var(--app-accent)] text-white font-bold' 
-                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900/50'
+                    : 'text-[var(--app-text)] hover:bg-slate-100 dark:hover:bg-slate-900/50'
                 }`}
               >
                 {section}
@@ -100,9 +100,9 @@ export default function ConfigurationPanel() {
         </div>
 
         {/* Right Configuration Form */}
-        <div className="flex-1 border rounded bg-white dark:bg-[var(--app-panel-bg)] border-slate-200 dark:border-slate-800 p-4 overflow-y-auto flex flex-col justify-between">
+        <div className="flex-1 border rounded bg-[var(--app-panel-bg)] border-[var(--app-border)] p-4 overflow-y-auto flex flex-col justify-between">
           <form onSubmit={handleSave} className="space-y-4">
-            <h3 className="text-sm font-bold text-slate-900 dark:text-[var(--app-heading)] border-b pb-1.5 border-slate-200 dark:border-slate-800 uppercase tracking-wider">{activeSection}</h3>
+            <h3 className="text-sm font-bold text-[var(--app-heading)] border-b pb-1.5 border-[var(--app-border)] uppercase tracking-wider">{activeSection}</h3>
 
             {activeSection === 'General Settings' && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -112,7 +112,7 @@ export default function ConfigurationPanel() {
                     type="text"
                     value={generalConfig.systemName}
                     onChange={(e) => setGeneralConfig(prev => ({ ...prev, systemName: e.target.value }))}
-                    className="w-full h-8 rounded border px-2.5 text-[13px] outline-none bg-slate-55 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800"
+                    className="w-full h-8 rounded border px-2.5 text-[13px] outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)]"
                   />
                 </div>
                 <div>
@@ -121,7 +121,7 @@ export default function ConfigurationPanel() {
                     type="text"
                     value={generalConfig.timezone}
                     onChange={(e) => setGeneralConfig(prev => ({ ...prev, timezone: e.target.value }))}
-                    className="w-full h-8 rounded border px-2.5 text-[13px] outline-none bg-slate-55 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800"
+                    className="w-full h-8 rounded border px-2.5 text-[13px] outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)]"
                   />
                 </div>
                 <div>
@@ -130,7 +130,7 @@ export default function ConfigurationPanel() {
                     type="text"
                     value={generalConfig.dateFormat}
                     onChange={(e) => setGeneralConfig(prev => ({ ...prev, dateFormat: e.target.value }))}
-                    className="w-full h-8 rounded border px-2.5 text-[13px] outline-none bg-slate-55 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800"
+                    className="w-full h-8 rounded border px-2.5 text-[13px] outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)]"
                   />
                 </div>
                 <div>
@@ -139,7 +139,7 @@ export default function ConfigurationPanel() {
                     type="text"
                     value={generalConfig.currency}
                     onChange={(e) => setGeneralConfig(prev => ({ ...prev, currency: e.target.value }))}
-                    className="w-full h-8 rounded border px-2.5 text-[13px] outline-none bg-slate-55 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800"
+                    className="w-full h-8 rounded border px-2.5 text-[13px] outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)]"
                   />
                 </div>
               </div>
@@ -153,7 +153,7 @@ export default function ConfigurationPanel() {
                     type="text"
                     value={tallyConfig.serverIp}
                     onChange={(e) => setTallyConfig(prev => ({ ...prev, serverIp: e.target.value }))}
-                    className="w-full h-8 rounded border px-2.5 text-[13px] outline-none bg-slate-55 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800"
+                    className="w-full h-8 rounded border px-2.5 text-[13px] outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)]"
                   />
                 </div>
                 <div>
@@ -162,7 +162,7 @@ export default function ConfigurationPanel() {
                     type="text"
                     value={tallyConfig.port}
                     onChange={(e) => setTallyConfig(prev => ({ ...prev, port: e.target.value }))}
-                    className="w-full h-8 rounded border px-2.5 text-[13px] outline-none bg-slate-55 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800"
+                    className="w-full h-8 rounded border px-2.5 text-[13px] outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)]"
                   />
                 </div>
                 <div>
@@ -171,12 +171,12 @@ export default function ConfigurationPanel() {
                     type="text"
                     value={tallyConfig.companyName}
                     onChange={(e) => setTallyConfig(prev => ({ ...prev, companyName: e.target.value }))}
-                    className="w-full h-8 rounded border px-2.5 text-[13px] outline-none bg-slate-55 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800"
+                    className="w-full h-8 rounded border px-2.5 text-[13px] outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)]"
                   />
                 </div>
-                <div className="flex items-center justify-between border rounded p-3 border-slate-200 dark:border-slate-800/80">
+                <div className="flex items-center justify-between border rounded p-3 border-[var(--app-border)]/80">
                   <div className="flex flex-col">
-                    <span className="font-semibold text-slate-800 dark:text-slate-200 text-[12px]">Auto Sync Trigger</span>
+                    <span className="font-semibold text-[var(--app-heading)] text-[12px]">Auto Sync Trigger</span>
                     <span className="text-[10px] text-slate-400">Trigger sync runs automatically</span>
                   </div>
                   <input
@@ -197,7 +197,7 @@ export default function ConfigurationPanel() {
                     type="number"
                     value={ocrConfig.minConfidence}
                     onChange={(e) => setOcrConfig(prev => ({ ...prev, minConfidence: parseInt(e.target.value) || 0 }))}
-                    className="w-full h-8 rounded border px-2.5 text-[13px] outline-none bg-slate-55 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800"
+                    className="w-full h-8 rounded border px-2.5 text-[13px] outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)]"
                   />
                 </div>
                 <div>
@@ -205,15 +205,15 @@ export default function ConfigurationPanel() {
                   <select
                     value={ocrConfig.enginePreference}
                     onChange={(e) => setOcrConfig(prev => ({ ...prev, enginePreference: e.target.value }))}
-                    className="w-full h-8 rounded border px-2 text-[13px] outline-none bg-slate-55 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800"
+                    className="w-full h-8 rounded border px-2 text-[13px] outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)]"
                   >
                     <option value="Vision OCR v4.2-Pro">Vision OCR v4.2-Pro</option>
                     <option value="Tesseract-Light">Tesseract-Light</option>
                   </select>
                 </div>
-                <div className="flex items-center justify-between border rounded p-3 border-slate-200 dark:border-slate-800/80 md:col-span-2">
+                <div className="flex items-center justify-between border rounded p-3 border-[var(--app-border)]/80 md:col-span-2">
                   <div className="flex flex-col">
-                    <span className="font-semibold text-slate-800 dark:text-slate-200 text-[12px]">Auto Extract Line Items</span>
+                    <span className="font-semibold text-[var(--app-heading)] text-[12px]">Auto Extract Line Items</span>
                     <span className="text-[10px] text-slate-400">Perform itemized inventory table classification</span>
                   </div>
                   <input
@@ -227,13 +227,13 @@ export default function ConfigurationPanel() {
             )}
 
             {!['General Settings', 'Tally Settings', 'OCR Settings'].includes(activeSection) && (
-              <div className="p-8 text-center text-slate-400 font-semibold border border-dashed rounded border-slate-200 dark:border-slate-800">
+              <div className="p-8 text-center text-slate-400 font-semibold border border-dashed rounded border-[var(--app-border)]">
                 Configurations for {activeSection} are managed by default profiles. Contact Super Admin to request edits.
               </div>
             )}
             
             {/* Fixed save button at the bottom of the form container */}
-            <div className="absolute bottom-0 left-0 right-0 h-12 border-t flex items-center justify-end px-4 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800/80">
+            <div className="absolute bottom-0 left-0 right-0 h-12 border-t flex items-center justify-end px-4 bg-[var(--app-content-bg)] border-[var(--app-border)]/80">
               <button
                 type="submit"
                 className="h-8 px-6 bg-[var(--app-accent)] hover:opacity-90 text-white font-bold uppercase text-[11.5px] shadow rounded transition-all"

@@ -67,13 +67,13 @@ export default function ClientManagementPanel() {
   );
 
   return (
-    <div className="flex flex-col gap-2.5 h-full overflow-y-auto pr-1 text-[13px] text-slate-700 dark:text-slate-200">
+    <div className="flex flex-col gap-2.5 h-full overflow-y-auto pr-1 text-[13px] text-[var(--app-text)]">
       
       {/* Title Header */}
-      <div className="rounded-xl border px-3 py-2 flex items-center justify-between shrink-0 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm">
+      <div className="rounded-xl border px-3 py-2 flex items-center justify-between shrink-0 bg-[var(--app-panel-bg)] border-[var(--app-border)] shadow-sm">
         <div>
-          <h1 className="text-[18px] md:text-[20px] font-extrabold tracking-tight text-slate-900 dark:text-[var(--app-heading)]">Client Management</h1>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+          <h1 className="text-[18px] md:text-[20px] font-extrabold tracking-tight text-[var(--app-heading)]">Client Management</h1>
+          <p className="text-[11px] text-[var(--app-muted)] mt-0.5">
             Configure client portfolios, tax profiles, and assigned operation roles.
           </p>
         </div>
@@ -99,12 +99,12 @@ export default function ClientManagementPanel() {
       {/* Client Pop-up Modal */}
       {showCreateForm && (
         <div className="fixed inset-0 z-50 flex items-start md:items-center justify-center bg-black/50 backdrop-blur-[2px] p-0 md:p-4 overflow-y-auto select-none">
-          <div className="bg-white dark:bg-slate-900 border-0 md:border border-slate-200 dark:border-slate-800 rounded-none md:rounded-xl shadow-2xl max-w-5xl w-full h-full md:h-auto md:max-h-[95vh] flex flex-col my-0 md:my-4 overflow-hidden">
+          <div className="bg-[var(--app-panel-bg)] border-0 md:border border-[var(--app-border)] rounded-none md:rounded-xl shadow-2xl max-w-5xl w-full h-full md:h-auto md:max-h-[95vh] flex flex-col my-0 md:my-4 overflow-hidden">
             {/* Header */}
-            <div className="px-4 py-2.5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center shrink-0 bg-white dark:bg-slate-900 rounded-t-none md:rounded-t-xl">
+            <div className="px-4 py-2.5 border-b border-[var(--app-border)] flex justify-between items-center shrink-0 bg-[var(--app-panel-bg)] rounded-t-none md:rounded-t-xl">
               <div>
                 <h2 className="text-base md:text-lg font-bold text-slate-900 dark:text-white">Create New Client</h2>
-                <p className="text-[10px] md:text-xs text-slate-500 dark:text-slate-400 mt-0.5">Add a new client profile in one view</p>
+                <p className="text-[10px] md:text-xs text-[var(--app-muted)] mt-0.5">Add a new client profile in one view</p>
               </div>
               <button
                 type="button"
@@ -123,8 +123,8 @@ export default function ClientManagementPanel() {
                   
                   {/* Column 1: Profile Info */}
                   <div className="space-y-3">
-                    <div className="space-y-2 border rounded-xl p-3 bg-slate-50/40 dark:bg-slate-950/20 border-slate-200 dark:border-slate-800">
-                      <div className="flex items-center gap-1.5 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold border-b border-slate-200 dark:border-slate-800 pb-1 mb-2">
+                    <div className="space-y-2 border rounded-xl p-3 bg-[var(--app-content-bg)] border-[var(--app-border)]">
+                      <div className="flex items-center gap-1.5 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold border-b border-[var(--app-border)] pb-1 mb-2">
                         <User size={13} />
                         <span className="text-[11px] uppercase tracking-wider font-black">1. Profile Info</span>
                       </div>
@@ -137,7 +137,7 @@ export default function ClientManagementPanel() {
                           value={form.name}
                           onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
                           placeholder="e.g. Rahul Sharma"
-                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
+                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                         />
                       </div>
 
@@ -149,7 +149,7 @@ export default function ClientManagementPanel() {
                           value={form.email}
                           onChange={(e) => setForm(prev => ({ ...prev, email: e.target.value }))}
                           placeholder="e.g. rahul@greeline.com"
-                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
+                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                         />
                       </div>
 
@@ -160,7 +160,7 @@ export default function ClientManagementPanel() {
                           value={form.phone}
                           onChange={(e) => setForm(prev => ({ ...prev, phone: e.target.value }))}
                           placeholder="e.g. +91 98765 43210"
-                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
+                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                         />
                       </div>
                     </div>
@@ -168,8 +168,8 @@ export default function ClientManagementPanel() {
 
                   {/* Column 2: Tax & Company Details */}
                   <div className="space-y-3">
-                    <div className="space-y-2 border rounded-xl p-3 bg-slate-50/40 dark:bg-slate-950/20 border-slate-200 dark:border-slate-800">
-                      <div className="flex items-center gap-1.5 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold border-b border-slate-200 dark:border-slate-800 pb-1 mb-2">
+                    <div className="space-y-2 border rounded-xl p-3 bg-[var(--app-content-bg)] border-[var(--app-border)]">
+                      <div className="flex items-center gap-1.5 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold border-b border-[var(--app-border)] pb-1 mb-2">
                         <Shield size={13} />
                         <span className="text-[11px] uppercase tracking-wider font-black">2. Entity Details</span>
                       </div>
@@ -182,7 +182,7 @@ export default function ClientManagementPanel() {
                           value={form.company}
                           onChange={(e) => setForm(prev => ({ ...prev, company: e.target.value }))}
                           placeholder="e.g. Greenline Ventures"
-                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
+                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                         />
                       </div>
 
@@ -193,7 +193,7 @@ export default function ClientManagementPanel() {
                           value={form.gstin}
                           onChange={(e) => setForm(prev => ({ ...prev, gstin: e.target.value }))}
                           placeholder="e.g. 23AAFFF6731J1L7"
-                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
+                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                         />
                       </div>
 
@@ -204,7 +204,7 @@ export default function ClientManagementPanel() {
                           value={form.pan}
                           onChange={(e) => setForm(prev => ({ ...prev, pan: e.target.value }))}
                           placeholder="e.g. AAFFF6731J"
-                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
+                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                         />
                       </div>
                     </div>
@@ -212,8 +212,8 @@ export default function ClientManagementPanel() {
 
                   {/* Column 3: Address & Notes */}
                   <div className="space-y-3">
-                    <div className="space-y-2 border rounded-xl p-3 bg-slate-50/40 dark:bg-slate-950/20 border-slate-200 dark:border-slate-800">
-                      <div className="flex items-center gap-1.5 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold border-b border-slate-200 dark:border-slate-800 pb-1 mb-2">
+                    <div className="space-y-2 border rounded-xl p-3 bg-[var(--app-content-bg)] border-[var(--app-border)]">
+                      <div className="flex items-center gap-1.5 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold border-b border-[var(--app-border)] pb-1 mb-2">
                         <MapPin size={13} />
                         <span className="text-[11px] uppercase tracking-wider font-black">3. Location & Notes</span>
                       </div>
@@ -225,7 +225,7 @@ export default function ClientManagementPanel() {
                           value={form.address}
                           onChange={(e) => setForm(prev => ({ ...prev, address: e.target.value }))}
                           placeholder="e.g. 102 Metro Plaza"
-                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
+                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                         />
                       </div>
 
@@ -237,7 +237,7 @@ export default function ClientManagementPanel() {
                             value={form.city}
                             onChange={(e) => setForm(prev => ({ ...prev, city: e.target.value }))}
                             placeholder="e.g. Indore"
-                            className="w-full h-8 rounded-lg border px-2 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
+                            className="w-full h-8 rounded-lg border px-2 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                           />
                         </div>
                         <div>
@@ -247,7 +247,7 @@ export default function ClientManagementPanel() {
                             value={form.state}
                             onChange={(e) => setForm(prev => ({ ...prev, state: e.target.value }))}
                             placeholder="e.g. MP"
-                            className="w-full h-8 rounded-lg border px-2 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
+                            className="w-full h-8 rounded-lg border px-2 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                           />
                         </div>
                       </div>
@@ -259,7 +259,7 @@ export default function ClientManagementPanel() {
                           value={form.notes}
                           onChange={(e) => setForm(prev => ({ ...prev, notes: e.target.value }))}
                           placeholder="e.g. Premium subscriber client"
-                          className="w-full rounded-lg border px-2 py-1 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)] resize-none"
+                          className="w-full rounded-lg border px-2 py-1 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)] resize-none"
                         />
                       </div>
                     </div>
@@ -269,11 +269,11 @@ export default function ClientManagementPanel() {
               </div>
 
               {/* Modal Footer Buttons */}
-              <div className="flex justify-end gap-2 p-3 md:p-4 border-t border-slate-100 dark:border-slate-800 text-[10px] font-bold uppercase tracking-wider shrink-0 bg-white dark:bg-slate-900 rounded-b-none md:rounded-b-xl">
+              <div className="flex justify-end gap-2 p-3 md:p-4 border-t border-[var(--app-border)] text-[10px] font-bold uppercase tracking-wider shrink-0 bg-[var(--app-panel-bg)] rounded-b-none md:rounded-b-xl">
                 <button
                   type="button"
                   onClick={() => setShowCreateForm(false)}
-                  className="px-4 py-1.5 border rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 transition-colors"
+                  className="px-4 py-1.5 border rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-[var(--app-text)] transition-colors"
                   style={{ borderColor: 'var(--app-border)' }}
                 >
                   Cancel
@@ -291,7 +291,7 @@ export default function ClientManagementPanel() {
       )}
 
       {/* Filter toolbar */}
-      <div className="border rounded px-2.5 py-2 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2 bg-white dark:bg-slate-950/20 border-slate-200 dark:border-slate-800 shrink-0" style={{ borderColor: 'var(--app-border)' }}>
+      <div className="border rounded px-2.5 py-2 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2 bg-[var(--app-panel-bg)] border-[var(--app-border)] shrink-0" style={{ borderColor: 'var(--app-border)' }}>
         
         {/* Search */}
         <div className="relative max-w-xs flex-1 group">
@@ -301,37 +301,37 @@ export default function ClientManagementPanel() {
             placeholder="Search clients..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full h-7 pl-8 pr-2.5 rounded border text-[11px] outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
+            className="w-full h-7 pl-8 pr-2.5 rounded border text-[11px] outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
           />
         </div>
       </div>
 
       {/* Client Table Grid */}
-      <div className="border rounded-xl flex-1 overflow-hidden flex flex-col bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm">
+      <div className="border rounded-xl flex-1 overflow-hidden flex flex-col bg-[var(--app-panel-bg)] border-[var(--app-border)] shadow-sm">
         <div className="overflow-auto themed-scrollbar flex-1">
           <table className="w-full text-left border-collapse min-w-[900px] text-[13px]">
             <thead>
-              <tr className="bg-slate-50 dark:bg-slate-900/60 border-b text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-800" style={{ backgroundColor: 'var(--app-table-head-bg)' }}>
+              <tr className="bg-[var(--app-content-bg)] border-b text-[var(--app-muted)] border-[var(--app-border)]" style={{ backgroundColor: 'var(--app-table-head-bg)' }}>
                 <th className="p-2 w-12 text-center" style={{ color: 'var(--app-muted)' }}>Sr.</th>
-                <th className="p-2 border-r border-slate-200 dark:border-slate-800" style={{ color: 'var(--app-muted)' }}>Client Name</th>
-                <th className="p-2 border-r border-slate-200 dark:border-slate-800" style={{ color: 'var(--app-muted)' }}>Company</th>
-                <th className="p-2 border-r border-slate-200 dark:border-slate-800" style={{ color: 'var(--app-muted)' }}>Mobile</th>
-                <th className="p-2 border-r border-slate-200 dark:border-slate-800" style={{ color: 'var(--app-muted)' }}>Email</th>
-                <th className="p-2 border-r border-slate-200 dark:border-slate-800" style={{ color: 'var(--app-muted)' }}>Assigned Users</th>
-                <th className="p-2 border-r border-slate-200 dark:border-slate-800 text-center" style={{ color: 'var(--app-muted)' }}>Status</th>
+                <th className="p-2 border-r border-[var(--app-border)]" style={{ color: 'var(--app-muted)' }}>Client Name</th>
+                <th className="p-2 border-r border-[var(--app-border)]" style={{ color: 'var(--app-muted)' }}>Company</th>
+                <th className="p-2 border-r border-[var(--app-border)]" style={{ color: 'var(--app-muted)' }}>Mobile</th>
+                <th className="p-2 border-r border-[var(--app-border)]" style={{ color: 'var(--app-muted)' }}>Email</th>
+                <th className="p-2 border-r border-[var(--app-border)]" style={{ color: 'var(--app-muted)' }}>Assigned Users</th>
+                <th className="p-2 border-r border-[var(--app-border)] text-center" style={{ color: 'var(--app-muted)' }}>Status</th>
                 <th className="p-2 text-center w-24" style={{ color: 'var(--app-muted)' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {filteredClients.length > 0 ? (
                 filteredClients.map((client, index) => (
-                  <tr key={client.id} className="border-b hover:bg-slate-50/50 dark:hover:bg-slate-900/10 font-medium text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800">
+                  <tr key={client.id} className="border-b hover:bg-slate-50/50 dark:hover:bg-slate-900/10 font-medium text-[var(--app-text)] border-[var(--app-border)]">
                     <td className="p-2 text-center text-slate-500">{index + 1}</td>
-                    <td className="p-2 border-r font-bold text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800">{client.name}</td>
-                    <td className="p-2 border-r text-slate-550 dark:text-slate-400">{client.company}</td>
-                    <td className="p-2 border-r text-slate-550 dark:text-slate-400 font-mono">{client.mobile}</td>
-                    <td className="p-2 border-r text-slate-550 dark:text-slate-400">{client.email}</td>
-                    <td className="p-2 border-r text-slate-500 dark:text-slate-400 italic text-[12px]">{client.assignedUsers}</td>
+                    <td className="p-2 border-r font-bold text-[var(--app-heading)] border-[var(--app-border)]">{client.name}</td>
+                    <td className="p-2 border-r text-[var(--app-text)]">{client.company}</td>
+                    <td className="p-2 border-r text-[var(--app-text)] font-mono">{client.mobile}</td>
+                    <td className="p-2 border-r text-[var(--app-text)]">{client.email}</td>
+                    <td className="p-2 border-r text-[var(--app-muted)] italic text-[12px]">{client.assignedUsers}</td>
                     
                     <td className="p-2 border-r text-center">
                       <span className={`px-1.5 py-0.5 rounded border text-[10.5px] font-bold ${

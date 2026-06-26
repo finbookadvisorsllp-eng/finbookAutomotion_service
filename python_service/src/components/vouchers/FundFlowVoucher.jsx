@@ -75,7 +75,7 @@ const FundFlowVoucher = ({ isDark, defaultType = 'Payment', onBack }) => {
           placeholder={placeholder}
           className={`w-full h-8 rounded-lg border text-[11px] font-bold outline-none transition-all shadow-sm
             ${Icon ? 'pl-8' : 'pl-3'} pr-3
-            ${readOnly ? 'opacity-60 cursor-not-allowed bg-slate-50 dark:bg-slate-900/50' : 'focus:ring-4 hover:border-[var(--app-accent)] dark:hover:border-cyan-800'}`}
+            ${readOnly ? 'opacity-60 cursor-not-allowed bg-[var(--app-content-bg)]' : 'focus:ring-4 hover:border-[var(--app-accent)] dark:hover:border-cyan-800'}`}
           style={{ 
             backgroundColor: readOnly ? undefined : theme.inputBg, 
             borderColor: theme.border, 
@@ -407,7 +407,7 @@ const FundFlowVoucher = ({ isDark, defaultType = 'Payment', onBack }) => {
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-300">
           <div className="w-full max-w-3xl rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-300"
                style={{ backgroundColor: theme.panelBg, borderColor: theme.border, borderStyle: 'solid', borderWidth: 1 }}>
-            <div className="px-6 py-4 border-b flex items-center justify-between bg-white/50 dark:bg-slate-900/50" style={{ borderColor: theme.border }}>
+            <div className="px-6 py-4 border-b flex items-center justify-between bg-[var(--app-panel-bg)]/50" style={{ borderColor: theme.border }}>
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg bg-[var(--app-accent-soft)] text-[var(--app-accent)] flex items-center justify-center">
                   <FileCode2 size={16} />
@@ -470,7 +470,7 @@ const FundFlowVoucher = ({ isDark, defaultType = 'Payment', onBack }) => {
   </BODY>
 </ENVELOPE>`}
             </div>
-            <div className="p-4 border-t flex justify-end gap-3 bg-white/50 dark:bg-slate-900/50" style={{ borderColor: theme.border }}>
+            <div className="p-4 border-t flex justify-end gap-3 bg-[var(--app-panel-bg)]/50" style={{ borderColor: theme.border }}>
               <button onClick={() => setShowPreview(false)} className="px-5 py-2 rounded-lg font-bold text-[12px] border transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
                       style={{ borderColor: theme.border, color: theme.text }}>
                 Close Preview

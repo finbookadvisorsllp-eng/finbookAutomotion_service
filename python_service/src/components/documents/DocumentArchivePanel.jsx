@@ -202,13 +202,13 @@ export default function DocumentArchivePanel() {
   ];
 
   return (
-    <div className="flex flex-col gap-2.5 h-full overflow-y-auto pr-1 text-[13px] text-slate-700 dark:text-slate-200">
+    <div className="flex flex-col gap-2.5 h-full overflow-y-auto pr-1 text-[13px] text-[var(--app-text)]">
       
       {/* Header Banner */}
-      <div className="rounded-lg border px-3 py-2 flex items-center justify-between shrink-0 bg-white dark:bg-[var(--app-panel-bg)] border-slate-200 dark:border-slate-800">
+      <div className="rounded-lg border px-3 py-2 flex items-center justify-between shrink-0 bg-[var(--app-panel-bg)] border-[var(--app-border)]">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-[var(--app-heading)]">Document Archive</h1>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+          <h1 className="text-2xl font-bold tracking-tight text-[var(--app-heading)]">Document Archive</h1>
+          <p className="text-[11px] text-[var(--app-muted)] mt-0.5">
             Store and retrieve every uploaded document, ledger attachment and OCR scan.
           </p>
         </div>
@@ -217,9 +217,9 @@ export default function DocumentArchivePanel() {
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5 shrink-0">
         {stats.map((s, idx) => (
-          <div key={idx} className="p-2 border rounded bg-white dark:bg-slate-955/20 border-slate-200 dark:border-slate-800 flex flex-col justify-between">
-            <span className="text-[11px] text-slate-500 dark:text-slate-400 uppercase font-semibold tracking-wider leading-none block">{s.label}</span>
-            <span className="text-[15px] font-bold mt-1 text-slate-900 dark:text-slate-100 block leading-none">{s.count}</span>
+          <div key={idx} className="p-2 border rounded bg-[var(--app-panel-bg)] border-[var(--app-border)] flex flex-col justify-between">
+            <span className="text-[11px] text-[var(--app-muted)] uppercase font-semibold tracking-wider leading-none block">{s.label}</span>
+            <span className="text-[15px] font-bold mt-1 text-[var(--app-heading)] block leading-none">{s.count}</span>
           </div>
         ))}
       </div>
@@ -227,7 +227,7 @@ export default function DocumentArchivePanel() {
 
 
       {/* Category Filters */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 border-b border-slate-200 dark:border-slate-800 shrink-0">
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 border-b border-[var(--app-border)] shrink-0">
         {categories.map(cat => (
           <button
             key={cat}
@@ -252,7 +252,7 @@ export default function DocumentArchivePanel() {
             className={`px-3 py-1 text-[10.5px] font-bold tracking-wide whitespace-nowrap transition-all uppercase rounded-full border ${
               activeStatus === st 
                 ? 'bg-[var(--app-accent)] border-[var(--app-accent)] text-white shadow-sm' 
-                : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-700'
+                : 'bg-[var(--app-panel-bg)] border-[var(--app-border)] text-slate-500 hover:text-slate-700'
             }`}
           >
             {st}
@@ -261,7 +261,7 @@ export default function DocumentArchivePanel() {
       </div>
 
       {/* Search Toolbar */}
-      <div className="border rounded px-2.5 py-2 flex items-center justify-between bg-white dark:bg-slate-950/20 border-slate-200 dark:border-slate-800 shrink-0">
+      <div className="border rounded px-2.5 py-2 flex items-center justify-between bg-[var(--app-panel-bg)] border-[var(--app-border)] shrink-0">
         <div className="relative max-w-xs flex-1 group">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
           <input
@@ -269,25 +269,25 @@ export default function DocumentArchivePanel() {
             placeholder="Search archived files..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full h-7 pl-8 pr-2.5 rounded border text-[11px] outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
+            className="w-full h-7 pl-8 pr-2.5 rounded border text-[11px] outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
           />
         </div>
       </div>
 
       {/* Archives Table */}
-      <div className="border rounded flex-1 overflow-hidden flex flex-col bg-white dark:bg-slate-955/10 border-slate-200 dark:border-slate-800">
+      <div className="border rounded flex-1 overflow-hidden flex flex-col bg-[var(--app-panel-bg)] border-[var(--app-border)]">
         <div className="overflow-auto themed-scrollbar flex-1">
           <table className="w-full text-left border-collapse min-w-[900px] text-[13px]">
             <thead>
-              <tr className="bg-slate-50 dark:bg-slate-900/60 border-b text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-800">
+              <tr className="bg-[var(--app-content-bg)] border-b text-[var(--app-muted)] border-[var(--app-border)]">
                 <th className="p-2 w-12 text-center">Sr.</th>
-                <th className="p-2 border-r border-slate-200 dark:border-slate-800 w-[240px]">Document Name</th>
-                <th className="p-2 border-r border-slate-200 dark:border-slate-800">Category</th>
-                <th className="p-2 border-r border-slate-200 dark:border-slate-800">Voucher Type</th>
-                <th className="p-2 border-r border-slate-200 dark:border-slate-800">Linked Voucher</th>
-                <th className="p-2 border-r border-slate-200 dark:border-slate-800 text-center">Upload Date</th>
-                <th className="p-2 border-r border-slate-200 dark:border-slate-800">Uploaded By</th>
-                <th className="p-2 border-r border-slate-200 dark:border-slate-800 text-center">Status</th>
+                <th className="p-2 border-r border-[var(--app-border)] w-[240px]">Document Name</th>
+                <th className="p-2 border-r border-[var(--app-border)]">Category</th>
+                <th className="p-2 border-r border-[var(--app-border)]">Voucher Type</th>
+                <th className="p-2 border-r border-[var(--app-border)]">Linked Voucher</th>
+                <th className="p-2 border-r border-[var(--app-border)] text-center">Upload Date</th>
+                <th className="p-2 border-r border-[var(--app-border)]">Uploaded By</th>
+                <th className="p-2 border-r border-[var(--app-border)] text-center">Status</th>
                 <th className="p-2 text-center w-28">Actions</th>
               </tr>
             </thead>
@@ -308,7 +308,7 @@ export default function DocumentArchivePanel() {
                     ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20'
                     : item.status === 'pending_approval'
                     ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
-                    : 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20'; // draft
+                    : 'bg-slate-500/10 text-[var(--app-text)] border-slate-500/20'; // draft
 
                   const statusLabels = {
                     'draft': 'Draft',
@@ -319,21 +319,21 @@ export default function DocumentArchivePanel() {
                   };
 
                   return (
-                    <tr key={item.id} className="border-b hover:bg-slate-50/50 dark:hover:bg-slate-900/10 font-medium text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800">
+                    <tr key={item.id} className="border-b hover:bg-slate-50/50 dark:hover:bg-slate-900/10 font-medium text-[var(--app-text)] border-[var(--app-border)]">
                       <td className="p-2 text-center text-slate-500">{index + 1}</td>
-                      <td className="p-2 border-r font-semibold text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800">
+                      <td className="p-2 border-r font-semibold text-[var(--app-heading)] border-[var(--app-border)]">
                         <div className="flex items-center gap-1.5">
                           <FileText size={13} className="text-slate-400" />
                           <span className="truncate max-w-[200px]">{item.name}</span>
                           <span className="text-[10px] text-slate-500 font-semibold shrink-0">({item.size})</span>
                         </div>
                       </td>
-                      <td className="p-2 border-r border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400">{item.category}</td>
-                      <td className="p-2 border-r border-slate-200 dark:border-slate-800 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-semibold">{item.type}</td>
-                      <td className="p-2 border-r border-slate-200 dark:border-slate-800 font-semibold text-slate-900 dark:text-slate-100">{item.linkedVoucher}</td>
-                      <td className="p-2 border-r border-slate-200 dark:border-slate-800 text-center text-slate-500">{item.date}</td>
-                      <td className="p-2 border-r border-slate-200 dark:border-slate-800 text-slate-550 dark:text-slate-400">{item.uploadedBy}</td>
-                      <td className="p-2 border-r border-slate-200 dark:border-slate-800 text-center">
+                      <td className="p-2 border-r border-[var(--app-border)] text-[var(--app-text)]">{item.category}</td>
+                      <td className="p-2 border-r border-[var(--app-border)] text-[var(--app-accent)] dark:text-[var(--app-accent)] font-semibold">{item.type}</td>
+                      <td className="p-2 border-r border-[var(--app-border)] font-semibold text-[var(--app-heading)]">{item.linkedVoucher}</td>
+                      <td className="p-2 border-r border-[var(--app-border)] text-center text-slate-500">{item.date}</td>
+                      <td className="p-2 border-r border-[var(--app-border)] text-[var(--app-text)]">{item.uploadedBy}</td>
+                      <td className="p-2 border-r border-[var(--app-border)] text-center">
                         <span className={`px-1.5 py-0.2 rounded border text-[11px] font-semibold ${statusColors}`}>
                           {statusLabels[item.status] || item.status}
                         </span>
@@ -342,7 +342,7 @@ export default function DocumentArchivePanel() {
                         <div className="flex items-center justify-center gap-1">
                           <button
                             onClick={() => toast.info(`Previewing ${item.name}`)}
-                            className="px-1.5 py-0.5 rounded border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-[10px] font-bold"
+                            className="px-1.5 py-0.5 rounded border border-[var(--app-border)] hover:bg-slate-100 dark:hover:bg-slate-800 text-[var(--app-text)] text-[10px] font-bold"
                           >
                             Preview
                           </button>

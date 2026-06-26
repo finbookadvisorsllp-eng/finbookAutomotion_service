@@ -270,7 +270,7 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
 
   const TableHead = ({ label, center, width, borderRight }) => (
     <th 
-      className={`p-2 border-b text-[11px] font-bold tracking-tight uppercase ${center ? 'text-center' : ''} ${borderRight ? 'border-r border-slate-200 dark:border-slate-800' : ''}`} 
+      className={`p-2 border-b text-[11px] font-bold tracking-tight uppercase ${center ? 'text-center' : ''} ${borderRight ? 'border-r border-[var(--app-border)]' : ''}`} 
       style={{ 
         borderColor: 'var(--app-row-border)', 
         color: 'var(--app-muted)', 
@@ -323,23 +323,23 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
               filteredParty.map((row, index) => (
                 <tr 
                   key={row.sr} 
-                  className="border-b transition-colors hover:bg-slate-50/50 dark:hover:bg-slate-900/10 font-medium text-slate-700 dark:text-slate-300" 
+                  className="border-b transition-colors hover:bg-slate-50/50 dark:hover:bg-slate-900/10 font-medium text-[var(--app-text)]" 
                   style={{ 
                     backgroundColor: index % 2 === 0 ? 'transparent' : 'var(--app-table-head-bg)', 
                     borderColor: 'var(--app-row-border)' 
                   }}
                 >
-                  <td className="p-2 border-r text-center text-slate-500 border-slate-200 dark:border-slate-800">{index + 1}</td>
-                  <td className="p-2 border-r font-bold text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800">{row.ledger}</td>
-                  <td className="p-2 border-r border-slate-200 dark:border-slate-800">{row.parentGroup}</td>
-                  <td className="p-2 border-r border-slate-200 dark:border-slate-800 text-slate-500">{row.subGroup}</td>
-                  <td className="p-2 border-r font-mono border-slate-200 dark:border-slate-800 font-semibold">{row.gst}</td>
-                  <td className="p-2 border-r border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100">{row.name}</td>
-                  <td className="p-2 border-r border-slate-200 dark:border-slate-800 text-slate-500">{row.pos}</td>
-                  <td className="p-2 border-r border-slate-200 dark:border-slate-800 text-slate-500">{row.type}</td>
-                  <td className="p-2 border-r border-slate-200 dark:border-slate-800 text-slate-500 truncate max-w-[240px]">{row.add1}</td>
-                  <td className="p-2 border-r border-slate-200 dark:border-slate-800 text-slate-500 truncate max-w-[240px]">{row.add2}</td>
-                  <td className="p-2 border-r border-slate-200 dark:border-slate-800 text-slate-500">{row.city}</td>
+                  <td className="p-2 border-r text-center text-slate-500 border-[var(--app-border)]">{index + 1}</td>
+                  <td className="p-2 border-r font-bold text-[var(--app-heading)] border-[var(--app-border)]">{row.ledger}</td>
+                  <td className="p-2 border-r border-[var(--app-border)]">{row.parentGroup}</td>
+                  <td className="p-2 border-r border-[var(--app-border)] text-slate-500">{row.subGroup}</td>
+                  <td className="p-2 border-r font-mono border-[var(--app-border)] font-semibold">{row.gst}</td>
+                  <td className="p-2 border-r border-[var(--app-border)] text-[var(--app-heading)]">{row.name}</td>
+                  <td className="p-2 border-r border-[var(--app-border)] text-slate-500">{row.pos}</td>
+                  <td className="p-2 border-r border-[var(--app-border)] text-slate-500">{row.type}</td>
+                  <td className="p-2 border-r border-[var(--app-border)] text-slate-500 truncate max-w-[240px]">{row.add1}</td>
+                  <td className="p-2 border-r border-[var(--app-border)] text-slate-500 truncate max-w-[240px]">{row.add2}</td>
+                  <td className="p-2 border-r border-[var(--app-border)] text-slate-500">{row.city}</td>
                   <td className="p-2 text-center">
                     <span className={`px-1.5 py-0.5 rounded border text-[10.5px] font-bold ${
                       row.isSynced 
@@ -402,21 +402,21 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
               filteredStock.map((row, index) => (
                 <tr 
                   key={row.sr} 
-                  className="border-b transition-colors hover:bg-slate-50/50 dark:hover:bg-slate-900/10 font-medium text-slate-700 dark:text-slate-300" 
+                  className="border-b transition-colors hover:bg-slate-50/50 dark:hover:bg-slate-900/10 font-medium text-[var(--app-text)]" 
                   style={{ 
                     backgroundColor: index % 2 === 0 ? 'transparent' : 'var(--app-table-head-bg)', 
                     borderColor: 'var(--app-row-border)' 
                   }}
                 >
-                  <td className="p-2 border-r text-center text-slate-500 border-slate-200 dark:border-slate-800">{index + 1}</td>
-                  <td className="p-2 border-r font-bold text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800">{row.name}</td>
-                  <td className="p-2 border-r border-slate-200 dark:border-slate-800">{row.group}</td>
-                  <td className="p-2 border-r border-slate-200 dark:border-slate-800">{row.uom}</td>
-                  <td className="p-2 border-r font-mono border-slate-200 dark:border-slate-800 font-semibold">{row.hsn}</td>
-                  <td className="p-2 border-r font-semibold text-[var(--app-accent)] border-slate-200 dark:border-slate-800">{row.gstRate}</td>
-                  <td className="p-2 border-r text-right font-semibold text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800">{row.qty}</td>
-                  <td className="p-2 border-r text-right border-slate-200 dark:border-slate-800">₹{(row.rate ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                  <td className="p-2 border-r text-right font-bold text-emerald-600 dark:text-emerald-400 border-slate-200 dark:border-slate-800">₹{(row.value ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                  <td className="p-2 border-r text-center text-slate-500 border-[var(--app-border)]">{index + 1}</td>
+                  <td className="p-2 border-r font-bold text-[var(--app-heading)] border-[var(--app-border)]">{row.name}</td>
+                  <td className="p-2 border-r border-[var(--app-border)]">{row.group}</td>
+                  <td className="p-2 border-r border-[var(--app-border)]">{row.uom}</td>
+                  <td className="p-2 border-r font-mono border-[var(--app-border)] font-semibold">{row.hsn}</td>
+                  <td className="p-2 border-r font-semibold text-[var(--app-accent)] border-[var(--app-border)]">{row.gstRate}</td>
+                  <td className="p-2 border-r text-right font-semibold text-[var(--app-heading)] border-[var(--app-border)]">{row.qty}</td>
+                  <td className="p-2 border-r text-right border-[var(--app-border)]">₹{(row.rate ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                  <td className="p-2 border-r text-right font-bold text-emerald-600 dark:text-emerald-400 border-[var(--app-border)]">₹{(row.value ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
                   <td className="p-2 text-center">
                     <span className={`px-1.5 py-0.5 rounded border text-[10.5px] font-bold ${
                       row.isSynced 
@@ -444,10 +444,10 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
   const renderLedgerForm = () => (
     <form
       onSubmit={handleCreateLedger}
-      className="space-y-2 bg-white dark:bg-[var(--app-panel-bg)]"
+      className="space-y-2 bg-[var(--app-panel-bg)]"
     >
-      <div className="flex items-center justify-between border-b pb-1.5 mb-2.5 border-slate-200 dark:border-slate-800">
-        <h3 className="text-[14px] font-bold text-slate-900 dark:text-[var(--app-heading)] uppercase tracking-wider">Create Party Ledger</h3>
+      <div className="flex items-center justify-between border-b pb-1.5 mb-2.5 border-[var(--app-border)]">
+        <h3 className="text-[14px] font-bold text-[var(--app-heading)] uppercase tracking-wider">Create Party Ledger</h3>
         <button type="button" onClick={() => setShowCreateForm(false)} className="text-slate-400 hover:text-slate-600"><X size={14} /></button>
       </div>
 
@@ -459,7 +459,7 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
             placeholder="e.g. A K TRADING"
             value={ledgerForm.ledgerName}
             onChange={(e) => setLedgerForm(prev => ({ ...prev, ledgerName: e.target.value }))}
-            className="w-full h-8 rounded border px-2.5 text-[13px] outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
+            className="w-full h-8 rounded border px-2.5 text-[13px] outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
             required
           />
         </div>
@@ -469,7 +469,7 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
           <select
             value={ledgerForm.parentGroup}
             onChange={(e) => setLedgerForm(prev => ({ ...prev, parentGroup: e.target.value }))}
-            className="w-full h-8 rounded border px-2 text-[13px] outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
+            className="w-full h-8 rounded border px-2 text-[13px] outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
           >
             <option value="Sundry Debtors">Sundry Debtors</option>
             <option value="Sundry Creditors">Sundry Creditors</option>
@@ -483,7 +483,7 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
             placeholder="e.g. 07DDTPAD879K1Z7"
             value={ledgerForm.gstin}
             onChange={(e) => setLedgerForm(prev => ({ ...prev, gstin: e.target.value }))}
-            className="w-full h-8 rounded border px-2.5 text-[13px] outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
+            className="w-full h-8 rounded border px-2.5 text-[13px] outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
           />
         </div>
 
@@ -492,7 +492,7 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
           <select
             value={ledgerForm.pos}
             onChange={(e) => setLedgerForm(prev => ({ ...prev, pos: e.target.value }))}
-            className="w-full h-8 rounded border px-2 text-[13px] outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
+            className="w-full h-8 rounded border px-2 text-[13px] outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
           >
             <option value="Delhi">Delhi</option>
             <option value="Madhya Pradesh">Madhya Pradesh</option>
@@ -508,7 +508,7 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
             placeholder="e.g. RIGHT PORTION 1st Floor, KH N.589"
             value={ledgerForm.add1}
             onChange={(e) => setLedgerForm(prev => ({ ...prev, add1: e.target.value }))}
-            className="w-full h-8 rounded border px-2.5 text-[13px] outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
+            className="w-full h-8 rounded border px-2.5 text-[13px] outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
           />
         </div>
 
@@ -519,16 +519,16 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
             placeholder="e.g. Delhi"
             value={ledgerForm.city}
             onChange={(e) => setLedgerForm(prev => ({ ...prev, city: e.target.value }))}
-            className="w-full h-8 rounded border px-2.5 text-[13px] outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
+            className="w-full h-8 rounded border px-2.5 text-[13px] outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
           />
         </div>
       </div>
 
-      <div className="flex gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+      <div className="flex gap-2 pt-3 border-t border-[var(--app-border)]">
         <button
           type="button"
           onClick={() => setShowCreateForm(false)}
-          className="h-8 flex-1 rounded border text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors uppercase font-bold text-[11px] border-slate-200 dark:border-slate-800"
+          className="h-8 flex-1 rounded border text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors uppercase font-bold text-[11px] border-[var(--app-border)]"
         >
           Cancel
         </button>
@@ -543,11 +543,11 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
   );
 
   return (
-    <div className="flex flex-col gap-2.5 h-full animate-in fade-in duration-500 overflow-y-auto pr-1 text-[13px] text-slate-700 dark:text-slate-200">
+    <div className="flex flex-col gap-2.5 h-full animate-in fade-in duration-500 overflow-y-auto pr-1 text-[13px] text-[var(--app-text)]">
       
       {/* Title Header */}
       <div 
-        className="rounded-xl border px-3 py-2 flex items-center justify-between shrink-0 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm"
+        className="rounded-xl border px-3 py-2 flex items-center justify-between shrink-0 bg-[var(--app-panel-bg)] border-[var(--app-border)] shadow-sm"
       >
         <div className="flex items-center gap-2.5 min-w-0">
           <div 
@@ -556,10 +556,10 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
             {isStock ? <Package size={15} /> : <BookOpen size={15} />}
           </div>
           <div className="min-w-0">
-            <h1 className="text-[18px] md:text-[20px] font-extrabold tracking-tight text-slate-900 dark:text-[var(--app-heading)] truncate">
+            <h1 className="text-[18px] md:text-[20px] font-extrabold tracking-tight text-[var(--app-heading)] truncate">
               {isStock ? 'Item Master' : 'Ledger Master'}
             </h1>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 hidden sm:block truncate">
+            <p className="text-[11px] text-[var(--app-muted)] mt-0.5 hidden sm:block truncate">
               {isStock ? 'View, configure and provision inventory products, stock groups, HSN classifications, and UOM units.' : 'Manage client ledger categories, sundry debtor accounts, tax profiles, and place of supply mappings.'}
             </p>
           </div>
@@ -585,7 +585,7 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
       </div>
 
       {/* Toolbar filters */}
-      <div className="border rounded px-2.5 py-2 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2 bg-white dark:bg-slate-950/20 border-slate-200 dark:border-slate-800 shrink-0">
+      <div className="border rounded px-2.5 py-2 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2 bg-[var(--app-panel-bg)] border-[var(--app-border)] shrink-0">
         {/* Search */}
         <div className="relative w-full md:max-w-xs flex-1 group">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
@@ -594,7 +594,7 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
             placeholder={isStock ? "Search stock items..." : "Search party ledgers..."}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full h-7 pl-8 pr-2.5 rounded border text-[14px] outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
+            className="w-full h-7 pl-8 pr-2.5 rounded border text-[14px] outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
           />
         </div>
 
@@ -616,7 +616,7 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
               fetchMasterData();
               toast.info('Lists refreshed from Tally cache');
             }}
-            className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 border rounded text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-800"
+            className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 border rounded text-[var(--app-muted)] border-[var(--app-border)]"
             type="button"
           >
             <RefreshCw size={13} />
@@ -628,7 +628,7 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 flex-1 overflow-hidden">
         
         {/* Table List Column */}
-        <div className="lg:col-span-12 flex flex-col border rounded-xl overflow-hidden bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm">
+        <div className="lg:col-span-12 flex flex-col border rounded-xl overflow-hidden bg-[var(--app-panel-bg)] border-[var(--app-border)] shadow-sm">
           {isStock ? renderStockTable() : renderPartyLedgerTable()}
 
           {/* Pagination Footer */}
@@ -688,12 +688,12 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
         {/* Stock Item Pop-up Modal */}
         {showCreateForm && isStock && (
           <div className="fixed inset-0 z-50 flex items-start md:items-center justify-center bg-black/50 backdrop-blur-[2px] p-0 md:p-4 overflow-y-auto">
-            <div className="bg-white dark:bg-slate-900 border-0 md:border border-slate-200 dark:border-slate-800 rounded-none md:rounded-xl shadow-2xl max-w-6xl w-full h-full md:h-auto md:max-h-[95vh] flex flex-col my-0 md:my-4 overflow-hidden">
+            <div className="bg-[var(--app-panel-bg)] border-0 md:border border-[var(--app-border)] rounded-none md:rounded-xl shadow-2xl max-w-6xl w-full h-full md:h-auto md:max-h-[95vh] flex flex-col my-0 md:my-4 overflow-hidden">
               {/* Header */}
-              <div className="px-4 py-2.5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center shrink-0 bg-white dark:bg-slate-900 rounded-t-none md:rounded-t-xl">
+              <div className="px-4 py-2.5 border-b border-[var(--app-border)] flex justify-between items-center shrink-0 bg-[var(--app-panel-bg)] rounded-t-none md:rounded-t-xl">
                 <div>
                   <h2 className="text-base md:text-lg font-bold text-slate-900 dark:text-white">Add New Item</h2>
-                  <p className="text-[10px] md:text-xs text-slate-500 dark:text-slate-400 mt-0.5">Create a new stock item in one view</p>
+                  <p className="text-[10px] md:text-xs text-[var(--app-muted)] mt-0.5">Create a new stock item in one view</p>
                 </div>
                 <button
                   type="button"
@@ -712,8 +712,8 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
                     
                     {/* Column 1: Basic Details */}
                     <div className="space-y-3">
-                      <div className="space-y-2 border rounded-xl p-3 bg-slate-50/40 dark:bg-slate-950/20 border-slate-200 dark:border-slate-800">
-                        <div className="flex items-center gap-1.5 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold border-b border-slate-200 dark:border-slate-800 pb-1 mb-2">
+                      <div className="space-y-2 border rounded-xl p-3 bg-[var(--app-content-bg)] border-[var(--app-border)]">
+                        <div className="flex items-center gap-1.5 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold border-b border-[var(--app-border)] pb-1 mb-2">
                           <Package size={13} />
                           <span className="text-[11px] uppercase tracking-wider">1. Basic Details</span>
                         </div>
@@ -726,7 +726,7 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
                             value={itemForm.itemName}
                             onChange={(e) => setItemForm(prev => ({ ...prev, itemName: e.target.value }))}
                             placeholder="e.g. HP Keyboard"
-                            className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
+                            className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                           />
                         </div>
                         
@@ -735,7 +735,7 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
                           <select
                             value={itemForm.stockGroup}
                             onChange={(e) => setItemForm(prev => ({ ...prev, stockGroup: e.target.value }))}
-                            className="w-full h-8 rounded-lg border px-1.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
+                            className="w-full h-8 rounded-lg border px-1.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                           >
                             <option value="Computer Accessories">Computer Accessories</option>
                             <option value="Computer Hardware">Computer Hardware</option>
@@ -750,7 +750,7 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
                           <select
                             value={itemForm.uom}
                             onChange={(e) => setItemForm(prev => ({ ...prev, uom: e.target.value }))}
-                            className="w-full h-8 rounded-lg border px-1.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
+                            className="w-full h-8 rounded-lg border px-1.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                           >
                             <option value="Nos">Nos</option>
                             <option value="Pcs">Pcs</option>
@@ -766,7 +766,7 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
                             value={itemForm.brand}
                             onChange={(e) => setItemForm(prev => ({ ...prev, brand: e.target.value }))}
                             placeholder="e.g. HP"
-                            className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
+                            className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                           />
                         </div>
                       </div>
@@ -775,8 +775,8 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
                     {/* Column 2: Tax Details & Inventory Details */}
                     <div className="space-y-3">
                       {/* Section 2: Tax Details */}
-                      <div className="space-y-2 border rounded-xl p-3 bg-slate-50/40 dark:bg-slate-950/20 border-slate-200 dark:border-slate-800">
-                        <div className="flex items-center gap-1.5 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold border-b border-slate-200 dark:border-slate-800 pb-1 mb-2">
+                      <div className="space-y-2 border rounded-xl p-3 bg-[var(--app-content-bg)] border-[var(--app-border)]">
+                        <div className="flex items-center gap-1.5 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold border-b border-[var(--app-border)] pb-1 mb-2">
                           <Percent size={13} />
                           <span className="text-[11px] uppercase tracking-wider">2. Tax Details</span>
                         </div>
@@ -789,7 +789,7 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
                               value={itemForm.hsnCode}
                               onChange={(e) => setItemForm(prev => ({ ...prev, hsnCode: e.target.value }))}
                               placeholder="e.g. 8471"
-                              className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
+                              className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                             />
                           </div>
 
@@ -798,7 +798,7 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
                             <select
                               value={itemForm.gstRate}
                               onChange={(e) => setItemForm(prev => ({ ...prev, gstRate: e.target.value }))}
-                              className="w-full h-8 rounded-lg border px-1.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
+                              className="w-full h-8 rounded-lg border px-1.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                             >
                               <option value="18%">18%</option>
                               <option value="12%">12%</option>
@@ -813,7 +813,7 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
                           <select
                             value={itemForm.taxabilityType}
                             onChange={(e) => setItemForm(prev => ({ ...prev, taxabilityType: e.target.value }))}
-                            className="w-full h-8 rounded-lg border px-1.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
+                            className="w-full h-8 rounded-lg border px-1.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                           >
                             <option value="Taxable">Taxable</option>
                             <option value="Exempt">Exempt</option>
@@ -824,24 +824,24 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
                       </div>
 
                       {/* Section 4: Inventory Details */}
-                      <div className="space-y-2 border rounded-xl p-3 bg-slate-50/40 dark:bg-slate-950/20 border-slate-200 dark:border-slate-800">
-                        <div className="flex items-center gap-1.5 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold border-b border-slate-200 dark:border-slate-800 pb-1 mb-2">
+                      <div className="space-y-2 border rounded-xl p-3 bg-[var(--app-content-bg)] border-[var(--app-border)]">
+                        <div className="flex items-center gap-1.5 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold border-b border-[var(--app-border)] pb-1 mb-2">
                           <Package size={13} />
                           <span className="text-[11px] uppercase tracking-wider">4. Inventory Details</span>
                         </div>
 
                         <div>
                           <label className="text-[9px] font-bold text-slate-500 mb-0.5 block uppercase tracking-wide">Opening Stock *</label>
-                          <div className="flex rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden bg-slate-50 dark:bg-slate-950/40 focus-within:border-[var(--app-accent)] transition-colors">
+                          <div className="flex rounded-lg border border-[var(--app-border)] overflow-hidden bg-[var(--app-content-bg)] focus-within:border-[var(--app-accent)] transition-colors">
                             <input
                               type="text"
                               required
                               value={itemForm.openingQty}
                               onChange={(e) => setItemForm(prev => ({ ...prev, openingQty: e.target.value }))}
                               placeholder="100.00"
-                              className="flex-1 h-8 px-2.5 text-xs bg-transparent outline-none text-slate-900 dark:text-slate-100"
+                              className="flex-1 h-8 px-2.5 text-xs bg-transparent outline-none text-[var(--app-heading)]"
                             />
-                            <div className="flex items-center justify-center px-3 bg-slate-100 dark:bg-slate-800 text-xs font-semibold text-slate-500 dark:text-slate-400 border-l border-slate-200 dark:border-slate-800 select-none">
+                            <div className="flex items-center justify-center px-3 bg-[var(--app-control-hover)] text-xs font-semibold text-[var(--app-muted)] border-l border-[var(--app-border)] select-none">
                               {itemForm.uom}
                             </div>
                           </div>
@@ -852,8 +852,8 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
                     {/* Column 3: Pricing Details & Additional Details */}
                     <div className="space-y-3">
                       {/* Section 3: Pricing Details */}
-                      <div className="space-y-2 border rounded-xl p-3 bg-slate-50/40 dark:bg-slate-950/20 border-slate-200 dark:border-slate-800">
-                        <div className="flex items-center gap-1.5 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold border-b border-slate-200 dark:border-slate-800 pb-1 mb-2">
+                      <div className="space-y-2 border rounded-xl p-3 bg-[var(--app-content-bg)] border-[var(--app-border)]">
+                        <div className="flex items-center gap-1.5 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold border-b border-[var(--app-border)] pb-1 mb-2">
                           <IndianRupee size={13} />
                           <span className="text-[11px] uppercase tracking-wider">3. Pricing Details</span>
                         </div>
@@ -867,7 +867,7 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
                               value={itemForm.purchasePrice}
                               onChange={(e) => setItemForm(prev => ({ ...prev, purchasePrice: e.target.value }))}
                               placeholder="500.00"
-                              className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
+                              className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                             />
                           </div>
 
@@ -879,7 +879,7 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
                               value={itemForm.salesPrice}
                               onChange={(e) => setItemForm(prev => ({ ...prev, salesPrice: e.target.value }))}
                               placeholder="700.00"
-                              className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
+                              className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                             />
                           </div>
                         </div>
@@ -891,14 +891,14 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
                             value={itemForm.mrp}
                             onChange={(e) => setItemForm(prev => ({ ...prev, mrp: e.target.value }))}
                             placeholder="750.00"
-                            className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
+                            className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                           />
                         </div>
                       </div>
 
                       {/* Section 5: Additional Details */}
-                      <div className="space-y-2 border rounded-xl p-3 bg-slate-50/40 dark:bg-slate-950/20 border-slate-200 dark:border-slate-800">
-                        <div className="flex items-center gap-1.5 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold border-b border-slate-200 dark:border-slate-800 pb-1 mb-2">
+                      <div className="space-y-2 border rounded-xl p-3 bg-[var(--app-content-bg)] border-[var(--app-border)]">
+                        <div className="flex items-center gap-1.5 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold border-b border-[var(--app-border)] pb-1 mb-2">
                           <Info size={13} />
                           <span className="text-[11px] uppercase tracking-wider">5. Additional Details</span>
                         </div>
@@ -910,7 +910,7 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
                             value={itemForm.sku}
                             onChange={(e) => setItemForm(prev => ({ ...prev, sku: e.target.value }))}
                             placeholder="HP-KB-001"
-                            className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
+                            className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                           />
                         </div>
 
@@ -921,7 +921,7 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
                             value={itemForm.description}
                             onChange={(e) => setItemForm(prev => ({ ...prev, description: e.target.value }))}
                             placeholder="HP Wired USB Keyboard"
-                            className="w-full rounded-lg border px-2 py-1 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)] resize-none"
+                            className="w-full rounded-lg border px-2 py-1 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)] resize-none"
                           />
                         </div>
                       </div>
@@ -931,11 +931,11 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
                 </div>
 
                 {/* Modal Footer Buttons */}
-                <div className="flex justify-end gap-2 p-3 md:p-4 border-t border-slate-100 dark:border-slate-800 text-[10px] font-bold uppercase tracking-wider shrink-0 bg-white dark:bg-slate-900 rounded-b-none md:rounded-b-xl">
+                <div className="flex justify-end gap-2 p-3 md:p-4 border-t border-[var(--app-border)] text-[10px] font-bold uppercase tracking-wider shrink-0 bg-[var(--app-panel-bg)] rounded-b-none md:rounded-b-xl">
                   <button
                     type="button"
                     onClick={() => setShowCreateForm(false)}
-                    className="px-4 py-1.5 border rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 transition-colors"
+                    className="px-4 py-1.5 border rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-[var(--app-text)] transition-colors"
                     style={{ borderColor: 'var(--app-border)' }}
                   >
                     Cancel
@@ -954,12 +954,12 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
         {/* Ledger Pop-up Modal */}
         {showCreateForm && !isStock && (
           <div className="fixed inset-0 z-50 flex items-start md:items-center justify-center bg-black/50 backdrop-blur-[2px] p-0 md:p-4 overflow-y-auto">
-            <div className="bg-white dark:bg-slate-900 border-0 md:border border-slate-200 dark:border-slate-800 rounded-none md:rounded-xl shadow-2xl max-w-6xl w-full h-full md:h-auto md:max-h-[95vh] flex flex-col my-0 md:my-4 overflow-hidden">
+            <div className="bg-[var(--app-panel-bg)] border-0 md:border border-[var(--app-border)] rounded-none md:rounded-xl shadow-2xl max-w-6xl w-full h-full md:h-auto md:max-h-[95vh] flex flex-col my-0 md:my-4 overflow-hidden">
               {/* Header */}
-              <div className="px-4 py-2.5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center shrink-0 bg-white dark:bg-slate-900 rounded-t-none md:rounded-t-xl">
+              <div className="px-4 py-2.5 border-b border-[var(--app-border)] flex justify-between items-center shrink-0 bg-[var(--app-panel-bg)] rounded-t-none md:rounded-t-xl">
                 <div>
                   <h2 className="text-base md:text-lg font-bold text-slate-900 dark:text-white">Create New Ledger</h2>
-                  <p className="text-[10px] md:text-xs text-slate-500 dark:text-slate-400 mt-0.5">Add a new ledger account in one view</p>
+                  <p className="text-[10px] md:text-xs text-[var(--app-muted)] mt-0.5">Add a new ledger account in one view</p>
                 </div>
                 <button
                   type="button"
@@ -979,8 +979,8 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
                     {/* Column 1: Basic Details & Accounting Settings */}
                     <div className="space-y-3">
                       {/* Section 1: Basic Details */}
-                      <div className="space-y-2 border rounded-xl p-3 bg-slate-50/40 dark:bg-slate-950/20 border-slate-200 dark:border-slate-800">
-                        <div className="flex items-center gap-1.5 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold border-b border-slate-200 dark:border-slate-800 pb-1 mb-2">
+                      <div className="space-y-2 border rounded-xl p-3 bg-[var(--app-content-bg)] border-[var(--app-border)]">
+                        <div className="flex items-center gap-1.5 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold border-b border-[var(--app-border)] pb-1 mb-2">
                           <BookOpen size={13} />
                           <span className="text-[11px] uppercase tracking-wider">1. Basic Details</span>
                         </div>
@@ -993,7 +993,7 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
                             value={ledgerForm.ledgerName}
                             onChange={(e) => setLedgerForm(prev => ({ ...prev, ledgerName: e.target.value }))}
                             placeholder="e.g. ABC Traders"
-                            className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
+                            className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                           />
                         </div>
                         
@@ -1004,7 +1004,7 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
                             value={ledgerForm.aliasName}
                             onChange={(e) => setLedgerForm(prev => ({ ...prev, aliasName: e.target.value }))}
                             placeholder="e.g. ABC Traders"
-                            className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
+                            className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                           />
                         </div>
                         
@@ -1014,7 +1014,7 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
                             <select
                               value={ledgerForm.parentGroup}
                               onChange={(e) => setLedgerForm(prev => ({ ...prev, parentGroup: e.target.value }))}
-                              className="w-full h-8 rounded-lg border px-1.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
+                              className="w-full h-8 rounded-lg border px-1.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                             >
                               <option value="Sundry Debtors">Sundry Debtors</option>
                               <option value="Sundry Creditors">Sundry Creditors</option>
@@ -1029,7 +1029,7 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
                                 value={ledgerForm.openingBalance}
                                 onChange={(e) => setLedgerForm(prev => ({ ...prev, openingBalance: e.target.value }))}
                                 placeholder="50,000"
-                                className="w-full h-8 rounded-lg border pl-5 pr-1.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
+                                className="w-full h-8 rounded-lg border pl-5 pr-1.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                               />
                             </div>
                           </div>
@@ -1065,19 +1065,19 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
                       </div>
 
                       {/* Section 5: Accounting Settings */}
-                      <div className="space-y-2 border rounded-xl p-3 bg-slate-50/40 dark:bg-slate-950/20 border-slate-200 dark:border-slate-800">
-                        <div className="flex items-center gap-1.5 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold border-b border-slate-200 dark:border-slate-800 pb-1 mb-2">
+                      <div className="space-y-2 border rounded-xl p-3 bg-[var(--app-content-bg)] border-[var(--app-border)]">
+                        <div className="flex items-center gap-1.5 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold border-b border-[var(--app-border)] pb-1 mb-2">
                           <Settings size={13} />
                           <span className="text-[11px] uppercase tracking-wider">5. Settings</span>
                         </div>
                         
                         <div className="flex items-center justify-between pb-1">
-                          <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Bill-wise Details</label>
+                          <label className="text-xs font-semibold text-[var(--app-text)]">Bill-wise Details</label>
                           <button
                             type="button"
                             onClick={() => setLedgerForm(prev => ({ ...prev, maintainBillWise: !prev.maintainBillWise }))}
                             className={`relative inline-flex h-4.5 w-8 items-center rounded-full transition-colors focus:outline-none ${
-                              ledgerForm.maintainBillWise ? 'bg-[var(--app-accent)]' : 'bg-slate-200 dark:bg-slate-800'
+                              ledgerForm.maintainBillWise ? 'bg-[var(--app-accent)]' : 'bg-[var(--app-control-hover)]'
                             }`}
                           >
                             <span
@@ -1097,7 +1097,7 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
                                 value={ledgerForm.creditPeriod}
                                 onChange={(e) => setLedgerForm(prev => ({ ...prev, creditPeriod: e.target.value }))}
                                 placeholder="30 days"
-                                className="w-full h-8 rounded-lg border px-2 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
+                                className="w-full h-8 rounded-lg border px-2 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                               />
                             </div>
                             <div>
@@ -1109,7 +1109,7 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
                                   value={ledgerForm.creditLimit}
                                   onChange={(e) => setLedgerForm(prev => ({ ...prev, creditLimit: e.target.value }))}
                                   placeholder="5,000,000"
-                                  className="w-full h-8 rounded-lg border pl-5 pr-1.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
+                                  className="w-full h-8 rounded-lg border pl-5 pr-1.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                                 />
                               </div>
                             </div>
@@ -1121,8 +1121,8 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
                     {/* Column 2: Contact Details & Banking Details */}
                     <div className="space-y-3">
                       {/* Section 2: Contact Details */}
-                      <div className="space-y-2 border rounded-xl p-3 bg-slate-50/40 dark:bg-slate-950/20 border-slate-200 dark:border-slate-800">
-                        <div className="flex items-center gap-1.5 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold border-b border-slate-200 dark:border-slate-800 pb-1 mb-2">
+                      <div className="space-y-2 border rounded-xl p-3 bg-[var(--app-content-bg)] border-[var(--app-border)]">
+                        <div className="flex items-center gap-1.5 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold border-b border-[var(--app-border)] pb-1 mb-2">
                           <User size={13} />
                           <span className="text-[11px] uppercase tracking-wider">2. Contact Details</span>
                         </div>
@@ -1135,7 +1135,7 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
                               value={ledgerForm.mailingName}
                               onChange={(e) => setLedgerForm(prev => ({ ...prev, mailingName: e.target.value }))}
                               placeholder="e.g. ABC Traders"
-                              className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
+                              className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                             />
                           </div>
                           <div>
@@ -1145,7 +1145,7 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
                               value={ledgerForm.mobileNumber}
                               onChange={(e) => setLedgerForm(prev => ({ ...prev, mobileNumber: e.target.value }))}
                               placeholder="9876543210"
-                              className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
+                              className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                             />
                           </div>
                         </div>
@@ -1157,7 +1157,7 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
                             value={ledgerForm.emailAddress}
                             onChange={(e) => setLedgerForm(prev => ({ ...prev, emailAddress: e.target.value }))}
                             placeholder="info@abctraders.com"
-                            className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
+                            className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                           />
                         </div>
 
@@ -1168,14 +1168,14 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
                             value={ledgerForm.address}
                             onChange={(e) => setLedgerForm(prev => ({ ...prev, address: e.target.value }))}
                             placeholder="12, Business Street, Mumbai"
-                            className="w-full rounded-lg border px-2 py-1 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)] resize-none"
+                            className="w-full rounded-lg border px-2 py-1 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)] resize-none"
                           />
                         </div>
                       </div>
 
                       {/* Section 4: Banking Details */}
-                      <div className="space-y-2 border rounded-xl p-3 bg-slate-50/40 dark:bg-slate-950/20 border-slate-200 dark:border-slate-800">
-                        <div className="flex items-center gap-1.5 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold border-b border-slate-200 dark:border-slate-800 pb-1 mb-2">
+                      <div className="space-y-2 border rounded-xl p-3 bg-[var(--app-content-bg)] border-[var(--app-border)]">
+                        <div className="flex items-center gap-1.5 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold border-b border-[var(--app-border)] pb-1 mb-2">
                           <Landmark size={13} />
                           <span className="text-[11px] uppercase tracking-wider">4. Banking Details</span>
                         </div>
@@ -1188,7 +1188,7 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
                               value={ledgerForm.bankName}
                               onChange={(e) => setLedgerForm(prev => ({ ...prev, bankName: e.target.value }))}
                               placeholder="HDFC Bank"
-                              className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
+                              className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                             />
                           </div>
                           <div>
@@ -1198,7 +1198,7 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
                               value={ledgerForm.accountNumber}
                               onChange={(e) => setLedgerForm(prev => ({ ...prev, accountNumber: e.target.value }))}
                               placeholder="50200012345"
-                              className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
+                              className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                             />
                           </div>
                         </div>
@@ -1211,7 +1211,7 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
                               value={ledgerForm.ifscCode}
                               onChange={(e) => setLedgerForm(prev => ({ ...prev, ifscCode: e.target.value }))}
                               placeholder="HDFC0001234"
-                              className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
+                              className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                             />
                           </div>
                           <div>
@@ -1221,7 +1221,7 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
                               value={ledgerForm.branch}
                               onChange={(e) => setLedgerForm(prev => ({ ...prev, branch: e.target.value }))}
                               placeholder="Mumbai"
-                              className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
+                              className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                             />
                           </div>
                         </div>
@@ -1231,19 +1231,19 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
                     {/* Column 3: GST & Tax Details & Additional Details */}
                     <div className="space-y-3">
                       {/* Section 3: GST & Tax Details */}
-                      <div className="space-y-2 border rounded-xl p-3 bg-slate-50/40 dark:bg-slate-950/20 border-slate-200 dark:border-slate-800">
-                        <div className="flex items-center gap-1.5 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold border-b border-slate-200 dark:border-slate-800 pb-1 mb-2">
+                      <div className="space-y-2 border rounded-xl p-3 bg-[var(--app-content-bg)] border-[var(--app-border)]">
+                        <div className="flex items-center gap-1.5 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold border-b border-[var(--app-border)] pb-1 mb-2">
                           <ShieldCheck size={13} />
                           <span className="text-[11px] uppercase tracking-wider">3. Tax Details</span>
                         </div>
                         
                         <div className="flex items-center justify-between pb-1">
-                          <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">GST Applicable</label>
+                          <label className="text-xs font-semibold text-[var(--app-text)]">GST Applicable</label>
                           <button
                             type="button"
                             onClick={() => setLedgerForm(prev => ({ ...prev, gstApplicable: !prev.gstApplicable }))}
                             className={`relative inline-flex h-4.5 w-8 items-center rounded-full transition-colors focus:outline-none ${
-                              ledgerForm.gstApplicable ? 'bg-[var(--app-accent)]' : 'bg-slate-200 dark:bg-slate-800'
+                              ledgerForm.gstApplicable ? 'bg-[var(--app-accent)]' : 'bg-[var(--app-control-hover)]'
                             }`}
                           >
                             <span
@@ -1264,7 +1264,7 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
                                   value={ledgerForm.gstin}
                                   onChange={(e) => setLedgerForm(prev => ({ ...prev, gstin: e.target.value }))}
                                   placeholder="27ABCDE1234F"
-                                  className="w-full h-8 rounded-lg border px-2 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
+                                  className="w-full h-8 rounded-lg border px-2 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                                 />
                               </div>
                               <div>
@@ -1272,7 +1272,7 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
                                 <select
                                   value={ledgerForm.registrationType}
                                   onChange={(e) => setLedgerForm(prev => ({ ...prev, registrationType: e.target.value }))}
-                                  className="w-full h-8 rounded-lg border px-1.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
+                                  className="w-full h-8 rounded-lg border px-1.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                                 >
                                   <option value="Regular">Regular</option>
                                   <option value="Composition">Composition</option>
@@ -1288,7 +1288,7 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
                                 <select
                                   value={ledgerForm.pos}
                                   onChange={(e) => setLedgerForm(prev => ({ ...prev, pos: e.target.value }))}
-                                  className="w-full h-8 rounded-lg border px-1.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
+                                  className="w-full h-8 rounded-lg border px-1.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                                 >
                                   <option value="Maharashtra (27)">Maharashtra</option>
                                   <option value="Delhi (07)">Delhi</option>
@@ -1303,7 +1303,7 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
                                   value={ledgerForm.panNumber}
                                   onChange={(e) => setLedgerForm(prev => ({ ...prev, panNumber: e.target.value }))}
                                   placeholder="ABCDE1234F"
-                                  className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
+                                  className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                                 />
                               </div>
                             </div>
@@ -1312,8 +1312,8 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
                       </div>
 
                       {/* Section 6: Additional Details */}
-                      <div className="space-y-2 border rounded-xl p-3 bg-slate-50/40 dark:bg-slate-950/20 border-slate-200 dark:border-slate-800">
-                        <div className="flex items-center gap-1.5 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold border-b border-slate-200 dark:border-slate-800 pb-1 mb-2">
+                      <div className="space-y-2 border rounded-xl p-3 bg-[var(--app-content-bg)] border-[var(--app-border)]">
+                        <div className="flex items-center gap-1.5 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold border-b border-[var(--app-border)] pb-1 mb-2">
                           <FileSpreadsheet size={13} />
                           <span className="text-[11px] uppercase tracking-wider">6. Additional</span>
                         </div>
@@ -1323,7 +1323,7 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
                           <select
                             value={ledgerForm.status}
                             onChange={(e) => setLedgerForm(prev => ({ ...prev, status: e.target.value }))}
-                            className="w-full h-8 rounded-lg border px-1.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
+                            className="w-full h-8 rounded-lg border px-1.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                           >
                             <option value="Active">Active</option>
                             <option value="Inactive">Inactive</option>
@@ -1337,7 +1337,7 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
                             value={ledgerForm.notes}
                             onChange={(e) => setLedgerForm(prev => ({ ...prev, notes: e.target.value }))}
                             placeholder="Preferred customer notes..."
-                            className="w-full rounded-lg border px-2 py-1 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)] resize-none"
+                            className="w-full rounded-lg border px-2 py-1 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)] resize-none"
                           />
                         </div>
                       </div>
@@ -1347,11 +1347,11 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
                 </div>
 
                 {/* Modal Footer Buttons */}
-                <div className="flex justify-end gap-2 p-3 md:p-4 border-t border-slate-100 dark:border-slate-800 text-[10px] font-bold uppercase tracking-wider shrink-0 bg-white dark:bg-slate-900 rounded-b-none md:rounded-b-xl">
+                <div className="flex justify-end gap-2 p-3 md:p-4 border-t border-[var(--app-border)] text-[10px] font-bold uppercase tracking-wider shrink-0 bg-[var(--app-panel-bg)] rounded-b-none md:rounded-b-xl">
                   <button
                     type="button"
                     onClick={() => setShowCreateForm(false)}
-                    className="px-4 py-1.5 border rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 transition-colors"
+                    className="px-4 py-1.5 border rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-[var(--app-text)] transition-colors"
                     style={{ borderColor: 'var(--app-border)' }}
                   >
                     Cancel

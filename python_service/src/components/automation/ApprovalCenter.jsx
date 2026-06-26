@@ -1015,7 +1015,7 @@ export default function ApprovalCenter() {
             <div className="flex items-center gap-1.5">
               <h2 className="text-md font-extrabold text-[var(--app-heading)] dark:text-white leading-none tracking-tight">{batch.id}</h2>
               <span className="px-1.5 py-0.25 rounded border border-[var(--app-border)] text-[var(--app-accent)] bg-[var(--app-accent-soft)] dark:bg-[var(--app-accent-soft)] dark:text-[var(--app-accent)] dark:border-[var(--app-border)] text-[9px] font-semibold">Bulk Upload</span>
-              <span className={`px-1.5 py-0.25 rounded border text-[9px] font-semibold ${statusTextColors[batchEntry.statusText] || 'bg-slate-55 border-[var(--app-border)] text-[var(--app-heading)]'}`}>{batchEntry.statusText}</span>
+              <span className={`px-1.5 py-0.25 rounded border text-[9px] font-semibold ${statusTextColors[batchEntry.statusText] || 'bg-[var(--app-content-bg)] border-[var(--app-border)] text-[var(--app-heading)]'}`}>{batchEntry.statusText}</span>
             </div>
             <p className="text-[10px] text-[var(--app-muted)]">
               Filename: <span className="font-semibold text-[var(--app-text)]">{batch.filename}</span> | Upload Date: <span className="font-semibold text-[var(--app-text)]">{batch.uploadDate}</span>
@@ -1100,7 +1100,7 @@ export default function ApprovalCenter() {
             <div className="flex items-center gap-1.5">
               <h2 className="text-md font-extrabold text-[var(--app-heading)] dark:text-white leading-none tracking-tight">{docEntry.voucherNumber}</h2>
               <span className="px-1.5 py-0.25 rounded border border-[var(--app-border)] text-[var(--app-accent)] bg-[var(--app-accent-soft)] dark:bg-[var(--app-accent-soft)] dark:text-[var(--app-accent)] dark:border-[var(--app-border)] text-[9px] font-semibold">{docEntry.type}</span>
-              <span className={`px-1.5 py-0.25 rounded border text-[9px] font-semibold ${statusTextColors[docEntry.statusText] || 'bg-slate-55 border-[var(--app-border)] text-[var(--app-text)]'}`}>{docEntry.statusText}</span>
+              <span className={`px-1.5 py-0.25 rounded border text-[9px] font-semibold ${statusTextColors[docEntry.statusText] || 'bg-[var(--app-content-bg)] border-[var(--app-border)] text-[var(--app-text)]'}`}>{docEntry.statusText}</span>
             </div>
             <p className="text-[10px] text-[var(--app-muted)]">
               OCR Processed Document | Confidence: <span className="text-emerald-500 font-extrabold">{docEntry.confidence}%</span> | Upload Date: <span className="font-semibold text-[var(--app-text)]">{docEntry.date}</span>
