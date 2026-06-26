@@ -5,6 +5,8 @@ import {
   MessageSquare, ExternalLink, Calendar, MoreVertical, UploadCloud
 } from 'lucide-react';
 import ObjectDoodle from '../ui/ObjectDoodle';
+import DataTable from '../ui/DataTable';
+import Badge, { statusTone } from '../ui/Badge';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 import { useAppStore } from '../../stores/useAppStore';
@@ -1312,6 +1314,115 @@ export default function ApprovalCenter() {
   };
 
   const renderListView = () => {
+    const SOURCE_TABS = [
+      { id: 'Manual Voucher Entry', label: 'Manual Entry', icon: FileText, section: 'MANUAL' },
+      { id: 'Bulk Upload', label: 'Bulk Batches', icon: Layers, section: 'BULK' },
+      { id: 'OCR Upload', label: 'AI OCR Docs', icon: Sparkles, section: 'OCR' },
+    ];
+    const lc = (s) => (s || '').toLowerCase();
+    const FILTERS = [
+      { key: 'Total', label: 'Total', count: sourceFilteredEntries.length, tone: 'var(--app-accent)' },
+      { key: 'Pending', label: 'Pending', count: sourceFilteredEntries.filter((e) => lc(e.status) === 'pending_approval' || lc(e.statusText).includes('pending')).length, tone: '#F59E0B' },
+      { key: 'Approved', label: 'Approved', count: sourceFilteredEntries.filter((e) => ['approved', 'posted_to_tally'].includes(lc(e.status))).length, tone: '#10B981' },
+      { key: 'Rejected', label: 'Rejected', count: sourceFilteredEntries.filter((e) => lc(e.status) === 'rejected').length, tone: '#EF4444' },
+    ];
+    const filterChips = (
+      <div className="flex items-center gap-1">
+        {FILTERS.map((f) => {
+          const on = filterTab === f.key;
+          return (
+            <button key={f.key} onClick={() => { setFilterTab(f.key); setPage(1); }}
+              className="px-2.5 h-9 rounded-lg text-[11px] font-bold border transition-colors inline-flex items-center gap-1.5"
+              style={on ? { backgroundColor: f.tone, color: '#fff', borderColor: 'transparent' } : { backgroundColor: 'var(--app-control-bg)', color: 'var(--app-heading)', borderColor: 'var(--app-border)' }}>
+              <span>{f.label}</span><span className="tabular-nums opacity-80">{f.count}</span>
+            </button>
+          );
+        })}
+      </div>
+    );
+    const bulkActions = selectedIds.length > 0 ? (
+      <div className="flex items-center gap-2 rounded-lg border px-2.5 h-9" style={{ borderColor: 'var(--app-accent)', backgroundColor: 'var(--app-accent-soft)' }}>
+        <span className="text-[10.5px] font-bold" style={{ color: 'var(--app-accent)' }}>{selectedIds.length} selected</span>
+        <button onClick={handleBulkApprove} className="text-[10.5px] font-extrabold uppercase text-emerald-600 hover:text-emerald-500">Approve</button>
+        <button onClick={handleBulkSyncTally} className="text-[10.5px] font-extrabold uppercase" style={{ color: 'var(--app-accent)' }}>Push</button>
+        <button onClick={() => { selectedIds.forEach((id) => handleReject(id)); setSelectedIds([]); }} className="text-[10.5px] font-extrabold uppercase text-rose-500 hover:text-rose-400">Reject</button>
+        <button onClick={() => setSelectedIds([])} className="text-[10.5px] font-semibold" style={{ color: 'var(--app-muted)' }}>Clear</button>
+      </div>
+    ) : null;
+    const Act = ({ icon: Icon, onClick, title, cls }) => (
+      <button onClick={onClick} title={title} className={`p-1 rounded-lg transition-all hover:scale-110 active:scale-95 text-[var(--app-muted)] hover:bg-[var(--app-control-hover)] ${cls}`}><Icon size={13} /></button>
+    );
+    const columns = [
+      { key: 'voucherNumber', header: activeSourceTab === 'Bulk Upload' ? 'Batch ID' : 'Voucher No', sortable: true, render: (e) => <span className="font-black" style={{ color: 'var(--app-heading)' }}>{e.voucherNumber}</span> },
+      { key: 'date', header: 'Date', sortable: true, render: (e) => <span className="font-semibold" style={{ color: 'var(--app-muted)' }}>{e.date}</span> },
+      { key: 'company', header: activeSourceTab === 'Bulk Upload' ? 'Filename' : 'Company / Party', sortable: true, render: (e) => <span className="font-bold truncate block max-w-[180px]" title={e.company}>{e.company}</span> },
+      { key: 'type', header: 'Type', render: (e) => <Badge tone="accent">{e.type}</Badge> },
+      { key: 'amount', header: 'Amount', align: 'right', sortable: true, sortValue: (e) => e.amount, render: (e) => <span className="font-black" style={{ color: 'var(--app-heading)' }}>₹{e.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span> },
+      { key: 'confidence', header: 'Confidence', align: 'center', sortable: true, sortValue: (e) => e.confidence, render: (e) => <Badge tone={e.confidence >= 95 ? 'success' : 'warning'}>{e.confidence}%</Badge> },
+      { key: 'status', header: 'Status', align: 'center', render: (e) => <Badge tone={statusTone(e.statusText || e.status)}>{e.statusText}</Badge> },
+      { key: 'file', header: 'File', render: (e) => <button onClick={() => { setSelectedEntryId(e.id); setCurrentView('detail'); }} className="flex items-center gap-1 font-mono text-[10.5px] hover:underline" style={{ color: 'var(--app-accent)' }}><FileText size={11} /> {e.raw?.filename || e.raw?.details?.attachments || 'document.pdf'}</button> },
+      {
+        key: 'actions', header: 'Actions', align: 'center', width: '130px', render: (e) => (
+          <div className="flex items-center justify-center gap-1">
+            <Act icon={Eye} title="Review" cls="hover:text-[var(--app-accent)]" onClick={() => { setSelectedEntryId(e.id); setCurrentView('detail'); }} />
+            {e.status === 'Pending Approval' && (<>
+              <Act icon={CheckCircle2} title="Approve" cls="hover:text-emerald-500" onClick={() => handleApprove(e.id)} />
+              <Act icon={Send} title="Push to Tally" cls="hover:text-[var(--app-accent)]" onClick={() => handleSyncTally(e.id)} />
+              <Act icon={XCircle} title="Reject" cls="hover:text-rose-500" onClick={() => handleReject(e.id)} />
+            </>)}
+            {e.status === 'Approved' && <Act icon={Send} title="Push to Tally" cls="hover:text-[var(--app-accent)]" onClick={() => handleSyncTally(e.id)} />}
+          </div>
+        ),
+      },
+    ];
+
+    return (
+      <div className="flex flex-col h-full overflow-hidden">
+        <div className="flex items-center gap-1.5 overflow-x-auto themed-scrollbar pb-2 mb-2.5 shrink-0">
+          {SOURCE_TABS.map((tab) => {
+            const sel = activeSourceTab === tab.id;
+            return (
+              <motion.button key={tab.id} whileTap={{ scale: 0.98 }}
+                onClick={() => { setActiveSourceTab(tab.id); setPage(1); setSelectedIds([]); const f = entries.find((e) => e.source === tab.id); if (f) setSelectedEntryId(f.id); }}
+                className="relative flex items-center gap-2 px-3 py-2 rounded-xl border shrink-0 transition-colors"
+                style={{ borderColor: sel ? 'var(--app-accent)' : 'var(--app-border)', backgroundColor: sel ? 'var(--app-accent-soft)' : 'var(--app-control-bg)', color: sel ? 'var(--app-accent)' : 'var(--app-text)' }}>
+                <span className="h-6 w-6 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: sel ? 'var(--app-accent)' : 'var(--app-control-hover)', color: sel ? '#fff' : 'var(--app-muted)' }}><tab.icon size={12} strokeWidth={2.4} /></span>
+                <span className="text-left leading-tight">
+                  <span className="block text-[7.5px] font-extrabold uppercase tracking-wider opacity-70">{tab.section}</span>
+                  <span className="block text-[11.5px] font-bold">{tab.label}</span>
+                </span>
+              </motion.button>
+            );
+          })}
+        </div>
+
+        <div className="flex-1 overflow-hidden">
+          <DataTable
+            title="Approval Center"
+            description="Review and post AI-processed document vouchers to Tally"
+            icon={CheckCircle2}
+            columns={columns}
+            data={filteredEntries}
+            rowKey={(e) => e.id}
+            loading={loading}
+            emptyText="No vouchers found under this source filter."
+            minWidth="1040px"
+            selectable
+            selectedKeys={selectedIds}
+            onToggleRow={(id) => setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))}
+            onToggleAll={(c) => handleSelectAll(c)}
+            search={{ value: searchQuery, onChange: (v) => { setSearchQuery(v); setPage(1); }, placeholder: 'Search vouchers…' }}
+            filters={filterChips}
+            actions={bulkActions}
+            pagination={{ page: 1, total: filteredEntries.length, label: `${filteredEntries.length} entr${filteredEntries.length === 1 ? 'y' : 'ies'}`, onPrev: () => {}, onNext: () => {}, disableNext: true }}
+          />
+        </div>
+      </div>
+    );
+  };
+
+  // eslint-disable-next-line no-unused-vars
+  const _legacyListView = () => {
     return (
       <div className="flex flex-col h-full overflow-hidden text-[12.5px] text-[var(--app-heading)] bg-[#f8fafc] p-1.5">
         
