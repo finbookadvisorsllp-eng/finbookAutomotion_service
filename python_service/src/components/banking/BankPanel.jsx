@@ -8,7 +8,6 @@ import {
   HelpCircle,
   Settings,
   Filter,
-  ArrowUpDown,
   Edit3,
   RefreshCw,
   ChevronDown,
@@ -22,7 +21,6 @@ import {
   ChevronRight,
   ChevronLeft,
   X,
-  CloudUpload,
   FileText,
   ClipboardList,
   Check,
@@ -31,6 +29,8 @@ import {
 import { motion } from 'motion/react';
 import DataTable from '../ui/DataTable';
 import Badge, { statusTone } from '../ui/Badge';
+import StatCard from '../ui/StatCard';
+import ObjectDoodle from '../ui/ObjectDoodle';
 
 /* --- Dummy Data --- */
 const BANKS = ['HDFC Bank', 'ICICI Bank', 'State Bank of India', 'Axis Bank', 'Kotak Mahindra Bank', 'Punjab National Bank', 'HSBC', 'Standard Chartered', 'DBS Bank', 'Yes Bank'];
@@ -86,6 +86,14 @@ const ARCHIVE_DATA = [
   { id: 6, date: '01-Mar-2026', description: 'Interest Credit / Q4', amount: '1,180.00', type: 'Receipt', party: 'Bank Interest', status: 'Approved' },
 ];
 
+const TAB_META = {
+  'Manage Bank': { title: 'Bank Main', subtitle: 'Manage linked bank accounts and their Tally ledgers.' },
+  'Manage Rule': { title: 'Bank Rule', subtitle: 'Auto-classify statement lines into vouchers with rules.' },
+  'Inbox': { title: 'Bank Inbox', subtitle: 'Unreconciled statement lines awaiting a ledger match.' },
+  'Review': { title: 'Bank Review', subtitle: 'Verify and approve matched transactions before posting.' },
+  'Archive': { title: 'Bank Archive', subtitle: 'Approved transactions posted to Tally.' },
+};
+
 const BankPanel = ({ mode: propMode, isDark }) => {
   const [activeTab, setActiveTab] = useState(propMode || 'Manage Bank');
   const [selectedBank, setSelectedBank] = useState('');
@@ -131,194 +139,6 @@ const BankPanel = ({ mode: propMode, isDark }) => {
       >
         <Icon size={13} strokeWidth={2.2} />
       </motion.button>
-    );
-  };
-
-  const TableHead = ({ label, sortable, center, width, borderRight, input }) => (
-    <th className={`px-3 py-2.5 border-b text-[10.5px] font-semibold uppercase tracking-wider ${center ? 'text-center' : 'text-left'} ${borderRight ? 'border-r' : ''}`} style={{ borderColor: 'var(--app-row-border)', color: 'var(--app-muted)', backgroundColor: 'var(--app-table-head-bg)', width: width }}>
-      <div className={`flex flex-col gap-1.5 ${center ? 'items-center' : ''}`}>
-        <div className={`flex items-center gap-1.5 ${sortable ? 'cursor-pointer hover:opacity-80 transition' : ''}`}>
-          {label} {sortable && <ArrowUpDown size={11} className="opacity-50" />}
-        </div>
-        {input && (
-          <div className="w-full px-1">
-            <input
-              type="text"
-              className="w-full h-7 border rounded-md px-2 text-[10.5px] outline-none transition-all focus-ring"
-              style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-control-bg)', color: 'var(--app-heading)' }}
-            />
-          </div>
-        )}
-      </div>
-    </th>
-  );
-
-  const renderManageBank = () => (
-    <div className="flex-1 flex flex-col animate-in fade-in duration-300">
-      <div className="overflow-x-auto h-full custom-scrollbar">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr style={{ backgroundColor: 'var(--app-table-head-bg)' }}>
-              <th className="p-3 border-b border-r w-10 text-center" style={{ borderColor: 'var(--app-row-border)' }}><input type="checkbox" className="w-3.5 h-3.5 rounded border-gray-300 accent-[var(--app-accent)] shadow-sm" /></th>
-              <TableHead label="Sr No." borderRight width="80px" />
-              <TableHead label="Bank Name" borderRight />
-              <TableHead label="Account Name" borderRight sortable />
-              <TableHead label="Account Number" borderRight sortable />
-              <TableHead label="Bank Ledger" borderRight />
-              <TableHead label="Action" center width="150px" />
-            </tr>
-          </thead>
-          <tbody>
-            {MANAGE_BANK_DATA.map((row, idx) => (
-              <tr key={row.id} className="hover:bg-[var(--app-row-hover)] transition-colors border-b" style={{ borderColor: 'var(--app-row-border)', color: 'var(--app-text)' }}>
-                <td className="p-3 border-r text-center"><input type="checkbox" className="w-3.5 h-3.5 rounded border-gray-300 accent-[var(--app-accent)]" /></td>
-                <td className="p-3 border-r text-[11px] font-bold text-slate-650 text-center">{idx + 1}</td>
-                <td className="p-3 border-r text-[11px] font-bold text-slate-650">{row.bank}</td>
-                <td className="p-3 border-r text-[11px] font-bold text-slate-650">{row.accountName}</td>
-                <td className="p-3 border-r text-[11px] font-bold text-slate-650">{row.accountNumber}</td>
-                <td className="p-3 border-r text-[11px] font-bold text-slate-650">{row.ledger}</td>
-                <td className="p-3 text-center">
-                  <div className="flex items-center justify-center gap-2">
-                    <IconButton icon={Upload} color="emerald" />
-                    <IconButton icon={Edit3} color="emerald" />
-                    <IconButton icon={RefreshCw} color="emerald" />
-                    <IconButton icon={Trash2} color="red" />
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-
-  const renderManageRule = () => (
-    <div className="flex-1 flex flex-col animate-in fade-in duration-300">
-      <div className="overflow-x-auto h-full custom-scrollbar">
-        <table className="w-full text-left border-collapse min-w-[1200px]">
-          <thead>
-            <tr style={{ backgroundColor: 'var(--app-table-head-bg)' }}>
-              <th className="p-3 border-b border-r w-10 text-center" style={{ borderColor: 'var(--app-row-border)' }}><input type="checkbox" className="w-3.5 h-3.5 rounded border-gray-300 accent-[var(--app-accent)] shadow-sm" /></th>
-              <TableHead label="Sr No." borderRight width="80px" />
-              <TableHead label="Account Name" borderRight sortable />
-              <TableHead label="Date Range" borderRight sortable />
-              <TableHead label="Description" borderRight sortable />
-              <TableHead label="Payment Mode" borderRight sortable />
-              <TableHead label="Type" borderRight sortable />
-              <TableHead label="Amount" borderRight sortable />
-              <TableHead label="Party Ledger" borderRight sortable />
-              <TableHead label="Replaced Type" borderRight />
-              <TableHead label="Action" center width="100px" />
-            </tr>
-          </thead>
-          <tbody>
-            {BANK_RULE_DATA.map((row, idx) => (
-              <tr key={row.id} className="hover:bg-[var(--app-row-hover)] transition-colors border-b" style={{ borderColor: 'var(--app-row-border)', color: 'var(--app-text)' }}>
-                <td className="p-3 border-r text-center"><input type="checkbox" className="w-3.5 h-3.5 rounded border-gray-300 accent-[var(--app-accent)]" /></td>
-                <td className="p-3 border-r text-[11px] font-bold text-slate-650 text-center">{idx + 1}</td>
-                <td className="p-3 border-r text-[11px] font-bold text-slate-650">{row.account}</td>
-                <td className="p-3 border-r text-[11px] font-bold text-slate-650">{row.dateRange}</td>
-                <td className="p-3 border-r text-[11px] font-bold text-slate-650">{row.description}</td>
-                <td className="p-3 border-r text-[11px] font-bold text-slate-650">{row.mode}</td>
-                <td className="p-3 border-r text-[11px] font-bold text-slate-650">{row.type}</td>
-                <td className="p-3 border-r text-[11px] font-bold text-slate-650">{row.amount}</td>
-                <td className="p-3 border-r text-[11px] font-bold text-slate-650">{row.party}</td>
-                <td className="p-3 border-r text-[11px] font-bold text-slate-650">{row.replaced}</td>
-                <td className="p-3 text-center">
-                  <IconButton icon={Trash2} color="red" />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-
-  const renderInbox = () => (
-    <div className="flex-1 flex flex-col animate-in fade-in duration-300">
-      <div className="overflow-x-auto h-full custom-scrollbar">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr style={{ backgroundColor: 'var(--app-table-head-bg)' }}>
-              <th className="p-3 border-b border-r w-10 text-center" style={{ borderColor: 'var(--app-row-border)' }}><input type="checkbox" className="w-3.5 h-3.5 rounded border-gray-300 accent-[var(--app-accent)] shadow-sm" /></th>
-              <TableHead label="Sr No." borderRight width="70px" />
-              <TableHead label="Date" borderRight />
-              <TableHead label="Description" borderRight input />
-              <TableHead label="Amount" borderRight />
-              <TableHead label="Type" borderRight />
-              <TableHead label="Party Ledger" borderRight input />
-              <TableHead label="Info Icon" center width="100px" />
-            </tr>
-          </thead>
-          <tbody>
-            {INBOX_DATA.map((row, idx) => (
-              <tr key={row.id} className="hover:bg-[var(--app-row-hover)] transition-colors border-b" style={{ borderColor: 'var(--app-row-border)', color: 'var(--app-text)' }}>
-                <td className="p-3 border-r text-center"><input type="checkbox" className="w-3.5 h-3.5 rounded border-gray-300 accent-[var(--app-accent)]" /></td>
-                <td className="p-3 border-r text-[11px] font-bold text-slate-650 text-center">{idx + 1}</td>
-                <td className="p-3 border-r text-[11px] font-bold text-slate-650">{row.date}</td>
-                <td className="p-3 border-r text-[11px] font-bold text-slate-650">{row.description}</td>
-                <td className="p-3 border-r text-[11px] font-bold text-slate-655 text-right">{row.amount}</td>
-                <td className="p-3 border-r text-[11px] font-bold text-slate-650">{row.type}</td>
-                <td className="p-3 border-r text-[11px] font-bold text-slate-650">{row.party}</td>
-                <td className="p-3 text-center"><Info size={14} className="text-[var(--app-muted)] mx-auto" /></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-
-  const renderReviewArchive = () => {
-    const data = activeTab === 'Review' ? REVIEW_DATA : ARCHIVE_DATA;
-    return (
-      <div className="flex-1 flex flex-col animate-in fade-in duration-300">
-        <div className="overflow-x-auto h-full custom-scrollbar">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr style={{ backgroundColor: 'var(--app-table-head-bg)' }}>
-                <th className="p-3 border-b border-r w-10 text-center" style={{ borderColor: 'var(--app-row-border)' }}><input type="checkbox" className="w-3.5 h-3.5 rounded border-gray-300 accent-[var(--app-accent)] shadow-sm" /></th>
-                <TableHead label="Sr No." borderRight width="70px" />
-                <TableHead label="Date" borderRight />
-                <TableHead label="Description" borderRight input />
-                <TableHead label="Amount" borderRight />
-                <TableHead label="Type" borderRight />
-                <TableHead label="Party Ledger" borderRight input />
-                <TableHead label="Status" borderRight width="100px" />
-                <TableHead label="Info Icon" center width="100px" />
-              </tr>
-            </thead>
-            <tbody>
-              {data.map((row, idx) => (
-                <tr key={row.id} className="hover:bg-[var(--app-row-hover)] transition-colors border-b" style={{ borderColor: 'var(--app-row-border)', color: 'var(--app-text)' }}>
-                  <td className="p-3 border-r text-center"><input type="checkbox" className="w-3.5 h-3.5 rounded border-gray-300 accent-[var(--app-accent)]" /></td>
-                  <td className="p-3 border-r text-[11px] font-bold text-slate-650 text-center">{idx + 1}</td>
-                  <td className="p-3 border-r text-[11px] font-bold text-slate-650">{row.date}</td>
-                  <td className="p-3 border-r text-[11px] font-bold text-slate-650">{row.description}</td>
-                  <td className="p-3 border-r text-[11px] font-bold text-slate-655 text-right">{row.amount}</td>
-                  <td className="p-3 border-r text-[11px] font-bold text-slate-650">{row.type}</td>
-                  <td className="p-3 border-r text-[11px] font-bold text-slate-650">{row.party}</td>
-                  <td className="p-3 border-r text-[11px] font-bold text-slate-650 text-center">
-                    <span className={`px-2 py-0.5 rounded-full text-[11px] font-black uppercase tracking-tighter ${row.status === 'Approved' ? 'bg-emerald-50 text-emerald-500 border border-emerald-100 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30' : 'bg-orange-50 text-orange-600 border border-orange-100 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/30'}`}>
-                      {row.status}
-                    </span>
-                  </td>
-                  <td className="p-3 text-center"><Info size={14} className="text-[var(--app-muted)] mx-auto" /></td>
-                </tr>
-              ))}
-              {data.length === 0 && (
-                <tr>
-                  <td colSpan={11} className="p-32 text-center bg-transparent">
-                    <p className="text-[11px] font-black uppercase tracking-widest text-[var(--app-muted)]">No Bank Transaction Found.</p>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
     );
   };
 
@@ -417,6 +237,47 @@ const BankPanel = ({ mode: propMode, isDark }) => {
   };
   const DATA = { 'Manage Bank': MANAGE_BANK_DATA, 'Manage Rule': BANK_RULE_DATA, 'Inbox': INBOX_DATA, 'Review': REVIEW_DATA, 'Archive': ARCHIVE_DATA };
 
+  // ── KPI cards per segment (benchmark hallmark) ───────────────────────
+  const uniq = (arr, k) => new Set(arr.map((r) => r[k])).size;
+  const sumAmt = (arr) => arr.reduce((s, r) => s + (parseFloat(String(r.amount).replace(/,/g, '')) || 0), 0);
+  const inr = (n) => `₹ ${n.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
+  const tabKpis = () => {
+    switch (activeTab) {
+      case 'Manage Bank':
+        return [
+          { label: 'Bank Accounts', value: MANAGE_BANK_DATA.length, icon: Landmark },
+          { label: 'Banks Linked', value: uniq(MANAGE_BANK_DATA, 'bank'), icon: FileText },
+          { label: 'Account Holders', value: uniq(MANAGE_BANK_DATA, 'accountName'), icon: CheckCircle2 },
+        ];
+      case 'Manage Rule':
+        return [
+          { label: 'Active Rules', value: BANK_RULE_DATA.length, icon: ClipboardList },
+          { label: 'Mapped Parties', value: uniq(BANK_RULE_DATA, 'party'), icon: FileText },
+          { label: 'Auto-Replace Types', value: uniq(BANK_RULE_DATA, 'replaced'), icon: RefreshCw },
+        ];
+      case 'Inbox':
+        return [
+          { label: 'Unreconciled', value: INBOX_DATA.length, icon: Info },
+          { label: 'Receipts', value: INBOX_DATA.filter((r) => r.type === 'Receipt').length, icon: Download },
+          { label: 'Inbox Value', value: inr(sumAmt(INBOX_DATA)), icon: Landmark },
+        ];
+      case 'Review':
+        return [
+          { label: 'Pending Review', value: REVIEW_DATA.length, icon: Info },
+          { label: 'Awaiting Value', value: inr(sumAmt(REVIEW_DATA)), icon: Landmark },
+          { label: 'Payments', value: REVIEW_DATA.filter((r) => r.type === 'Payment').length, icon: Upload },
+        ];
+      case 'Archive':
+        return [
+          { label: 'Approved', value: ARCHIVE_DATA.length, icon: CheckCircle2 },
+          { label: 'Archived Value', value: inr(sumAmt(ARCHIVE_DATA)), icon: Landmark },
+          { label: 'Receipts', value: ARCHIVE_DATA.filter((r) => r.type === 'Receipt').length, icon: Download },
+        ];
+      default:
+        return [];
+    }
+  };
+
   const renderActive = () => {
     const colKey = (activeTab === 'Review' || activeTab === 'Archive') ? 'ReviewArchive' : activeTab;
     const columns = COLUMNS[colKey] || COLUMNS['Manage Bank'];
@@ -501,13 +362,19 @@ const BankPanel = ({ mode: propMode, isDark }) => {
           <div className="h-10 w-10 rounded-xl flex items-center justify-center text-white shadow-sm shrink-0" style={{ background: 'var(--app-accent-gradient)' }}>
             <Landmark size={18} strokeWidth={2.2} />
           </div>
-          <h1 className="text-[17px] font-semibold tracking-tight" style={{ color: 'var(--app-heading)' }}>
-            {activeTab === 'Manage Bank' ? 'Bank Main' :
-              activeTab === 'Manage Rule' ? 'Bank Rule' :
-                activeTab === 'Inbox' ? 'Bank Inbox' :
-                  activeTab === 'Review' ? 'Bank Review' :
-                    activeTab === 'Archive' ? 'Bank Archive' : 'Bank'}
-          </h1>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <h1 className="text-[17px] font-extrabold tracking-tight" style={{ color: 'var(--app-heading)' }}>
+                {TAB_META[activeTab]?.title || 'Bank'}
+              </h1>
+              <span className="px-2 py-0.5 rounded text-[9.5px] font-extrabold uppercase tracking-wider shrink-0" style={{ backgroundColor: 'var(--app-accent-soft)', color: 'var(--app-accent)', border: '1px solid var(--app-border)' }}>
+                {activeTab}
+              </span>
+            </div>
+            <p className="text-[10px] font-medium mt-0.5 truncate" style={{ color: 'var(--app-muted)' }}>
+              {TAB_META[activeTab]?.subtitle}
+            </p>
+          </div>
 
           <div className="flex gap-2 items-center ml-2">
             {getHeaderIcons()}
@@ -587,6 +454,13 @@ const BankPanel = ({ mode: propMode, isDark }) => {
           }} />
         </div>
         </div>
+      </div>
+
+      {/* KPI cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 shrink-0">
+        {tabKpis().map((k, i) => (
+          <StatCard key={`${activeTab}-${k.label}`} index={i} label={k.label} value={k.value} icon={k.icon} />
+        ))}
       </div>
 
       <div className="flex-1 overflow-hidden">
@@ -720,25 +594,8 @@ const AddBankModal = ({ onClose }) => {
         </div>
 
         <div className="px-10 pb-10 space-y-8 mt-4">
-          <div className="h-[200px] w-full bg-[var(--app-accent-soft)] dark:bg-[var(--app-accent-soft)] rounded-2xl flex items-center justify-center relative overflow-hidden">
-            <div className="absolute inset-0 flex items-center justify-center opacity-10">
-              <ClipboardList size={200} className="text-[var(--app-accent)]" />
-            </div>
-            <div className="relative z-10 bg-[var(--app-panel-bg)] p-6 rounded-xl shadow-xl border border-[var(--app-border)] flex flex-col items-center gap-3 w-40">
-              <ClipboardList size={40} className="text-[var(--app-heading)]" />
-              <div className="space-y-2 w-full">
-                <div className="h-1.5 w-full bg-[var(--app-table-head-bg)] rounded" />
-                <div className="h-1.5 w-4/5 bg-[var(--app-table-head-bg)] rounded" />
-                <div className="h-1.5 w-full bg-[var(--app-table-head-bg)] rounded" />
-              </div>
-              <div className="absolute -right-4 top-4 flex flex-col gap-2">
-                {[1, 2, 3, 4].map(i => (
-                  <div key={i} className="w-4 h-4 rounded bg-orange-100 dark:bg-orange-950/40 flex items-center justify-center"><Check size={10} className="text-orange-500" /></div>
-                ))}
-              </div>
-            </div>
-            <div className="absolute left-10 bottom-0 w-16 h-32 bg-[var(--app-accent-soft)]/40 dark:bg-[var(--app-accent-soft)] rounded-t-full" />
-            <div className="absolute right-10 bottom-0 w-12 h-24 bg-[var(--app-accent-soft)]/40 dark:bg-[var(--app-accent-soft)] rounded-t-full" />
+          <div className="h-[200px] w-full bg-[var(--app-accent-soft)] rounded-2xl flex items-center justify-center overflow-hidden">
+            <ObjectDoodle name="approve" className="w-48 h-40" />
           </div>
 
           <div className="grid grid-cols-2 gap-x-6 gap-y-5">
@@ -787,11 +644,9 @@ const UploadStatementModal = ({ onClose }) => {
             <p className="text-[12px] font-black text-red-500 tracking-tight">Document should be no more than 40 pages and 30 MB in size*</p>
           </div>
 
-          <div className="flex flex-col items-center justify-center gap-4 py-8 bg-[var(--app-content-bg)]/30 rounded-2xl border border-[var(--app-border)]">
-            <div className="w-20 h-20 rounded-full bg-[var(--app-panel-bg)] flex items-center justify-center border border-[var(--app-border)] shadow-sm group cursor-pointer hover:scale-110 transition-transform">
-              <CloudUpload size={32} className="text-[var(--app-muted)] opacity-60 group-hover:opacity-100 transition-opacity" />
-            </div>
-            <button className="text-[13px] font-bold text-slate-655 hover:text-[var(--app-accent)] transition-colors">Click here to Choose Files</button>
+          <div className="flex flex-col items-center justify-center gap-2 py-8 bg-[var(--app-content-bg)]/30 rounded-2xl border border-[var(--app-border)]">
+            <ObjectDoodle name="upload" className="w-28 h-24" />
+            <button className="text-[13px] font-bold hover:text-[var(--app-accent)] transition-colors" style={{ color: 'var(--app-text)' }}>Click here to Choose Files</button>
             <div className="w-4/5 mt-4">
               <div className="h-28 border-2 border-dashed border-[var(--app-border)] rounded-2xl flex items-center justify-center bg-[var(--app-panel-bg)] shadow-inner">
                 <span className="text-[13px] font-bold text-[var(--app-muted)] italic">Drag and drop files here</span>
@@ -828,22 +683,8 @@ const AddRuleModal = ({ onClose }) => {
         </div>
 
         <div className="px-10 pb-10 space-y-6 mt-4">
-          <div className="h-[180px] w-full bg-[var(--app-accent-soft)] dark:bg-[var(--app-accent-soft)] rounded-2xl flex items-center justify-center relative overflow-hidden">
-            <div className="absolute inset-0 flex items-center justify-center opacity-5">
-              <ClipboardList size={180} className="text-[var(--app-accent)]" />
-            </div>
-            <div className="relative z-10 bg-[var(--app-panel-bg)] p-5 rounded-xl shadow-xl border border-[var(--app-border)] flex flex-col items-center gap-2 w-36">
-              <ClipboardList size={32} className="text-[var(--app-heading)]" />
-              <div className="space-y-1.5 w-full">
-                <div className="h-1 w-full bg-[var(--app-table-head-bg)] rounded" />
-                <div className="h-1 w-4/5 bg-[var(--app-table-head-bg)] rounded" />
-              </div>
-              <div className="absolute -right-3 top-3 flex flex-col gap-1.5">
-                {[1, 2, 3, 4].map(i => (
-                  <div key={i} className="w-3 h-3 rounded bg-orange-100 dark:bg-orange-950/40 flex items-center justify-center"><Check size={8} className="text-orange-500" /></div>
-                ))}
-              </div>
-            </div>
+          <div className="h-[180px] w-full bg-[var(--app-accent-soft)] rounded-2xl flex items-center justify-center overflow-hidden">
+            <ObjectDoodle name="scan" className="w-44 h-36" />
           </div>
 
           <div className="space-y-6">
@@ -899,11 +740,9 @@ const BulkUploadRulesModal = ({ onClose }) => {
             <p className="text-[13px] font-bold text-[var(--app-accent)]">Maximum file size: 10 MB</p>
           </div>
 
-          <div className="flex flex-col items-center justify-center gap-4 py-10 bg-[var(--app-content-bg)]/30 rounded-2xl border border-[var(--app-border)]">
-            <div className="w-20 h-20 rounded-full bg-[var(--app-panel-bg)] flex items-center justify-center border border-[var(--app-border)] shadow-sm group cursor-pointer hover:scale-110 transition-transform">
-              <CloudUpload size={32} className="text-[var(--app-muted)] opacity-60 group-hover:opacity-100 transition-opacity" />
-            </div>
-            <button className="text-[13px] font-bold text-slate-655 hover:text-[var(--app-accent)] transition-colors">Click here to Choose File</button>
+          <div className="flex flex-col items-center justify-center gap-2 py-10 bg-[var(--app-content-bg)]/30 rounded-2xl border border-[var(--app-border)]">
+            <ObjectDoodle name="upload" className="w-28 h-24" />
+            <button className="text-[13px] font-bold hover:text-[var(--app-accent)] transition-colors" style={{ color: 'var(--app-text)' }}>Click here to Choose File</button>
             <div className="w-[90%] mt-4">
               <div className="h-28 border-2 border-dashed border-[var(--app-border)] rounded-2xl flex items-center justify-center bg-[var(--app-panel-bg)] shadow-inner">
                 <span className="text-[13px] font-bold text-[var(--app-muted)]">Drag and drop file here</span>
