@@ -834,11 +834,11 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                       }
                     }}
                     className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg border text-left min-w-[120px] shrink-0 transition-all ${isSelected
-                        ? 'bg-emerald-50/50 dark:bg-emerald-950/10 border-emerald-500 text-emerald-700 dark:text-emerald-400 shadow-sm'
+                        ? 'bg-[var(--app-accent-soft)] border-[var(--app-accent)] text-[var(--app-accent)] shadow-sm'
                         : 'bg-[var(--app-panel-bg)] border-[var(--app-border)] text-[var(--app-muted)] hover:bg-[var(--app-content-bg)]'
                       }`}
                   >
-                    <type.icon size={11} className={isSelected ? 'text-emerald-500 dark:text-emerald-400' : 'text-[var(--app-muted)]'} />
+                    <type.icon size={11} className={isSelected ? 'text-[var(--app-accent)]' : 'text-[var(--app-muted)]'} />
                     <div>
                       <span className="text-[7px] block font-black tracking-wider opacity-60 uppercase">{type.section}</span>
                       <span className="text-[11px] font-black">{type.label}</span>
