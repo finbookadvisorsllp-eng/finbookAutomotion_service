@@ -151,8 +151,8 @@ const FundFlowVoucher = ({ isDark, defaultType = 'Payment', onBack }) => {
       {isDark && (
         <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
           <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full blur-[100px] opacity-20" style={{ backgroundColor: '#005ED9' }}></div>
-          <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full blur-[120px] opacity-10" style={{ backgroundColor: '#09B6B9' }}></div>
-          <div className="absolute top-[40%] right-[20%] w-[20%] h-[20%] rounded-full blur-[80px] opacity-15" style={{ backgroundColor: '#8b5cf6' }}></div>
+          <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full blur-[120px] opacity-10" style={{ backgroundColor: 'var(--app-accent)' }}></div>
+          <div className="absolute top-[40%] right-[20%] w-[20%] h-[20%] rounded-full blur-[80px] opacity-15" style={{ backgroundColor: 'var(--app-accent)' }}></div>
           <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.03]"></div>
         </div>
       )}
@@ -197,7 +197,7 @@ const FundFlowVoucher = ({ isDark, defaultType = 'Payment', onBack }) => {
               Preview XML
             </button>
             <button className="flex items-center gap-2 px-5 py-2 rounded-xl transition-all hover:scale-[1.02] active:scale-95 shadow-md font-bold text-[11px] text-white"
-                    style={{ backgroundImage: 'linear-gradient(to right, #4f46e5, #6366f1)' }}>
+                    style={{ backgroundImage: 'var(--app-accent-gradient)' }}>
               <Save size={13} />
               Save Draft
             </button>

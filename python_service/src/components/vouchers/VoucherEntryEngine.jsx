@@ -27,7 +27,7 @@ const VoucherEntryEngine = ({ isDark, defaultMode = 'manual', voucherType = 'sal
     bg: 'var(--app-content-bg)', panel: 'var(--app-panel-bg)',
     border: 'var(--app-border)', headerBg: 'var(--app-table-head-bg)',
     text: 'var(--app-heading)', mutedText: 'var(--app-muted)',
-    inputBg: 'var(--app-control-bg)', accent: '#4f46e5',
+    inputBg: 'var(--app-control-bg)', accent: 'var(--app-accent)',
   };
 
   const NavButton = ({ mode, icon: Icon, label }) => {
@@ -118,7 +118,7 @@ const OcrPanel = ({ isDark, theme, voucherType, isSales, onSwitchToManual }) => 
   return (
     <div className="rounded-2xl border shadow-sm overflow-auto h-full" style={{ backgroundColor: theme.panel, borderColor: theme.border }}>
       <div className="px-6 py-4 border-b flex items-center gap-3 relative overflow-hidden" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>
-        <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ background: 'linear-gradient(90deg,transparent,#8b5cf6,transparent)', animation: 'shimmer 2s infinite' }} />
+        <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ background: 'linear-gradient(90deg,transparent,var(--app-accent),transparent)', animation: 'shimmer 2s infinite' }} />
         <div className="w-8 h-8 rounded-lg bg-[var(--app-accent-soft)] text-[var(--app-accent)] flex items-center justify-center relative z-10"><Bot size={16} /></div>
         <h3 className="font-bold text-lg relative z-10" style={{ color: theme.text }}>AI Smart Scanning</h3>
         {ocr.file && <button onClick={clearOcr} className="ml-auto text-[var(--app-muted)] hover:text-red-500 transition-colors z-10"><X size={16} /></button>}
@@ -133,7 +133,7 @@ const OcrPanel = ({ isDark, theme, voucherType, isSales, onSwitchToManual }) => 
               onDragLeave={() => setDragOver(false)}
               onDrop={handleDrop}
               className={`border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center text-center min-h-[300px] transition-all cursor-pointer ${dragOver ? 'border-[var(--app-accent)] bg-[var(--app-accent-soft)]' : 'hover:border-[var(--app-accent)]'}`}
-              style={{ borderColor: dragOver ? '#8b5cf6' : theme.border }}
+              style={{ borderColor: dragOver ? 'var(--app-accent)' : theme.border }}
             >
               <label className="cursor-pointer flex flex-col items-center gap-3">
                 <div className="w-16 h-16 rounded-full bg-[var(--app-accent-soft)] flex items-center justify-center text-[var(--app-accent)] relative overflow-hidden">

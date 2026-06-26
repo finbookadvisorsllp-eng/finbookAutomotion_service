@@ -491,9 +491,9 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
     text: isDark ? '#f8fafc' : '#0f172a',
     inputBg: 'var(--app-control-bg)',
     mutedText: isDark ? '#94a3b8' : '#475569',
-    accent: 'var(--app-accent, #4f46e5)',
+    accent: 'var(--app-accent)',
     accentSoft: isDark ? 'rgba(79, 70, 229, 0.2)' : '#eef2ff',
-    accentGradient: 'var(--app-accent-gradient, linear-gradient(135deg, #4f46e5 0%, #6366f1 100%))',
+    accentGradient: 'var(--app-accent-gradient)',
     scrollbarThumb: isDark ? '#475569' : '#cbd5e1',
     scrollbarTrack: isDark ? '#1e293b' : '#f1f5f9'
   };

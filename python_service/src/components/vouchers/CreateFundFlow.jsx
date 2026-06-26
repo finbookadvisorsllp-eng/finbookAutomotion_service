@@ -731,7 +731,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
           </div>
           <div className="flex flex-col gap-0.5">
             <span className="text-[7.5px] font-black uppercase tracking-wider text-[var(--app-muted)]">Closing Balance</span>
-            <span className={`text-[10.5px] font-black ${closingBal < 0 ? 'text-rose-500' : 'text-[#09B6B9]'}`}>{formatCur(closingBal)}</span>
+            <span className={`text-[10.5px] font-black ${closingBal < 0 ? 'text-rose-500' : 'text-[var(--app-accent)]'}`}>{formatCur(closingBal)}</span>
           </div>
         </div>
       </div>
@@ -836,7 +836,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
           {activeType === 'bank_payment' && (
             <div className="flex justify-between items-center py-0.5 border-b border-dashed" style={{ borderColor: theme.border }}>
               <span className="text-[var(--app-muted)] font-bold">Advance Receipt:</span>
-              <span className="font-extrabold text-[#09B6B9]">{formatCur(advanceReceipt)}</span>
+              <span className="font-extrabold text-[var(--app-accent)]">{formatCur(advanceReceipt)}</span>
             </div>
           )}
           <div className="flex justify-between items-center py-0.5 border-b border-dashed" style={{ borderColor: theme.border }}>
@@ -956,11 +956,11 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                     key={type.id}
                     onClick={() => handleVoucherTypeSwitch(type.id)}
                     className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg border text-left min-w-[120px] shrink-0 transition-all ${isSelected
-                      ? 'bg-[#09B6B9]/10 border-[#09B6B9] text-[#09B6B9] shadow-sm'
+                      ? 'bg-[var(--app-accent)]/10 border-[var(--app-accent)] text-[var(--app-accent)] shadow-sm'
                       : 'bg-[var(--app-panel-bg)] border-[var(--app-border)] text-[var(--app-muted)] hover:bg-[var(--app-content-bg)]'
                       }`}
                   >
-                    <type.icon size={11} className={isSelected ? 'text-[#09B6B9]' : 'text-[var(--app-muted)]'} />
+                    <type.icon size={11} className={isSelected ? 'text-[var(--app-accent)]' : 'text-[var(--app-muted)]'} />
                     <div>
                       <span className="text-[7px] block font-black tracking-wider opacity-60 uppercase">{type.section}</span>
                       <span className="text-[11px] font-black">{type.label}</span>
@@ -2640,14 +2640,14 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                             <button
                               type="button"
                               onClick={() => handlePaymentModeChange('cash')}
-                              className={`px-4 py-1.5 rounded-md text-[10px] font-black tracking-wider uppercase transition-all duration-200 ${paymentMode === 'cash' ? 'bg-[#09B6B9] text-white shadow-sm' : 'text-[var(--app-muted)] hover:text-slate-200'}`}
+                              className={`px-4 py-1.5 rounded-md text-[10px] font-black tracking-wider uppercase transition-all duration-200 ${paymentMode === 'cash' ? 'bg-[var(--app-accent)] text-white shadow-sm' : 'text-[var(--app-muted)] hover:text-slate-200'}`}
                             >
                               Cash
                             </button>
                             <button
                               type="button"
                               onClick={() => handlePaymentModeChange('bank')}
-                              className={`px-4 py-1.5 rounded-md text-[10px] font-black tracking-wider uppercase transition-all duration-200 ${paymentMode === 'bank' ? 'bg-[#09B6B9] text-white shadow-sm' : 'text-[var(--app-muted)] hover:text-slate-200'}`}
+                              className={`px-4 py-1.5 rounded-md text-[10px] font-black tracking-wider uppercase transition-all duration-200 ${paymentMode === 'bank' ? 'bg-[var(--app-accent)] text-white shadow-sm' : 'text-[var(--app-muted)] hover:text-slate-200'}`}
                             >
                               Bank
                             </button>
@@ -2732,11 +2732,11 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                             style={{ backgroundColor: isDark ? 'rgba(9, 182, 185, 0.03)' : '#f0f9fa', borderColor: isDark ? 'rgba(9, 182, 185, 0.1)' : '#cffafe' }}>
                             <div className="flex justify-between items-center text-[10px]">
                               <div className="flex gap-1.5 items-center">
-                                <span className="text-[11px] font-black uppercase text-[#09B6B9] tracking-wider">Group:</span>
+                                <span className="text-[11px] font-black uppercase text-[var(--app-accent)] tracking-wider">Group:</span>
                                 <span style={{ color: theme.text }}>{selectedPartyDetails.groupName}</span>
                               </div>
                               <div className="flex gap-1.5 items-center">
-                                <span className="text-[11px] font-black uppercase text-[#09B6B9] tracking-wider">Ledger Balance:</span>
+                                <span className="text-[11px] font-black uppercase text-[var(--app-accent)] tracking-wider">Ledger Balance:</span>
                                 <span style={{ color: theme.text }}>
                                   ₹ {selectedPartyDetails.outstandingBalance?.toLocaleString('en-IN')} ({selectedPartyDetails.outstandingType})
                                 </span>
@@ -3531,7 +3531,7 @@ const FormSection = ({
               onChange={(e) => {
                 onCheckboxChange && onCheckboxChange(e.target.checked);
               }}
-              className="w-3.5 h-3.5 rounded-lg accent-[#09B6B9] cursor-pointer"
+              className="w-3.5 h-3.5 rounded-lg accent-[var(--app-accent)] cursor-pointer"
             />
           )}
           <h3 className="text-[10px] font-black uppercase tracking-wider text-[var(--app-heading)]">
