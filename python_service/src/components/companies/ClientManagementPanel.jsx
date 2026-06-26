@@ -28,9 +28,9 @@ export default function ClientManagementPanel() {
   ]);
 
   const stats = [
-    { label: 'Total Client Profiles', count: clientsList.length, color: 'text-blue-800 dark:text-blue-300', countColor: 'text-blue-950 dark:text-blue-50', cardBg: 'bg-blue-50/80 border-blue-200/80 dark:bg-blue-950/20 dark:border-blue-900/30' },
+    { label: 'Total Client Profiles', count: clientsList.length, color: 'text-[var(--app-accent)] dark:text-[var(--app-accent)]', countColor: 'text-[var(--app-accent)] dark:text-[var(--app-accent)]', cardBg: 'bg-[var(--app-accent-soft)] border-[var(--app-border)] dark:bg-[var(--app-accent-soft)] dark:border-[var(--app-border)]' },
     { label: 'Active Clients', count: clientsList.filter(c => c.status === 'Active').length, color: 'text-emerald-800 dark:text-emerald-300', countColor: 'text-emerald-950 dark:text-emerald-50', cardBg: 'bg-emerald-50/80 border-emerald-200/80 dark:bg-emerald-950/20 dark:border-emerald-900/30' },
-    { label: 'Assigned Entities', count: new Set(clientsList.map(c => c.company)).size, color: 'text-purple-800 dark:text-purple-300', countColor: 'text-purple-950 dark:text-purple-50', cardBg: 'bg-purple-50/80 border-purple-200/80 dark:bg-purple-950/20 dark:border-purple-900/30' },
+    { label: 'Assigned Entities', count: new Set(clientsList.map(c => c.company)).size, color: 'text-[var(--app-accent)] dark:text-[var(--app-accent)]', countColor: 'text-[var(--app-accent)] dark:text-[var(--app-accent)]', cardBg: 'bg-[var(--app-accent-soft)] border-[var(--app-border)] dark:bg-[var(--app-accent-soft)] dark:border-[var(--app-border)]' },
     { label: 'Pending Invitations', count: '1', color: 'text-amber-800 dark:text-amber-300', countColor: 'text-amber-950 dark:text-amber-50', cardBg: 'bg-amber-50/80 border-amber-200/80 dark:bg-amber-950/20 dark:border-amber-900/30' }
   ];
 
@@ -79,7 +79,7 @@ export default function ClientManagementPanel() {
         </div>
         <button
           onClick={() => setShowCreateForm(p => !p)}
-          className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10.5px] rounded-lg flex items-center gap-1 transition-all uppercase shrink-0 shadow-sm"
+          className="px-3.5 py-1.5 bg-[var(--app-accent)] hover:opacity-90 text-white font-bold text-[10.5px] rounded-lg flex items-center gap-1 transition-all uppercase shrink-0 shadow-sm"
         >
           {showCreateForm ? <X size={12} /> : <Plus size={12} />}
           {showCreateForm ? 'Close Form' : 'New Client'}
@@ -124,7 +124,7 @@ export default function ClientManagementPanel() {
                   {/* Column 1: Profile Info */}
                   <div className="space-y-3">
                     <div className="space-y-2 border rounded-xl p-3 bg-slate-50/40 dark:bg-slate-950/20 border-slate-200 dark:border-slate-800">
-                      <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 font-bold border-b border-slate-200 dark:border-slate-800 pb-1 mb-2">
+                      <div className="flex items-center gap-1.5 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold border-b border-slate-200 dark:border-slate-800 pb-1 mb-2">
                         <User size={13} />
                         <span className="text-[11px] uppercase tracking-wider font-black">1. Profile Info</span>
                       </div>
@@ -137,7 +137,7 @@ export default function ClientManagementPanel() {
                           value={form.name}
                           onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
                           placeholder="e.g. Rahul Sharma"
-                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
                         />
                       </div>
 
@@ -149,7 +149,7 @@ export default function ClientManagementPanel() {
                           value={form.email}
                           onChange={(e) => setForm(prev => ({ ...prev, email: e.target.value }))}
                           placeholder="e.g. rahul@greeline.com"
-                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
                         />
                       </div>
 
@@ -160,7 +160,7 @@ export default function ClientManagementPanel() {
                           value={form.phone}
                           onChange={(e) => setForm(prev => ({ ...prev, phone: e.target.value }))}
                           placeholder="e.g. +91 98765 43210"
-                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
                         />
                       </div>
                     </div>
@@ -169,7 +169,7 @@ export default function ClientManagementPanel() {
                   {/* Column 2: Tax & Company Details */}
                   <div className="space-y-3">
                     <div className="space-y-2 border rounded-xl p-3 bg-slate-50/40 dark:bg-slate-950/20 border-slate-200 dark:border-slate-800">
-                      <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 font-bold border-b border-slate-200 dark:border-slate-800 pb-1 mb-2">
+                      <div className="flex items-center gap-1.5 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold border-b border-slate-200 dark:border-slate-800 pb-1 mb-2">
                         <Shield size={13} />
                         <span className="text-[11px] uppercase tracking-wider font-black">2. Entity Details</span>
                       </div>
@@ -182,7 +182,7 @@ export default function ClientManagementPanel() {
                           value={form.company}
                           onChange={(e) => setForm(prev => ({ ...prev, company: e.target.value }))}
                           placeholder="e.g. Greenline Ventures"
-                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
                         />
                       </div>
 
@@ -193,7 +193,7 @@ export default function ClientManagementPanel() {
                           value={form.gstin}
                           onChange={(e) => setForm(prev => ({ ...prev, gstin: e.target.value }))}
                           placeholder="e.g. 23AAFFF6731J1L7"
-                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
                         />
                       </div>
 
@@ -204,7 +204,7 @@ export default function ClientManagementPanel() {
                           value={form.pan}
                           onChange={(e) => setForm(prev => ({ ...prev, pan: e.target.value }))}
                           placeholder="e.g. AAFFF6731J"
-                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
                         />
                       </div>
                     </div>
@@ -213,7 +213,7 @@ export default function ClientManagementPanel() {
                   {/* Column 3: Address & Notes */}
                   <div className="space-y-3">
                     <div className="space-y-2 border rounded-xl p-3 bg-slate-50/40 dark:bg-slate-950/20 border-slate-200 dark:border-slate-800">
-                      <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 font-bold border-b border-slate-200 dark:border-slate-800 pb-1 mb-2">
+                      <div className="flex items-center gap-1.5 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold border-b border-slate-200 dark:border-slate-800 pb-1 mb-2">
                         <MapPin size={13} />
                         <span className="text-[11px] uppercase tracking-wider font-black">3. Location & Notes</span>
                       </div>
@@ -225,7 +225,7 @@ export default function ClientManagementPanel() {
                           value={form.address}
                           onChange={(e) => setForm(prev => ({ ...prev, address: e.target.value }))}
                           placeholder="e.g. 102 Metro Plaza"
-                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
                         />
                       </div>
 
@@ -237,7 +237,7 @@ export default function ClientManagementPanel() {
                             value={form.city}
                             onChange={(e) => setForm(prev => ({ ...prev, city: e.target.value }))}
                             placeholder="e.g. Indore"
-                            className="w-full h-8 rounded-lg border px-2 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                            className="w-full h-8 rounded-lg border px-2 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
                           />
                         </div>
                         <div>
@@ -247,7 +247,7 @@ export default function ClientManagementPanel() {
                             value={form.state}
                             onChange={(e) => setForm(prev => ({ ...prev, state: e.target.value }))}
                             placeholder="e.g. MP"
-                            className="w-full h-8 rounded-lg border px-2 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                            className="w-full h-8 rounded-lg border px-2 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
                           />
                         </div>
                       </div>
@@ -259,7 +259,7 @@ export default function ClientManagementPanel() {
                           value={form.notes}
                           onChange={(e) => setForm(prev => ({ ...prev, notes: e.target.value }))}
                           placeholder="e.g. Premium subscriber client"
-                          className="w-full rounded-lg border px-2 py-1 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500 resize-none"
+                          className="w-full rounded-lg border px-2 py-1 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)] resize-none"
                         />
                       </div>
                     </div>
@@ -280,7 +280,7 @@ export default function ClientManagementPanel() {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition-all font-bold"
+                  className="px-5 py-1.5 bg-[var(--app-accent)] hover:opacity-90 text-white rounded-lg shadow-sm transition-all font-bold"
                 >
                   Save Client
                 </button>
@@ -301,7 +301,7 @@ export default function ClientManagementPanel() {
             placeholder="Search clients..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full h-7 pl-8 pr-2.5 rounded border text-[11px] outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+            className="w-full h-7 pl-8 pr-2.5 rounded border text-[11px] outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
           />
         </div>
       </div>
@@ -345,7 +345,7 @@ export default function ClientManagementPanel() {
 
                     <td className="p-2 text-center">
                       <div className="flex items-center justify-center gap-1.5">
-                        <button className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-blue-500 rounded transition-colors"><Pencil size={11} /></button>
+                        <button className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-[var(--app-accent)] rounded transition-colors"><Pencil size={11} /></button>
                         <button className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-rose-500 rounded transition-colors" onClick={() => handleDeleteClient(client.id)}><Trash2 size={12} /></button>
                       </div>
                     </td>

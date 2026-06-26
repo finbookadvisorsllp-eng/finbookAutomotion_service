@@ -39,6 +39,14 @@ function SidebarItem({ item, activeItem, onItemClick, collapsed }) {
 
   return (
     <div className="relative">
+      {isActive && (
+        <motion.span
+          layoutId="sidebar-active-bar"
+          className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full"
+          style={{ backgroundColor: 'var(--app-accent)' }}
+          transition={{ type: 'spring', stiffness: 500, damping: 38 }}
+        />
+      )}
       <motion.button
         whileTap={{ scale: 0.98 }}
         type="button"
@@ -98,11 +106,10 @@ function Sidebar({ activeItem, onItemClick, collapsed, onToggle }) {
         <div className="flex items-center gap-2.5">
           {/* Stylized Hexagon/Diamond Icon */}
           <div className="relative h-7 w-7 flex items-center justify-center shrink-0">
-            {/* Hexagon SVG shape from mockup */}
-            <svg viewBox="0 0 100 100" className="h-full w-full text-blue-600 fill-blue-600">
+            {/* Hexagon brand mark — uses unified accent */}
+            <svg viewBox="0 0 100 100" className="h-full w-full" style={{ color: 'var(--app-accent)', fill: 'var(--app-accent)' }}>
               <polygon points="50,5 95,27.5 95,72.5 50,95 5,72.5 5,27.5" />
             </svg>
-            {/* Inner logo symbol (like a white hollow diamond/shield shape) */}
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="h-2.5 w-2.5 border-2 border-white rotate-45 transform"></div>
             </div>

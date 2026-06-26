@@ -508,7 +508,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
           <button onClick={() => setIsLedgerModalOpen(false)} className="absolute right-4 top-4 w-8 h-8 flex items-center justify-center rounded-full border text-slate-400 hover:text-red-500 transition-colors" style={{ borderColor: theme.border }}>
             <X size={16} />
           </button>
-          <h2 className="text-[14px] font-black text-indigo-600 mb-8 tracking-tight">Add Ledger</h2>
+          <h2 className="text-[14px] font-black text-[var(--app-accent)] mb-8 tracking-tight">Add Ledger</h2>
 
           <div className="grid grid-cols-2 gap-x-4 gap-y-6 mb-8">
             <InputField placeholder="Ledger Name" />
@@ -524,15 +524,15 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                 <InputField placeholder="Credit Period" />
                 <div className="flex items-center h-9 mt-1 px-2">
                   <label className="flex items-center gap-2 cursor-pointer group">
-                    <input type="checkbox" className="w-4 h-4 rounded border-slate-200 accent-indigo-600 cursor-pointer" defaultChecked />
-                    <span className="text-[11px] font-bold text-slate-600 group-hover:text-indigo-600 transition-colors" style={{ color: theme.text }}>Maintain Balance Bill by Bill</span>
+                    <input type="checkbox" className="w-4 h-4 rounded border-slate-200 accent-[var(--app-accent)] cursor-pointer" defaultChecked />
+                    <span className="text-[11px] font-bold text-slate-600 group-hover:text-[var(--app-accent)] transition-colors" style={{ color: theme.text }}>Maintain Balance Bill by Bill</span>
                   </label>
                 </div>
               </>
             )}
           </div>
           <div className="flex justify-center mt-6">
-            <button onClick={() => setIsLedgerModalOpen(false)} className="px-8 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-black tracking-wide rounded-lg shadow-md hover:shadow-lg transition-all active:scale-95">
+            <button onClick={() => setIsLedgerModalOpen(false)} className="px-8 py-2 bg-[var(--app-accent)] hover:opacity-90 text-white text-[11px] font-black tracking-wide rounded-lg shadow-md hover:shadow-lg transition-all active:scale-95">
               submit
             </button>
           </div>
@@ -549,7 +549,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
           <button onClick={() => setIsStockModalOpen(false)} className="absolute right-4 top-4 w-8 h-8 flex items-center justify-center rounded-full border text-slate-400 hover:text-red-500 transition-colors" style={{ borderColor: theme.border }}>
             <X size={16} />
           </button>
-          <h2 className="text-[14px] font-black text-indigo-600 mb-8 tracking-tight">Add Stock Ledger</h2>
+          <h2 className="text-[14px] font-black text-[var(--app-accent)] mb-8 tracking-tight">Add Stock Ledger</h2>
 
           <div className="grid grid-cols-3 gap-x-4 gap-y-6 mb-8">
             <InputField placeholder="Stock Name" />
@@ -569,16 +569,16 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
             <SearchableDropdown label="Type Of Supply" value="Goods" options={['Goods', 'Services']} />
 
             <label className="flex items-center gap-2 cursor-pointer group mt-1 pl-1">
-              <input type="checkbox" className="w-4 h-4 rounded border-slate-200 accent-indigo-600 cursor-pointer" />
-              <span className="text-[11px] font-bold text-slate-600 group-hover:text-indigo-600 transition-colors" style={{ color: theme.text }}>RCM Applicable</span>
+              <input type="checkbox" className="w-4 h-4 rounded border-slate-200 accent-[var(--app-accent)] cursor-pointer" />
+              <span className="text-[11px] font-bold text-slate-600 group-hover:text-[var(--app-accent)] transition-colors" style={{ color: theme.text }}>RCM Applicable</span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer group mt-1 pl-1">
-              <input type="checkbox" className="w-4 h-4 rounded border-slate-200 accent-indigo-600 cursor-pointer" />
-              <span className="text-[11px] font-bold text-slate-600 group-hover:text-indigo-600 transition-colors" style={{ color: theme.text }}>ITC Ineligible</span>
+              <input type="checkbox" className="w-4 h-4 rounded border-slate-200 accent-[var(--app-accent)] cursor-pointer" />
+              <span className="text-[11px] font-bold text-slate-600 group-hover:text-[var(--app-accent)] transition-colors" style={{ color: theme.text }}>ITC Ineligible</span>
             </label>
           </div>
           <div className="flex justify-center mt-6">
-            <button onClick={() => setIsStockModalOpen(false)} className="px-8 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-black tracking-wide rounded-lg shadow-md hover:shadow-lg transition-all active:scale-95">
+            <button onClick={() => setIsStockModalOpen(false)} className="px-8 py-2 bg-[var(--app-accent)] hover:opacity-90 text-white text-[11px] font-black tracking-wide rounded-lg shadow-md hover:shadow-lg transition-all active:scale-95">
               Save
             </button>
           </div>
@@ -772,7 +772,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
             </button>
             <button
               onClick={handlePostToTally}
-              className="px-3 py-1 rounded-none text-[9.5px] font-black text-white bg-blue-600 hover:bg-blue-700 shadow-sm transition-all hover:scale-[1.02] uppercase tracking-wider"
+              className="px-3 py-1 rounded-none text-[9.5px] font-black text-white bg-[var(--app-accent)] hover:opacity-90 shadow-sm transition-all hover:scale-[1.02] uppercase tracking-wider"
             >
               Post Tally
             </button>
@@ -783,7 +783,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
             >
               Cancel
             </button>
-            <button className="p-1.5 rounded-none border text-slate-400 hover:text-indigo-600 transition-all" style={{ borderColor: theme.border }}>
+            <button className="p-1.5 rounded-none border text-slate-400 hover:text-[var(--app-accent)] transition-all" style={{ borderColor: theme.border }}>
               <Settings size={12} />
             </button>
             {onBack && (
@@ -877,7 +877,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
               <span className="text-slate-400 font-bold uppercase tracking-wider text-[7.5px]">Round:</span>
               <span className="font-black text-slate-700 dark:text-slate-300">{isRoundOffChecked ? `₹ ${form.roundOff || "0.00"}` : "₹ 0.00"}</span>
             </div>
-            <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-none bg-indigo-600 text-white shadow-md">
+            <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-none bg-[var(--app-accent)] text-white shadow-md">
               <span className="text-[7.5px] font-black uppercase tracking-wider opacity-85">Net:</span>
               <span className="font-black text-[11px]">₹ {parseFloat(isRoundOffChecked ? (form.grandTotal || 0) : (form.subTotal || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
             </div>
@@ -1050,7 +1050,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                       type="text"
                       value={form.narration || ''}
                       onChange={(e) => updateForm({ narration: e.target.value })}
-                      className="w-full h-7.5 px-3 rounded-none border text-[11px] font-bold outline-none focus:border-indigo-400 bg-white dark:bg-[#12161a]"
+                      className="w-full h-7.5 px-3 rounded-none border text-[11px] font-bold outline-none focus:border-[var(--app-accent)] bg-white dark:bg-[#12161a]"
                       placeholder="Enter narration here..."
                       style={{ borderColor: theme.border, color: theme.text }}
                     />
@@ -1136,7 +1136,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                                   value={row.hsnSacCode || ''}
                                   onChange={(e) => updatePurchaseLine(row.id, { hsnSacCode: e.target.value })}
                                   placeholder="HSN"
-                                  className="w-full h-7 px-2 rounded border outline-none text-[10px] bg-white dark:bg-[#12161a] transition-all focus:border-indigo-400"
+                                  className="w-full h-7 px-2 rounded border outline-none text-[10px] bg-white dark:bg-[#12161a] transition-all focus:border-[var(--app-accent)]"
                                   style={{ borderColor: theme.border, color: theme.text }}
                                 />
                               </td>
@@ -1146,7 +1146,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                                   value={row.amount || ''}
                                   onChange={(e) => updatePurchaseLine(row.id, { amount: parseFloat(e.target.value) || 0 })}
                                   placeholder="0.00"
-                                  className="w-full h-7 px-2 rounded border outline-none text-right font-bold text-[10px] bg-white dark:bg-[#12161a] transition-all focus:border-indigo-400"
+                                  className="w-full h-7 px-2 rounded border outline-none text-right font-bold text-[10px] bg-white dark:bg-[#12161a] transition-all focus:border-[var(--app-accent)]"
                                   style={{ borderColor: theme.border, color: theme.text }}
                                 />
                               </td>
@@ -1154,7 +1154,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                                 <select
                                   value={row.gstRate || 0}
                                   onChange={(e) => updatePurchaseLine(row.id, { gstRate: parseFloat(e.target.value) || 0 })}
-                                  className="w-full h-7 px-1.5 rounded border outline-none text-[10px] bg-white dark:bg-[#12161a] cursor-pointer transition-all focus:border-indigo-400"
+                                  className="w-full h-7 px-1.5 rounded border outline-none text-[10px] bg-white dark:bg-[#12161a] cursor-pointer transition-all focus:border-[var(--app-accent)]"
                                   style={{ borderColor: theme.border, color: theme.text }}
                                 >
                                   <option value={0}>0%</option>
@@ -1246,7 +1246,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                                   value={row.hsnSacCode || ''}
                                   onChange={(e) => updateProductLine(row.id, { hsnSacCode: e.target.value })}
                                   placeholder="HSN"
-                                  className="w-full h-7 px-2 rounded border outline-none text-[10px] bg-white dark:bg-[#12161a] transition-all focus:border-indigo-400"
+                                  className="w-full h-7 px-2 rounded border outline-none text-[10px] bg-white dark:bg-[#12161a] transition-all focus:border-[var(--app-accent)]"
                                   style={{ borderColor: theme.border, color: theme.text }}
                                 />
                               </td>
@@ -1254,7 +1254,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                                 <select
                                   value={row.gstRate || 0}
                                   onChange={(e) => updateProductLine(row.id, { gstRate: parseFloat(e.target.value) || 0 })}
-                                  className="w-full h-7 px-1.5 rounded border outline-none text-[10px] bg-white dark:bg-[#12161a] cursor-pointer transition-all focus:border-indigo-400"
+                                  className="w-full h-7 px-1.5 rounded border outline-none text-[10px] bg-white dark:bg-[#12161a] cursor-pointer transition-all focus:border-[var(--app-accent)]"
                                   style={{ borderColor: theme.border, color: theme.text }}
                                 >
                                   <option value={0}>0%</option>
@@ -1270,7 +1270,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                                   value={row.billQuantity || ''}
                                   onChange={(e) => updateProductLine(row.id, { billQuantity: parseFloat(e.target.value) || 0 })}
                                   placeholder="1"
-                                  className="w-full h-7 px-2 rounded border outline-none text-right text-[10px] bg-white dark:bg-[#12161a] transition-all focus:border-indigo-400"
+                                  className="w-full h-7 px-2 rounded border outline-none text-right text-[10px] bg-white dark:bg-[#12161a] transition-all focus:border-[var(--app-accent)]"
                                   style={{ borderColor: theme.border, color: theme.text }}
                                 />
                               </td>
@@ -1278,7 +1278,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                                 <select
                                   value={row.unit || 'Nos'}
                                   onChange={(e) => updateProductLine(row.id, { unit: e.target.value })}
-                                  className="w-full h-7 px-1.5 rounded border outline-none text-[10px] bg-white dark:bg-[#12161a] cursor-pointer transition-all focus:border-indigo-400"
+                                  className="w-full h-7 px-1.5 rounded border outline-none text-[10px] bg-white dark:bg-[#12161a] cursor-pointer transition-all focus:border-[var(--app-accent)]"
                                   style={{ borderColor: theme.border, color: theme.text }}
                                 >
                                   <option>Nos</option>
@@ -1295,7 +1295,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                                   value={row.billRate || ''}
                                   onChange={(e) => updateProductLine(row.id, { billRate: parseFloat(e.target.value) || 0 })}
                                   placeholder="0.00"
-                                  className="w-full h-7 px-2 rounded border outline-none text-right text-[10px] bg-white dark:bg-[#12161a] transition-all focus:border-indigo-400"
+                                  className="w-full h-7 px-2 rounded border outline-none text-right text-[10px] bg-white dark:bg-[#12161a] transition-all focus:border-[var(--app-accent)]"
                                   style={{ borderColor: theme.border, color: theme.text }}
                                 />
                               </td>
@@ -1305,7 +1305,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                                   value={row.discountPercent || ''}
                                   onChange={(e) => updateProductLine(row.id, { discountPercent: parseFloat(e.target.value) || 0 })}
                                   placeholder="0"
-                                  className="w-full h-7 px-2 rounded border outline-none text-right text-[10px] bg-white dark:bg-[#12161a] transition-all focus:border-indigo-400"
+                                  className="w-full h-7 px-2 rounded border outline-none text-right text-[10px] bg-white dark:bg-[#12161a] transition-all focus:border-[var(--app-accent)]"
                                   style={{ borderColor: theme.border, color: theme.text }}
                                 />
                               </td>
@@ -1332,7 +1332,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                     <button
                       onClick={handleAiAutofill}
                       disabled={isAiAutofillLoading}
-                      className="px-4 py-1.5 rounded-none border border-indigo-100 bg-indigo-50/50 dark:bg-indigo-950/20 text-indigo-600 dark:text-indigo-400 text-[11px] font-black flex items-center gap-1.5 hover:bg-indigo-50 shadow-sm disabled:opacity-50"
+                      className="px-4 py-1.5 rounded-none border border-[var(--app-border)] bg-[var(--app-accent-soft)] dark:bg-[var(--app-accent-soft)] text-[var(--app-accent)] dark:text-[var(--app-accent)] text-[11px] font-black flex items-center gap-1.5 hover:bg-[var(--app-accent-soft)] shadow-sm disabled:opacity-50"
                     >
                       {isAiAutofillLoading ? <Loader2 size={13} className="animate-spin" /> : <Bot size={13} />}
                       AI-Auto Fill Remaining
@@ -1350,14 +1350,14 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                   <div className="p-4 bg-white dark:bg-[#12161a] border border-slate-200 dark:border-slate-800 rounded-xl shadow-[0_2px_8px_-3px_rgba(0,0,0,0.05)] flex flex-col gap-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <div className="p-1.5 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 rounded-lg border border-blue-100 dark:border-blue-900/50 flex items-center justify-center">
+                        <div className="p-1.5 bg-[var(--app-accent-soft)] dark:bg-[var(--app-accent-soft)] text-[var(--app-accent)] dark:text-[var(--app-accent)] rounded-lg border border-[var(--app-border)] dark:border-[var(--app-border)] flex items-center justify-center">
                           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><line x1="10" y1="9" x2="8" y2="9"></line></svg>
                         </div>
                         <span className="font-bold text-[13px] text-slate-800 dark:text-slate-200">Ledger Details</span>
                       </div>
                       <button
                        onClick={addPurchaseLine}
-                        className="px-3 py-1 bg-indigo-50/50 hover:bg-indigo-100/60 dark:bg-indigo-950/20 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/50 rounded-lg text-[11px] font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                        className="px-3 py-1 bg-[var(--app-accent-soft)] hover:bg-[var(--app-accent-soft)] dark:bg-[var(--app-accent-soft)] text-[var(--app-accent)] dark:text-[var(--app-accent)] border border-[var(--app-border)] dark:border-[var(--app-border)] rounded-lg text-[11px] font-semibold flex items-center gap-1 transition-colors cursor-pointer"
                       >
                         <Plus size={12} strokeWidth={2.5} /> Add Ledger
                       </button>
@@ -1394,7 +1394,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                                   value={row.description || ''}
                                   onChange={(e) => updatePurchaseLine(row.id, { description: e.target.value })}
                                   placeholder="Description"
-                                  className="w-full h-8 px-2 rounded-lg border outline-none text-[11px] font-bold bg-white dark:bg-[#12161a] transition-all focus:border-indigo-400"
+                                  className="w-full h-8 px-2 rounded-lg border outline-none text-[11px] font-bold bg-white dark:bg-[#12161a] transition-all focus:border-[var(--app-accent)]"
                                   style={{ borderColor: theme.border, color: theme.text }}
                                 />
                               </td>
@@ -1404,7 +1404,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                                   value={row.amount || ''}
                                   onChange={(e) => updatePurchaseLine(row.id, { amount: parseFloat(e.target.value) || 0 })}
                                   placeholder="0.00"
-                                  className="w-full h-8 px-3 rounded-lg border outline-none text-right text-[11px] font-bold bg-white dark:bg-[#12161a] transition-all focus:border-indigo-400"
+                                  className="w-full h-8 px-3 rounded-lg border outline-none text-right text-[11px] font-bold bg-white dark:bg-[#12161a] transition-all focus:border-[var(--app-accent)]"
                                   style={{ borderColor: theme.border, color: theme.text }}
                                 />
                               </td>
@@ -1429,7 +1429,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                           <span className="font-black">{parseFloat(form.ledgerAmount || 0).toFixed(2)}</span>
                         </div>
                       )}
-                      <div className="px-4 py-1.5 bg-blue-50/60 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 rounded-lg text-[11px] font-bold flex items-center gap-1.5 border border-blue-100 dark:border-blue-900/30">
+                      <div className="px-4 py-1.5 bg-[var(--app-accent-soft)] dark:bg-[var(--app-accent-soft)] text-[var(--app-accent)] dark:text-[var(--app-accent)] rounded-lg text-[11px] font-bold flex items-center gap-1.5 border border-[var(--app-border)] dark:border-[var(--app-border)]">
                         <span>{activeTab === 'With Item Invoice' ? 'Total (Item + Ledger) (₹)' : 'Total (₹)'}</span>
                         <span className="font-black">{parseFloat(form.baseTotal || 0).toFixed(2)}</span>
                       </div>
@@ -1457,7 +1457,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                               onChange={(e) => setIsRoundOffChecked(e.target.checked)}
                               className="w-4 h-4 rounded border-slate-200 dark:border-slate-800 accent-emerald-600 cursor-pointer shadow-sm"
                             />
-                            <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 group-hover:text-indigo-500 transition-colors">Round Off</span>
+                            <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 group-hover:text-[var(--app-accent)] transition-colors">Round Off</span>
                           </label>
                         </div>
 
@@ -1804,7 +1804,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
 
                         {/* TDS Info Notice */}
                         {isTdsApplicable && (
-                          <div className="px-3.5 py-2 bg-blue-50/60 dark:bg-blue-950/20 text-blue-700 dark:text-blue-400 text-[10.5px] font-semibold border border-blue-100 dark:border-blue-900/30 flex items-center gap-2">
+                          <div className="px-3.5 py-2 bg-[var(--app-accent-soft)] dark:bg-[var(--app-accent-soft)] text-[var(--app-accent)] dark:text-[var(--app-accent)] text-[10.5px] font-semibold border border-[var(--app-border)] dark:border-[var(--app-border)] flex items-center gap-2">
                             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
                             <span>TDS is calculated on taxable amount as per selected TDS rate and nature (if applicable).</span>
                           </div>
@@ -1837,7 +1837,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                         </div>
 
                         {/* Bottom Notice Alert */}
-                        <div className="px-3.5 py-2 bg-blue-50/60 dark:bg-blue-950/20 text-blue-700 dark:text-blue-400 text-[10.5px] font-semibold border border-blue-100 dark:border-blue-900/30 flex items-center gap-2">
+                        <div className="px-3.5 py-2 bg-[var(--app-accent-soft)] dark:bg-[var(--app-accent-soft)] text-[var(--app-accent)] dark:text-[var(--app-accent)] text-[10.5px] font-semibold border border-[var(--app-border)] dark:border-[var(--app-border)] flex items-center gap-2">
                           <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
                           <span>Tax and TDS amounts are auto-calculated based on taxable amount and selected rates. Only ledgers can be changed.</span>
                         </div>
@@ -1905,7 +1905,7 @@ const FormSection = ({ title, children, hasSettings = true, defaultOpen = true, 
         <h3 className="text-[10.5px] font-black uppercase tracking-[0.15em]" style={{ color: theme.text }}>{title}</h3>
         <div className="flex gap-2.5 items-center">
           {headerAction}
-          {hasSettings && <button className="text-slate-400 hover:text-indigo-600 transition-all hover:scale-110 active:scale-90"><Settings size={13} /></button>}
+          {hasSettings && <button className="text-slate-400 hover:text-[var(--app-accent)] transition-all hover:scale-110 active:scale-90"><Settings size={13} /></button>}
           <button
             onClick={() => setIsOpen(!isOpen)}
             className="w-6 h-6 rounded-full border flex items-center justify-center text-slate-400 hover:bg-slate-50 transition-all hover:rotate-180 active:scale-90"
@@ -1947,7 +1947,7 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
   return (
     <div className={`relative flex flex-col gap-1 w-full group ${disabled ? 'opacity-50 pointer-events-none' : ''}`} ref={dropdownRef} style={{ zIndex: isOpen ? 50 : 1 }}>
       {label && (
-        <label className="text-[9px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 text-slate-600 dark:text-slate-400 group-focus-within:text-indigo-600 transition-colors" style={{ backgroundColor: theme.panel }}>
+        <label className="text-[9px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 text-slate-600 dark:text-slate-400 group-focus-within:text-[var(--app-accent)] transition-colors" style={{ backgroundColor: theme.panel }}>
           {label}
         </label>
       )}
@@ -1955,15 +1955,15 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
         <div className="relative flex-1">
           <div
             onClick={() => !disabled && setIsOpen(!isOpen)}
-            className={`w-full ${compact ? 'h-7.5' : 'h-10'} ${rounded ? 'rounded-lg' : 'rounded-sm'} border px-2 flex items-center justify-between cursor-pointer transition-all duration-300 group/input ${isOpen ? 'border-indigo-500' : 'hover:border-indigo-400'} ${disabled ? 'bg-slate-100 dark:bg-slate-900 cursor-not-allowed' : ''}`}
+            className={`w-full ${compact ? 'h-7.5' : 'h-10'} ${rounded ? 'rounded-lg' : 'rounded-sm'} border px-2 flex items-center justify-between cursor-pointer transition-all duration-300 group/input ${isOpen ? 'border-[var(--app-accent)]' : 'hover:border-[var(--app-accent)]'} ${disabled ? 'bg-slate-100 dark:bg-slate-900 cursor-not-allowed' : ''}`}
             style={{ backgroundColor: disabled ? undefined : theme.inputBg, borderColor: isOpen ? theme.accent : theme.border }}
           >
-            <span className={`text-[11px] font-bold truncate transition-colors ${value ? (isDark ? 'text-indigo-400' : 'text-indigo-600') : 'text-slate-400'}`}>
+            <span className={`text-[11px] font-bold truncate transition-colors ${value ? (isDark ? 'text-[var(--app-accent)]' : 'text-[var(--app-accent)]') : 'text-slate-400'}`}>
               {value || placeholder}
             </span>
-            <div className="flex items-center gap-1 text-slate-400 group-hover/input:text-indigo-500 transition-colors">
+            <div className="flex items-center gap-1 text-slate-400 group-hover/input:text-[var(--app-accent)] transition-colors">
               {value && !disabled && <X size={11} className="hover:text-red-500 transition-colors" onClick={(e) => { e.stopPropagation(); onChange(''); }} />}
-              <ChevronDown size={12} className={`transition-transform duration-300 ease-out ${isOpen ? 'rotate-180 text-indigo-500' : ''}`} />
+              <ChevronDown size={12} className={`transition-transform duration-300 ease-out ${isOpen ? 'rotate-180 text-[var(--app-accent)]' : ''}`} />
             </div>
           </div>
 
@@ -1990,7 +1990,7 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
                       placeholder="Search..."
-                      className="w-full h-8 px-8 text-[11px] font-semibold outline-none transition-all rounded-md border focus:border-indigo-500"
+                      className="w-full h-8 px-8 text-[11px] font-semibold outline-none transition-all rounded-md border focus:border-[var(--app-accent)]"
                       style={{ backgroundColor: 'var(--app-control-bg)', borderColor: 'var(--app-border)', color: 'var(--app-heading)' }}
                     />
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={11} />
@@ -2001,7 +2001,7 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
                 {filteredOptions.length > 0 ? filteredOptions.map((opt, idx) => (
                   <div
                     key={idx}
-                    className={`px-3 py-1.5 text-[11px] font-semibold cursor-pointer rounded-md transition-colors ${value === opt ? 'text-white font-bold' : 'hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-indigo-600 dark:hover:text-indigo-400'}`}
+                    className={`px-3 py-1.5 text-[11px] font-semibold cursor-pointer rounded-md transition-colors ${value === opt ? 'text-white font-bold' : 'hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-[var(--app-accent)] dark:hover:text-[var(--app-accent)]'}`}
                     style={{
                       backgroundColor: value === opt ? 'var(--app-accent)' : 'transparent',
                       color: value === opt ? '#ffffff' : 'var(--app-text)'
@@ -2013,7 +2013,7 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
                 )) : (
                   <div className="p-3 text-center">
                     <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">No results for "{search}"</p>
-                    <button onClick={() => { onChange && onChange(search); setIsOpen(false); }} className="text-[9px] font-black text-indigo-600 hover:underline">Add "{search}" as new</button>
+                    <button onClick={() => { onChange && onChange(search); setIsOpen(false); }} className="text-[9px] font-black text-[var(--app-accent)] hover:underline">Add "{search}" as new</button>
                   </div>
                 )}
               </div>
@@ -2065,7 +2065,7 @@ const InputField = ({ label, placeholder, value, icon: Icon, type = "text", comp
   return (
     <div className="relative flex flex-col gap-1 w-full group">
       {label && (
-        <label className="text-[9px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 text-slate-600 dark:text-slate-400 group-focus-within:text-indigo-600 transition-colors" style={{ backgroundColor: theme.panel }}>
+        <label className="text-[9px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 text-slate-600 dark:text-slate-400 group-focus-within:text-[var(--app-accent)] transition-colors" style={{ backgroundColor: theme.panel }}>
           {label}
         </label>
       )}
@@ -2078,12 +2078,12 @@ const InputField = ({ label, placeholder, value, icon: Icon, type = "text", comp
               onChange={handleTextChange}
               placeholder="dd-mm-yyyy"
               readOnly={readOnly}
-              className={`w-full ${compact ? 'h-7.5 px-2' : 'h-10 px-2'} rounded-sm border text-[11px] font-bold outline-none transition-all duration-300 focus:ring-0 ${isDark ? 'placeholder:text-white/10' : 'placeholder:text-slate-300'} ${align === 'right' ? 'text-right' : ''} ${readOnly ? (isDark ? 'cursor-not-allowed opacity-60 bg-slate-800/20' : 'cursor-not-allowed bg-slate-50/50') : 'hover:border-indigo-300'}`}
+              className={`w-full ${compact ? 'h-7.5 px-2' : 'h-10 px-2'} rounded-sm border text-[11px] font-bold outline-none transition-all duration-300 focus:ring-0 ${isDark ? 'placeholder:text-white/10' : 'placeholder:text-slate-300'} ${align === 'right' ? 'text-right' : ''} ${readOnly ? (isDark ? 'cursor-not-allowed opacity-60 bg-slate-800/20' : 'cursor-not-allowed bg-slate-50/50') : 'hover:border-[var(--app-accent)]'}`}
               style={{ backgroundColor: readOnly ? theme.headerBg : theme.inputBg, borderColor: theme.border, color: readOnly ? theme.accent : theme.text }}
             />
             {Icon && !readOnly && (
               <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center cursor-pointer">
-                <Icon size={12} className="text-slate-400 hover:text-indigo-500 transition-colors pointer-events-none" />
+                <Icon size={12} className="text-slate-400 hover:text-[var(--app-accent)] transition-colors pointer-events-none" />
                 <input
                   type="date"
                   value={toDbDate(value)}
@@ -2101,11 +2101,11 @@ const InputField = ({ label, placeholder, value, icon: Icon, type = "text", comp
             onChange={(e) => onChange && onChange(e.target.value)}
             readOnly={readOnly}
             placeholder={placeholder}
-            className={`w-full ${compact ? 'h-7.5 px-2' : 'h-10 px-2'} rounded-sm border text-[11px] font-bold outline-none transition-all duration-300 focus:ring-0 ${isDark ? 'placeholder:text-white/10' : 'placeholder:text-slate-300'} ${align === 'right' ? 'text-right' : ''} ${readOnly ? (isDark ? 'cursor-not-allowed opacity-60 bg-slate-800/20' : 'cursor-not-allowed bg-slate-50/50') : 'hover:border-indigo-300'}`}
+            className={`w-full ${compact ? 'h-7.5 px-2' : 'h-10 px-2'} rounded-sm border text-[11px] font-bold outline-none transition-all duration-300 focus:ring-0 ${isDark ? 'placeholder:text-white/10' : 'placeholder:text-slate-300'} ${align === 'right' ? 'text-right' : ''} ${readOnly ? (isDark ? 'cursor-not-allowed opacity-60 bg-slate-800/20' : 'cursor-not-allowed bg-slate-50/50') : 'hover:border-[var(--app-accent)]'}`}
             style={{ backgroundColor: readOnly ? theme.headerBg : theme.inputBg, borderColor: theme.border, color: readOnly ? theme.accent : theme.text }}
           />
         )}
-        {type !== "date" && Icon && <Icon className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors pointer-events-none" size={12} />}
+        {type !== "date" && Icon && <Icon className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[var(--app-accent)] transition-colors pointer-events-none" size={12} />}
       </div>
     </div>
   );
@@ -2117,7 +2117,7 @@ const SummaryBar = ({ entries, base, cgst, sgst, igst, total }) => {
     <div className="mt-4 h-11 px-5 flex items-center justify-between border rounded-2xl shadow-sm text-[10px] font-black uppercase tracking-widest overflow-x-auto no-scrollbar" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>
       <div className="flex items-center gap-2 shrink-0">
         <span style={{ color: theme.mutedText }}>Entries</span>
-        <span className="bg-indigo-500/10 text-indigo-600 px-2.5 py-0.5 rounded-lg text-[11px] border border-indigo-500/10">{entries}</span>
+        <span className="bg-[var(--app-accent-soft)] text-[var(--app-accent)] px-2.5 py-0.5 rounded-lg text-[11px] border border-[var(--app-accent)]">{entries}</span>
       </div>
       <div className="flex items-center gap-6 shrink-0 ml-4">
         <div className="flex items-center gap-5">
@@ -2131,7 +2131,7 @@ const SummaryBar = ({ entries, base, cgst, sgst, igst, total }) => {
             <React.Fragment key={item.label}>
               <div className="flex items-center gap-2 group">
                 <span style={{ color: theme.mutedText }}>{item.label}</span>
-                <span className={`px-2.5 py-0.5 rounded-lg text-[11px] border transition-all ${item.highlight ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-200 scale-105' : 'bg-indigo-500/5 text-indigo-600 border-indigo-500/10 group-hover:bg-indigo-500/10'}`}>
+                <span className={`px-2.5 py-0.5 rounded-lg text-[11px] border transition-all ${item.highlight ? 'bg-[var(--app-accent)] text-white border-[var(--app-accent)] shadow-lg scale-105' : 'bg-[var(--app-accent-soft)] text-[var(--app-accent)] border-[var(--app-accent)] group-hover:bg-[var(--app-accent-soft)]'}`}>
                   ₹{item.val}
                 </span>
               </div>

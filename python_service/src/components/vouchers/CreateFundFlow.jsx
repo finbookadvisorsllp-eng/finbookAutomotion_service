@@ -694,7 +694,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
               </div>
             </div>
             <div className="flex flex-col gap-1 pl-2">
-              <span className="text-[7.5px] font-black uppercase text-blue-500 truncate">Dest: {form.destinationLedger || 'Select Dest'}</span>
+              <span className="text-[7.5px] font-black uppercase text-[var(--app-accent)] truncate">Dest: {form.destinationLedger || 'Select Dest'}</span>
               <div className="flex justify-between">
                 <span className="text-slate-400">Opening:</span>
                 <span style={{ color: theme.text }}>{formatCur(destBal)}</span>
@@ -764,9 +764,9 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
           <ArrowRightLeft size={10} /> Accounting Entry Preview
         </h3>
         <div className="bg-slate-900/90 dark:bg-slate-950/80 rounded-lg p-2 font-mono text-[9.5px] space-y-1 border border-slate-800 shadow-inner">
-          <div className="flex justify-between items-center text-indigo-400">
+          <div className="flex justify-between items-center text-[var(--app-accent)]">
             <span className="truncate max-w-[70%]">
-              <span className="font-extrabold text-indigo-500 mr-1.5">Dr</span>
+              <span className="font-extrabold text-[var(--app-accent)] mr-1.5">Dr</span>
               {debitLeg.ledger}
             </span>
             <span>{formatCur(debitLeg.amount)}</span>
@@ -827,7 +827,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
           </div>
           <div className="flex justify-between items-center py-0.5 border-b border-dashed" style={{ borderColor: theme.border }}>
             <span className="text-slate-400 font-bold">{activeType === 'bank_payment' ? 'Receipt Amount:' : 'Payment Amount:'}</span>
-            <span className="font-black text-indigo-600 dark:text-indigo-400">{formatCur(amountVal)}</span>
+            <span className="font-black text-[var(--app-accent)] dark:text-[var(--app-accent)]">{formatCur(amountVal)}</span>
           </div>
           <div className="flex justify-between items-center py-0.5 border-b border-dashed" style={{ borderColor: theme.border }}>
             <span className="text-slate-400 font-bold">Allocated Amount:</span>
@@ -913,7 +913,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
               disabled={isUnbalanced}
               className={`px-3 py-1 rounded-none text-[9.5px] font-black shadow-sm transition-all uppercase tracking-wider ${isUnbalanced
                   ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed opacity-50'
-                  : 'hover:scale-[1.02] text-white bg-blue-600 hover:bg-blue-700'
+                  : 'hover:scale-[1.02] text-white bg-[var(--app-accent)] hover:opacity-90'
                 }`}
             >
               Post Tally
@@ -925,7 +925,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
             >
               Cancel
             </button>
-            <button className="p-1.5 rounded-none border text-slate-400 hover:text-indigo-600 transition-all" style={{ borderColor: theme.border }}>
+            <button className="p-1.5 rounded-none border text-slate-400 hover:text-[var(--app-accent)] transition-all" style={{ borderColor: theme.border }}>
               <Settings size={12} />
             </button>
             <button
@@ -1159,7 +1159,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                             const checked = e.target.checked;
                             setFormValue('costCenterApplicable', checked);
                           }}
-                          className="w-3.5 h-3.5 rounded accent-indigo-500 cursor-pointer"
+                          className="w-3.5 h-3.5 rounded accent-[var(--app-accent)] cursor-pointer"
                         />
                         <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
                           Enable Cost Center Allocation
@@ -1259,7 +1259,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                         setActiveAllocationRowIndex(idx);
                                         setShowBillAllocation(true);
                                       }}
-                                      className="text-[10px] font-black text-blue-600 dark:text-blue-400 hover:underline hover:scale-105 transition-all"
+                                      className="text-[10px] font-black text-[var(--app-accent)] dark:text-[var(--app-accent)] hover:underline hover:scale-105 transition-all"
                                     >
                                       {activeType === 'cash_payment' ? 'View Bills' : 'View Invoices'} ({pendingBillsCount})
                                     </button>
@@ -1287,13 +1287,13 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                       <button
                         type="button"
                         onClick={addLedgerRow}
-                        className="px-2.5 py-1 rounded border border-indigo-500/30 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500/20 text-[10px] font-black uppercase flex items-center gap-1 transition-all"
+                        className="px-2.5 py-1 rounded border border-[var(--app-accent)] bg-[var(--app-accent-soft)] text-[var(--app-accent)] dark:text-[var(--app-accent)] hover:bg-[var(--app-accent-soft)] text-[10px] font-black uppercase flex items-center gap-1 transition-all"
                       >
                         <Plus size={8} strokeWidth={3} /> Add Row
                       </button>
                       <div className="flex items-center gap-1.5">
                         <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">Total Ledger Amount:</span>
-                        <span className="text-[12.5px] font-black text-blue-900 dark:text-blue-400">
+                        <span className="text-[12.5px] font-black text-[var(--app-accent)] dark:text-[var(--app-accent)]">
                           ₹ {totalLedgerAmountVal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
                       </div>
@@ -1311,7 +1311,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                           <button
                             type="button"
                             onClick={handleAiAutoAllocate}
-                            className="px-2.5 py-1 border border-indigo-600/35 bg-indigo-600/10 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-600/20 text-[9.5px] font-black uppercase rounded transition-all"
+                            className="px-2.5 py-1 border border-[var(--app-accent)] bg-[var(--app-accent-soft)] text-[var(--app-accent)] dark:text-[var(--app-accent)] hover:opacity-90/20 text-[9.5px] font-black uppercase rounded transition-all"
                           >
                             {activeType === 'cash_payment' ? 'Auto Allocate Bills' : 'Auto Allocate Receipts'}
                           </button>
@@ -1417,7 +1417,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                               <span className="uppercase text-slate-400 tracking-wider">
                                 {activeType === 'cash_payment' ? 'Total Bill Amount (₹)' : 'Total Outstanding Amount (₹)'}
                               </span>
-                              <span className="text-[11.5px] text-[#1E3A8A] dark:text-blue-400">
+                              <span className="text-[11.5px] text-[#1E3A8A] dark:text-[var(--app-accent)]">
                                 ₹ {totalBillAmountVal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                               </span>
                             </div>
@@ -1425,7 +1425,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                               <span className="uppercase text-slate-400 tracking-wider">
                                 {activeType === 'cash_payment' ? 'Total Allocated Amount (₹)' : 'Total Received Amount (₹)'}
                               </span>
-                              <span className="text-[11.5px] text-[#1E3A8A] dark:text-blue-400">
+                              <span className="text-[11.5px] text-[#1E3A8A] dark:text-[var(--app-accent)]">
                                 ₹ {totalAllocatedVal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                               </span>
                             </div>
@@ -1568,14 +1568,14 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                 <button
                   type="button"
                   onClick={() => toast.info('Add Ledger option clicked (Not implemented)')}
-                  className="px-2.5 py-1 rounded-none border border-indigo-500/30 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500/20 text-[9.5px] font-black uppercase flex items-center gap-1 transition-all"
+                  className="px-2.5 py-1 rounded-none border border-[var(--app-accent)] bg-[var(--app-accent-soft)] text-[var(--app-accent)] dark:text-[var(--app-accent)] hover:bg-[var(--app-accent-soft)] text-[9.5px] font-black uppercase flex items-center gap-1 transition-all"
                 >
                   <Plus size={10} strokeWidth={3} /> Add Ledger
                 </button>
                 <button
                   type="button"
                   onClick={() => toast.info('Add Item option clicked (Not implemented)')}
-                  className="px-2.5 py-1 rounded-none border border-indigo-500/30 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500/20 text-[9.5px] font-black uppercase flex items-center gap-1 transition-all"
+                  className="px-2.5 py-1 rounded-none border border-[var(--app-accent)] bg-[var(--app-accent-soft)] text-[var(--app-accent)] dark:text-[var(--app-accent)] hover:bg-[var(--app-accent-soft)] text-[9.5px] font-black uppercase flex items-center gap-1 transition-all"
                 >
                   <Plus size={10} strokeWidth={3} /> Add Item
                 </button>
@@ -1674,7 +1674,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                           <button
                             type="button"
                             onClick={() => setShowBillAllocation(true)}
-                            className="px-3 py-1.5 border text-[9px] font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all flex items-center gap-1 shrink-0 mt-1"
+                            className="px-3 py-1.5 border text-[9px] font-black uppercase tracking-wider text-[var(--app-accent)] dark:text-[var(--app-accent)] hover:bg-[var(--app-accent-soft)] dark:hover:bg-[var(--app-accent-soft)] transition-all flex items-center gap-1 shrink-0 mt-1"
                             style={{ borderColor: theme.border }}
                           >
                             <Eye size={10} /> {activeType === 'bank_payment' ? "View Invoices" : "View Bills"}
@@ -1900,7 +1900,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                     <button
                       type="button"
                       onClick={addLedgerRow}
-                      className="px-3 py-1.5 rounded-none border border-indigo-500/30 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500/20 text-[9.5px] font-black uppercase flex items-center gap-1 transition-all"
+                      className="px-3 py-1.5 rounded-none border border-[var(--app-accent)] bg-[var(--app-accent-soft)] text-[var(--app-accent)] dark:text-[var(--app-accent)] hover:bg-[var(--app-accent-soft)] text-[9.5px] font-black uppercase flex items-center gap-1 transition-all"
                     >
                       <Plus size={10} strokeWidth={3} /> Add Ledger
                     </button>
@@ -2010,7 +2010,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                             <button
                               type="button"
                               onClick={handleAiAutoAllocate}
-                              className="px-4 py-2 border border-indigo-600/35 bg-indigo-600/10 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-600/20 text-[10px] font-black uppercase flex items-center gap-1.5 transition-all shadow-sm"
+                              className="px-4 py-2 border border-[var(--app-accent)] bg-[var(--app-accent-soft)] text-[var(--app-accent)] dark:text-[var(--app-accent)] hover:opacity-90/20 text-[10px] font-black uppercase flex items-center gap-1.5 transition-all shadow-sm"
                             >
                               AI-Auto Allocate Pending
                             </button>
@@ -2115,7 +2115,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                             <button
                               type="button"
                               onClick={handleAiAutoAllocate}
-                              className="px-4 py-2 border border-indigo-600/35 bg-indigo-600/10 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-600/20 text-[10px] font-black uppercase flex items-center gap-1.5 transition-all shadow-sm"
+                              className="px-4 py-2 border border-[var(--app-accent)] bg-[var(--app-accent-soft)] text-[var(--app-accent)] dark:text-[var(--app-accent)] hover:opacity-90/20 text-[10px] font-black uppercase flex items-center gap-1.5 transition-all shadow-sm"
                             >
                               AI-Auto Allocate Pending
                             </button>
@@ -2418,7 +2418,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                             backgroundColor: isDark ? 'rgba(59, 130, 246, 0.03)' : '#eff6ff'
                           }}
                         >
-                          <h4 className="text-[10px] font-black uppercase tracking-wider text-blue-600 dark:text-blue-400">
+                          <h4 className="text-[10px] font-black uppercase tracking-wider text-[var(--app-accent)] dark:text-[var(--app-accent)]">
                             (CR) DESTINATION ACCOUNT
                           </h4>
                           <div className="flex flex-col gap-2">
@@ -2465,7 +2465,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                           </div>
                           <div className="flex justify-between items-center py-1 border-b border-dashed" style={{ borderColor: theme.border }}>
                             <span className="text-slate-400 font-bold">Destination Amount (Cr)</span>
-                            <span className="font-extrabold text-blue-600 dark:text-blue-400">{formatCur(destAmt)}</span>
+                            <span className="font-extrabold text-[var(--app-accent)] dark:text-[var(--app-accent)]">{formatCur(destAmt)}</span>
                           </div>
                           <div className="flex justify-between items-center py-1 border-b border-dashed" style={{ borderColor: theme.border }}>
                             <span className="text-slate-400 font-bold">Difference</span>
@@ -2612,7 +2612,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
 
                       {/* Contra Destination (To) */}
                       <div className="rounded-lg border p-2" style={{ borderColor: theme.border, backgroundColor: isDark ? 'rgba(59, 130, 246, 0.03)' : '#eff6ff' }}>
-                        <h4 className="text-[10px] font-black uppercase tracking-wider text-blue-600 mb-1.5 flex items-center gap-1">
+                        <h4 className="text-[10px] font-black uppercase tracking-wider text-[var(--app-accent)] mb-1.5 flex items-center gap-1">
                           <Landmark size={11} /> Destination (To)
                         </h4>
                         <div className="space-y-2">
@@ -2743,8 +2743,8 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                               </div>
                             </div>
                             <div className="flex justify-between items-center border-t pt-1" style={{ borderColor: isDark ? 'rgba(9, 182, 185, 0.08)' : '#cffafe' }}>
-                              <span className="text-[9px] font-black uppercase text-indigo-500 tracking-wider">Party Outstanding:</span>
-                              <span className="text-[11.5px] font-black text-indigo-600 dark:text-indigo-400">
+                              <span className="text-[9px] font-black uppercase text-[var(--app-accent)] tracking-wider">Party Outstanding:</span>
+                              <span className="text-[11.5px] font-black text-[var(--app-accent)] dark:text-[var(--app-accent)]">
                                 ₹ {partyOutstanding.toLocaleString('en-IN')}
                               </span>
                             </div>
@@ -2808,7 +2808,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                     }
                                   }
                                 }}
-                                className="w-3.5 h-3.5 rounded accent-indigo-500 cursor-pointer"
+                                className="w-3.5 h-3.5 rounded accent-[var(--app-accent)] cursor-pointer"
                               />
                               <span className="text-[9.5px] md:text-[10px] font-black uppercase tracking-wider text-slate-400 hover:text-slate-200">Bill Allocation</span>
                             </label>
@@ -2838,7 +2838,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                   setFormValue('costCenters', [{ category: defaultCategory, name: defaultCenter, amount: amt }]);
                                 }
                               }}
-                              className="w-3.5 h-3.5 rounded accent-indigo-500 cursor-pointer"
+                              className="w-3.5 h-3.5 rounded accent-[var(--app-accent)] cursor-pointer"
                             />
                             <span className="text-[9.5px] md:text-[10px] font-black uppercase tracking-wider text-slate-400 hover:text-slate-200">Cost Center</span>
                           </label>
@@ -2859,7 +2859,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                   setFormValue('gstRate', defaultGstRate);
                                 }
                               }}
-                              className="w-3.5 h-3.5 rounded accent-indigo-500 cursor-pointer"
+                              className="w-3.5 h-3.5 rounded accent-[var(--app-accent)] cursor-pointer"
                             />
                             <span className="text-[9.5px] md:text-[10px] font-black uppercase tracking-wider text-slate-400 hover:text-slate-200">GST</span>
                           </label>
@@ -2880,7 +2880,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                   setFormValue('tdsRate', defaultTdsRate);
                                 }
                               }}
-                              className="w-3.5 h-3.5 rounded accent-indigo-500 cursor-pointer"
+                              className="w-3.5 h-3.5 rounded accent-[var(--app-accent)] cursor-pointer"
                             />
                             <span className="text-[9.5px] md:text-[10px] font-black uppercase tracking-wider text-slate-400 hover:text-slate-200">TDS</span>
                           </label>
@@ -2893,7 +2893,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                 {/* Narration Card */}
                 <FormSection title="Narration" zIndex={10} defaultOpen={true}>
                   <textarea
-                    className="w-full h-8 md:h-10 rounded-lg border p-1.5 text-xs md:text-[12.5px] font-bold outline-none transition-all focus:border-indigo-400 resize-none shadow-sm placeholder:text-slate-300"
+                    className="w-full h-8 md:h-10 rounded-lg border p-1.5 text-xs md:text-[12.5px] font-bold outline-none transition-all focus:border-[var(--app-accent)] resize-none shadow-sm placeholder:text-slate-300"
                     placeholder="Enter detailed narration here..."
                     value={form.narration || ''}
                     onChange={e => setFormValue('narration', e.target.value)}
@@ -3081,8 +3081,8 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                         <span style={{ color: theme.text }}>{row.billAmount ? `₹${row.billAmount.toLocaleString('en-IN')}` : '-'}</span>
                                       </div>
                                       <div className="flex justify-between col-span-2 border-t pt-1" style={{ borderColor: theme.border }}>
-                                        <span className="text-indigo-500 font-extrabold uppercase text-[8px] tracking-wider">Outstanding Before Payment:</span>
-                                        <span className="font-black text-indigo-500 dark:text-indigo-400">
+                                        <span className="text-[var(--app-accent)] font-extrabold uppercase text-[8px] tracking-wider">Outstanding Before Payment:</span>
+                                        <span className="font-black text-[var(--app-accent)] dark:text-[var(--app-accent)]">
                                           ₹ {row.pendingAmount ? row.pendingAmount.toLocaleString('en-IN') : '-'}
                                         </span>
                                       </div>
@@ -3217,7 +3217,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                               {/* Row 2: Selected Invoice Information Panel */}
                               {row.billType === 'Against Ref' && row.billNo && (
                                 <div className="p-2 rounded-none bg-slate-900/10 dark:bg-slate-950/40 text-[10.5px] border border-dashed flex flex-col gap-1" style={{ borderColor: theme.border }}>
-                                  <h5 className="text-[8px] font-black uppercase tracking-wider text-indigo-500">Selected Invoice Information Panel</h5>
+                                  <h5 className="text-[8px] font-black uppercase tracking-wider text-[var(--app-accent)]">Selected Invoice Information Panel</h5>
                                   <div className="grid grid-cols-2 gap-x-4 gap-y-1 font-bold">
                                     <div className="flex justify-between">
                                       <span className="text-slate-400 font-semibold">Invoice:</span>
@@ -3236,8 +3236,8 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                       <span style={{ color: theme.text }}>{row.billAmount ? `₹${row.billAmount.toLocaleString('en-IN')}` : '-'}</span>
                                     </div>
                                     <div className="flex justify-between col-span-2 border-t pt-1 mt-0.5" style={{ borderColor: theme.border }}>
-                                      <span className="text-indigo-500 font-extrabold uppercase text-[8px] tracking-wider">Selected Bill Outstanding:</span>
-                                      <span className="font-black text-indigo-500 dark:text-indigo-400">
+                                      <span className="text-[var(--app-accent)] font-extrabold uppercase text-[8px] tracking-wider">Selected Bill Outstanding:</span>
+                                      <span className="font-black text-[var(--app-accent)] dark:text-[var(--app-accent)]">
                                         ₹ {row.pendingAmount ? row.pendingAmount.toLocaleString('en-IN') : '-'}
                                       </span>
                                     </div>
@@ -3255,7 +3255,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                       value={row.allocationAmount || ''}
                                       onChange={e => handleAllocationChange(idx, e.target.value)}
                                       placeholder="0.00"
-                                      className="w-full h-7.5 px-1.5 rounded-none border text-[11px] font-black outline-none focus:border-indigo-500 text-right"
+                                      className="w-full h-7.5 px-1.5 rounded-none border text-[11px] font-black outline-none focus:border-[var(--app-accent)] text-right"
                                       style={{ borderColor: theme.border, color: theme.text, backgroundColor: theme.panel }}
                                     />
                                   </div>
@@ -3297,7 +3297,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                             <div className="mt-2.5 px-3 py-2 flex flex-wrap items-center justify-between border rounded-none shadow-sm text-[10px] md:text-[11px] font-black uppercase tracking-widest gap-2" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>
                               <div className="flex items-center gap-1.5">
                                 <span style={{ color: theme.mutedText }}>Total Allocated Amount:</span>
-                                <span className="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-none border border-indigo-500/10">
+                                <span className="bg-[var(--app-accent-soft)] text-[var(--app-accent)] dark:text-[var(--app-accent)] px-2 py-0.5 rounded-none border border-[var(--app-accent)]">
                                   ₹ {totalAllocated.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                 </span>
                               </div>
@@ -3585,7 +3585,7 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
   return (
     <div className="relative flex flex-col gap-1 w-full group" ref={dropdownRef} style={{ zIndex: isOpen ? 50 : 1 }}>
       {label && (
-        <label className="text-[9px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 text-slate-600 dark:text-slate-400 group-focus-within:text-indigo-600 transition-colors" style={{ backgroundColor: theme.panel }}>
+        <label className="text-[9px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 text-slate-600 dark:text-slate-400 group-focus-within:text-[var(--app-accent)] transition-colors" style={{ backgroundColor: theme.panel }}>
           {label.startsWith('*') ? (
             <>
               <span className="text-red-500 mr-1">*</span>
@@ -3597,15 +3597,15 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
       <div className="relative flex-1">
         <div
           onClick={() => setIsOpen(!isOpen)}
-          className={`w-full ${compact ? 'h-7 px-1.5' : 'h-10 px-2'} rounded-sm border flex items-center justify-between cursor-pointer transition-all duration-300 group/input ${isOpen ? 'border-indigo-500' : 'hover:border-indigo-400'}`}
+          className={`w-full ${compact ? 'h-7 px-1.5' : 'h-10 px-2'} rounded-sm border flex items-center justify-between cursor-pointer transition-all duration-300 group/input ${isOpen ? 'border-[var(--app-accent)]' : 'hover:border-[var(--app-accent)]'}`}
           style={{ backgroundColor: theme.inputBg, borderColor: isOpen ? theme.accent : theme.border }}
         >
-          <span className={`${compact ? 'text-[10px]' : 'text-[11px]'} font-bold truncate transition-colors ${value ? (isDark ? 'text-indigo-400' : 'text-indigo-600') : 'text-slate-400'}`}>
+          <span className={`${compact ? 'text-[10px]' : 'text-[11px]'} font-bold truncate transition-colors ${value ? (isDark ? 'text-[var(--app-accent)]' : 'text-[var(--app-accent)]') : 'text-slate-400'}`}>
             {value || placeholder}
           </span>
-          <div className="flex items-center gap-1 text-slate-400 group-hover/input:text-indigo-500 transition-colors">
+          <div className="flex items-center gap-1 text-slate-400 group-hover/input:text-[var(--app-accent)] transition-colors">
             {value && <X size={11} className="hover:text-red-500 transition-colors" onClick={(e) => { e.stopPropagation(); onChange && onChange(''); }} />}
-            <ChevronDown size={12} className={`transition-transform duration-300 ease-out ${isOpen ? 'rotate-180 text-indigo-500' : ''}`} />
+            <ChevronDown size={12} className={`transition-transform duration-300 ease-out ${isOpen ? 'rotate-180 text-[var(--app-accent)]' : ''}`} />
           </div>
         </div>
 
@@ -3617,7 +3617,7 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
                 <input
                   type="text" value={search} onChange={e => setSearch(e.target.value)}
                   placeholder="Search by Name, GSTIN, Phone..."
-                  className="w-full h-8 px-8 text-[11px] font-semibold outline-none transition-all border focus:border-indigo-500 rounded-sm"
+                  className="w-full h-8 px-8 text-[11px] font-semibold outline-none transition-all border focus:border-[var(--app-accent)] rounded-sm"
                   style={{ backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.text }}
                   autoFocus
                 />
@@ -3636,7 +3636,7 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
                 );
                 return (
                   <button key={i} onClick={() => { onChange && onChange(optVal); setIsOpen(false); setSearch(''); }}
-                    className="w-full text-left px-2 py-1 text-[11px] font-bold hover:bg-indigo-50/50 transition-colors border-b last:border-0"
+                    className="w-full text-left px-2 py-1 text-[11px] font-bold hover:bg-[var(--app-accent-soft)] transition-colors border-b last:border-0"
                     style={{ color: theme.text, borderColor: theme.border }}
                   >
                     {displayLabel}
@@ -3690,7 +3690,7 @@ const InputField = ({ label, placeholder, value, onChange, type = 'text', readOn
   return (
     <div className="relative flex flex-col gap-1 w-full group">
       {label && (
-        <label className="text-[9px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 text-slate-600 dark:text-slate-400 group-focus-within:text-indigo-600 transition-colors" style={{ backgroundColor: theme.panel }}>
+        <label className="text-[9px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 text-slate-600 dark:text-slate-400 group-focus-within:text-[var(--app-accent)] transition-colors" style={{ backgroundColor: theme.panel }}>
           {label.startsWith('*') ? (
             <>
               <span className="text-red-500 mr-1">*</span>
@@ -3708,12 +3708,12 @@ const InputField = ({ label, placeholder, value, onChange, type = 'text', readOn
               onChange={handleTextChange}
               placeholder="dd-mm-yyyy"
               readOnly={readOnly}
-              className={`w-full ${compact ? 'h-7 px-1.5 text-[10px]' : 'h-10 px-2 text-[11px]'} rounded-sm border font-bold outline-none transition-all duration-300 focus:ring-0 ${isDark ? 'placeholder:text-white/10' : 'placeholder:text-slate-300'} ${align === 'right' ? 'text-right' : ''} ${readOnly ? (isDark ? 'cursor-not-allowed opacity-60 bg-slate-800/20' : 'cursor-not-allowed bg-slate-50/50') : 'hover:border-indigo-300'}`}
+              className={`w-full ${compact ? 'h-7 px-1.5 text-[10px]' : 'h-10 px-2 text-[11px]'} rounded-sm border font-bold outline-none transition-all duration-300 focus:ring-0 ${isDark ? 'placeholder:text-white/10' : 'placeholder:text-slate-300'} ${align === 'right' ? 'text-right' : ''} ${readOnly ? (isDark ? 'cursor-not-allowed opacity-60 bg-slate-800/20' : 'cursor-not-allowed bg-slate-50/50') : 'hover:border-[var(--app-accent)]'}`}
               style={{ backgroundColor: readOnly ? theme.headerBg : theme.inputBg, borderColor: theme.border, color: readOnly ? theme.accent : theme.text }}
             />
             {Icon && !readOnly && (
               <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center cursor-pointer">
-                <Icon size={12} className="text-slate-400 hover:text-indigo-500 transition-colors pointer-events-none" />
+                <Icon size={12} className="text-slate-400 hover:text-[var(--app-accent)] transition-colors pointer-events-none" />
                 <input
                   type="date"
                   value={toDbDate(value)}
@@ -3731,11 +3731,11 @@ const InputField = ({ label, placeholder, value, onChange, type = 'text', readOn
             onChange={(e) => onChange && onChange(e.target.value)}
             readOnly={readOnly}
             placeholder={placeholder}
-            className={`w-full ${compact ? 'h-7 px-1.5 text-[10px]' : 'h-10 px-2 text-[11px]'} rounded-sm border font-bold outline-none transition-all duration-300 focus:ring-0 ${isDark ? 'placeholder:text-white/10' : 'placeholder:text-slate-300'} ${align === 'right' ? 'text-right' : ''} ${readOnly ? (isDark ? 'cursor-not-allowed opacity-60 bg-slate-800/20' : 'cursor-not-allowed bg-slate-50/50') : 'hover:border-indigo-300'}`}
+            className={`w-full ${compact ? 'h-7 px-1.5 text-[10px]' : 'h-10 px-2 text-[11px]'} rounded-sm border font-bold outline-none transition-all duration-300 focus:ring-0 ${isDark ? 'placeholder:text-white/10' : 'placeholder:text-slate-300'} ${align === 'right' ? 'text-right' : ''} ${readOnly ? (isDark ? 'cursor-not-allowed opacity-60 bg-slate-800/20' : 'cursor-not-allowed bg-slate-50/50') : 'hover:border-[var(--app-accent)]'}`}
             style={{ backgroundColor: readOnly ? theme.headerBg : theme.inputBg, borderColor: theme.border, color: readOnly ? theme.accent : theme.text }}
           />
         )}
-        {type !== 'date' && Icon && <Icon className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={12} />}
+        {type !== 'date' && Icon && <Icon className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[var(--app-accent)] transition-colors" size={12} />}
       </div>
     </div>
   );
@@ -3748,11 +3748,11 @@ const SummaryBar = ({ entries, total }) => {
     <div className="mt-2.5 h-9 px-3.5 flex items-center justify-between border rounded-none shadow-sm text-[10px] md:text-[11px] font-black uppercase tracking-widest overflow-x-auto no-scrollbar" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>
       <div className="flex items-center gap-1.5 shrink-0">
         <span style={{ color: theme.mutedText }}>Entries</span>
-        <span className="bg-indigo-500/10 text-indigo-600 px-2 py-0.5 rounded-none text-[11px] border border-indigo-500/10">{entries}</span>
+        <span className="bg-[var(--app-accent-soft)] text-[var(--app-accent)] px-2 py-0.5 rounded-none text-[11px] border border-[var(--app-accent)]">{entries}</span>
       </div>
       <div className="flex items-center gap-1.5 shrink-0">
         <span style={{ color: theme.mutedText }}>Total</span>
-        <span className="bg-indigo-600 text-white px-2 py-0.5 rounded-none text-[11px] border border-indigo-600 shadow-md shadow-indigo-200/50">{total}</span>
+        <span className="bg-[var(--app-accent)] text-white px-2 py-0.5 rounded-none text-[11px] border border-[var(--app-accent)] shadow-md">{total}</span>
       </div>
     </div>
   );

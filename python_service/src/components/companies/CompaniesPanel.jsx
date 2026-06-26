@@ -99,9 +99,9 @@ function CompaniesPanel({ onIconAction }) {
 
   const stats = [
     { label: 'Active Companies', count: rows.length, color: 'text-emerald-800 dark:text-emerald-300', countColor: 'text-emerald-950 dark:text-emerald-50', cardBg: 'bg-emerald-50/80 border-emerald-200/80 dark:bg-emerald-950/20 dark:border-emerald-900/30' },
-    { label: 'Registered GSTINs', count: rows.filter(r => r.gstNumber !== 'N/A').length, color: 'text-blue-800 dark:text-blue-300', countColor: 'text-blue-950 dark:text-blue-50', cardBg: 'bg-blue-50/80 border-blue-200/80 dark:bg-blue-950/20 dark:border-blue-900/30' },
-    { label: 'Fiscal Years Active', count: '1 FY', color: 'text-indigo-800 dark:text-indigo-300', countColor: 'text-indigo-950 dark:text-indigo-50', cardBg: 'bg-indigo-50/80 border-indigo-200/80 dark:bg-indigo-950/20 dark:border-indigo-900/30' },
-    { label: 'Available Tenant Slots', count: 'Unlimited', color: 'text-purple-800 dark:text-purple-300', countColor: 'text-purple-950 dark:text-purple-50', cardBg: 'bg-purple-50/80 border-purple-200/80 dark:bg-purple-950/20 dark:border-purple-900/30' }
+    { label: 'Registered GSTINs', count: rows.filter(r => r.gstNumber !== 'N/A').length, color: 'text-[var(--app-accent)] dark:text-[var(--app-accent)]', countColor: 'text-[var(--app-accent)] dark:text-[var(--app-accent)]', cardBg: 'bg-[var(--app-accent-soft)] border-[var(--app-border)] dark:bg-[var(--app-accent-soft)] dark:border-[var(--app-border)]' },
+    { label: 'Fiscal Years Active', count: '1 FY', color: 'text-[var(--app-accent)] dark:text-[var(--app-accent)]', countColor: 'text-[var(--app-accent)] dark:text-[var(--app-accent)]', cardBg: 'bg-[var(--app-accent-soft)] border-[var(--app-border)] dark:bg-[var(--app-accent-soft)] dark:border-[var(--app-border)]' },
+    { label: 'Available Tenant Slots', count: 'Unlimited', color: 'text-[var(--app-accent)] dark:text-[var(--app-accent)]', countColor: 'text-[var(--app-accent)] dark:text-[var(--app-accent)]', cardBg: 'bg-[var(--app-accent-soft)] border-[var(--app-border)] dark:bg-[var(--app-accent-soft)] dark:border-[var(--app-border)]' }
   ];
 
   return (
@@ -117,7 +117,7 @@ function CompaniesPanel({ onIconAction }) {
         </div>
         <button
           onClick={() => setShowCreateForm(p => !p)}
-          className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10.5px] rounded-lg flex items-center gap-1 transition-all uppercase shrink-0 shadow-sm"
+          className="px-3.5 py-1.5 bg-[var(--app-accent)] hover:opacity-90 text-white font-bold text-[10.5px] rounded-lg flex items-center gap-1 transition-all uppercase shrink-0 shadow-sm"
         >
           {showCreateForm ? <X size={12} /> : <Plus size={12} />}
           {showCreateForm ? 'Close Form' : 'Create Company'}
@@ -154,7 +154,7 @@ function CompaniesPanel({ onIconAction }) {
             placeholder="Search companies..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full h-7 pl-8 pr-2.5 rounded border text-[11px] outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+            className="w-full h-7 pl-8 pr-2.5 rounded border text-[11px] outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
           />
         </div>
 
@@ -205,8 +205,8 @@ function CompaniesPanel({ onIconAction }) {
 
                     <td className="p-2 text-center">
                       <div className="flex items-center justify-center gap-1.5">
-                        <button type="button" onClick={() => handleIconClick('edit', row)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-blue-500 rounded transition-colors"><Pencil size={11} /></button>
-                        <button type="button" onClick={() => handleIconClick('view', row)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-indigo-500 rounded transition-colors"><Eye size={12} /></button>
+                        <button type="button" onClick={() => handleIconClick('edit', row)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-[var(--app-accent)] rounded transition-colors"><Pencil size={11} /></button>
+                        <button type="button" onClick={() => handleIconClick('view', row)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-[var(--app-accent)] rounded transition-colors"><Eye size={12} /></button>
                       </div>
                     </td>
 

@@ -1,5 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
-import { motion, AnimatePresence } from 'motion/react'
+import { useState, useEffect } from 'react'
 import api from '../../lib/axios'
 import { useAppStore } from '../../stores/useAppStore'
 import {
@@ -17,68 +16,11 @@ import {
   Lightbulb,
   Droplet,
   Settings,
-  ChevronDown,
   ArrowRight
 } from 'lucide-react'
-
-// Custom Dropdown Component matching the TallyPro design system
-function DashboardDropdown({ label, value, options, onChange }) {
-  const [open, setOpen] = useState(false)
-  const containerRef = useRef(null)
-
-  useEffect(() => {
-    const clickOutside = (e) => {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
-        setOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', clickOutside)
-    return () => document.removeEventListener('mousedown', clickOutside)
-  }, [])
-
-  return (
-    <div className="relative" ref={containerRef}>
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        className="h-9 px-3 rounded-lg border flex items-center justify-between gap-1.5 text-[12px] font-semibold transition-colors hover:bg-[var(--app-row-hover)]"
-        style={{
-          borderColor: 'var(--app-border)',
-          backgroundColor: 'var(--app-control-bg)',
-          color: 'var(--app-heading)',
-          minWidth: '120px'
-        }}
-      >
-        <span className="truncate">{value === 'All' ? label : value}</span>
-        <ChevronDown size={13} className="text-[var(--app-muted)] shrink-0" />
-      </button>
-      {open && (
-        <div
-          className="absolute right-0 mt-1 z-30 max-h-60 overflow-y-auto w-44 rounded-xl border p-1 shadow-2xl glass-surface"
-          style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-panel-bg)' }}
-        >
-          {options.map((opt) => (
-            <button
-              key={opt}
-              type="button"
-              onClick={() => {
-                onChange(opt)
-                setOpen(false)
-              }}
-              className="flex w-full items-center rounded-lg px-2.5 py-1.5 text-left text-[11px] font-medium transition-colors hover:bg-[var(--app-row-hover)]"
-              style={{
-                color: value === opt ? 'var(--app-accent)' : 'var(--app-heading)',
-                backgroundColor: value === opt ? 'var(--app-accent-soft)' : 'transparent',
-              }}
-            >
-              {opt === 'All' ? `All ${label}s` : opt}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
+import Select from '../ui/Select'
+import StatCard from '../ui/StatCard'
+import Button from '../ui/Button'
 
 export default function DashboardTable() {
   const selectedCompany = useAppStore((s) => s.selectedCompany)
@@ -193,39 +135,12 @@ export default function DashboardTable() {
         </div>
 
         {/* Dropdowns Row */}
-        <div className="flex items-center gap-1.5 flex-wrap md:flex-nowrap">
-          <DashboardDropdown
-            label="Party Ledger"
-            value={selectedPartyFilter}
-            options={['All', ...(data?.partyLedgersList || [])]}
-            onChange={setSelectedPartyFilter}
-          />
-          <DashboardDropdown
-            label="Party Type"
-            value={partyType}
-            options={['All', 'Customer', 'Supplier']}
-            onChange={setPartyType}
-          />
-          <DashboardDropdown
-            label="Ledger Group"
-            value={ledgerGroup}
-            options={['All', 'Sundry Debtors', 'Sundry Creditors']}
-            onChange={setLedgerGroup}
-          />
-          <DashboardDropdown
-            label="City"
-            value={selectedCity}
-            options={uniqueCities}
-            onChange={setSelectedCity}
-          />
-
-          <button
-            type="button"
-            className="h-9 px-2.5 rounded-lg flex items-center gap-1 text-[11px] font-bold text-white transition-colors bg-blue-600 hover:bg-blue-700 shrink-0 shadow-sm"
-          >
-            <Settings size={12} className="shrink-0" />
-            <span>Customize</span>
-          </button>
+        <div className="flex items-end gap-1.5 flex-wrap md:flex-nowrap">
+          <Select value={selectedPartyFilter} options={['All', ...(data?.partyLedgersList || [])]} onChange={setSelectedPartyFilter} placeholder="Party Ledger" align="right" searchable />
+          <Select value={partyType} options={['All', 'Customer', 'Supplier']} onChange={setPartyType} align="right" />
+          <Select value={ledgerGroup} options={['All', 'Sundry Debtors', 'Sundry Creditors']} onChange={setLedgerGroup} align="right" />
+          <Select value={selectedCity} options={uniqueCities} onChange={setSelectedCity} align="right" searchable />
+          <Button variant="primary" size="md" icon={Settings} className="shrink-0">Customize</Button>
         </div>
       </div>
 
@@ -235,104 +150,23 @@ export default function DashboardTable() {
         {/* Section: Business Overview Card Grid */}
         <div className="space-y-1.5">
           <div className="flex items-center gap-1.5">
-            <BarChart3 size={13} className="text-blue-600" />
+            <BarChart3 size={13} className="text-[var(--app-accent)]" />
             <h2 className="text-[10px] font-extrabold uppercase tracking-widest" style={{ color: 'var(--app-heading)' }}>
               BUSINESS OVERVIEW
             </h2>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
-            {/* Card 1: Total Vouchers */}
-            <div
-              className="rounded-xl border p-2.5 flex items-center justify-between bg-blue-50/85 hover:bg-blue-100/60 border-blue-200/80 dark:bg-blue-950/20 dark:border-blue-900/30 dark:hover:bg-blue-950/30 shadow-sm relative overflow-hidden transition-all"
-            >
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5">
-                  <div className="h-4.5 w-4.5 rounded-md flex items-center justify-center bg-blue-600 text-white shrink-0">
-                    <FileText size={11} />
-                  </div>
-                  <span className="text-[11px] font-semibold text-blue-800 dark:text-blue-200">Total Vouchers</span>
-                </div>
-                <h3 className="text-[18px] font-extrabold text-blue-950 dark:text-blue-50 mt-1 leading-none">
-                  25,648
-                </h3>
-                <span className="inline-block text-[10px] font-bold text-emerald-600 mt-1">
-                  ↑ 12.5% vs last month
-                </span>
-              </div>
-              <div className="w-16 h-8 shrink-0 flex items-center justify-end">
-                {/* Custom Sparkline Chart */}
-                <svg viewBox="0 0 100 40" className="w-full h-full text-blue-600 dark:text-blue-400">
-                  <path
-                    d="M 5 35 Q 25 15 45 28 T 85 10 T 95 5"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.2"
-                    strokeLinecap="round"
-                  />
+            <StatCard index={0} label="Total Vouchers" value="25,648" icon={FileText} delta={{ value: '12.5%', dir: 'up' }}
+              right={(
+                <svg viewBox="0 0 100 40" className="w-16 h-8" style={{ color: 'var(--app-accent)' }}>
+                  <path d="M 5 35 Q 25 15 45 28 T 85 10 T 95 5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
                 </svg>
-              </div>
-            </div>
-
-            {/* Card 2: Pending Approval */}
-            <div
-              className="rounded-xl border p-2.5 flex flex-col justify-between bg-purple-50/85 hover:bg-purple-100/60 border-purple-200/80 dark:bg-purple-950/20 dark:border-purple-900/30 dark:hover:bg-purple-950/30 shadow-sm transition-all"
-            >
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <div className="h-4.5 w-4.5 rounded-md flex items-center justify-center bg-purple-600 text-white shrink-0">
-                    <Clock size={11} />
-                  </div>
-                  <span className="text-[11px] font-semibold text-purple-800 dark:text-purple-200">Pending Approval</span>
-                </div>
-                <h3 className="text-[18px] font-extrabold text-purple-950 dark:text-purple-50 mt-1 leading-none">
-                  32
-                </h3>
-              </div>
-              <span className="inline-block text-[10px] font-bold text-amber-600 mt-1">
-                ↑ 8.3% vs last month
-              </span>
-            </div>
-
-            {/* Card 3: OCR Documents Processed */}
-            <div
-              className="rounded-xl border p-2.5 flex flex-col justify-between bg-emerald-50/85 hover:bg-emerald-100/60 border-emerald-200/80 dark:bg-emerald-950/20 dark:border-emerald-900/30 dark:hover:bg-emerald-950/30 shadow-sm transition-all"
-            >
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <div className="h-4.5 w-4.5 rounded-md flex items-center justify-center bg-emerald-600 text-white shrink-0">
-                    <Cpu size={11} />
-                  </div>
-                  <span className="text-[11px] font-semibold text-emerald-800 dark:text-emerald-200">OCR Documents Processed</span>
-                </div>
-                <h3 className="text-[18px] font-extrabold text-emerald-950 dark:text-emerald-50 mt-1 leading-none">
-                  1,037
-                </h3>
-              </div>
-              <span className="inline-block text-[10px] font-bold text-emerald-600 mt-1">
-                ↑ 15.2% vs last month
-              </span>
-            </div>
-
-            {/* Card 4: Excel Rows Uploaded */}
-            <div
-              className="rounded-xl border p-2.5 flex flex-col justify-between bg-amber-50/85 hover:bg-amber-100/60 border-amber-200/80 dark:bg-amber-950/20 dark:border-amber-900/30 dark:hover:bg-amber-950/30 shadow-sm transition-all"
-            >
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <div className="h-4.5 w-4.5 rounded-md flex items-center justify-center bg-amber-600 text-white shrink-0">
-                    <FileSpreadsheet size={11} />
-                  </div>
-                  <span className="text-[11px] font-semibold text-amber-800 dark:text-amber-200">Excel Rows Uploaded</span>
-                </div>
-                <h3 className="text-[18px] font-extrabold text-amber-950 dark:text-amber-50 mt-1 leading-none">
-                  1,334
-                </h3>
-              </div>
-              <span className="inline-block text-[10px] font-bold text-emerald-600 mt-1">
-                ↑ 9.1% vs last month
-              </span>
-            </div>
+              )}
+            />
+            <StatCard index={1} label="Pending Approval" value="32" icon={Clock} delta={{ value: '8.3%', dir: 'up' }} />
+            <StatCard index={2} label="OCR Documents Processed" value="1,037" icon={Cpu} delta={{ value: '15.2%', dir: 'up' }} />
+            <StatCard index={3} label="Excel Rows Uploaded" value="1,334" icon={FileSpreadsheet} delta={{ value: '9.1%', dir: 'up' }} />
           </div>
         </div>
 
@@ -346,7 +180,7 @@ export default function DashboardTable() {
           >
             <div>
               <div className="flex items-center gap-1.5 mb-2">
-                <div className="h-4.5 w-4.5 rounded-md flex items-center justify-center bg-purple-500/10 text-purple-500 shrink-0">
+                <div className="h-4.5 w-4.5 rounded-md flex items-center justify-center bg-[var(--app-accent-soft)] text-[var(--app-accent)] shrink-0">
                   <BarChart3 size={11} />
                 </div>
                 <h2 className="text-[10px] font-extrabold uppercase tracking-widest text-[var(--app-text)]">
@@ -391,7 +225,7 @@ export default function DashboardTable() {
               </div>
             </div>
 
-            <button className="text-[11px] font-bold text-blue-600 mt-2.5 flex items-center gap-1 hover:underline text-left">
+            <button className="text-[11px] font-bold text-[var(--app-accent)] mt-2.5 flex items-center gap-1 hover:underline text-left">
               <span>View Details</span>
               <ArrowRight size={12} />
             </button>
@@ -404,7 +238,7 @@ export default function DashboardTable() {
           >
             <div>
               <div className="flex items-center gap-1.5 mb-2">
-                <div className="h-4.5 w-4.5 rounded-md flex items-center justify-center bg-blue-500/10 text-blue-500 shrink-0">
+                <div className="h-4.5 w-4.5 rounded-md flex items-center justify-center bg-[var(--app-accent-soft)] text-[var(--app-accent)] shrink-0">
                   <CheckSquare size={11} />
                 </div>
                 <h2 className="text-[10px] font-extrabold uppercase tracking-widest text-[var(--app-text)]">
@@ -414,16 +248,17 @@ export default function DashboardTable() {
 
               <div className="grid grid-cols-2 gap-1.5">
                 {[
-                  { label: 'Total Tests', val: '25,648', icon: CheckSquare, iconColor: 'text-blue-600 dark:text-blue-400', iconBg: 'bg-blue-600/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400', cardBg: 'bg-blue-50/80 border-blue-200/80 dark:bg-blue-950/20 dark:border-blue-900/30' },
-                  { label: 'Softwares', val: '12.39%', icon: Code, iconColor: 'text-emerald-600 dark:text-emerald-400', iconBg: 'bg-emerald-600/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400', cardBg: 'bg-emerald-50/80 border-emerald-200/80 dark:bg-emerald-950/20 dark:border-emerald-900/30' },
-                  { label: 'Company Costs', val: '32', icon: Database, iconColor: 'text-purple-600 dark:text-purple-400', iconBg: 'bg-purple-600/10 text-purple-600 dark:bg-purple-500/20 dark:text-purple-400', cardBg: 'bg-purple-50/80 border-purple-200/80 dark:bg-purple-950/20 dark:border-purple-900/30' },
-                  { label: 'Total Corpuinirs', val: '36.29%', icon: Database, iconColor: 'text-orange-600 dark:text-orange-400', iconBg: 'bg-orange-600/10 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400', cardBg: 'bg-orange-50/80 border-orange-200/80 dark:bg-orange-950/20 dark:border-orange-900/30' }
+                  { label: 'Total Tests', val: '25,648', icon: CheckSquare },
+                  { label: 'Softwares', val: '12.39%', icon: Code },
+                  { label: 'Company Costs', val: '32', icon: Database },
+                  { label: 'Total Corpuinirs', val: '36.29%', icon: Database }
                 ].map((item, idx) => {
                   const Icon = item.icon
                   return (
                     <div
                       key={idx}
-                      className={`border rounded-xl p-2 flex items-center justify-between shadow-sm transition-all ${item.cardBg}`}
+                      className="border rounded-xl p-2 flex items-center justify-between transition-all hover:bg-[var(--app-row-hover)]"
+                      style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-control-bg)' }}
                     >
                       <div className="min-w-0">
                         <span className="text-[9px] font-bold text-[var(--app-muted)] uppercase block truncate">
@@ -433,7 +268,7 @@ export default function DashboardTable() {
                           {item.val}
                         </span>
                       </div>
-                      <div className={`h-5.5 w-5.5 rounded-lg flex items-center justify-center ${item.iconBg} shrink-0`}>
+                      <div className="h-5.5 w-5.5 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: 'var(--app-accent-soft)', color: 'var(--app-accent)' }}>
                         <Icon size={11} />
                       </div>
                     </div>
@@ -443,12 +278,13 @@ export default function DashboardTable() {
 
               {/* Bottom Wide Costs Indicator */}
               <div
-                className="border rounded-xl p-2 mt-1.5 flex items-center justify-between bg-rose-50/80 border-rose-200/80 dark:bg-rose-950/20 dark:border-rose-900/30 shadow-sm"
+                className="border rounded-xl p-2 mt-1.5 flex items-center justify-between"
+                style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-control-bg)' }}
               >
-                <span className="text-[10px] font-bold text-rose-800 dark:text-rose-300 uppercase">
+                <span className="text-[10px] font-bold uppercase" style={{ color: 'var(--app-muted)' }}>
                   Total Company Costs
                 </span>
-                <span className="text-[14px] font-extrabold text-rose-900 dark:text-rose-100">
+                <span className="text-[14px] font-extrabold" style={{ color: 'var(--app-heading)' }}>
                   0
                 </span>
               </div>
@@ -462,7 +298,7 @@ export default function DashboardTable() {
           >
             <div>
               <div className="flex items-center gap-1.5 mb-2">
-                <div className="h-4.5 w-4.5 rounded-md flex items-center justify-center bg-blue-500/10 text-blue-500 shrink-0">
+                <div className="h-4.5 w-4.5 rounded-md flex items-center justify-center bg-[var(--app-accent-soft)] text-[var(--app-accent)] shrink-0">
                   <Sparkles size={11} />
                 </div>
                 <h2 className="text-[10px] font-extrabold uppercase tracking-widest text-[var(--app-text)]">
@@ -472,16 +308,17 @@ export default function DashboardTable() {
 
               <div className="space-y-1.5">
                 {[
-                  { text: 'Alerts for corner & recommendations', desc: '3 new alerts', icon: AlertTriangle, color: 'text-blue-500 dark:text-blue-400', bg: 'bg-blue-500/10 dark:bg-blue-500/20' },
-                  { text: 'AI Insights & recommendations', desc: '5 insights available', icon: Info, color: 'text-blue-500 dark:text-blue-400', bg: 'bg-blue-500/10 dark:bg-blue-500/20' },
-                  { text: 'AI Insights & approval', desc: '2 pending approvals', icon: Lightbulb, color: 'text-blue-500 dark:text-blue-400', bg: 'bg-blue-500/10 dark:bg-blue-500/20' },
-                  { text: 'Now Alerts', desc: 'No new alerts', icon: Droplet, color: 'text-blue-500 dark:text-blue-400', bg: 'bg-blue-500/10 dark:bg-blue-500/20' }
+                  { text: 'Alerts for corner & recommendations', desc: '3 new alerts', icon: AlertTriangle, color: 'text-[var(--app-accent)]', bg: 'bg-[var(--app-accent-soft)]'},
+                  { text: 'AI Insights & recommendations', desc: '5 insights available', icon: Info, color: 'text-[var(--app-accent)]', bg: 'bg-[var(--app-accent-soft)]'},
+                  { text: 'AI Insights & approval', desc: '2 pending approvals', icon: Lightbulb, color: 'text-[var(--app-accent)]', bg: 'bg-[var(--app-accent-soft)]'},
+                  { text: 'Now Alerts', desc: 'No new alerts', icon: Droplet, color: 'text-[var(--app-accent)]', bg: 'bg-[var(--app-accent-soft)]'}
                 ].map((item, idx) => {
                   const Icon = item.icon
                   return (
                     <div
                       key={idx}
-                      className="border rounded-xl p-2 flex items-start gap-2 bg-blue-50/15 border-blue-100/50 hover:bg-blue-50/35 dark:bg-blue-950/10 dark:border-blue-900/10 dark:hover:bg-blue-950/20 transition-colors"
+                      className="border rounded-xl p-2 flex items-start gap-2 transition-colors hover:bg-[var(--app-row-hover)]"
+                      style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-control-bg)' }}
                     >
                       <div className={`h-6.5 w-6.5 rounded-lg flex items-center justify-center ${item.bg} ${item.color} shrink-0 mt-0.5`}>
                         <Icon size={12} />
@@ -500,7 +337,7 @@ export default function DashboardTable() {
               </div>
             </div>
 
-            <button className="text-[11px] font-bold text-blue-600 mt-2.5 flex items-center gap-1 hover:underline text-left">
+            <button className="text-[11px] font-bold text-[var(--app-accent)] mt-2.5 flex items-center gap-1 hover:underline text-left">
               <span>View All Insights</span>
               <ArrowRight size={12} />
             </button>
@@ -511,7 +348,7 @@ export default function DashboardTable() {
         {/* Section: Operations & Processing */}
         <div className="space-y-1.5">
           <div className="flex items-center gap-1.5">
-            <Settings size={13} className="text-blue-600" />
+            <Settings size={13} className="text-[var(--app-accent)]" />
             <h2 className="text-[10px] font-extrabold uppercase tracking-widest" style={{ color: 'var(--app-heading)' }}>
               OPERATIONS & PROCESSING
             </h2>
@@ -531,21 +368,21 @@ export default function DashboardTable() {
 
                 <div className="relative flex items-center justify-between w-full mt-3.5 px-2">
                   {/* Timeline lines */}
-                  <div className="absolute left-[15%] right-[15%] top-[9px] h-1 bg-gray-250 dark:bg-gray-700 -z-10" style={{ height: '3px' }} />
-                  <div className="absolute left-[15%] w-[35%] top-[9px] h-1 bg-purple-500 -z-10" style={{ height: '3px' }} />
-                  <div className="absolute left-[50%] w-[35%] top-[9px] h-1 bg-blue-500 -z-10" style={{ height: '3px' }} />
+                  <div className="absolute left-[15%] right-[15%] top-[9px] h-1 -z-10" style={{ height: '3px', backgroundColor: 'var(--app-row-border)' }} />
+                  <div className="absolute left-[15%] w-[35%] top-[9px] h-1 bg-amber-500 -z-10" style={{ height: '3px' }} />
+                  <div className="absolute left-[50%] w-[35%] top-[9px] h-1 -z-10" style={{ height: '3px', backgroundColor: 'var(--app-accent)' }} />
                   
                   {/* Pending */}
                   <div className="flex flex-col items-center flex-1">
                     <span className="text-[9px] text-[var(--app-muted)] font-bold mb-1">Pending</span>
-                    <div className="h-4.5 w-4.5 rounded-full bg-purple-500 flex items-center justify-center text-white border-[3px] border-white dark:border-slate-900 shadow-sm" />
+                    <div className="h-4.5 w-4.5 rounded-full bg-amber-500 flex items-center justify-center text-white border-[3px] border-white dark:border-slate-900 shadow-sm" />
                     <span className="text-[13px] font-extrabold text-[var(--app-heading)] mt-1">12</span>
                   </div>
 
                   {/* Under Review */}
                   <div className="flex flex-col items-center flex-1">
                     <span className="text-[9px] text-[var(--app-muted)] font-bold mb-1">Under Review</span>
-                    <div className="h-4.5 w-4.5 rounded-full bg-blue-500 flex items-center justify-center text-white border-[3px] border-white dark:border-slate-900 shadow-sm" />
+                    <div className="h-4.5 w-4.5 rounded-full flex items-center justify-center text-white border-[3px] border-white dark:border-slate-900 shadow-sm" style={{ backgroundColor: 'var(--app-accent)' }} />
                     <span className="text-[13px] font-extrabold text-[var(--app-heading)] mt-1">5</span>
                   </div>
 
@@ -558,7 +395,7 @@ export default function DashboardTable() {
                 </div>
               </div>
 
-              <button className="text-[11px] font-bold text-blue-600 mt-3 flex items-center gap-1 hover:underline text-left">
+              <button className="text-[11px] font-bold text-[var(--app-accent)] mt-3 flex items-center gap-1 hover:underline text-left">
                 <span>View All</span>
                 <ArrowRight size={12} />
               </button>
@@ -574,7 +411,7 @@ export default function DashboardTable() {
                   <h3 className="text-[12px] font-bold text-[var(--app-heading)]">
                     OCR Processing Center
                   </h3>
-                  <button className="text-[10px] font-bold text-blue-600 hover:underline">
+                  <button className="text-[10px] font-bold text-[var(--app-accent)] hover:underline">
                     View All
                   </button>
                 </div>
@@ -582,16 +419,16 @@ export default function DashboardTable() {
                 <div className="space-y-2">
                   {[
                     { label: 'OCR Processing', pct: '100%', color: 'bg-emerald-500' },
-                    { label: 'Progress', pct: '50%', color: 'bg-blue-500' },
-                    { label: 'Banking Classification', pct: '25%', color: 'bg-blue-500' },
-                    { label: 'Monitors', pct: '10%', color: 'bg-blue-500' }
+                    { label: 'Progress', pct: '50%', color: 'bg-[var(--app-accent)]' },
+                    { label: 'Banking Classification', pct: '25%', color: 'bg-[var(--app-accent)]' },
+                    { label: 'Monitors', pct: '10%', color: 'bg-[var(--app-accent)]' }
                   ].map((item, idx) => (
                     <div key={idx} className="space-y-0.5">
                       <div className="flex justify-between text-[10px] font-bold text-[var(--app-text)]">
                         <span>{item.label}</span>
                         <span>{item.pct}</span>
                       </div>
-                      <div className="w-full bg-gray-150 dark:bg-gray-800 h-1 rounded-full overflow-hidden">
+                      <div className="w-full h-1 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--app-row-border)' }}>
                         <div className={`h-full ${item.color}`} style={{ width: item.pct }} />
                       </div>
                     </div>
@@ -610,24 +447,24 @@ export default function DashboardTable() {
                   <h3 className="text-[12px] font-bold text-[var(--app-heading)]">
                     Banking Classification
                   </h3>
-                  <button className="text-[10px] font-bold text-blue-600 hover:underline">
+                  <button className="text-[10px] font-bold text-[var(--app-accent)] hover:underline">
                     View All
                   </button>
                 </div>
 
                 <div className="space-y-2">
                   {[
-                    { label: 'Progress', pct: '75%', color: 'bg-blue-500' },
-                    { label: 'Banking Classification', pct: '40%', color: 'bg-blue-500' },
-                    { label: 'CoordClintes', pct: '30%', color: 'bg-blue-500' },
-                    { label: 'Bankinires price', pct: '40%', color: 'bg-blue-500' }
+                    { label: 'Progress', pct: '75%', color: 'bg-[var(--app-accent)]' },
+                    { label: 'Banking Classification', pct: '40%', color: 'bg-[var(--app-accent)]' },
+                    { label: 'CoordClintes', pct: '30%', color: 'bg-[var(--app-accent)]' },
+                    { label: 'Bankinires price', pct: '40%', color: 'bg-[var(--app-accent)]' }
                   ].map((item, idx) => (
                     <div key={idx} className="space-y-0.5">
                       <div className="flex justify-between text-[10px] font-bold text-[var(--app-text)]">
                         <span>{item.label}</span>
                         <span>{item.pct}</span>
                       </div>
-                      <div className="w-full bg-gray-150 dark:bg-gray-800 h-1 rounded-full overflow-hidden">
+                      <div className="w-full h-1 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--app-row-border)' }}>
                         <div className={`h-full ${item.color}`} style={{ width: item.pct }} />
                       </div>
                     </div>

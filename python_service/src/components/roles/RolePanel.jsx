@@ -88,9 +88,9 @@ export default function RolePanel({ mode: propMode, isDark }) {
 
   // Spec Summary Cards: Total Users, Active Users, Roles, Pending Invites
   const stats = [
-    { label: 'Total Users', count: users.length, color: 'text-blue-800 dark:text-blue-300', countColor: 'text-blue-950 dark:text-blue-50', cardBg: 'bg-blue-50/80 border-blue-200/80 dark:bg-blue-950/20 dark:border-blue-900/30' },
+    { label: 'Total Users', count: users.length, color: 'text-[var(--app-accent)] dark:text-[var(--app-accent)]', countColor: 'text-[var(--app-accent)] dark:text-[var(--app-accent)]', cardBg: 'bg-[var(--app-accent-soft)] border-[var(--app-border)] dark:bg-[var(--app-accent-soft)] dark:border-[var(--app-border)]' },
     { label: 'Active Users', count: users.filter(u => u.status === 'Active').length, color: 'text-emerald-800 dark:text-emerald-300', countColor: 'text-emerald-950 dark:text-emerald-50', cardBg: 'bg-emerald-50/80 border-emerald-200/80 dark:bg-emerald-950/20 dark:border-emerald-900/30' },
-    { label: 'Roles', count: '4 roles', color: 'text-purple-800 dark:text-purple-300', countColor: 'text-purple-950 dark:text-purple-50', cardBg: 'bg-purple-50/80 border-purple-200/80 dark:bg-purple-950/20 dark:border-purple-900/30' },
+    { label: 'Roles', count: '4 roles', color: 'text-[var(--app-accent)] dark:text-[var(--app-accent)]', countColor: 'text-[var(--app-accent)] dark:text-[var(--app-accent)]', cardBg: 'bg-[var(--app-accent-soft)] border-[var(--app-border)] dark:bg-[var(--app-accent-soft)] dark:border-[var(--app-border)]' },
     { label: 'Pending Invites', count: '1 invite', color: 'text-amber-800 dark:text-amber-300', countColor: 'text-amber-950 dark:text-amber-50', cardBg: 'bg-amber-50/80 border-amber-200/80 dark:bg-amber-950/20 dark:border-amber-900/30' }
   ];
 
@@ -113,7 +113,7 @@ export default function RolePanel({ mode: propMode, isDark }) {
         </div>
         <button
           onClick={() => setShowCreateForm(p => !p)}
-          className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10.5px] rounded-lg flex items-center gap-1 transition-all uppercase shrink-0 shadow-sm"
+          className="px-3.5 py-1.5 bg-[var(--app-accent)] hover:opacity-90 text-white font-bold text-[10.5px] rounded-lg flex items-center gap-1 transition-all uppercase shrink-0 shadow-sm"
         >
           {showCreateForm ? <X size={12} /> : <Plus size={12} />}
           {showCreateForm ? 'Close Form' : 'Create User'}
@@ -158,7 +158,7 @@ export default function RolePanel({ mode: propMode, isDark }) {
                   {/* Column 1: Profile Info */}
                   <div className="space-y-3">
                     <div className="space-y-2 border rounded-xl p-3 bg-slate-50/40 dark:bg-slate-950/20 border-slate-200 dark:border-slate-800">
-                      <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 font-bold border-b border-slate-200 dark:border-slate-800 pb-1 mb-2">
+                      <div className="flex items-center gap-1.5 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold border-b border-slate-200 dark:border-slate-800 pb-1 mb-2">
                         <User size={13} />
                         <span className="text-[11px] uppercase tracking-wider font-black">1. User Info</span>
                       </div>
@@ -171,7 +171,7 @@ export default function RolePanel({ mode: propMode, isDark }) {
                           value={userForm.name}
                           onChange={(e) => setUserForm(prev => ({ ...prev, name: e.target.value }))}
                           placeholder="e.g. Rahul Sharma"
-                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
                         />
                       </div>
 
@@ -183,7 +183,7 @@ export default function RolePanel({ mode: propMode, isDark }) {
                           value={userForm.email}
                           onChange={(e) => setUserForm(prev => ({ ...prev, email: e.target.value }))}
                           placeholder="e.g. rahul@company.com"
-                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
                         />
                       </div>
 
@@ -194,7 +194,7 @@ export default function RolePanel({ mode: propMode, isDark }) {
                           value={userForm.phone}
                           onChange={(e) => setUserForm(prev => ({ ...prev, phone: e.target.value }))}
                           placeholder="e.g. +91 98765 43210"
-                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
                         />
                       </div>
                     </div>
@@ -203,7 +203,7 @@ export default function RolePanel({ mode: propMode, isDark }) {
                   {/* Column 2: Organization details */}
                   <div className="space-y-3">
                     <div className="space-y-2 border rounded-xl p-3 bg-slate-50/40 dark:bg-slate-950/20 border-slate-200 dark:border-slate-800">
-                      <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 font-bold border-b border-slate-200 dark:border-slate-800 pb-1 mb-2">
+                      <div className="flex items-center gap-1.5 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold border-b border-slate-200 dark:border-slate-800 pb-1 mb-2">
                         <Users size={13} />
                         <span className="text-[11px] uppercase tracking-wider font-black">2. Organization</span>
                       </div>
@@ -214,7 +214,7 @@ export default function RolePanel({ mode: propMode, isDark }) {
                           <select
                             value={userForm.role}
                             onChange={(e) => setUserForm(prev => ({ ...prev, role: e.target.value }))}
-                            className="w-full appearance-none h-8 rounded-lg border px-2.5 pr-8 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                            className="w-full appearance-none h-8 rounded-lg border px-2.5 pr-8 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
                           >
                             <option value="Super Admin">Super Admin</option>
                             <option value="Accountant">Accountant</option>
@@ -231,7 +231,7 @@ export default function RolePanel({ mode: propMode, isDark }) {
                           <select
                             value={userForm.company}
                             onChange={(e) => setUserForm(prev => ({ ...prev, company: e.target.value }))}
-                            className="w-full appearance-none h-8 rounded-lg border px-2.5 pr-8 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                            className="w-full appearance-none h-8 rounded-lg border px-2.5 pr-8 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
                           >
                             <option value="Finbook Advisors LLP">Finbook Advisors LLP</option>
                             <option value="Greenline Ventures">Greenline Ventures</option>
@@ -246,7 +246,7 @@ export default function RolePanel({ mode: propMode, isDark }) {
                   {/* Column 3: Security */}
                   <div className="space-y-3">
                     <div className="space-y-2 border rounded-xl p-3 bg-slate-50/40 dark:bg-slate-950/20 border-slate-200 dark:border-slate-800">
-                      <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 font-bold border-b border-slate-200 dark:border-slate-800 pb-1 mb-2">
+                      <div className="flex items-center gap-1.5 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold border-b border-slate-200 dark:border-slate-800 pb-1 mb-2">
                         <Key size={13} />
                         <span className="text-[11px] uppercase tracking-wider font-black">3. Security Settings</span>
                       </div>
@@ -259,7 +259,7 @@ export default function RolePanel({ mode: propMode, isDark }) {
                           value={userForm.password}
                           onChange={(e) => setUserForm(prev => ({ ...prev, password: e.target.value }))}
                           placeholder="••••••••"
-                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
                         />
                       </div>
 
@@ -271,7 +271,7 @@ export default function RolePanel({ mode: propMode, isDark }) {
                           value={userForm.confirmPassword}
                           onChange={(e) => setUserForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
                           placeholder="••••••••"
-                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
                         />
                       </div>
                     </div>
@@ -292,7 +292,7 @@ export default function RolePanel({ mode: propMode, isDark }) {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition-all font-bold"
+                  className="px-5 py-1.5 bg-[var(--app-accent)] hover:opacity-90 text-white rounded-lg shadow-sm transition-all font-bold"
                 >
                   Save User
                 </button>
@@ -315,7 +315,7 @@ export default function RolePanel({ mode: propMode, isDark }) {
                 placeholder="Search registered accounts..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full h-7 pl-7 pr-2 rounded border text-[11px] outline-none bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                className="w-full h-7 pl-7 pr-2 rounded border text-[11px] outline-none bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
               />
             </div>
           </div>
@@ -340,7 +340,7 @@ export default function RolePanel({ mode: propMode, isDark }) {
                     <td className="p-2 text-center text-slate-500">{idx + 1}</td>
                     <td className="p-2 border-r font-semibold text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800">{user.name}</td>
                     <td className="p-2 border-r border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400">{user.email}</td>
-                    <td className="p-2 border-r border-slate-200 dark:border-slate-800 text-indigo-500 dark:text-indigo-400 font-semibold">{user.role}</td>
+                    <td className="p-2 border-r border-slate-200 dark:border-slate-800 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-semibold">{user.role}</td>
                     <td className="p-2 border-r border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400">{user.company}</td>
                     
                     <td className="p-2 border-r border-slate-200 dark:border-slate-800 text-center">
@@ -356,7 +356,7 @@ export default function RolePanel({ mode: propMode, isDark }) {
                     <td className="p-2 border-r border-slate-200 dark:border-slate-800 text-center text-slate-500 font-mono text-[11px]">{user.lastLogin}</td>
                     <td className="p-2 text-center">
                       <div className="flex items-center justify-center gap-1.5">
-                        <button className="hover:text-blue-500"><Pencil size={12} /></button>
+                        <button className="hover:text-[var(--app-accent)]"><Pencil size={12} /></button>
                         {user.name !== 'Admin User' && (
                           <button className="hover:text-rose-500" onClick={() => handleDeleteUser(user.id)}><Trash2 size={12} /></button>
                         )}
@@ -372,7 +372,7 @@ export default function RolePanel({ mode: propMode, isDark }) {
         {/* Right/Checkbox Permission Matrix */}
         <div className="lg:col-span-5 flex flex-col border rounded-xl overflow-hidden bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm">
           <h3 className="text-[14px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-300 border-b p-2.5 border-slate-200 dark:border-slate-800 flex items-center gap-1.5 shrink-0" style={{ backgroundColor: 'var(--app-table-head-bg)' }}>
-            <Shield size={13} className="text-purple-500" /> Role Permission Matrix Grid
+            <Shield size={13} className="text-[var(--app-accent)]" /> Role Permission Matrix Grid
           </h3>
 
           <div className="overflow-auto themed-scrollbar flex-1">
@@ -395,7 +395,7 @@ export default function RolePanel({ mode: propMode, isDark }) {
                           type="checkbox"
                           checked={matrixState[mod]?.[action] || false}
                           onChange={() => handleCheckboxChange(mod, action)}
-                          className="w-3.5 h-3.5 accent-blue-600 rounded cursor-pointer"
+                          className="w-3.5 h-3.5 accent-[var(--app-accent)] rounded cursor-pointer"
                         />
                       </td>
                     ))}
@@ -408,7 +408,7 @@ export default function RolePanel({ mode: propMode, isDark }) {
           <div className="p-2.5 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/10 flex justify-end shrink-0">
             <button
               onClick={() => toast.success('Role permissions matrix saved successfully!')}
-              className="px-4 py-1 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] uppercase shadow rounded transition-colors"
+              className="px-4 py-1 bg-[var(--app-accent)] hover:opacity-90 text-white font-bold text-[11px] uppercase shadow rounded transition-colors"
             >
               Save Permission Matrix
             </button>

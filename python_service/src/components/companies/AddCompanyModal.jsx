@@ -40,7 +40,7 @@ function AddCompanyModal({ open, onClose, formValues, onFieldChange, onSave }) {
               {/* Column 1: Basic Info */}
               <div className="space-y-3">
                 <div className="space-y-2 border rounded-xl p-3 bg-slate-50/40 dark:bg-slate-950/20 border-slate-200 dark:border-slate-800">
-                  <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 font-bold border-b border-slate-200 dark:border-slate-800 pb-1 mb-2">
+                  <div className="flex items-center gap-1.5 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold border-b border-slate-200 dark:border-slate-800 pb-1 mb-2">
                     <Building2 size={13} />
                     <span className="text-[11px] uppercase tracking-wider font-black">1. Basic Info</span>
                   </div>
@@ -53,7 +53,7 @@ function AddCompanyModal({ open, onClose, formValues, onFieldChange, onSave }) {
                       value={formValues.businessName}
                       onChange={(e) => onFieldChange('businessName', e.target.value)}
                       placeholder="e.g. Acme Corp Industries"
-                      className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                      className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
                     />
                   </div>
 
@@ -63,7 +63,7 @@ function AddCompanyModal({ open, onClose, formValues, onFieldChange, onSave }) {
                       <select
                         value={formValues.industry}
                         onChange={(e) => onFieldChange('industry', e.target.value)}
-                        className="w-full appearance-none h-8 rounded-lg border px-2.5 pr-8 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                        className="w-full appearance-none h-8 rounded-lg border px-2.5 pr-8 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
                       >
                         <option value="">Select Industry</option>
                         <option value="Consulting">Consulting</option>
@@ -81,7 +81,7 @@ function AddCompanyModal({ open, onClose, formValues, onFieldChange, onSave }) {
                         value={formValues.gstNo}
                         onChange={(e) => onFieldChange('gstNo', e.target.value)}
                         placeholder="e.g. 23AAFFF..."
-                        className="w-full h-8 rounded-lg border px-2 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                        className="w-full h-8 rounded-lg border px-2 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
                       />
                     </div>
                     <div>
@@ -91,7 +91,7 @@ function AddCompanyModal({ open, onClose, formValues, onFieldChange, onSave }) {
                         value={formValues.panNo}
                         onChange={(e) => onFieldChange('panNo', e.target.value)}
                         placeholder="e.g. AAFFF..."
-                        className="w-full h-8 rounded-lg border px-2 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                        className="w-full h-8 rounded-lg border px-2 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
                       />
                     </div>
                   </div>
@@ -101,7 +101,7 @@ function AddCompanyModal({ open, onClose, formValues, onFieldChange, onSave }) {
               {/* Column 2: Address Info */}
               <div className="space-y-3">
                 <div className="space-y-2 border rounded-xl p-3 bg-slate-50/40 dark:bg-slate-950/20 border-slate-200 dark:border-slate-800">
-                  <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 font-bold border-b border-slate-200 dark:border-slate-800 pb-1 mb-2">
+                  <div className="flex items-center gap-1.5 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold border-b border-slate-200 dark:border-slate-800 pb-1 mb-2">
                     <MapPin size={13} />
                     <span className="text-[11px] uppercase tracking-wider font-black">2. Address Info</span>
                   </div>
@@ -113,7 +113,7 @@ function AddCompanyModal({ open, onClose, formValues, onFieldChange, onSave }) {
                       value={formValues.address}
                       onChange={(e) => onFieldChange('address', e.target.value)}
                       placeholder="e.g. 101, Business Park"
-                      className="w-full rounded-lg border px-2.5 py-1.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500 resize-none"
+                      className="w-full rounded-lg border px-2.5 py-1.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)] resize-none"
                     />
                   </div>
 
@@ -124,7 +124,7 @@ function AddCompanyModal({ open, onClose, formValues, onFieldChange, onSave }) {
                       value={formValues.locality}
                       onChange={(e) => onFieldChange('locality', e.target.value)}
                       placeholder="e.g. Vijay Nagar"
-                      className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                      className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
                     />
                   </div>
                 </div>
@@ -133,7 +133,7 @@ function AddCompanyModal({ open, onClose, formValues, onFieldChange, onSave }) {
               {/* Column 3: Location Details */}
               <div className="space-y-3">
                 <div className="space-y-2 border rounded-xl p-3 bg-slate-50/40 dark:bg-slate-950/20 border-slate-200 dark:border-slate-800">
-                  <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 font-bold border-b border-slate-200 dark:border-slate-800 pb-1 mb-2">
+                  <div className="flex items-center gap-1.5 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold border-b border-slate-200 dark:border-slate-800 pb-1 mb-2">
                     <Globe size={13} />
                     <span className="text-[11px] uppercase tracking-wider font-black">3. Location</span>
                   </div>
@@ -144,7 +144,7 @@ function AddCompanyModal({ open, onClose, formValues, onFieldChange, onSave }) {
                       <select
                         value={formValues.state}
                         onChange={(e) => onFieldChange('state', e.target.value)}
-                        className="w-full appearance-none h-8 rounded-lg border px-2.5 pr-8 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                        className="w-full appearance-none h-8 rounded-lg border px-2.5 pr-8 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
                       >
                         <option value="">Select State</option>
                         <option value="Madhya Pradesh">Madhya Pradesh</option>
@@ -160,7 +160,7 @@ function AddCompanyModal({ open, onClose, formValues, onFieldChange, onSave }) {
                       <select
                         value={formValues.city}
                         onChange={(e) => onFieldChange('city', e.target.value)}
-                        className="w-full appearance-none h-8 rounded-lg border px-2.5 pr-8 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                        className="w-full appearance-none h-8 rounded-lg border px-2.5 pr-8 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
                       >
                         <option value="">Select City</option>
                         <option value="Indore">Indore</option>
@@ -176,7 +176,7 @@ function AddCompanyModal({ open, onClose, formValues, onFieldChange, onSave }) {
                       <select
                         value={formValues.country}
                         onChange={(e) => onFieldChange('country', e.target.value)}
-                        className="w-full appearance-none h-8 rounded-lg border px-2.5 pr-8 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                        className="w-full appearance-none h-8 rounded-lg border px-2.5 pr-8 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
                       >
                         <option value="">Select Country</option>
                         <option value="India">India</option>
@@ -202,7 +202,7 @@ function AddCompanyModal({ open, onClose, formValues, onFieldChange, onSave }) {
             </button>
             <button
               type="submit"
-              className="px-5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition-all font-bold"
+              className="px-5 py-1.5 bg-[var(--app-accent)] hover:opacity-90 text-white rounded-lg shadow-sm transition-all font-bold"
             >
               Save Company
             </button>

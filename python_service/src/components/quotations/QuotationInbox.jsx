@@ -111,8 +111,8 @@ const QuotationInbox = ({ isDark, onAdd }) => {
                   <div className="flex gap-1.5 justify-center">
                     <button className="p-1 rounded-full border flex items-center justify-center hover:bg-gray-50 transition" style={{ borderColor: 'var(--app-border)', color: 'var(--app-text)' }}><Info size={11} /></button>
                     <button className="p-1 rounded-full border flex items-center justify-center hover:bg-emerald-50 transition" style={{ borderColor: 'var(--app-border)', color: '#10b981' }}><Copy size={11} /></button>
-                    <button className="p-1 rounded-full border flex items-center justify-center hover:bg-blue-50 transition" style={{ borderColor: 'var(--app-border)', color: 'var(--app-accent)' }}><RefreshCw size={11} /></button>
-                    <button className="p-1 rounded-full border flex items-center justify-center hover:bg-sky-50 transition" style={{ borderColor: 'var(--app-border)', color: '#0369a1' }}><Eye size={11} /></button>
+                    <button className="p-1 rounded-full border flex items-center justify-center hover:bg-[var(--app-accent-soft)] transition" style={{ borderColor: 'var(--app-border)', color: 'var(--app-accent)' }}><RefreshCw size={11} /></button>
+                    <button className="p-1 rounded-full border flex items-center justify-center hover:bg-[var(--app-accent-soft)] transition" style={{ borderColor: 'var(--app-border)', color: '#0369a1' }}><Eye size={11} /></button>
                   </div>
                 </td>
                 <td className="p-2 border-b text-center" style={{ borderColor: 'var(--app-row-border)' }}>

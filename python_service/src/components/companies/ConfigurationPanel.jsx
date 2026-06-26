@@ -47,9 +47,9 @@ export default function ConfigurationPanel() {
   };
 
   const stats = [
-    { label: 'Active Parameters', count: '14 system vars', color: 'text-blue-600 dark:text-blue-400 bg-blue-500/10' },
-    { label: 'OCR Model Version', count: 'v4.2-Pro', color: 'text-purple-600 dark:text-purple-400 bg-purple-500/10' },
-    { label: 'Tally Port Sync', count: 'Port 9000', color: 'text-indigo-600 dark:text-indigo-400 bg-indigo-500/10' },
+    { label: 'Active Parameters', count: '14 system vars', color: 'text-[var(--app-accent)] dark:text-[var(--app-accent)] bg-[var(--app-accent-soft)]' },
+    { label: 'OCR Model Version', count: 'v4.2-Pro', color: 'text-[var(--app-accent)] dark:text-[var(--app-accent)] bg-[var(--app-accent-soft)]' },
+    { label: 'Tally Port Sync', count: 'Port 9000', color: 'text-[var(--app-accent)] dark:text-[var(--app-accent)] bg-[var(--app-accent-soft)]' },
     { label: 'System status', count: '100% Operational', color: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10' }
   ];
 
@@ -89,7 +89,7 @@ export default function ConfigurationPanel() {
                 onClick={() => setActiveSection(section)}
                 className={`w-full text-left px-3 py-2 rounded text-[12.5px] font-semibold transition-colors ${
                   isActive 
-                    ? 'bg-blue-600 text-white font-bold' 
+                    ? 'bg-[var(--app-accent)] text-white font-bold' 
                     : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900/50'
                 }`}
               >
@@ -183,7 +183,7 @@ export default function ConfigurationPanel() {
                     type="checkbox"
                     checked={tallyConfig.autoSync}
                     onChange={(e) => setTallyConfig(prev => ({ ...prev, autoSync: e.target.checked }))}
-                    className="w-3.5 h-3.5 accent-blue-600 cursor-pointer"
+                    className="w-3.5 h-3.5 accent-[var(--app-accent)] cursor-pointer"
                   />
                 </div>
               </div>
@@ -220,7 +220,7 @@ export default function ConfigurationPanel() {
                     type="checkbox"
                     checked={ocrConfig.autoExtractLines}
                     onChange={(e) => setOcrConfig(prev => ({ ...prev, autoExtractLines: e.target.checked }))}
-                    className="w-3.5 h-3.5 accent-blue-600 cursor-pointer"
+                    className="w-3.5 h-3.5 accent-[var(--app-accent)] cursor-pointer"
                   />
                 </div>
               </div>
@@ -236,7 +236,7 @@ export default function ConfigurationPanel() {
             <div className="absolute bottom-0 left-0 right-0 h-12 border-t flex items-center justify-end px-4 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800/80">
               <button
                 type="submit"
-                className="h-8 px-6 bg-blue-600 hover:bg-blue-700 text-white font-bold uppercase text-[11.5px] shadow rounded transition-all"
+                className="h-8 px-6 bg-[var(--app-accent)] hover:opacity-90 text-white font-bold uppercase text-[11.5px] shadow rounded transition-all"
               >
                 Save {activeSection}
               </button>

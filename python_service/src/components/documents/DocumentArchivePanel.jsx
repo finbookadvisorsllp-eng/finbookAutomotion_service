@@ -195,9 +195,9 @@ export default function DocumentArchivePanel() {
   });
 
   const stats = [
-    { label: 'Total Archives', count: allArchives.length, color: 'text-blue-600 dark:text-blue-400 bg-blue-500/10' },
+    { label: 'Total Archives', count: allArchives.length, color: 'text-[var(--app-accent)] dark:text-[var(--app-accent)] bg-[var(--app-accent-soft)]' },
     { label: 'Manual Vouchers', count: allArchives.filter(a => a.category === 'Manual Entry').length, color: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10' },
-    { label: 'Bulk Batches', count: allArchives.filter(a => a.category === 'Bulk Upload').length, color: 'text-indigo-600 dark:text-indigo-400 bg-indigo-500/10' },
+    { label: 'Bulk Batches', count: allArchives.filter(a => a.category === 'Bulk Upload').length, color: 'text-[var(--app-accent)] dark:text-[var(--app-accent)] bg-[var(--app-accent-soft)]' },
     { label: 'OCR Scans', count: allArchives.filter(a => a.category === 'OCR Upload').length, color: 'text-rose-600 dark:text-rose-400 bg-rose-500/10' }
   ];
 
@@ -234,7 +234,7 @@ export default function DocumentArchivePanel() {
             onClick={() => setActiveCategory(cat)}
             className={`px-2.5 py-1 text-[11px] font-bold tracking-wide whitespace-nowrap transition-all uppercase border-b-2 -mb-1 ${
               activeCategory === cat 
-                ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400 font-bold' 
+                ? 'border-[var(--app-accent)] text-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold' 
                 : 'border-transparent text-slate-400 hover:text-slate-600'
             }`}
           >
@@ -251,7 +251,7 @@ export default function DocumentArchivePanel() {
             onClick={() => setActiveStatus(st)}
             className={`px-3 py-1 text-[10.5px] font-bold tracking-wide whitespace-nowrap transition-all uppercase rounded-full border ${
               activeStatus === st 
-                ? 'bg-blue-600 border-blue-600 text-white shadow-sm' 
+                ? 'bg-[var(--app-accent)] border-[var(--app-accent)] text-white shadow-sm' 
                 : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-700'
             }`}
           >
@@ -269,7 +269,7 @@ export default function DocumentArchivePanel() {
             placeholder="Search archived files..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full h-7 pl-8 pr-2.5 rounded border text-[11px] outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+            className="w-full h-7 pl-8 pr-2.5 rounded border text-[11px] outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
           />
         </div>
       </div>
@@ -301,7 +301,7 @@ export default function DocumentArchivePanel() {
               ) : filteredArchives.length > 0 ? (
                 filteredArchives.map((item, index) => {
                   const statusColors = item.status === 'posted_to_tally'
-                    ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20' 
+                    ? 'bg-[var(--app-accent-soft)] text-[var(--app-accent)] dark:text-[var(--app-accent)] border-[var(--app-accent)]' 
                     : item.status === 'approved'
                     ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
                     : item.status === 'rejected'
@@ -329,7 +329,7 @@ export default function DocumentArchivePanel() {
                         </div>
                       </td>
                       <td className="p-2 border-r border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400">{item.category}</td>
-                      <td className="p-2 border-r border-slate-200 dark:border-slate-800 text-blue-600 dark:text-blue-400 font-semibold">{item.type}</td>
+                      <td className="p-2 border-r border-slate-200 dark:border-slate-800 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-semibold">{item.type}</td>
                       <td className="p-2 border-r border-slate-200 dark:border-slate-800 font-semibold text-slate-900 dark:text-slate-100">{item.linkedVoucher}</td>
                       <td className="p-2 border-r border-slate-200 dark:border-slate-800 text-center text-slate-500">{item.date}</td>
                       <td className="p-2 border-r border-slate-200 dark:border-slate-800 text-slate-550 dark:text-slate-400">{item.uploadedBy}</td>
@@ -348,14 +348,14 @@ export default function DocumentArchivePanel() {
                           </button>
                           <button
                             onClick={() => handleDownload(item.name)}
-                            className="p-1 text-slate-400 hover:text-blue-500"
+                            className="p-1 text-slate-400 hover:text-[var(--app-accent)]"
                             title="Download"
                           >
                             <Download size={12} />
                           </button>
                           <button
                             onClick={() => toast.info(`Linked voucher: ${item.linkedVoucher}`)}
-                            className="p-1 text-slate-400 hover:text-indigo-400"
+                            className="p-1 text-slate-400 hover:text-[var(--app-accent)]"
                             title="Open Voucher"
                           >
                             <ExternalLink size={12} />

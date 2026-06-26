@@ -784,8 +784,8 @@ export default function BulkUploadPanel() {
     const stylesMap = {
       'Pending Review': 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/15 dark:text-amber-400 dark:border-amber-800',
       'Pending Approval': 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/15 dark:text-amber-400 dark:border-amber-800',
-      'Approved': 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/15 dark:text-purple-400 dark:border-purple-800',
-      'Posted': 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/15 dark:text-blue-400 dark:border-blue-800',
+      'Approved': 'bg-[var(--app-accent-soft)] text-[var(--app-accent)] border-[var(--app-border)] dark:bg-[var(--app-accent-soft)] dark:text-[var(--app-accent)] dark:border-[var(--app-border)]',
+      'Posted': 'bg-[var(--app-accent-soft)] text-[var(--app-accent)] border-[var(--app-border)] dark:bg-[var(--app-accent-soft)] dark:text-[var(--app-accent)] dark:border-[var(--app-border)]',
       'Failed': 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/15 dark:text-red-400 dark:border-red-800'
     };
     return stylesMap[stat] || 'bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:border-slate-800';
@@ -796,7 +796,7 @@ export default function BulkUploadPanel() {
     if (['xlsx', 'xls', 'csv'].includes(ext)) {
       return <FileSpreadsheet className="text-emerald-500 shrink-0" size={13} />;
     }
-    return <FileText className="text-blue-500 shrink-0" size={13} />;
+    return <FileText className="text-[var(--app-accent)] shrink-0" size={13} />;
   };
 
   // Cell renderer helper
@@ -827,7 +827,7 @@ export default function BulkUploadPanel() {
             defaultValue={value}
             onBlur={(e) => handleBlur(e.target.value)}
             onKeyDown={(e) => handleKeyDown(e, e.target.value)}
-            className="w-full h-7 bg-white dark:bg-slate-800 text-[11px] p-0.5 border border-blue-500 outline-none rounded font-semibold text-slate-850 dark:text-slate-100"
+            className="w-full h-7 bg-white dark:bg-slate-800 text-[11px] p-0.5 border border-[var(--app-accent)] outline-none rounded font-semibold text-slate-850 dark:text-slate-100"
           >
             {tabCategories.slice(1).map(cat => (
               <option key={cat} value={cat}>{cat}</option>
@@ -855,7 +855,7 @@ export default function BulkUploadPanel() {
               setEditingCell(null);
             }
           }}
-          className="w-full h-7 bg-white dark:bg-slate-800 text-[11px] p-1 border border-blue-500 outline-none rounded font-semibold text-slate-850 dark:text-slate-100"
+          className="w-full h-7 bg-white dark:bg-slate-800 text-[11px] p-1 border border-[var(--app-accent)] outline-none rounded font-semibold text-slate-850 dark:text-slate-100"
         />
       );
     }
@@ -923,7 +923,7 @@ export default function BulkUploadPanel() {
               }}
               className={`pb-1 text-[11px] font-bold tracking-wide whitespace-nowrap transition-all uppercase border-b-2 -mb-2 flex items-center gap-1.5 cursor-pointer ${
                 isActive
-                  ? 'border-blue-600 text-blue-600 dark:border-blue-500 dark:text-blue-400 font-bold'
+                  ? 'border-[var(--app-accent)] text-[var(--app-accent)] dark:border-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold'
                   : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
               }`}
             >
@@ -966,7 +966,7 @@ export default function BulkUploadPanel() {
                   onClick={handleAddRow}
                   className="h-8 px-3 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition flex items-center gap-1.5 font-bold shadow-xs text-xs cursor-pointer"
                 >
-                  <Plus size={13} className="text-blue-500 animate-pulse" />
+                  <Plus size={13} className="text-[var(--app-accent)] animate-pulse" />
                   <span>Add Transaction Row</span>
                 </button>
 
@@ -975,7 +975,7 @@ export default function BulkUploadPanel() {
                   className={`h-8 px-3 rounded-lg transition flex items-center gap-1.5 font-bold shadow-xs text-xs cursor-pointer ${
                     activeBatch.status === 'Posted'
                       ? 'bg-slate-100 border border-slate-200 text-slate-400 cursor-not-allowed dark:bg-slate-800 dark:border-slate-700'
-                      : 'bg-blue-600 hover:bg-blue-700 text-white'
+                      : 'bg-[var(--app-accent)] hover:opacity-90 text-white'
                   }`}
                   disabled={activeBatch.status === 'Posted'}
                 >
@@ -986,9 +986,9 @@ export default function BulkUploadPanel() {
             ) : (
               <button
                 onClick={() => setShowUploadModal(true)}
-                className="h-8 px-3 border border-blue-200 dark:border-blue-900 text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900 hover:bg-blue-50/50 dark:hover:bg-slate-800/50 rounded-lg transition flex items-center gap-1.5 font-bold shadow-xs text-xs cursor-pointer"
+                className="h-8 px-3 border border-[var(--app-border)] dark:border-[var(--app-border)] text-[var(--app-accent)] dark:text-[var(--app-accent)] bg-white dark:bg-slate-900 hover:bg-[var(--app-accent-soft)] dark:hover:bg-slate-800/50 rounded-lg transition flex items-center gap-1.5 font-bold shadow-xs text-xs cursor-pointer"
               >
-                <UploadCloud size={13} className="text-blue-500" />
+                <UploadCloud size={13} className="text-[var(--app-accent)]" />
                 <span>Upload Excel / CSV</span>
               </button>
             )}
@@ -998,7 +998,7 @@ export default function BulkUploadPanel() {
         {/* KPI Stats Cards Row */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 shrink-0">
           {/* Card 1 */}
-          <div className="p-2 border rounded-lg bg-blue-50/55 border-blue-100/70 dark:bg-blue-950/15 dark:border-blue-900/35 shadow-3xs flex items-center justify-between h-[58px] transition-all">
+          <div className="p-2 border rounded-lg bg-[var(--app-accent-soft)] border-[var(--app-border)] dark:bg-[var(--app-accent-soft)] dark:border-[var(--app-border)] shadow-3xs flex items-center justify-between h-[58px] transition-all">
             <div className="min-w-0 flex-1">
               <span className="text-[9px] font-bold text-slate-455 dark:text-slate-500 uppercase tracking-wide leading-none block truncate">
                 {selectedBatchId ? 'Total Batch Records' : 'Total Batches'}
@@ -1012,7 +1012,7 @@ export default function BulkUploadPanel() {
                 </span>
               </div>
             </div>
-            <div className="h-6 w-6 rounded-md bg-blue-100/50 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 shrink-0">
+            <div className="h-6 w-6 rounded-md bg-[var(--app-accent-soft)] dark:bg-[var(--app-accent-soft)] flex items-center justify-center text-[var(--app-accent)] shrink-0">
               <FileSpreadsheet size={12} />
             </div>
           </div>
@@ -1078,7 +1078,7 @@ export default function BulkUploadPanel() {
           </div>
 
           {/* Card 5 */}
-          <div className="p-2 border rounded-lg bg-purple-50/55 border-purple-100/70 dark:bg-purple-950/15 dark:border-purple-900/35 shadow-3xs flex items-center justify-between h-[58px] transition-all">
+          <div className="p-2 border rounded-lg bg-[var(--app-accent-soft)] border-[var(--app-border)] dark:bg-[var(--app-accent-soft)] dark:border-[var(--app-border)] shadow-3xs flex items-center justify-between h-[58px] transition-all">
             <div className="min-w-0 flex-1">
               <span className="text-[9px] font-bold text-slate-455 dark:text-slate-500 uppercase tracking-wide leading-none block truncate">
                 {selectedBatchId ? 'Voucher Types' : 'Posted Batches'}
@@ -1092,7 +1092,7 @@ export default function BulkUploadPanel() {
                 </span>
               </div>
             </div>
-            <div className="h-6 w-6 rounded-md bg-purple-100/50 dark:bg-purple-900/30 flex items-center justify-center text-purple-650 shrink-0">
+            <div className="h-6 w-6 rounded-md bg-[var(--app-accent-soft)] dark:bg-[var(--app-accent-soft)] flex items-center justify-center text-[var(--app-accent)] shrink-0">
               <SlidersHorizontal size={12} />
             </div>
           </div>
@@ -1134,7 +1134,7 @@ export default function BulkUploadPanel() {
                 setSearch(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full h-7.5 pl-8 pr-2.5 rounded-lg border text-[11px] outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500 transition-colors font-semibold"
+              className="w-full h-7.5 pl-8 pr-2.5 rounded-lg border text-[11px] outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)] transition-colors font-semibold"
             />
           </div>
 
@@ -1214,7 +1214,7 @@ export default function BulkUploadPanel() {
 
             <button
               onClick={handleReset}
-              className="text-[11px] font-bold text-blue-600 hover:text-blue-700 bg-transparent transition-colors px-1 cursor-pointer"
+              className="text-[11px] font-bold text-[var(--app-accent)] hover:text-[var(--app-accent)] bg-transparent transition-colors px-1 cursor-pointer"
             >
               Reset
             </button>
@@ -1240,7 +1240,7 @@ export default function BulkUploadPanel() {
                     <th className="py-2.5 px-3 w-9 text-center">
                       <input
                         type="checkbox"
-                        className="rounded border-slate-300 dark:border-slate-700 text-blue-600 focus:ring-blue-500 cursor-pointer h-3.5 w-3.5"
+                        className="rounded border-slate-300 dark:border-slate-700 text-[var(--app-accent)] focus:ring-[var(--app-accent-soft)] cursor-pointer h-3.5 w-3.5"
                         onChange={handleSelectAll}
                         checked={paginatedBatches.length > 0 && paginatedBatches.every(b => checkedBatchIds.includes(b.id))}
                       />
@@ -1262,18 +1262,18 @@ export default function BulkUploadPanel() {
                           key={batch.id}
                           onClick={() => openBatchReview(batch.id)}
                           className={`hover:bg-slate-50/40 dark:hover:bg-slate-900/30 cursor-pointer transition-colors ${
-                            isChecked ? 'bg-blue-50/10 dark:bg-blue-950/5' : ''
+                            isChecked ? 'bg-[var(--app-accent-soft)] dark:bg-[var(--app-accent-soft)]' : ''
                           }`}
                         >
                           <td className="py-2 px-3 text-center" onClick={(e) => e.stopPropagation()}>
                             <input
                               type="checkbox"
-                              className="rounded border-slate-300 dark:border-slate-700 text-blue-600 focus:ring-blue-500 cursor-pointer h-3.5 w-3.5"
+                              className="rounded border-slate-300 dark:border-slate-700 text-[var(--app-accent)] focus:ring-[var(--app-accent-soft)] cursor-pointer h-3.5 w-3.5"
                               checked={isChecked}
                               onChange={() => handleSelectRow(batch.id)}
                             />
                           </td>
-                          <td className="py-2 px-3 font-bold text-blue-600 dark:text-blue-400 font-mono text-[10px]">
+                          <td className="py-2 px-3 font-bold text-[var(--app-accent)] dark:text-[var(--app-accent)] font-mono text-[10px]">
                             {batch.id}
                           </td>
                           <td className="py-2 px-3 text-slate-900 dark:text-slate-100 font-semibold">
@@ -1299,7 +1299,7 @@ export default function BulkUploadPanel() {
                             <div className="flex items-center justify-center gap-2 text-slate-400 dark:text-slate-500">
                               <button
                                 onClick={() => openBatchReview(batch.id)}
-                                className="p-1 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition cursor-pointer"
+                                className="p-1 hover:text-[var(--app-accent)] dark:hover:text-[var(--app-accent)] hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition cursor-pointer"
                                 title="Open Batch Review"
                               >
                                 <Eye size={13} />
@@ -1366,7 +1366,7 @@ export default function BulkUploadPanel() {
                       <th className="border-r border-slate-200 dark:border-slate-800 p-1 w-9 text-center">
                         <input
                           type="checkbox"
-                          className="rounded border-slate-300 dark:border-slate-700 text-blue-600 focus:ring-blue-500 cursor-pointer h-3.5 w-3.5"
+                          className="rounded border-slate-300 dark:border-slate-700 text-[var(--app-accent)] focus:ring-[var(--app-accent-soft)] cursor-pointer h-3.5 w-3.5"
                           onChange={handleSelectAll}
                           checked={paginatedRecords.length > 0 && paginatedRecords.every(r => checkedRecordIds.includes(r.id))}
                         />
@@ -1398,7 +1398,7 @@ export default function BulkUploadPanel() {
                           <tr
                             key={record.id}
                             className={`hover:bg-slate-50/20 dark:hover:bg-slate-900/10 transition-colors ${rowStatusClass} ${
-                              isChecked ? 'bg-blue-50/10 dark:bg-blue-950/5 border-l-2 border-l-blue-500' : ''
+                              isChecked ? 'bg-[var(--app-accent-soft)] dark:bg-[var(--app-accent-soft)] border-l-2 border-l-blue-500' : ''
                             }`}
                           >
                             {/* Excel Leftmost Row Index (S.No.) */}
@@ -1408,7 +1408,7 @@ export default function BulkUploadPanel() {
                             <td className="border-r border-slate-200 dark:border-slate-800 py-1.5 text-center">
                               <input
                                 type="checkbox"
-                                className="rounded border-slate-300 dark:border-slate-700 text-blue-600 focus:ring-blue-500 cursor-pointer h-3.5 w-3.5"
+                                className="rounded border-slate-300 dark:border-slate-700 text-[var(--app-accent)] focus:ring-[var(--app-accent-soft)] cursor-pointer h-3.5 w-3.5"
                                 checked={isChecked}
                                 onChange={() => handleSelectRow(record.id)}
                               />
@@ -1472,11 +1472,11 @@ export default function BulkUploadPanel() {
               {/* Spreadsheet editing hint bar */}
               <div className="px-3 py-1.5 bg-slate-50 dark:bg-slate-950/60 border-t border-slate-200 dark:border-slate-800 text-[10px] text-slate-500 flex justify-between items-center font-semibold">
                 <div className="flex items-center gap-1.5 text-slate-450">
-                  <span className="h-2 w-2 rounded-full bg-blue-500 animate-pulse"></span>
+                  <span className="h-2 w-2 rounded-full bg-[var(--app-accent)] animate-pulse"></span>
                   <span>Spreadsheet Mode: Double-click any cell to edit details. Taxable/Tax/Total will auto-calculate!</span>
                 </div>
                 <div>
-                  <span>Batch Status: <span className="font-extrabold uppercase text-blue-600">{activeBatch?.status || 'Pending Approval'}</span></span>
+                  <span>Batch Status: <span className="font-extrabold uppercase text-[var(--app-accent)]">{activeBatch?.status || 'Pending Approval'}</span></span>
                 </div>
               </div>
             </div>
@@ -1519,7 +1519,7 @@ export default function BulkUploadPanel() {
                   onClick={() => setCurrentPage(pageNum)}
                   className={`h-7 w-7 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                     isActive
-                      ? 'bg-blue-600 text-white font-bold shadow-2xs'
+                      ? 'bg-[var(--app-accent)] text-white font-bold shadow-2xs'
                       : 'border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800'
                   }`}
                 >
@@ -1553,7 +1553,7 @@ export default function BulkUploadPanel() {
               {/* Modal Header */}
               <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-white dark:bg-slate-900">
                 <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <UploadCloud size={16} className="text-blue-500 animate-pulse" />
+                  <UploadCloud size={16} className="text-[var(--app-accent)] animate-pulse" />
                   <span>Upload Batches (Excel / CSV)</span>
                 </h3>
                 <button
@@ -1571,16 +1571,16 @@ export default function BulkUploadPanel() {
                 <div className="flex flex-col">
                   <div
                     onClick={handleBrowse}
-                    className="border border-dashed rounded-lg p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-slate-800/10 border-blue-200 dark:border-slate-700 bg-blue-50/5 dark:bg-slate-900/10 min-h-[148px]"
+                    className="border border-dashed rounded-lg p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-slate-800/10 border-[var(--app-border)] dark:border-slate-700 bg-[var(--app-accent-soft)] dark:bg-slate-900/10 min-h-[148px]"
                   >
-                    <UploadCloud size={40} className="text-blue-500 mb-2" />
+                    <UploadCloud size={40} className="text-[var(--app-accent)] mb-2" />
                     <p className="text-[12px] text-slate-500 dark:text-slate-400">Drag & drop spreadsheet files here or</p>
 
                     <div className="flex items-center gap-2 mt-4 flex-wrap justify-center" onClick={(e) => e.stopPropagation()}>
                       <button
                         type="button"
                         onClick={handleBrowse}
-                        className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs transition-colors shadow-sm cursor-pointer animate-pulse"
+                        className="px-4 py-2 rounded-lg bg-[var(--app-accent)] hover:opacity-90 text-white font-semibold text-xs transition-colors shadow-sm cursor-pointer animate-pulse"
                       >
                         Choose File
                       </button>

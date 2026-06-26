@@ -73,9 +73,9 @@ export default function TallyConnectorPanel() {
   // Spec Summary Cards: Connection Status, Last Sync, Masters Synced, Vouchers Synced, Failed Records
   const stats = [
     { label: 'Connection Status', value: connectionStatus, desc: `http://${form.serverIp}:${form.port}`, color: 'text-emerald-800 dark:text-emerald-300', countColor: 'text-emerald-950 dark:text-emerald-50', cardBg: 'bg-emerald-50/80 border-emerald-200/80 dark:bg-emerald-950/20 dark:border-emerald-900/30' },
-    { label: 'Last Sync', value: 'Today, 15:42', desc: 'Auto check every 5m', color: 'text-blue-800 dark:text-blue-300', countColor: 'text-blue-950 dark:text-blue-50', cardBg: 'bg-blue-50/80 border-blue-200/80 dark:bg-blue-950/20 dark:border-blue-900/30' },
-    { label: 'Masters Synced', value: '412 ledgers', desc: 'Sync health: 100%', color: 'text-purple-800 dark:text-purple-300', countColor: 'text-purple-950 dark:text-purple-50', cardBg: 'bg-purple-50/80 border-purple-200/80 dark:bg-purple-950/20 dark:border-purple-900/30' },
-    { label: 'Vouchers Synced', value: '4,289 entries', desc: 'Post success: 99.8%', color: 'text-indigo-800 dark:text-indigo-300', countColor: 'text-indigo-950 dark:text-indigo-50', cardBg: 'bg-indigo-50/80 border-indigo-200/80 dark:bg-indigo-950/20 dark:border-indigo-900/30' },
+    { label: 'Last Sync', value: 'Today, 15:42', desc: 'Auto check every 5m', color: 'text-[var(--app-accent)] dark:text-[var(--app-accent)]', countColor: 'text-[var(--app-accent)] dark:text-[var(--app-accent)]', cardBg: 'bg-[var(--app-accent-soft)] border-[var(--app-border)] dark:bg-[var(--app-accent-soft)] dark:border-[var(--app-border)]' },
+    { label: 'Masters Synced', value: '412 ledgers', desc: 'Sync health: 100%', color: 'text-[var(--app-accent)] dark:text-[var(--app-accent)]', countColor: 'text-[var(--app-accent)] dark:text-[var(--app-accent)]', cardBg: 'bg-[var(--app-accent-soft)] border-[var(--app-border)] dark:bg-[var(--app-accent-soft)] dark:border-[var(--app-border)]' },
+    { label: 'Vouchers Synced', value: '4,289 entries', desc: 'Post success: 99.8%', color: 'text-[var(--app-accent)] dark:text-[var(--app-accent)]', countColor: 'text-[var(--app-accent)] dark:text-[var(--app-accent)]', cardBg: 'bg-[var(--app-accent-soft)] border-[var(--app-border)] dark:bg-[var(--app-accent-soft)] dark:border-[var(--app-border)]' },
     { label: 'Failed Records', value: '1 failure', desc: 'Awaiting retry schedule', color: 'text-rose-800 dark:text-rose-300', countColor: 'text-rose-950 dark:text-rose-50', cardBg: 'bg-rose-50/80 border-rose-200/80 dark:bg-rose-950/20 dark:border-rose-900/30' }
   ];
 
@@ -108,7 +108,7 @@ export default function TallyConnectorPanel() {
         {/* Left Side: Configuration Form */}
         <div className="lg:col-span-5 flex flex-col border rounded-xl p-3 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shrink-0 shadow-sm">
           <h3 className="text-[14px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-300 border-b pb-2 mb-2.5 border-slate-200 dark:border-slate-800 flex items-center gap-1.5 shrink-0" style={{ backgroundColor: 'var(--app-table-head-bg)' }}>
-            <Plug size={13} className="text-blue-500" /> Tally ODBC Sync Settings
+            <Plug size={13} className="text-[var(--app-accent)]" /> Tally ODBC Sync Settings
           </h3>
 
           <form onSubmit={handleSave} className="space-y-2 flex-1">
@@ -175,7 +175,7 @@ export default function TallyConnectorPanel() {
                 type="checkbox"
                 checked={form.autoSync}
                 onChange={(e) => setForm(prev => ({ ...prev, autoSync: e.target.checked }))}
-                className="w-3.5 h-3.5 accent-blue-600 rounded cursor-pointer"
+                className="w-3.5 h-3.5 accent-[var(--app-accent)] rounded cursor-pointer"
               />
             </div>
 
@@ -197,7 +197,7 @@ export default function TallyConnectorPanel() {
                 type="button"
                 onClick={handleSyncNow}
                 disabled={isSyncing}
-                className="flex-1 py-1 text-[11px] uppercase font-bold rounded bg-blue-600 hover:bg-blue-700 text-white shadow flex items-center justify-center gap-1 transition-all disabled:opacity-60"
+                className="flex-1 py-1 text-[11px] uppercase font-bold rounded bg-[var(--app-accent)] hover:opacity-90 text-white shadow flex items-center justify-center gap-1 transition-all disabled:opacity-60"
               >
                 {isSyncing ? <RefreshCw className="animate-spin" size={11} /> : <Database size={11} />} Sync Now
               </button>
@@ -208,7 +208,7 @@ export default function TallyConnectorPanel() {
         {/* Right Side: Sync Logs Table */}
         <div className="lg:col-span-7 flex flex-col border rounded-xl overflow-hidden bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm">
           <h3 className="text-[14px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-300 border-b p-2.5 border-slate-200 dark:border-slate-800 flex items-center gap-1.5 shrink-0" style={{ backgroundColor: 'var(--app-table-head-bg)' }}>
-            <Terminal size={13} className="text-indigo-400" /> Connection Sync Logs
+            <Terminal size={13} className="text-[var(--app-accent)]" /> Connection Sync Logs
           </h3>
 
           <div className="overflow-auto themed-scrollbar flex-1">

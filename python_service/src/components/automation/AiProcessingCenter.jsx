@@ -479,7 +479,7 @@ function SimulatedInvoicePage({ doc, pageNum, viewType, zoom, pageRef }) {
                 )}
                 <div className="flex justify-between text-xs font-black border-t pt-2 border-slate-800 text-slate-900">
                   <span>GRAND TOTAL</span>
-                  <span className="font-mono text-blue-700 font-black text-sm">₹{(doc.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  <span className="font-mono text-[var(--app-accent)] font-black text-sm">₹{(doc.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                 </div>
               </div>
             </div>
@@ -1231,9 +1231,9 @@ export default function AiProcessingCenter() {
       return <FileSpreadsheet className="text-emerald-500 shrink-0" size={13} />;
     }
     if (fileType === 'image') {
-      return <Image className="text-blue-500 shrink-0" size={13} />;
+      return <Image className="text-[var(--app-accent)] shrink-0" size={13} />;
     }
-    return <FileText className="text-blue-500 shrink-0" size={13} />;
+    return <FileText className="text-[var(--app-accent)] shrink-0" size={13} />;
   };
 
   // Field change updates inside forms (persists to localStorage)
@@ -1433,13 +1433,13 @@ export default function AiProcessingCenter() {
   const getCategoryStyles = (cat) => {
     const stylesMap = {
       'Sales Invoice': 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/15 dark:text-emerald-400 dark:border-emerald-800',
-      'Purchase Invoice': 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/15 dark:text-blue-400 dark:border-blue-800',
+      'Purchase Invoice': 'bg-[var(--app-accent-soft)] text-[var(--app-accent)] border-[var(--app-border)] dark:bg-[var(--app-accent-soft)] dark:text-[var(--app-accent)] dark:border-[var(--app-border)]',
       'Payment': 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/15 dark:text-amber-400 dark:border-amber-800',
       'Receipt': 'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950/15 dark:text-teal-400 dark:border-teal-800',
       'Contra': 'bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-900/40 dark:text-slate-300 dark:border-slate-800',
-      'Credit Note': 'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/15 dark:text-sky-400 dark:border-sky-800',
+      'Credit Note': 'bg-[var(--app-accent-soft)] text-[var(--app-accent)] border-[var(--app-border)] dark:bg-[var(--app-accent-soft)] dark:text-[var(--app-accent)] dark:border-[var(--app-border)]',
       'Debit Note': 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/15 dark:text-red-400 dark:border-red-800',
-      'Bank Statement': 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/15 dark:text-indigo-400 dark:border-indigo-800'
+      'Bank Statement': 'bg-[var(--app-accent-soft)] text-[var(--app-accent)] border-[var(--app-border)] dark:bg-[var(--app-accent-soft)] dark:text-[var(--app-accent)] dark:border-[var(--app-border)]'
     };
     return stylesMap[cat] || 'bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:border-slate-800';
   };
@@ -1459,9 +1459,9 @@ export default function AiProcessingCenter() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-2 border-slate-200 dark:border-slate-800">
             <div>
               <h2 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-                <Brain className="text-blue-500" size={16} />
+                <Brain className="text-[var(--app-accent)]" size={16} />
                 <span>OCR Upload</span>
-                <span className="px-2 py-0.5 bg-blue-50 text-blue-700 dark:bg-blue-950/20 dark:text-blue-400 border border-blue-200 dark:border-blue-800/60 rounded text-[9.5px] font-extrabold uppercase">
+                <span className="px-2 py-0.5 bg-[var(--app-accent-soft)] text-[var(--app-accent)] dark:bg-[var(--app-accent-soft)] dark:text-[var(--app-accent)] border border-[var(--app-border)] dark:border-[var(--app-border)]/60 rounded text-[9.5px] font-extrabold uppercase">
                   Document Queue
                 </span>
               </h2>
@@ -1470,7 +1470,7 @@ export default function AiProcessingCenter() {
 
             <button
               onClick={() => setIsUploadModalOpen(true)}
-              className="h-8 px-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition flex items-center justify-center gap-1.5 font-bold shadow-xs text-[11px] cursor-pointer"
+              className="h-8 px-3 bg-[var(--app-accent)] hover:opacity-90 text-white rounded-lg transition flex items-center justify-center gap-1.5 font-bold shadow-xs text-[11px] cursor-pointer"
             >
               <UploadCloud size={13} />
               <span>Upload Documents</span>
@@ -1490,7 +1490,7 @@ export default function AiProcessingCenter() {
                   }}
                   className={`pb-1 text-[11px] font-bold tracking-wide whitespace-nowrap transition-all uppercase border-b-2 -mb-2 flex items-center gap-1.5 ${
                     isActive
-                      ? 'border-blue-600 text-blue-600 dark:border-blue-500 dark:text-blue-400 font-bold'
+                      ? 'border-[var(--app-accent)] text-[var(--app-accent)] dark:border-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold'
                       : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
                   }`}
                 >
@@ -1510,7 +1510,7 @@ export default function AiProcessingCenter() {
                   placeholder="Search document, party, invoice no..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full h-8 rounded-lg border pl-8 pr-8 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500 font-medium"
+                  className="w-full h-8 rounded-lg border pl-8 pr-8 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)] font-medium"
                 />
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
                 {searchQuery && (
@@ -1528,7 +1528,7 @@ export default function AiProcessingCenter() {
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500 font-bold"
+                  className="h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)] font-bold"
                 >
                   <option value="All">All Statuses</option>
                   <option value="Processing">Processing</option>
@@ -1546,8 +1546,8 @@ export default function AiProcessingCenter() {
               </span>
 
               {checkedWorkspaceIds.length > 0 && (
-                <div className="flex items-center gap-2 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 px-2 py-1 rounded-lg">
-                  <span className="text-[10px] font-bold text-blue-700 dark:text-blue-400 mr-2">{checkedWorkspaceIds.length} Selected</span>
+                <div className="flex items-center gap-2 bg-[var(--app-accent-soft)] dark:bg-[var(--app-accent-soft)] border border-[var(--app-border)] dark:border-[var(--app-border)] px-2 py-1 rounded-lg">
+                  <span className="text-[10px] font-bold text-[var(--app-accent)] dark:text-[var(--app-accent)] mr-2">{checkedWorkspaceIds.length} Selected</span>
 
                   <button
                     onClick={() => {
@@ -1608,7 +1608,7 @@ export default function AiProcessingCenter() {
                     <th className="py-2.5 px-3 w-10 text-center">
                       <input
                         type="checkbox"
-                        className="rounded border-slate-350 dark:border-slate-750 text-blue-600 cursor-pointer h-3.5 w-3.5"
+                        className="rounded border-slate-350 dark:border-slate-750 text-[var(--app-accent)] cursor-pointer h-3.5 w-3.5"
                         checked={paginatedDocs.length > 0 && paginatedDocs.every(d => checkedWorkspaceIds.includes(d.id))}
                         onChange={handleWorkspaceSelectAll}
                       />
@@ -1680,7 +1680,7 @@ export default function AiProcessingCenter() {
                           <td className="py-3 px-3 text-center" onClick={(e) => e.stopPropagation()}>
                             <input
                               type="checkbox"
-                              className="rounded border-slate-350 dark:border-slate-750 text-blue-600 cursor-pointer h-3.5 w-3.5"
+                              className="rounded border-slate-350 dark:border-slate-750 text-[var(--app-accent)] cursor-pointer h-3.5 w-3.5"
                               checked={isChecked}
                               onChange={() => handleWorkspaceSelectRow(doc.id)}
                             />
@@ -1710,7 +1710,7 @@ export default function AiProcessingCenter() {
                               doc.status === 'Approved' ? 'bg-green-50/70 border-green-200 text-green-700 dark:bg-green-950/20 dark:border-green-900 dark:text-green-400' :
                               doc.status === 'Rejected' ? 'bg-red-50/70 border-red-200 text-red-700 dark:bg-red-950/20 dark:border-red-900 dark:text-red-400' :
                               doc.status === 'Processing' ? 'bg-amber-50/70 border-amber-200 text-amber-700 dark:bg-amber-950/20 dark:border-amber-900 dark:text-amber-400 animate-pulse' :
-                              'bg-blue-50/70 border-blue-200 text-blue-700 dark:bg-blue-950/20 dark:border-blue-900 dark:text-blue-400'
+                              'bg-[var(--app-accent-soft)] border-[var(--app-border)] text-[var(--app-accent)] dark:bg-[var(--app-accent-soft)] dark:border-[var(--app-border)] dark:text-[var(--app-accent)]'
                             }`}>
                               {doc.status}
                             </span>
@@ -1721,7 +1721,7 @@ export default function AiProcessingCenter() {
                                 setActiveWorkspaceDocId(doc.id);
                                 setViewMode('review');
                               }}
-                              className="p-1 border border-slate-200 dark:border-slate-750 bg-white dark:bg-slate-850 hover:bg-slate-50 dark:hover:bg-slate-800 rounded text-blue-600 dark:text-blue-400 transition"
+                              className="p-1 border border-slate-200 dark:border-slate-750 bg-white dark:bg-slate-850 hover:bg-slate-50 dark:hover:bg-slate-800 rounded text-[var(--app-accent)] dark:text-[var(--app-accent)] transition"
                               title="Review Document"
                             >
                               <Eye size={12} />
@@ -1778,7 +1778,7 @@ export default function AiProcessingCenter() {
                     onClick={() => setCurrentPage(pageNum)}
                     className={`h-7 w-7 rounded flex items-center justify-center font-bold text-[10.5px] border transition ${
                       currentPage === pageNum
-                        ? 'bg-blue-600 border-blue-600 text-white shadow-3xs'
+                        ? 'bg-[var(--app-accent)] border-[var(--app-accent)] text-white shadow-3xs'
                         : 'bg-white dark:bg-slate-850 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50'
                     }`}
                   >
@@ -1824,7 +1824,7 @@ export default function AiProcessingCenter() {
                       activeDoc.status === 'Approved' ? 'bg-green-50/70 border-green-200 text-green-700 dark:bg-green-950/20 dark:border-green-900 dark:text-green-400' :
                       activeDoc.status === 'Rejected' ? 'bg-red-50/70 border-red-200 text-red-700 dark:bg-red-950/20 dark:border-red-900 dark:text-red-400' :
                       activeDoc.status === 'Processing' ? 'bg-amber-50/70 border-amber-200 text-amber-700 dark:bg-amber-950/20 dark:border-amber-900 dark:text-amber-400 animate-pulse' :
-                      'bg-blue-50/70 border-blue-200 text-blue-700 dark:bg-blue-950/20 dark:border-blue-900 dark:text-blue-400'
+                      'bg-[var(--app-accent-soft)] border-[var(--app-border)] text-[var(--app-accent)] dark:bg-[var(--app-accent-soft)] dark:border-[var(--app-border)] dark:text-[var(--app-accent)]'
                     }`}>
                       {activeDoc.status}
                     </span>
@@ -1895,7 +1895,7 @@ export default function AiProcessingCenter() {
 
                 <button
                   onClick={handleActionPushToTally}
-                  className="h-8.5 px-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition flex items-center gap-1.5 font-bold shadow-xs text-[11px]"
+                  className="h-8.5 px-3.5 bg-[var(--app-accent)] hover:opacity-90 text-white rounded-lg transition flex items-center gap-1.5 font-bold shadow-xs text-[11px]"
                 >
                   <Send size={13} />
                   <span>Push to Tally</span>
@@ -1909,7 +1909,7 @@ export default function AiProcessingCenter() {
                 onClick={() => setActiveMobileTab('viewer')}
                 className={`flex-1 py-1.5 text-center font-bold rounded-lg text-xs transition ${
                   activeMobileTab === 'viewer'
-                    ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-3xs'
+                    ? 'bg-white dark:bg-slate-800 text-[var(--app-accent)] dark:text-[var(--app-accent)] shadow-3xs'
                     : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
                 }`}
               >
@@ -1919,7 +1919,7 @@ export default function AiProcessingCenter() {
                 onClick={() => setActiveMobileTab('form')}
                 className={`flex-1 py-1.5 text-center font-bold rounded-lg text-xs transition ${
                   activeMobileTab === 'form'
-                    ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-3xs'
+                    ? 'bg-white dark:bg-slate-800 text-[var(--app-accent)] dark:text-[var(--app-accent)] shadow-3xs'
                     : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
                 }`}
               >
@@ -2057,7 +2057,7 @@ export default function AiProcessingCenter() {
               {/* --- RESIZABLE DRAG SPLITTER (Tablet Resizing) --- */}
               <div
                 onMouseDown={handleMouseDown}
-                className="hidden md:block w-1.5 shrink-0 bg-slate-200 dark:bg-slate-800 hover:bg-blue-500 dark:hover:bg-blue-600 cursor-col-resize select-none transition-colors duration-150 h-full relative z-30"
+                className="hidden md:block w-1.5 shrink-0 bg-slate-200 dark:bg-slate-800 hover:bg-[var(--app-accent)] dark:hover:opacity-90 cursor-col-resize select-none transition-colors duration-150 h-full relative z-30"
               />
               <div
                 className="flex flex-col bg-white dark:bg-slate-900 p-4 flex-grow overflow-hidden relative z-10"
@@ -2093,7 +2093,7 @@ export default function AiProcessingCenter() {
                               type="text"
                               value={activeDoc.docNo || ''}
                               onChange={(e) => handleFieldChange('docNo', e.target.value)}
-                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500 font-bold"
+                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)] font-bold"
                             />
                           </div>
                           <div>
@@ -2102,7 +2102,7 @@ export default function AiProcessingCenter() {
                               type="text"
                               value={activeDoc.refNo || ''}
                               onChange={(e) => handleFieldChange('refNo', e.target.value)}
-                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
                             />
                           </div>
                         </div>
@@ -2115,7 +2115,7 @@ export default function AiProcessingCenter() {
                                 type="text"
                                 value={activeDoc.docDate || ''}
                                 onChange={(e) => handleFieldChange('docDate', e.target.value)}
-                                className="w-full h-8 rounded-lg border px-3 pr-8 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                                className="w-full h-8 rounded-lg border px-3 pr-8 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
                               />
                               <Calendar className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
                             </div>
@@ -2127,7 +2127,7 @@ export default function AiProcessingCenter() {
                                 type="text"
                                 value={activeDoc.dueDate || ''}
                                 onChange={(e) => handleFieldChange('dueDate', e.target.value)}
-                                className="w-full h-8 rounded-lg border px-3 pr-8 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                                className="w-full h-8 rounded-lg border px-3 pr-8 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
                               />
                               <Calendar className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
                             </div>
@@ -2141,7 +2141,7 @@ export default function AiProcessingCenter() {
                               <select
                                 value={activeDoc.partyLedger || ''}
                                 onChange={(e) => handleFieldChange('partyLedger', e.target.value)}
-                                className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500 font-bold"
+                                className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)] font-bold"
                               >
                                 <option value="ABC Traders (Sundry Debtors)">ABC Traders (Sundry Debtors)</option>
                                 <option value="XYZ Enterprises (Sundry Debtors)">XYZ Enterprises (Sundry Debtors)</option>
@@ -2158,7 +2158,7 @@ export default function AiProcessingCenter() {
                               <select
                                 value={activeDoc.salesLedger || ''}
                                 onChange={(e) => handleFieldChange('salesLedger', e.target.value)}
-                                className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500 font-bold"
+                                className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)] font-bold"
                               >
                                 <option value="Sales (18%)">Sales (18%)</option>
                                 <option value="Sales Return">Sales Return</option>
@@ -2179,7 +2179,7 @@ export default function AiProcessingCenter() {
                                 type="text"
                                 value={activeDoc.gstin || ''}
                                 onChange={(e) => handleFieldChange('gstin', e.target.value)}
-                                className="w-full h-8 rounded-lg border pl-3 pr-14 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500 font-mono font-bold"
+                                className="w-full h-8 rounded-lg border pl-3 pr-14 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)] font-mono font-bold"
                               />
                               <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 px-1.5 py-0.2 rounded border border-emerald-100/50">
                                 ✓ Valid
@@ -2192,7 +2192,7 @@ export default function AiProcessingCenter() {
                               type="text"
                               value={activeDoc.currency || 'INR'}
                               onChange={(e) => handleFieldChange('currency', e.target.value)}
-                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
                             />
                           </div>
                         </div>
@@ -2203,7 +2203,7 @@ export default function AiProcessingCenter() {
                             <select
                               value={activeDoc.placeOfSupply || ''}
                               onChange={(e) => handleFieldChange('placeOfSupply', e.target.value)}
-                              className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                              className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
                             >
                               <option value="Madhya Pradesh (23)">Madhya Pradesh (23)</option>
                               <option value="Maharashtra (27)">Maharashtra (27)</option>
@@ -2216,7 +2216,7 @@ export default function AiProcessingCenter() {
                               type="text"
                               value={activeDoc.narration || ''}
                               onChange={(e) => handleFieldChange('narration', e.target.value)}
-                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
                             />
                           </div>
                         </div>
@@ -2233,7 +2233,7 @@ export default function AiProcessingCenter() {
                               type="text"
                               value={activeDoc.docNo || ''}
                               onChange={(e) => handleFieldChange('docNo', e.target.value)}
-                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500 font-bold"
+                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)] font-bold"
                             />
                           </div>
                           <div>
@@ -2242,7 +2242,7 @@ export default function AiProcessingCenter() {
                               type="text"
                               value={activeDoc.refNo || ''}
                               onChange={(e) => handleFieldChange('refNo', e.target.value)}
-                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
                             />
                           </div>
                         </div>
@@ -2255,7 +2255,7 @@ export default function AiProcessingCenter() {
                                 type="text"
                                 value={activeDoc.docDate || ''}
                                 onChange={(e) => handleFieldChange('docDate', e.target.value)}
-                                className="w-full h-8 rounded-lg border px-3 pr-8 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                                className="w-full h-8 rounded-lg border px-3 pr-8 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
                               />
                               <Calendar className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
                             </div>
@@ -2267,7 +2267,7 @@ export default function AiProcessingCenter() {
                                 type="text"
                                 value={activeDoc.dueDate || ''}
                                 onChange={(e) => handleFieldChange('dueDate', e.target.value)}
-                                className="w-full h-8 rounded-lg border px-3 pr-8 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                                className="w-full h-8 rounded-lg border px-3 pr-8 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
                               />
                               <Calendar className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
                             </div>
@@ -2281,7 +2281,7 @@ export default function AiProcessingCenter() {
                               <select
                                 value={activeDoc.partyLedger || ''}
                                 onChange={(e) => handleFieldChange('partyLedger', e.target.value)}
-                                className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500 font-bold"
+                                className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)] font-bold"
                               >
                                 <option value="PQR Solutions (Sundry Creditors)">PQR Solutions (Sundry Creditors)</option>
                                 <option value="ABC Traders (Sundry Creditors)">ABC Traders (Sundry Creditors)</option>
@@ -2298,7 +2298,7 @@ export default function AiProcessingCenter() {
                               <select
                                 value={activeDoc.purchaseLedger || ''}
                                 onChange={(e) => handleFieldChange('purchaseLedger', e.target.value)}
-                                className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500 font-bold"
+                                className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)] font-bold"
                               >
                                 <option value="Purchase (18%)">Purchase (18%)</option>
                                 <option value="Purchase Return">Purchase Return</option>
@@ -2318,7 +2318,7 @@ export default function AiProcessingCenter() {
                               type="text"
                               value={activeDoc.gstin || ''}
                               onChange={(e) => handleFieldChange('gstin', e.target.value)}
-                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500 font-mono font-bold"
+                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)] font-mono font-bold"
                             />
                           </div>
                           <div>
@@ -2327,7 +2327,7 @@ export default function AiProcessingCenter() {
                               type="text"
                               value={activeDoc.currency || 'INR'}
                               onChange={(e) => handleFieldChange('currency', e.target.value)}
-                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
                             />
                           </div>
                         </div>
@@ -2338,7 +2338,7 @@ export default function AiProcessingCenter() {
                             type="text"
                             value={activeDoc.narration || ''}
                             onChange={(e) => handleFieldChange('narration', e.target.value)}
-                            className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                            className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
                           />
                         </div>
                       </div>
@@ -2354,7 +2354,7 @@ export default function AiProcessingCenter() {
                               type="text"
                               value={activeDoc.docNo || ''}
                               onChange={(e) => handleFieldChange('docNo', e.target.value)}
-                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500 font-bold"
+                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)] font-bold"
                             />
                           </div>
                           <div>
@@ -2363,7 +2363,7 @@ export default function AiProcessingCenter() {
                               type="text"
                               value={activeDoc.refNo || ''}
                               onChange={(e) => handleFieldChange('refNo', e.target.value)}
-                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500 font-mono"
+                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)] font-mono"
                             />
                           </div>
                         </div>
@@ -2376,7 +2376,7 @@ export default function AiProcessingCenter() {
                                 type="text"
                                 value={activeDoc.docDate || ''}
                                 onChange={(e) => handleFieldChange('docDate', e.target.value)}
-                                className="w-full h-8 rounded-lg border px-3 pr-8 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                                className="w-full h-8 rounded-lg border px-3 pr-8 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
                               />
                               <Calendar className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
                             </div>
@@ -2387,7 +2387,7 @@ export default function AiProcessingCenter() {
                               type="text"
                               value={activeDoc.currency || 'INR'}
                               onChange={(e) => handleFieldChange('currency', e.target.value)}
-                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
                             />
                           </div>
                         </div>
@@ -2398,7 +2398,7 @@ export default function AiProcessingCenter() {
                             <select
                               value={activeDoc.partyLedger || ''}
                               onChange={(e) => handleFieldChange('partyLedger', e.target.value)}
-                              className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500 font-bold"
+                              className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)] font-bold"
                             >
                               <option value="ABC Traders (Sundry Creditors)">ABC Traders (Sundry Creditors)</option>
                               <option value="LMN Industries (Sundry Debtors)">LMN Industries (Sundry Debtors)</option>
@@ -2410,7 +2410,7 @@ export default function AiProcessingCenter() {
                             <select
                               value={activeDoc.bankLedger || ''}
                               onChange={(e) => handleFieldChange('bankLedger', e.target.value)}
-                              className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500 font-bold"
+                              className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)] font-bold"
                             >
                               <option value="HDFC Bank A/c">HDFC Bank A/c</option>
                               <option value="SBI Bank A/c">SBI Bank A/c</option>
@@ -2426,7 +2426,7 @@ export default function AiProcessingCenter() {
                               type="number"
                               value={activeDoc.amount || 0}
                               onChange={(e) => handleFieldChange('amount', parseFloat(e.target.value) || 0)}
-                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500 font-bold"
+                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)] font-bold"
                             />
                           </div>
                           <div>
@@ -2435,7 +2435,7 @@ export default function AiProcessingCenter() {
                               type="text"
                               value={activeDoc.narration || ''}
                               onChange={(e) => handleFieldChange('narration', e.target.value)}
-                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
                             />
                           </div>
                         </div>
@@ -2452,7 +2452,7 @@ export default function AiProcessingCenter() {
                               type="text"
                               value={activeDoc.docNo || ''}
                               onChange={(e) => handleFieldChange('docNo', e.target.value)}
-                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500 font-bold"
+                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)] font-bold"
                             />
                           </div>
                           <div>
@@ -2462,7 +2462,7 @@ export default function AiProcessingCenter() {
                                 type="text"
                                 value={activeDoc.docDate || ''}
                                 onChange={(e) => handleFieldChange('docDate', e.target.value)}
-                                className="w-full h-8 rounded-lg border px-3 pr-8 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                                className="w-full h-8 rounded-lg border px-3 pr-8 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
                               />
                               <Calendar className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
                             </div>
@@ -2475,7 +2475,7 @@ export default function AiProcessingCenter() {
                             <select
                               value={activeDoc.fromLedger || ''}
                               onChange={(e) => handleFieldChange('fromLedger', e.target.value)}
-                              className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500 font-bold"
+                              className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)] font-bold"
                             >
                               <option value="Cash A/c">Cash A/c</option>
                               <option value="State Bank of India">State Bank of India</option>
@@ -2487,7 +2487,7 @@ export default function AiProcessingCenter() {
                             <select
                               value={activeDoc.toLedger || ''}
                               onChange={(e) => handleFieldChange('toLedger', e.target.value)}
-                              className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500 font-bold"
+                              className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)] font-bold"
                             >
                               <option value="State Bank of India">State Bank of India</option>
                               <option value="Cash A/c">Cash A/c</option>
@@ -2503,7 +2503,7 @@ export default function AiProcessingCenter() {
                               type="number"
                               value={activeDoc.amount || 0}
                               onChange={(e) => handleFieldChange('amount', parseFloat(e.target.value) || 0)}
-                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500 font-bold"
+                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)] font-bold"
                             />
                           </div>
                           <div>
@@ -2512,7 +2512,7 @@ export default function AiProcessingCenter() {
                               type="text"
                               value={activeDoc.narration || ''}
                               onChange={(e) => handleFieldChange('narration', e.target.value)}
-                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
                             />
                           </div>
                         </div>
@@ -2529,7 +2529,7 @@ export default function AiProcessingCenter() {
                               type="text"
                               value={activeDoc.vendor || ''}
                               onChange={(e) => handleFieldChange('vendor', e.target.value)}
-                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/45 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/45 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
                             />
                           </div>
                           <div>
@@ -2539,7 +2539,7 @@ export default function AiProcessingCenter() {
                                 type="text"
                                 value={activeDoc.docDate || ''}
                                 onChange={(e) => handleFieldChange('docDate', e.target.value)}
-                                className="w-full h-8 rounded-lg border px-3 pr-8 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                                className="w-full h-8 rounded-lg border px-3 pr-8 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
                               />
                               <Calendar className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
                             </div>
@@ -2552,7 +2552,7 @@ export default function AiProcessingCenter() {
                             type="text"
                             value={activeDoc.narration || ''}
                             onChange={(e) => handleFieldChange('narration', e.target.value)}
-                            className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                            className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)]"
                           />
                         </div>
                       </div>
@@ -2698,7 +2698,7 @@ export default function AiProcessingCenter() {
                           <button
                             type="button"
                             onClick={activeDoc.category === 'Bank Statement' ? handleAddBankTransaction : handleAddItem}
-                            className="px-2.5 py-1 border border-slate-200 dark:border-slate-850 text-[10px] font-bold text-blue-600 hover:bg-slate-50 dark:hover:bg-slate-800 rounded flex items-center gap-1 shadow-3xs bg-white dark:bg-slate-900"
+                            className="px-2.5 py-1 border border-slate-200 dark:border-slate-850 text-[10px] font-bold text-[var(--app-accent)] hover:bg-slate-50 dark:hover:bg-slate-800 rounded flex items-center gap-1 shadow-3xs bg-white dark:bg-slate-900"
                           >
                             <Plus size={11} />
                             <span>Add Row</span>
@@ -2746,7 +2746,7 @@ export default function AiProcessingCenter() {
                           </div>
                           <div className="flex justify-between items-center text-sm font-bold border-t pt-1.5 border-slate-800 text-slate-950 dark:text-white">
                             <span>Grand Total</span>
-                            <span className="text-blue-600 dark:text-blue-400 font-black font-mono">
+                            <span className="text-[var(--app-accent)] dark:text-[var(--app-accent)] font-black font-mono">
                               ₹ {(activeDoc.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                             </span>
                           </div>
@@ -2805,7 +2805,7 @@ export default function AiProcessingCenter() {
               </p>
               <button
                 onClick={() => setIsUploadModalOpen(true)}
-                className="mt-4 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-xs cursor-pointer"
+                className="mt-4 px-3 py-1.5 bg-[var(--app-accent)] hover:opacity-90 text-white font-bold rounded-lg text-xs cursor-pointer"
               >
                 Upload Documents
               </button>
@@ -2841,7 +2841,7 @@ export default function AiProcessingCenter() {
               {/* Header */}
               <div className="px-4 py-3 border-b border-slate-150 dark:border-slate-850 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <UploadCloud size={16} className="text-blue-500" />
+                  <UploadCloud size={16} className="text-[var(--app-accent)]" />
                   <h3 className="text-xs font-bold uppercase tracking-wider">Upload Documents for AI OCR</h3>
                 </div>
                 <button
@@ -2863,7 +2863,7 @@ export default function AiProcessingCenter() {
                   <select
                     value={uploadCategory}
                     onChange={(e) => setUploadCategory(e.target.value)}
-                    className="w-full h-8 rounded-lg border border-slate-200 dark:border-slate-800 px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-bold focus:border-blue-500"
+                    className="w-full h-8 rounded-lg border border-slate-200 dark:border-slate-800 px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-bold focus:border-[var(--app-accent)]"
                   >
                     <option value="Sales Invoice">Sales Invoice</option>
                     <option value="Purchase Invoice">Purchase Invoice</option>
@@ -2880,10 +2880,10 @@ export default function AiProcessingCenter() {
                   <label className="text-[10px] font-bold text-slate-500 mb-1.5 block uppercase">Select Files</label>
                   <div
                     onClick={() => document.getElementById('popup-file-input').click()}
-                    className="border-2 border-dashed border-slate-200 dark:border-slate-800 hover:border-blue-500 dark:hover:border-blue-600 rounded-xl p-6 flex flex-col items-center justify-center gap-2 bg-slate-50/50 dark:bg-slate-950/20 cursor-pointer transition"
+                    className="border-2 border-dashed border-slate-200 dark:border-slate-800 hover:border-[var(--app-accent)] dark:hover:border-[var(--app-accent)] rounded-xl p-6 flex flex-col items-center justify-center gap-2 bg-slate-50/50 dark:bg-slate-950/20 cursor-pointer transition"
                   >
                     <UploadCloud size={24} className="text-slate-400 dark:text-slate-600" />
-                    <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400">Drag & Drop files here, or <span className="text-blue-500">Browse</span></span>
+                    <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400">Drag & Drop files here, or <span className="text-[var(--app-accent)]">Browse</span></span>
                     <span className="text-[9px] text-slate-400">Supports PDF, PNG, JPG, JPEG (Max 25MB)</span>
                     <input
                       id="popup-file-input"
@@ -2907,7 +2907,7 @@ export default function AiProcessingCenter() {
                     {uploadFiles.map((file, i) => (
                       <div key={i} className="flex items-center justify-between bg-slate-50 dark:bg-slate-955/40 p-2 rounded-lg border border-slate-200/50 dark:border-slate-850">
                         <div className="flex items-center gap-2 min-w-0">
-                          <FileText size={13} className="text-blue-500 shrink-0" />
+                          <FileText size={13} className="text-[var(--app-accent)] shrink-0" />
                           <span className="text-[10.5px] font-bold truncate text-slate-700 dark:text-slate-300">{file.name}</span>
                         </div>
                         <span className="text-[9px] font-mono text-slate-400">{(file.size / 1024).toFixed(0)} KB</span>
@@ -2931,7 +2931,7 @@ export default function AiProcessingCenter() {
                 <button
                   disabled={uploadFiles.length === 0}
                   onClick={handleUploadAndProcess}
-                  className="h-8 px-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+                  className="h-8 px-3.5 bg-[var(--app-accent)] hover:opacity-90 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
                 >
                   <PlayCircle size={13} />
                   <span>Start AI Processing</span>

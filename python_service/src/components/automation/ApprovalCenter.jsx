@@ -21,7 +21,7 @@ const statusTextColors = {
   'High Risk': 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-rose-900/40',
   'Approved': 'bg-emerald-50 text-emerald-700 border-emerald-250 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-rose-900/40',
   'Rejected': 'bg-rose-50 text-rose-705 border-rose-250 dark:bg-rose-900/20 dark:text-rose-450 dark:border-rose-900/40',
-  'Synced': 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-900/40',
+  'Synced': 'bg-[var(--app-accent-soft)] text-[var(--app-accent)] border-[var(--app-border)] dark:bg-[var(--app-accent-soft)] dark:text-[var(--app-accent)] dark:border-[var(--app-border)]',
   'Pending Approval': 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-955/15 dark:text-amber-400 dark:border-amber-800'
 };
 
@@ -800,7 +800,7 @@ export default function ApprovalCenter() {
                 handleSyncTally(entry.id);
                 setCurrentView('list');
               }}
-              className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-lg flex items-center gap-1 transition-all text-[11px]"
+              className="px-3 py-1 bg-[var(--app-accent)] hover:opacity-90 text-white font-extrabold rounded-lg flex items-center gap-1 transition-all text-[11px]"
             >
               <UploadCloud size={12} /> Post to Tally
             </button>
@@ -813,7 +813,7 @@ export default function ApprovalCenter() {
                 handleSyncTally(entry.id);
                 setCurrentView('list');
               }}
-              className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-lg flex items-center gap-1 transition-all text-[11px]"
+              className="px-3 py-1 bg-[var(--app-accent)] hover:opacity-90 text-white font-extrabold rounded-lg flex items-center gap-1 transition-all text-[11px]"
             >
               <UploadCloud size={12} /> Approve & Push to Tally
             </button>
@@ -865,7 +865,7 @@ export default function ApprovalCenter() {
           <div className="space-y-0.5 min-w-0">
             <div className="flex items-center gap-1.5">
               <h2 className="text-md font-extrabold text-slate-900 dark:text-white leading-none tracking-tight">{selectedEntry.voucherNumber}</h2>
-              <span className={`px-1.5 py-0.25 rounded border text-[9px] font-semibold bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/20 dark:text-purple-400 dark:border-purple-900/40`}>{type}</span>
+              <span className={`px-1.5 py-0.25 rounded border text-[9px] font-semibold bg-[var(--app-accent-soft)] text-[var(--app-accent)] border-[var(--app-border)] dark:bg-[var(--app-accent-soft)] dark:text-[var(--app-accent)] dark:border-[var(--app-border)]`}>{type}</span>
               <span className={`px-1.5 py-0.25 rounded border text-[9px] font-semibold ${statusTextColors[selectedEntry.statusText] || 'bg-slate-50 text-slate-700 border-slate-200'}`}>{selectedEntry.statusText}</span>
             </div>
             <p className="text-[10px] text-slate-400">
@@ -1011,7 +1011,7 @@ export default function ApprovalCenter() {
           <div className="space-y-0.5 min-w-0">
             <div className="flex items-center gap-1.5">
               <h2 className="text-md font-extrabold text-slate-900 dark:text-white leading-none tracking-tight">{batch.id}</h2>
-              <span className="px-1.5 py-0.25 rounded border border-blue-200 text-blue-700 bg-blue-50 dark:bg-blue-955/20 dark:text-blue-400 dark:border-blue-900/40 text-[9px] font-semibold">Bulk Upload</span>
+              <span className="px-1.5 py-0.25 rounded border border-[var(--app-border)] text-[var(--app-accent)] bg-[var(--app-accent-soft)] dark:bg-[var(--app-accent-soft)] dark:text-[var(--app-accent)] dark:border-[var(--app-border)] text-[9px] font-semibold">Bulk Upload</span>
               <span className={`px-1.5 py-0.25 rounded border text-[9px] font-semibold ${statusTextColors[batchEntry.statusText] || 'bg-slate-55 border-slate-200 text-slate-700'}`}>{batchEntry.statusText}</span>
             </div>
             <p className="text-[10px] text-slate-400">
@@ -1096,7 +1096,7 @@ export default function ApprovalCenter() {
           <div className="space-y-0.5 min-w-0">
             <div className="flex items-center gap-1.5">
               <h2 className="text-md font-extrabold text-slate-900 dark:text-white leading-none tracking-tight">{docEntry.voucherNumber}</h2>
-              <span className="px-1.5 py-0.25 rounded border border-purple-200 text-purple-700 bg-purple-50 dark:bg-purple-955/20 dark:text-purple-400 dark:border-purple-900/40 text-[9px] font-semibold">{docEntry.type}</span>
+              <span className="px-1.5 py-0.25 rounded border border-[var(--app-border)] text-[var(--app-accent)] bg-[var(--app-accent-soft)] dark:bg-[var(--app-accent-soft)] dark:text-[var(--app-accent)] dark:border-[var(--app-border)] text-[9px] font-semibold">{docEntry.type}</span>
               <span className={`px-1.5 py-0.25 rounded border text-[9px] font-semibold ${statusTextColors[docEntry.statusText] || 'bg-slate-55 border-slate-200 text-slate-750'}`}>{docEntry.statusText}</span>
             </div>
             <p className="text-[10px] text-slate-400">
@@ -1130,7 +1130,7 @@ export default function ApprovalCenter() {
                       <p className="text-slate-400 text-[7.5px]">Place of Supply: Madhya Pradesh</p>
                     </div>
                     <div className="text-right">
-                      <p className="font-black text-[10px] text-purple-700 leading-none uppercase tracking-wider">TAX INVOICE</p>
+                      <p className="font-black text-[10px] text-[var(--app-accent)] leading-none uppercase tracking-wider">TAX INVOICE</p>
                       <p className="text-slate-550 font-mono text-[7.5px] mt-0.5 font-bold">Ref: #{doc.docNo || 'INV-001'}</p>
                       <p className="text-slate-550 font-mono text-[7.5px] font-bold">Date: {doc.docDate || '19-06-2026'}</p>
                     </div>
@@ -1185,16 +1185,16 @@ export default function ApprovalCenter() {
                     </div>
                     <div className="flex justify-between pl-24 pt-0.5 border-t border-slate-150 text-[10px] font-extrabold text-slate-800 dark:text-white">
                       <span>GRAND TOTAL</span>
-                      <span className="text-purple-700 dark:text-purple-400 font-black">₹{(doc.amount || 0).toLocaleString('en-IN')}</span>
+                      <span className="text-[var(--app-accent)] dark:text-[var(--app-accent)] font-black">₹{(doc.amount || 0).toLocaleString('en-IN')}</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Floating zoom control toolbar */}
                 <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-slate-900/95 border border-slate-805 px-2.5 py-0.5 rounded-md flex items-center gap-3 text-white shadow-md z-10 text-[9px]">
-                  <button onClick={() => toast.success('Zoom Out')} className="hover:text-purple-400 transition-colors"><ZoomOut size={11} /></button>
-                  <button onClick={() => toast.success('Zoom In')} className="hover:text-purple-400 transition-colors"><ZoomIn size={11} /></button>
-                  <button onClick={() => toast.success('Toggle Maximize')} className="hover:text-purple-400 transition-colors"><Maximize2 size={10} /></button>
+                  <button onClick={() => toast.success('Zoom Out')} className="hover:text-[var(--app-accent)] transition-colors"><ZoomOut size={11} /></button>
+                  <button onClick={() => toast.success('Zoom In')} className="hover:text-[var(--app-accent)] transition-colors"><ZoomIn size={11} /></button>
+                  <button onClick={() => toast.success('Toggle Maximize')} className="hover:text-[var(--app-accent)] transition-colors"><Maximize2 size={10} /></button>
                 </div>
               </div>
             </div>
@@ -1213,7 +1213,7 @@ export default function ApprovalCenter() {
                       type="text" 
                       value={ocrForm.vendor}
                       onChange={(e) => setOcrForm({...ocrForm, vendor: e.target.value})}
-                      className="w-full px-2 py-1 border rounded-lg outline-none bg-slate-50 dark:bg-slate-950 text-slate-850 dark:text-slate-100 border-slate-200 dark:border-slate-805 focus:border-purple-500 transition-all font-bold text-[11px]"
+                      className="w-full px-2 py-1 border rounded-lg outline-none bg-slate-50 dark:bg-slate-950 text-slate-850 dark:text-slate-100 border-slate-200 dark:border-slate-805 focus:border-[var(--app-accent)] transition-all font-bold text-[11px]"
                     />
                   </div>
 
@@ -1223,7 +1223,7 @@ export default function ApprovalCenter() {
                       type="text" 
                       value={ocrForm.docNo}
                       onChange={(e) => setOcrForm({...ocrForm, docNo: e.target.value})}
-                      className="w-full px-2 py-1 border rounded-lg outline-none bg-slate-50 dark:bg-slate-950 text-slate-850 dark:text-slate-100 border-slate-200 dark:border-slate-805 focus:border-purple-500 transition-all font-mono font-bold text-[11px]"
+                      className="w-full px-2 py-1 border rounded-lg outline-none bg-slate-50 dark:bg-slate-950 text-slate-850 dark:text-slate-100 border-slate-200 dark:border-slate-805 focus:border-[var(--app-accent)] transition-all font-mono font-bold text-[11px]"
                     />
                   </div>
 
@@ -1233,7 +1233,7 @@ export default function ApprovalCenter() {
                       type="text" 
                       value={ocrForm.docDate}
                       onChange={(e) => setOcrForm({...ocrForm, docDate: e.target.value})}
-                      className="w-full px-2 py-1 border rounded-lg outline-none bg-slate-50 dark:bg-slate-950 text-slate-850 dark:text-slate-100 border-slate-200 dark:border-slate-805 focus:border-purple-500 transition-all font-bold text-[11px]"
+                      className="w-full px-2 py-1 border rounded-lg outline-none bg-slate-50 dark:bg-slate-950 text-slate-850 dark:text-slate-100 border-slate-200 dark:border-slate-805 focus:border-[var(--app-accent)] transition-all font-bold text-[11px]"
                     />
                   </div>
 
@@ -1243,7 +1243,7 @@ export default function ApprovalCenter() {
                       type="text" 
                       value={ocrForm.gstin}
                       onChange={(e) => setOcrForm({...ocrForm, gstin: e.target.value})}
-                      className="w-full px-2 py-1 border rounded-lg outline-none bg-slate-50 dark:bg-slate-950 text-slate-850 dark:text-slate-100 border-slate-200 dark:border-slate-805 focus:border-purple-500 transition-all font-mono font-bold text-[11px]"
+                      className="w-full px-2 py-1 border rounded-lg outline-none bg-slate-50 dark:bg-slate-950 text-slate-850 dark:text-slate-100 border-slate-200 dark:border-slate-805 focus:border-[var(--app-accent)] transition-all font-mono font-bold text-[11px]"
                     />
                   </div>
 
@@ -1253,7 +1253,7 @@ export default function ApprovalCenter() {
                       type="number" 
                       value={ocrForm.amount}
                       onChange={(e) => setOcrForm({...ocrForm, amount: e.target.value})}
-                      className="w-full px-2 py-1 border rounded-lg outline-none bg-slate-50 dark:bg-slate-950 text-slate-850 dark:text-slate-100 border-slate-200 dark:border-slate-805 focus:border-purple-500 transition-all font-bold text-emerald-600 text-[11px]"
+                      className="w-full px-2 py-1 border rounded-lg outline-none bg-slate-50 dark:bg-slate-950 text-slate-850 dark:text-slate-100 border-slate-200 dark:border-slate-805 focus:border-[var(--app-accent)] transition-all font-bold text-emerald-600 text-[11px]"
                     />
                   </div>
 
@@ -1263,7 +1263,7 @@ export default function ApprovalCenter() {
                       type="text" 
                       value={ocrForm.partyLedger}
                       onChange={(e) => setOcrForm({...ocrForm, partyLedger: e.target.value})}
-                      className="w-full px-2 py-1 border rounded-lg outline-none bg-slate-50 dark:bg-slate-950 text-slate-850 dark:text-slate-100 border-slate-200 dark:border-slate-805 focus:border-purple-500 transition-all font-bold text-blue-600 text-[11px]"
+                      className="w-full px-2 py-1 border rounded-lg outline-none bg-slate-50 dark:bg-slate-950 text-slate-850 dark:text-slate-100 border-slate-200 dark:border-slate-805 focus:border-[var(--app-accent)] transition-all font-bold text-[var(--app-accent)] text-[11px]"
                     />
                   </div>
 
@@ -1272,7 +1272,7 @@ export default function ApprovalCenter() {
                     <textarea 
                       value={ocrForm.narration}
                       onChange={(e) => setOcrForm({...ocrForm, narration: e.target.value})}
-                      className="w-full h-12 px-2 py-1 border rounded-lg outline-none bg-slate-50 dark:bg-slate-950 text-slate-850 dark:text-slate-100 border-slate-200 dark:border-slate-805 focus:border-purple-500 transition-all font-bold text-[11px]"
+                      className="w-full h-12 px-2 py-1 border rounded-lg outline-none bg-slate-50 dark:bg-slate-950 text-slate-850 dark:text-slate-100 border-slate-200 dark:border-slate-805 focus:border-[var(--app-accent)] transition-all font-bold text-[11px]"
                     />
                   </div>
                 </div>
@@ -1281,7 +1281,7 @@ export default function ApprovalCenter() {
               <div className="border-t border-slate-100 dark:border-slate-800 pt-1.5 mt-1.5 flex justify-end">
                 <button 
                   onClick={handleSaveOcrForm}
-                  className="px-3 py-1 bg-purple-650 hover:bg-purple-700 text-white font-extrabold rounded-lg flex items-center gap-1 text-[11px] transition-all shadow-sm"
+                  className="px-3 py-1 bg-[var(--app-accent)] hover:opacity-90 text-white font-extrabold rounded-lg flex items-center gap-1 text-[11px] transition-all shadow-sm"
                 >
                   <Sparkles size={12} /> Save Changes
                 </button>
@@ -1317,7 +1317,7 @@ export default function ApprovalCenter() {
         {/* Title Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between pb-1.5 shrink-0 gap-1.5">
           <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400">
+            <div className="p-1.5 rounded-lg bg-[var(--app-accent-soft)] dark:bg-[var(--app-accent-soft)] text-[var(--app-accent)] dark:text-[var(--app-accent)]">
               <CheckCircle2 size={16} />
             </div>
             <div>
@@ -1351,11 +1351,11 @@ export default function ApprovalCenter() {
                 }}
                 className={`flex items-center gap-2 px-3 py-1 rounded-lg border text-left min-w-[150px] shrink-0 transition-all duration-200 ${
                   isSelected
-                    ? 'bg-blue-600/10 dark:bg-blue-600/5 border-blue-500/50 text-blue-700 dark:text-blue-400 shadow-sm font-extrabold scale-[1.01]'
+                    ? 'bg-[var(--app-accent-soft)] dark:bg-[var(--app-accent-soft)] border-[var(--app-accent)] text-[var(--app-accent)] dark:text-[var(--app-accent)] shadow-sm font-extrabold scale-[1.01]'
                     : 'bg-white hover:bg-slate-50 dark:bg-[#12161a] dark:hover:bg-[#171d22] border-slate-200 dark:border-slate-800 text-slate-505 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white shadow-sm font-semibold'
                 }`}
               >
-                <div className={`p-1 rounded-md ${isSelected ? 'bg-blue-600/20 text-blue-600 dark:text-blue-400' : 'bg-slate-200/50 dark:bg-[#1b2026] text-slate-400'}`}>
+                <div className={`p-1 rounded-md ${isSelected ? 'bg-[var(--app-accent-soft)] text-[var(--app-accent)] dark:text-[var(--app-accent)]' : 'bg-slate-200/50 dark:bg-[#1b2026] text-slate-400'}`}>
                   <tab.icon size={12} />
                 </div>
                 <div className="space-y-0">
@@ -1377,7 +1377,7 @@ export default function ApprovalCenter() {
             <div className="flex items-center gap-1">
               <button 
                 onClick={() => { setFilterTab('Total'); setPage(1); }} 
-                className={`px-2 py-1 rounded-md text-center transition-all text-[11px] font-extrabold ${filterTab === 'Total' ? 'bg-blue-600 text-white shadow-sm' : 'bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700'}`}
+                className={`px-2 py-1 rounded-md text-center transition-all text-[11px] font-extrabold ${filterTab === 'Total' ? 'bg-[var(--app-accent)] text-white shadow-sm' : 'bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700'}`}
               >
                 {sourceFilteredEntries.length} Total
               </button>
@@ -1404,8 +1404,8 @@ export default function ApprovalCenter() {
             {/* Right: Search & Bulk Actions */}
             <div className="flex items-center gap-2">
               {selectedIds.length > 0 && (
-                <div className="flex items-center gap-1 bg-blue-50/80 dark:bg-blue-950/20 border border-blue-105 dark:border-blue-900/50 px-2 py-0.5 rounded-lg">
-                  <span className="text-[10.5px] font-bold text-blue-700 dark:text-blue-400">
+                <div className="flex items-center gap-1 bg-[var(--app-accent-soft)] dark:bg-[var(--app-accent-soft)] border border-blue-105 dark:border-[var(--app-border)] px-2 py-0.5 rounded-lg">
+                  <span className="text-[10.5px] font-bold text-[var(--app-accent)] dark:text-[var(--app-accent)]">
                     {selectedIds.length} Selected
                   </span>
                   <span className="text-slate-300">|</span>
@@ -1418,7 +1418,7 @@ export default function ApprovalCenter() {
                   <span className="text-slate-300">•</span>
                   <button 
                     onClick={handleBulkSyncTally}
-                    className="text-[10.5px] font-extrabold text-blue-600 hover:text-blue-700 dark:text-blue-400 uppercase tracking-wider transition-all"
+                    className="text-[10.5px] font-extrabold text-[var(--app-accent)] hover:text-[var(--app-accent)] dark:text-[var(--app-accent)] uppercase tracking-wider transition-all"
                   >
                     Push Tally
                   </button>
@@ -1449,7 +1449,7 @@ export default function ApprovalCenter() {
                   placeholder="Search..."
                   value={searchQuery}
                   onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
-                  className="w-40 sm:w-48 h-7 pl-6 pr-2 rounded-lg border text-[11px] outline-none bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500 transition-all"
+                  className="w-40 sm:w-48 h-7 pl-6 pr-2 rounded-lg border text-[11px] outline-none bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)] transition-all"
                 />
               </div>
             </div>
@@ -1459,7 +1459,7 @@ export default function ApprovalCenter() {
           <div className="flex-1 overflow-auto themed-scrollbar">
             {loading ? (
               <div className="flex items-center justify-center h-32">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[var(--app-accent)]"></div>
               </div>
             ) : (
               <table className="w-full text-left border-collapse min-w-[900px]">
@@ -1470,7 +1470,7 @@ export default function ApprovalCenter() {
                         type="checkbox"
                         checked={isAllSelected}
                         onChange={(e) => handleSelectAll(e.target.checked)}
-                        className="w-3 h-3 accent-blue-600 rounded cursor-pointer"
+                        className="w-3 h-3 accent-[var(--app-accent)] rounded cursor-pointer"
                       />
                     </th>
                     <th className="py-1.5 px-3">
@@ -1494,13 +1494,13 @@ export default function ApprovalCenter() {
                       const isSelected = selectedIds.includes(entry.id);
                       
                       const typeColors = {
-                        'Sales Voucher': 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-955/20 dark:text-purple-400 dark:border-purple-900/40',
-                        'Purchase Voucher': 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-900/40',
-                        'Payment Voucher': 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/20 dark:text-indigo-400 dark:border-indigo-900/40',
+                        'Sales Voucher': 'bg-[var(--app-accent-soft)] text-[var(--app-accent)] border-[var(--app-border)] dark:bg-[var(--app-accent-soft)] dark:text-[var(--app-accent)] dark:border-[var(--app-border)]',
+                        'Purchase Voucher': 'bg-[var(--app-accent-soft)] text-[var(--app-accent)] border-[var(--app-border)] dark:bg-[var(--app-accent-soft)] dark:text-[var(--app-accent)] dark:border-[var(--app-border)]',
+                        'Payment Voucher': 'bg-[var(--app-accent-soft)] text-[var(--app-accent)] border-[var(--app-border)] dark:bg-[var(--app-accent-soft)] dark:text-[var(--app-accent)] dark:border-[var(--app-border)]',
                         'Contra Voucher': 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/40',
                         'Debit Note': 'bg-amber-50 text-amber-700 border-amber-250 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900/40',
                         'Credit Note': 'bg-pink-50 text-pink-700 border-pink-200 dark:bg-pink-900/20 dark:text-pink-400 dark:border-pink-900/40',
-                        'Bulk Batch': 'bg-blue-50 text-blue-750 border-blue-150'
+                        'Bulk Batch': 'bg-[var(--app-accent-soft)] text-[var(--app-accent)] border-blue-150'
                       }[entry.type] || 'bg-slate-100 text-slate-700 border-slate-300';
 
                       const rowStatusColors = statusTextColors[entry.statusText] || 'bg-slate-50 text-slate-705 border-slate-200';
@@ -1508,14 +1508,14 @@ export default function ApprovalCenter() {
                       return (
                         <tr 
                           key={entry.id}
-                          className={`border-b border-slate-100 dark:border-slate-800/60 hover:bg-slate-50/50 dark:hover:bg-slate-900/30 transition-all font-semibold ${isSelected ? 'bg-blue-50/10 dark:bg-blue-900/10' : ''}`}
+                          className={`border-b border-slate-100 dark:border-slate-800/60 hover:bg-slate-50/50 dark:hover:bg-slate-900/30 transition-all font-semibold ${isSelected ? 'bg-[var(--app-accent-soft)] dark:bg-[var(--app-accent-soft)]' : ''}`}
                         >
                           <td className="py-1.5 px-3">
                             <input
                               type="checkbox"
                               checked={isSelected}
                               onChange={(e) => handleToggleSelect(entry.id, e)}
-                              className="w-3 h-3 accent-blue-600 rounded cursor-pointer"
+                              className="w-3 h-3 accent-[var(--app-accent)] rounded cursor-pointer"
                             />
                           </td>
                           <td className="py-1.5 px-3 font-extrabold text-slate-900 dark:text-slate-100">{entry.voucherNumber}</td>
@@ -1533,7 +1533,7 @@ export default function ApprovalCenter() {
                           <td className="py-1.5 px-3">
                             <span className={`px-1.5 py-0.25 rounded-md border text-[8.5px] font-extrabold ${rowStatusColors}`}>{entry.statusText}</span>
                           </td>
-                          <td className="py-1.5 px-3 text-blue-600 dark:text-blue-400 font-mono text-[10.5px] select-none hover:underline cursor-pointer" onClick={() => { setSelectedEntryId(entry.id); setCurrentView('detail'); }}>
+                          <td className="py-1.5 px-3 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-mono text-[10.5px] select-none hover:underline cursor-pointer" onClick={() => { setSelectedEntryId(entry.id); setCurrentView('detail'); }}>
                             <span className="flex items-center gap-1">
                               <FileText size={11} /> {entry.raw?.filename || entry.raw?.details?.attachments || 'document.pdf'}
                             </span>
@@ -1558,7 +1558,7 @@ export default function ApprovalCenter() {
                                   </button>
                                   <button 
                                     onClick={() => handleSyncTally(entry.id)}
-                                    className="p-1 hover:bg-blue-50 dark:hover:bg-blue-955/30 rounded text-blue-600 transition-colors"
+                                    className="p-1 hover:bg-[var(--app-accent-soft)] dark:hover:bg-[var(--app-accent-soft)] rounded text-[var(--app-accent)] transition-colors"
                                     title="Push to Tally"
                                   >
                                     <Send size={13} />
@@ -1575,7 +1575,7 @@ export default function ApprovalCenter() {
                               {entry.status === 'Approved' && (
                                 <button 
                                   onClick={() => handleSyncTally(entry.id)}
-                                  className="p-1 hover:bg-blue-50 dark:hover:bg-blue-955/30 rounded text-blue-600 transition-colors"
+                                  className="p-1 hover:bg-[var(--app-accent-soft)] dark:hover:bg-[var(--app-accent-soft)] rounded text-[var(--app-accent)] transition-colors"
                                   title="Push to Tally"
                                 >
                                   <Send size={13} />
@@ -1603,7 +1603,7 @@ export default function ApprovalCenter() {
             <span>Showing 1 to {filteredEntries.length} of {filteredEntries.length} entries</span>
             <div className="flex items-center gap-1">
               <button disabled className="px-2 py-0.5 rounded border bg-white dark:bg-slate-800 text-slate-300 flex items-center justify-center font-bold text-[9.5px]">PREVIOUS</button>
-              <button className="w-5 h-5 rounded bg-blue-600 text-white flex items-center justify-center font-bold text-[10px]">1</button>
+              <button className="w-5 h-5 rounded bg-[var(--app-accent)] text-white flex items-center justify-center font-bold text-[10px]">1</button>
               <button disabled className="px-2 py-0.5 rounded border bg-white dark:bg-slate-800 text-slate-300 flex items-center justify-center font-bold text-[9.5px]">NEXT</button>
             </div>
           </div>

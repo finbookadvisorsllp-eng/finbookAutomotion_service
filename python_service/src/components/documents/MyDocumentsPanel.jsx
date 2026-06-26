@@ -44,21 +44,21 @@ const MyDocumentsPanel = ({ isDark }) => {
     <div className="flex flex-col gap-2 h-full animate-in fade-in duration-500 overflow-hidden relative">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-2.5 shrink-0 border-b bg-white dark:bg-[var(--app-panel-bg)] backdrop-blur-sm shadow-sm rounded-t-xl" style={{ borderColor: 'var(--app-border)' }}>
-        <h1 className="text-[15px] font-black tracking-tight text-blue-600 dark:text-blue-400">
+        <h1 className="text-[15px] font-black tracking-tight text-[var(--app-accent)] dark:text-[var(--app-accent)]">
           My Documents
         </h1>
 
         <div className="flex items-center gap-6 absolute left-1/2 -translate-x-1/2">
           <label className="flex items-center gap-2 cursor-pointer group">
-            <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${viewMode === 'Month-wise' ? 'border-blue-600' : 'border-slate-350 dark:border-slate-700 group-hover:border-blue-300'}`}>
-              {viewMode === 'Month-wise' && <div className="w-2 h-2 rounded-full bg-blue-600" />}
+            <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${viewMode === 'Month-wise' ? 'border-[var(--app-accent)]' : 'border-slate-350 dark:border-slate-700 group-hover:border-[var(--app-accent)]'}`}>
+              {viewMode === 'Month-wise' && <div className="w-2 h-2 rounded-full bg-[var(--app-accent)]" />}
             </div>
             <input type="radio" className="hidden" checked={viewMode === 'Month-wise'} onChange={() => setViewMode('Month-wise')} />
             <span className="text-[12px] font-bold text-slate-500 dark:text-slate-400 group-hover:text-slate-750 dark:group-hover:text-slate-200 transition-colors">Month-wise</span>
           </label>
           <label className="flex items-center gap-2 cursor-pointer group">
-            <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${viewMode === 'Party-wise' ? 'border-blue-600' : 'border-slate-350 dark:border-slate-700 group-hover:border-blue-300'}`}>
-              {viewMode === 'Party-wise' && <div className="w-2 h-2 rounded-full bg-blue-600" />}
+            <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${viewMode === 'Party-wise' ? 'border-[var(--app-accent)]' : 'border-slate-350 dark:border-slate-700 group-hover:border-[var(--app-accent)]'}`}>
+              {viewMode === 'Party-wise' && <div className="w-2 h-2 rounded-full bg-[var(--app-accent)]" />}
             </div>
             <input type="radio" className="hidden" checked={viewMode === 'Party-wise'} onChange={() => setViewMode('Party-wise')} />
             <span className="text-[12px] font-bold text-slate-500 dark:text-slate-400 group-hover:text-slate-750 dark:group-hover:text-slate-200 transition-colors">Party-wise</span>
@@ -79,11 +79,11 @@ const MyDocumentsPanel = ({ isDark }) => {
             <button
               key={tab}
               onClick={() => { setActiveTab(tab); setSelectedFolder(null); }}
-              className={`flex-1 pb-3 text-[13px] font-black transition-all relative ${activeTab === tab ? 'text-blue-605 dark:text-blue-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-750 dark:hover:text-slate-200'}`}
+              className={`flex-1 pb-3 text-[13px] font-black transition-all relative ${activeTab === tab ? 'text-[var(--app-accent)] dark:text-[var(--app-accent)]' : 'text-slate-500 dark:text-slate-400 hover:text-slate-750 dark:hover:text-slate-200'}`}
             >
               {tab}
               {activeTab === tab && (
-                <div className="absolute bottom-0 left-0 right-0 h-1 bg-blue-600 dark:bg-blue-500 rounded-t-full" />
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-[var(--app-accent)] dark:bg-[var(--app-accent)] rounded-t-full" />
               )}
             </button>
           ))}
@@ -100,7 +100,7 @@ const MyDocumentsPanel = ({ isDark }) => {
                   <div className="absolute top-2 right-2 bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[10px] font-black px-1.5 py-0.5 rounded shadow-sm border border-slate-100 dark:border-slate-700">
                     1
                   </div>
-                  <Folder size={40} className="text-purple-500 fill-purple-500/20 group-hover:scale-110 transition-transform duration-300" strokeWidth={1.5} />
+                  <Folder size={40} className="text-[var(--app-accent)] fill-purple-500/20 group-hover:scale-110 transition-transform duration-300" strokeWidth={1.5} />
                   <span className="text-[13px] font-bold text-slate-700 dark:text-slate-300">January 2026</span>
                 </div>
               </div>
@@ -129,7 +129,7 @@ const MyDocumentsPanel = ({ isDark }) => {
                 <table className="w-full text-left border-collapse min-w-[1000px]">
                   <thead>
                     <tr style={{ backgroundColor: 'var(--app-table-head-bg)' }}>
-                      <th className="p-3 border-b border-r w-10 text-center" style={{ borderColor: 'var(--app-row-border)' }}><input type="checkbox" className="w-3.5 h-3.5 rounded border-gray-300 accent-blue-600 shadow-sm" /></th>
+                      <th className="p-3 border-b border-r w-10 text-center" style={{ borderColor: 'var(--app-row-border)' }}><input type="checkbox" className="w-3.5 h-3.5 rounded border-gray-300 accent-[var(--app-accent)] shadow-sm" /></th>
                       <TableHead label="Sr No." borderRight width="70px" center />
                       <TableHead label="Filename" borderRight />
                       <TableHead label="Invoice No" borderRight />
@@ -142,10 +142,10 @@ const MyDocumentsPanel = ({ isDark }) => {
                     </tr>
                   </thead>
                   <tbody>
-                    <tr className="hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors border-b bg-blue-50/20 dark:bg-blue-950/20" style={{ borderColor: 'var(--app-row-border)' }}>
-                      <td className="p-3 border-r text-center" style={{ borderColor: 'var(--app-row-border)' }}><input type="checkbox" className="w-3.5 h-3.5 rounded border-gray-300 accent-blue-600" /></td>
+                    <tr className="hover:bg-[var(--app-accent-soft)] dark:hover:bg-[var(--app-accent-soft)] transition-colors border-b bg-[var(--app-accent-soft)] dark:bg-[var(--app-accent-soft)]" style={{ borderColor: 'var(--app-row-border)' }}>
+                      <td className="p-3 border-r text-center" style={{ borderColor: 'var(--app-row-border)' }}><input type="checkbox" className="w-3.5 h-3.5 rounded border-gray-300 accent-[var(--app-accent)]" /></td>
                       <td className="p-3 border-r text-[11px] font-bold text-slate-600 dark:text-slate-300 text-center" style={{ borderColor: 'var(--app-row-border)' }}>1</td>
-                      <td className="p-3 border-r text-[11px] font-bold text-blue-550 dark:text-blue-400 cursor-pointer hover:underline" style={{ borderColor: 'var(--app-row-border)' }}>Sales_AT_25-26_3.pdf</td>
+                      <td className="p-3 border-r text-[11px] font-bold text-[var(--app-accent)] dark:text-[var(--app-accent)] cursor-pointer hover:underline" style={{ borderColor: 'var(--app-row-border)' }}>Sales_AT_25-26_3.pdf</td>
                       <td className="p-3 border-r text-[11px] font-bold text-slate-600 dark:text-slate-300" style={{ borderColor: 'var(--app-row-border)' }}>AT/25-26/3</td>
                       <td className="p-3 border-r text-[11px] font-bold text-slate-600 dark:text-slate-300" style={{ borderColor: 'var(--app-row-border)' }}>30-01-2026</td>
                       <td className="p-3 border-r text-[11px] font-bold text-slate-600 dark:text-slate-300 text-center" style={{ borderColor: 'var(--app-row-border)' }}>1,12,700.00</td>
@@ -189,7 +189,7 @@ const FilterModal = ({ onClose }) => {
       {/* Drawer Container (right side) */}
       <div className="absolute right-4 top-16 bottom-16 w-[360px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
         <div className="px-5 py-4 flex items-center justify-between border-b" style={{ borderColor: 'var(--app-row-border)' }}>
-          <h2 className="text-[15px] font-black text-blue-650 tracking-tight">Filter</h2>
+          <h2 className="text-[15px] font-black text-[var(--app-accent)] tracking-tight">Filter</h2>
           <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-655 hover:bg-slate-50 dark:hover:bg-slate-850 rounded-lg transition-colors"><X size={16} /></button>
         </div>
 
@@ -199,14 +199,14 @@ const FilterModal = ({ onClose }) => {
             <input
               type="text"
               placeholder="File Name"
-              className="w-full h-9 border rounded-md px-3 text-[12px] font-bold outline-none focus:border-blue-400 transition-colors shadow-sm bg-slate-50/40 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100"
+              className="w-full h-9 border rounded-md px-3 text-[12px] font-bold outline-none focus:border-[var(--app-accent)] transition-colors shadow-sm bg-slate-50/40 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100"
               style={{ borderColor: 'var(--app-border)' }}
             />
             
             <input
               type="text"
               placeholder="Invoice Number"
-              className="w-full h-9 border rounded-md px-3 text-[12px] font-bold outline-none focus:border-blue-400 transition-colors shadow-sm bg-slate-50/40 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100"
+              className="w-full h-9 border rounded-md px-3 text-[12px] font-bold outline-none focus:border-[var(--app-accent)] transition-colors shadow-sm bg-slate-50/40 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100"
               style={{ borderColor: 'var(--app-border)' }}
             />
 
@@ -215,7 +215,7 @@ const FilterModal = ({ onClose }) => {
                 <input
                   type="text"
                   placeholder="Invoice Date (From)"
-                  className="w-full h-9 border rounded-md pl-3 pr-8 text-[12px] font-bold outline-none focus:border-blue-400 transition-colors shadow-sm bg-slate-50/40 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100"
+                  className="w-full h-9 border rounded-md pl-3 pr-8 text-[12px] font-bold outline-none focus:border-[var(--app-accent)] transition-colors shadow-sm bg-slate-50/40 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100"
                   style={{ borderColor: 'var(--app-border)' }}
                 />
                 <Calendar className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-300 dark:text-slate-500" size={13} strokeWidth={2.5} />
@@ -224,7 +224,7 @@ const FilterModal = ({ onClose }) => {
                 <input
                   type="text"
                   placeholder="Invoice Date (To)"
-                  className="w-full h-9 border rounded-md pl-3 pr-8 text-[12px] font-bold outline-none focus:border-blue-400 transition-colors shadow-sm bg-slate-50/40 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100"
+                  className="w-full h-9 border rounded-md pl-3 pr-8 text-[12px] font-bold outline-none focus:border-[var(--app-accent)] transition-colors shadow-sm bg-slate-50/40 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100"
                   style={{ borderColor: 'var(--app-border)' }}
                 />
                 <Calendar className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-300 dark:text-slate-500" size={13} strokeWidth={2.5} />
@@ -235,13 +235,13 @@ const FilterModal = ({ onClose }) => {
               <input
                 type="text"
                 placeholder="Base Total (From)"
-                className="w-full h-9 border rounded-md px-3 text-[12px] font-bold outline-none focus:border-blue-400 transition-colors shadow-sm bg-slate-50/40 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100"
+                className="w-full h-9 border rounded-md px-3 text-[12px] font-bold outline-none focus:border-[var(--app-accent)] transition-colors shadow-sm bg-slate-50/40 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100"
                 style={{ borderColor: 'var(--app-border)' }}
               />
               <input
                 type="text"
                 placeholder="Base Total (To)"
-                className="w-full h-9 border rounded-md px-3 text-[12px] font-bold outline-none focus:border-blue-400 transition-colors shadow-sm bg-slate-50/40 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100"
+                className="w-full h-9 border rounded-md px-3 text-[12px] font-bold outline-none focus:border-[var(--app-accent)] transition-colors shadow-sm bg-slate-50/40 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100"
                 style={{ borderColor: 'var(--app-border)' }}
               />
             </div>
@@ -250,13 +250,13 @@ const FilterModal = ({ onClose }) => {
               <input
                 type="text"
                 placeholder="Sub Total (From)"
-                className="w-full h-9 border rounded-md px-3 text-[12px] font-bold outline-none focus:border-blue-400 transition-colors shadow-sm bg-slate-50/40 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100"
+                className="w-full h-9 border rounded-md px-3 text-[12px] font-bold outline-none focus:border-[var(--app-accent)] transition-colors shadow-sm bg-slate-50/40 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100"
                 style={{ borderColor: 'var(--app-border)' }}
               />
               <input
                 type="text"
                 placeholder="Sub Total (To)"
-                className="w-full h-9 border rounded-md px-3 text-[12px] font-bold outline-none focus:border-blue-400 transition-colors shadow-sm bg-slate-50/40 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100"
+                className="w-full h-9 border rounded-md px-3 text-[12px] font-bold outline-none focus:border-[var(--app-accent)] transition-colors shadow-sm bg-slate-50/40 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100"
                 style={{ borderColor: 'var(--app-border)' }}
               />
             </div>
@@ -265,13 +265,13 @@ const FilterModal = ({ onClose }) => {
               <input
                 type="text"
                 placeholder="Grand Total (From)"
-                className="w-full h-9 border rounded-md px-3 text-[12px] font-bold outline-none focus:border-blue-400 transition-colors shadow-sm bg-slate-50/40 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100"
+                className="w-full h-9 border rounded-md px-3 text-[12px] font-bold outline-none focus:border-[var(--app-accent)] transition-colors shadow-sm bg-slate-50/40 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100"
                 style={{ borderColor: 'var(--app-border)' }}
               />
               <input
                 type="text"
                 placeholder="Grand Total (To)"
-                className="w-full h-9 border rounded-md px-3 text-[12px] font-bold outline-none focus:border-blue-400 transition-colors shadow-sm bg-slate-50/40 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100"
+                className="w-full h-9 border rounded-md px-3 text-[12px] font-bold outline-none focus:border-[var(--app-accent)] transition-colors shadow-sm bg-slate-50/40 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100"
                 style={{ borderColor: 'var(--app-border)' }}
               />
             </div>
@@ -280,13 +280,13 @@ const FilterModal = ({ onClose }) => {
               <input
                 type="text"
                 placeholder="GST Total (From)"
-                className="w-full h-9 border rounded-md px-3 text-[12px] font-bold outline-none focus:border-blue-400 transition-colors shadow-sm bg-slate-50/40 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100"
+                className="w-full h-9 border rounded-md px-3 text-[12px] font-bold outline-none focus:border-[var(--app-accent)] transition-colors shadow-sm bg-slate-50/40 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100"
                 style={{ borderColor: 'var(--app-border)' }}
               />
               <input
                 type="text"
                 placeholder="GST Total (To)"
-                className="w-full h-9 border rounded-md px-3 text-[12px] font-bold outline-none focus:border-blue-400 transition-colors shadow-sm bg-slate-50/40 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100"
+                className="w-full h-9 border rounded-md px-3 text-[12px] font-bold outline-none focus:border-[var(--app-accent)] transition-colors shadow-sm bg-slate-50/40 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100"
                 style={{ borderColor: 'var(--app-border)' }}
               />
             </div>
@@ -300,7 +300,7 @@ const FilterModal = ({ onClose }) => {
             <span className="text-[12px] font-bold">Clear</span>
           </button>
           
-          <button onClick={onClose} className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-750 text-white transition-colors shadow-sm">
+          <button onClick={onClose} className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-[var(--app-accent)] hover:opacity-90 text-white transition-colors shadow-sm">
             <Check size={14} strokeWidth={3} />
             <span className="text-[12px] font-bold">Apply</span>
           </button>

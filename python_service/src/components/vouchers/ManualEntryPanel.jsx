@@ -15,6 +15,7 @@ import { useFundFlowStore } from '../../stores/useFundFlowStore';
 import CreateSales from '../sales/CreateSales';
 import CreatePurchase from '../purchase/CreatePurchase';
 import CreateFundFlow from './CreateFundFlow';
+import { useConfirm } from '../ui/ConfirmDialog';
 
 const VOUCHER_TABS = [
   { id: 'sales_invoice', label: 'Sales Voucher', section: 'SALES', icon: FileText },
@@ -93,6 +94,7 @@ const getUnifiedTx = (tx, tab) => {
 const ManualEntryPanel = ({ isDark }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const confirm = useConfirm();
 
   // Stores
   const salesStore = useSalesStore();
@@ -373,7 +375,7 @@ const ManualEntryPanel = ({ isDark }) => {
 
   // Row Delete Trigger
   const handleDeleteRow = async (id) => {
-    if (window.confirm('Are you sure you want to delete this voucher?')) {
+    if (await confirm({ title: 'Delete this voucher?', message: 'This action cannot be undone.', confirmText: 'Delete' })) {
       let res;
       if (activeTab === 'sales_invoice') {
         res = await salesStore.deleteTransaction(id);
@@ -543,7 +545,7 @@ const ManualEntryPanel = ({ isDark }) => {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyDown={handleSearch}
-                    className="w-full h-8 pl-8 pr-3 text-[11px] font-bold border rounded-lg outline-none bg-slate-50 dark:bg-[#12161a] focus:border-indigo-500 transition-all"
+                    className="w-full h-8 pl-8 pr-3 text-[11px] font-bold border rounded-lg outline-none bg-slate-50 dark:bg-[#12161a] focus:border-[var(--app-accent)] transition-all"
                     style={{ borderColor: theme.border, color: theme.text }}
                   />
                   <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-xs">🔍</span>
@@ -552,7 +554,7 @@ const ManualEntryPanel = ({ isDark }) => {
                   <select
                     value={voucherTypeFilter}
                     onChange={(e) => setVoucherTypeFilter(e.target.value)}
-                    className="h-8 px-2 text-[11px] font-bold border rounded-lg outline-none bg-slate-50 dark:bg-[#12161a] cursor-pointer focus:border-indigo-500 transition-all"
+                    className="h-8 px-2 text-[11px] font-bold border rounded-lg outline-none bg-slate-50 dark:bg-[#12161a] cursor-pointer focus:border-[var(--app-accent)] transition-all"
                     style={{ borderColor: theme.border, color: theme.text }}
                   >
                     {activeTab === 'sales_invoice' ? (
@@ -586,7 +588,7 @@ const ManualEntryPanel = ({ isDark }) => {
                   <div className="relative">
                     <button
                       onClick={() => setShowCreateDropdown(!showCreateDropdown)}
-                      className="px-4 py-1.5 bg-[#4f46e5] hover:bg-indigo-700 text-white font-black text-[10.5px] uppercase tracking-wider rounded-lg shadow-sm flex items-center gap-1.5 transition-all cursor-pointer"
+                      className="px-4 py-1.5 bg-[#4f46e5] hover:opacity-90 text-white font-black text-[10.5px] uppercase tracking-wider rounded-lg shadow-sm flex items-center gap-1.5 transition-all cursor-pointer"
                     >
                       <Plus size={13} strokeWidth={3} />
                       Create Voucher
@@ -661,7 +663,7 @@ const ManualEntryPanel = ({ isDark }) => {
                 ) : (
                   <button
                     onClick={handleCreateVoucher}
-                    className="px-4 py-1.5 bg-[#4f46e5] hover:bg-indigo-700 text-white font-black text-[10.5px] uppercase tracking-wider rounded-lg shadow-sm flex items-center gap-1.5 transition-all"
+                    className="px-4 py-1.5 bg-[#4f46e5] hover:opacity-90 text-white font-black text-[10.5px] uppercase tracking-wider rounded-lg shadow-sm flex items-center gap-1.5 transition-all"
                   >
                     <Plus size={13} strokeWidth={3} />
                     Create Voucher
@@ -675,7 +677,7 @@ const ManualEntryPanel = ({ isDark }) => {
               {listLoading && (
                 <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/60 dark:bg-black/60 backdrop-blur-sm">
                   <div className="flex items-center gap-2 px-4 py-2 border rounded-xl bg-white dark:bg-[#12161a]" style={{ borderColor: theme.border }}>
-                    <Loader2 size={16} className="animate-spin text-indigo-600" />
+                    <Loader2 size={16} className="animate-spin text-[var(--app-accent)]" />
                     <span className="text-[10px] font-black uppercase text-slate-600 dark:text-slate-300">Loading list data...</span>
                   </div>
                 </div>
@@ -708,7 +710,7 @@ const ManualEntryPanel = ({ isDark }) => {
                           <td className="p-2.5 border-r text-slate-505" style={{ borderColor: theme.border }}>
                             {tx.date ? new Date(tx.date).toLocaleDateString('en-IN') : '—'}
                           </td>
-                          <td className="p-2.5 border-r font-black text-indigo-600 dark:text-indigo-400" style={{ borderColor: theme.border }}>
+                          <td className="p-2.5 border-r font-black text-[var(--app-accent)] dark:text-[var(--app-accent)]" style={{ borderColor: theme.border }}>
                             {tx.type}
                           </td>
                           <td className="p-2.5 border-r truncate max-w-[200px]" style={{ borderColor: theme.border }}>{tx.party}</td>
@@ -727,7 +729,7 @@ const ManualEntryPanel = ({ isDark }) => {
                           <td className="p-2.5 border-r text-center text-slate-505" style={{ borderColor: theme.border }}>{tx.createdBy}</td>
                           <td className="p-2.5 border-r text-center" style={{ borderColor: theme.border }}>
                             <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black ${
-                              tx.syncStatus === 'Synced' ? 'bg-blue-105 text-blue-700' : 'bg-slate-105 text-slate-500'
+                              tx.syncStatus === 'Synced' ? 'bg-blue-105 text-[var(--app-accent)]' : 'bg-slate-105 text-slate-500'
                             }`}>
                               {tx.syncStatus}
                             </span>
@@ -736,7 +738,7 @@ const ManualEntryPanel = ({ isDark }) => {
                             <div className="flex items-center justify-center gap-1">
                               <button
                                 onClick={() => handleEditRow(tx._id, tx.rawType)}
-                                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 text-indigo-650 rounded-lg transition-all"
+                                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 text-[var(--app-accent)] rounded-lg transition-all"
                                 title="Edit"
                               >
                                 <Edit3 size={12.5} />
@@ -891,7 +893,7 @@ const ManualEntryPanel = ({ isDark }) => {
               </button>
               <button
                 onClick={handleCreateNewSuccess}
-                className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-sm transition-all"
+                className="w-full py-2.5 bg-[var(--app-accent)] hover:opacity-90 text-white rounded-xl shadow-sm transition-all"
               >
                 Create New Voucher
               </button>
