@@ -7,6 +7,7 @@ import {
   SlidersHorizontal, Download, LayoutList, Grid, Database, Calendar, ArrowLeft,
   Settings, CheckCircle, ShieldAlert, AlertTriangle
 } from 'lucide-react';
+import ObjectDoodle from '../ui/ObjectDoodle';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
@@ -788,7 +789,7 @@ export default function BulkUploadPanel() {
       'Posted': 'bg-[var(--app-accent-soft)] text-[var(--app-accent)] border-[var(--app-border)] dark:bg-[var(--app-accent-soft)] dark:text-[var(--app-accent)] dark:border-[var(--app-border)]',
       'Failed': 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/15 dark:text-red-400 dark:border-red-800'
     };
-    return stylesMap[stat] || 'bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:border-slate-800';
+    return stylesMap[stat] || 'bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)]';
   };
 
   const getDocIcon = (filename) => {
@@ -827,7 +828,7 @@ export default function BulkUploadPanel() {
             defaultValue={value}
             onBlur={(e) => handleBlur(e.target.value)}
             onKeyDown={(e) => handleKeyDown(e, e.target.value)}
-            className="w-full h-7 bg-white dark:bg-slate-800 text-[11px] p-0.5 border border-[var(--app-accent)] outline-none rounded font-semibold text-slate-850 dark:text-slate-100"
+            className="w-full h-7 bg-[var(--app-panel-bg)] text-[11px] p-0.5 border border-[var(--app-accent)] outline-none rounded font-semibold text-slate-850"
           >
             {tabCategories.slice(1).map(cat => (
               <option key={cat} value={cat}>{cat}</option>
@@ -855,7 +856,7 @@ export default function BulkUploadPanel() {
               setEditingCell(null);
             }
           }}
-          className="w-full h-7 bg-white dark:bg-slate-800 text-[11px] p-1 border border-[var(--app-accent)] outline-none rounded font-semibold text-slate-850 dark:text-slate-100"
+          className="w-full h-7 bg-[var(--app-panel-bg)] text-[11px] p-1 border border-[var(--app-accent)] outline-none rounded font-semibold text-slate-850"
         />
       );
     }
@@ -868,10 +869,10 @@ export default function BulkUploadPanel() {
     return (
       <div
         onDoubleClick={() => setEditingCell({ recordId: record.id, columnKey })}
-        className="w-full h-full min-h-[24px] px-2 py-1.5 cursor-cell hover:bg-slate-50 dark:hover:bg-slate-800/40 select-none truncate flex items-center justify-between group"
+        className="w-full h-full min-h-[24px] px-2 py-1.5 cursor-cell hover:bg-[var(--app-content-bg)] select-none truncate flex items-center justify-between group"
       >
-        <span className="truncate">{displayValue || <span className="text-slate-300 dark:text-slate-650 italic">empty</span>}</span>
-        <Edit2 size={9} className="text-slate-400 dark:text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity ml-1.5 shrink-0" />
+        <span className="truncate">{displayValue || <span className="text-[var(--app-muted)] italic">empty</span>}</span>
+        <Edit2 size={9} className="text-[var(--app-muted)] opacity-0 group-hover:opacity-100 transition-opacity ml-1.5 shrink-0" />
       </div>
     );
   };
@@ -879,7 +880,7 @@ export default function BulkUploadPanel() {
   const renderStatusBadge = (record) => {
     if (record.status === 'Valid') {
       return (
-        <div className="flex items-center justify-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold uppercase text-[9px]">
+        <div className="flex items-center justify-center gap-1 text-emerald-500 dark:text-emerald-400 font-bold uppercase text-[9px]">
           <CheckCircle size={11} />
           <span>Valid</span>
         </div>
@@ -888,7 +889,7 @@ export default function BulkUploadPanel() {
     if (record.status === 'Warning') {
       return (
         <div
-          className="flex items-center justify-center gap-1 text-amber-500 hover:text-amber-600 font-bold uppercase text-[9px] cursor-help"
+          className="flex items-center justify-center gap-1 text-amber-500 hover:text-amber-500 font-bold uppercase text-[9px] cursor-help"
           title={record.errorMessage}
         >
           <AlertTriangle size={11} />
@@ -898,7 +899,7 @@ export default function BulkUploadPanel() {
     }
     return (
       <div
-        className="flex items-center justify-center gap-1 text-rose-600 dark:text-rose-400 font-bold uppercase text-[9px] cursor-help"
+        className="flex items-center justify-center gap-1 text-rose-500 dark:text-rose-400 font-bold uppercase text-[9px] cursor-help"
         title={record.errorMessage}
       >
         <AlertCircle size={11} />
@@ -908,10 +909,10 @@ export default function BulkUploadPanel() {
   };
 
   return (
-    <div className="flex flex-col gap-2 h-full overflow-y-auto px-4 py-2 text-[11px] text-slate-700 dark:text-slate-200 bg-slate-50/50 dark:bg-slate-950/10">
+    <div className="flex flex-col gap-2 h-full overflow-y-auto px-4 py-2 text-[11px] text-[var(--app-heading)] bg-[var(--app-content-bg)]/50">
 
       {/* --- TOP TABS CATEGORIES NAVIGATION BAR --- */}
-      <div className="flex items-center gap-4.5 border-b border-slate-200 dark:border-slate-800 overflow-x-auto shrink-0 pb-1.5 pt-0.5">
+      <div className="flex items-center gap-4.5 border-b border-[var(--app-border)] overflow-x-auto shrink-0 pb-1.5 pt-0.5">
         {tabCategories.map((catName) => {
           const isActive = activeCategory === catName;
           return (
@@ -924,7 +925,7 @@ export default function BulkUploadPanel() {
               className={`pb-1 text-[11px] font-bold tracking-wide whitespace-nowrap transition-all uppercase border-b-2 -mb-2 flex items-center gap-1.5 cursor-pointer ${
                 isActive
                   ? 'border-[var(--app-accent)] text-[var(--app-accent)] dark:border-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold'
-                  : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+                  : 'border-transparent text-[var(--app-muted)] hover:text-[var(--app-heading)]'
               }`}
             >
               <span>{catName}</span>
@@ -943,16 +944,16 @@ export default function BulkUploadPanel() {
                   setSelectedBatchId(null);
                   handleReset(); // Reset filters when going back
                 }}
-                className="p-1.5 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition flex items-center justify-center bg-white dark:bg-slate-900 cursor-pointer"
+                className="p-1.5 border border-[var(--app-border)] rounded-lg text-[var(--app-heading)] hover:bg-[var(--app-content-bg)] transition flex items-center justify-center bg-[var(--app-panel-bg)] cursor-pointer"
                 title="Back to Batches"
               >
                 <ArrowLeft size={13} />
               </button>
             )}
-            <h1 className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
+            <h1 className="text-xl font-extrabold tracking-tight text-[var(--app-heading)] dark:text-white flex items-center gap-2">
               <span>{selectedBatchId ? 'Batch Review' : 'Bulk Upload'}</span>
               {selectedBatchId && activeBatch && (
-                <span className="text-xs font-semibold px-2 py-0.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-600 dark:text-slate-300 select-all font-mono">
+                <span className="text-xs font-semibold px-2 py-0.5 bg-[var(--app-table-head-bg)] border border-[var(--app-border)] rounded-lg text-[var(--app-heading)] select-all font-mono">
                   {activeBatch.id} - {activeBatch.filename}
                 </span>
               )}
@@ -964,7 +965,7 @@ export default function BulkUploadPanel() {
               <>
                 <button
                   onClick={handleAddRow}
-                  className="h-8 px-3 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition flex items-center gap-1.5 font-bold shadow-xs text-xs cursor-pointer"
+                  className="h-8 px-3 border border-[var(--app-border)] text-[var(--app-heading)] bg-[var(--app-panel-bg)] hover:bg-[var(--app-content-bg)] rounded-lg transition flex items-center gap-1.5 font-bold shadow-xs text-xs cursor-pointer"
                 >
                   <Plus size={13} className="text-[var(--app-accent)] animate-pulse" />
                   <span>Add Transaction Row</span>
@@ -974,7 +975,7 @@ export default function BulkUploadPanel() {
                   onClick={handlePostBatch}
                   className={`h-8 px-3 rounded-lg transition flex items-center gap-1.5 font-bold shadow-xs text-xs cursor-pointer ${
                     activeBatch.status === 'Posted'
-                      ? 'bg-slate-100 border border-slate-200 text-slate-400 cursor-not-allowed dark:bg-slate-800 dark:border-slate-700'
+                      ? 'bg-[var(--app-table-head-bg)] border border-[var(--app-border)] text-[var(--app-muted)] cursor-not-allowed'
                       : 'bg-[var(--app-accent)] hover:opacity-90 text-white'
                   }`}
                   disabled={activeBatch.status === 'Posted'}
@@ -986,7 +987,7 @@ export default function BulkUploadPanel() {
             ) : (
               <button
                 onClick={() => setShowUploadModal(true)}
-                className="h-8 px-3 border border-[var(--app-border)] dark:border-[var(--app-border)] text-[var(--app-accent)] dark:text-[var(--app-accent)] bg-white dark:bg-slate-900 hover:bg-[var(--app-accent-soft)] dark:hover:bg-slate-800/50 rounded-lg transition flex items-center gap-1.5 font-bold shadow-xs text-xs cursor-pointer"
+                className="h-8 px-3 border border-[var(--app-border)] dark:border-[var(--app-border)] text-[var(--app-accent)] dark:text-[var(--app-accent)] bg-[var(--app-panel-bg)] hover:bg-[var(--app-accent-soft)] rounded-lg transition flex items-center gap-1.5 font-bold shadow-xs text-xs cursor-pointer"
               >
                 <UploadCloud size={13} className="text-[var(--app-accent)]" />
                 <span>Upload Excel / CSV</span>
@@ -1000,14 +1001,14 @@ export default function BulkUploadPanel() {
           {/* Card 1 */}
           <div className="p-2 border rounded-lg bg-[var(--app-accent-soft)] border-[var(--app-border)] dark:bg-[var(--app-accent-soft)] dark:border-[var(--app-border)] shadow-3xs flex items-center justify-between h-[58px] transition-all">
             <div className="min-w-0 flex-1">
-              <span className="text-[9px] font-bold text-slate-455 dark:text-slate-500 uppercase tracking-wide leading-none block truncate">
+              <span className="text-[9px] font-bold text-slate-455 uppercase tracking-wide leading-none block truncate">
                 {selectedBatchId ? 'Total Batch Records' : 'Total Batches'}
               </span>
               <div className="flex items-baseline gap-1 mt-0.5">
-                <span className="text-lg font-black text-slate-900 dark:text-white leading-none">
+                <span className="text-lg font-black text-[var(--app-heading)] dark:text-white leading-none">
                   {selectedBatchId ? stats.total : (stats.totalBatches + 48).toLocaleString()}
                 </span>
-                <span className="text-[8px] text-slate-400 dark:text-slate-500 leading-none">
+                <span className="text-[8px] text-[var(--app-muted)] leading-none">
                   {selectedBatchId ? 'Uploaded' : 'All Time'}
                 </span>
               </div>
@@ -1020,19 +1021,19 @@ export default function BulkUploadPanel() {
           {/* Card 2 */}
           <div className="p-2 border rounded-lg bg-emerald-50/55 border-emerald-100/70 dark:bg-emerald-950/15 dark:border-emerald-900/35 shadow-3xs flex items-center justify-between h-[58px] transition-all">
             <div className="min-w-0 flex-1">
-              <span className="text-[9px] font-bold text-slate-455 dark:text-slate-500 uppercase tracking-wide leading-none block truncate">
+              <span className="text-[9px] font-bold text-slate-455 uppercase tracking-wide leading-none block truncate">
                 {selectedBatchId ? 'Valid Records' : 'Total Records'}
               </span>
               <div className="flex items-baseline gap-1 mt-0.5">
-                <span className="text-lg font-black text-slate-900 dark:text-white leading-none">
+                <span className="text-lg font-black text-[var(--app-heading)] dark:text-white leading-none">
                   {selectedBatchId ? stats.valid : (stats.totalRecords + 1102).toLocaleString()}
                 </span>
-                <span className="text-[8px] text-slate-400 dark:text-slate-500 leading-none">
+                <span className="text-[8px] text-[var(--app-muted)] leading-none">
                   {selectedBatchId ? 'Ready' : 'Across Batches'}
                 </span>
               </div>
             </div>
-            <div className="h-6 w-6 rounded-md bg-emerald-100/50 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600 shrink-0">
+            <div className="h-6 w-6 rounded-md bg-emerald-500/10/50 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-500 shrink-0">
               <CheckCircle2 size={12} />
             </div>
           </div>
@@ -1040,19 +1041,19 @@ export default function BulkUploadPanel() {
           {/* Card 3 */}
           <div className="p-2 border rounded-lg bg-amber-50/55 border-amber-100/70 dark:bg-amber-950/15 dark:border-amber-900/35 shadow-3xs flex items-center justify-between h-[58px] transition-all">
             <div className="min-w-0 flex-1">
-              <span className="text-[9px] font-bold text-slate-455 dark:text-slate-500 uppercase tracking-wide leading-none block truncate">
+              <span className="text-[9px] font-bold text-slate-455 uppercase tracking-wide leading-none block truncate">
                 {selectedBatchId ? 'Validation Warnings' : 'Pending Approval'}
               </span>
               <div className="flex items-baseline gap-1 mt-0.5">
-                <span className="text-lg font-black text-slate-900 dark:text-white leading-none">
+                <span className="text-lg font-black text-[var(--app-heading)] dark:text-white leading-none">
                   {selectedBatchId ? stats.warning : (stats.pendingReview + 12)}
                 </span>
-                <span className="text-[8px] text-slate-400 dark:text-slate-500 leading-none">
+                <span className="text-[8px] text-[var(--app-muted)] leading-none">
                   {selectedBatchId ? 'Verify Details' : 'Needs Approval'}
                 </span>
               </div>
             </div>
-            <div className="h-6 w-6 rounded-md bg-amber-100/50 dark:bg-amber-900/30 flex items-center justify-center text-amber-600 shrink-0">
+            <div className="h-6 w-6 rounded-md bg-amber-500/10/50 dark:bg-amber-900/30 flex items-center justify-center text-amber-500 shrink-0">
               <AlertTriangle size={12} />
             </div>
           </div>
@@ -1060,19 +1061,19 @@ export default function BulkUploadPanel() {
           {/* Card 4 */}
           <div className="p-2 border rounded-lg bg-red-50/55 border-red-100/70 dark:bg-red-950/15 dark:border-red-900/35 shadow-3xs flex items-center justify-between h-[58px] transition-all">
             <div className="min-w-0 flex-1">
-              <span className="text-[9px] font-bold text-slate-455 dark:text-slate-500 uppercase tracking-wide leading-none block truncate">
+              <span className="text-[9px] font-bold text-slate-455 uppercase tracking-wide leading-none block truncate">
                 {selectedBatchId ? 'Validation Errors' : 'Approved Batches'}
               </span>
               <div className="flex items-baseline gap-1 mt-0.5">
-                <span className="text-lg font-black text-slate-900 dark:text-white leading-none">
+                <span className="text-lg font-black text-[var(--app-heading)] dark:text-white leading-none">
                   {selectedBatchId ? stats.invalid : (stats.approved + 28)}
                 </span>
-                <span className="text-[8px] text-slate-400 dark:text-slate-500 leading-none">
+                <span className="text-[8px] text-[var(--app-muted)] leading-none">
                   {selectedBatchId ? 'Must Fix' : 'Verified'}
                 </span>
               </div>
             </div>
-            <div className="h-6 w-6 rounded-md bg-red-100/50 dark:bg-red-900/30 flex items-center justify-center text-red-650 shrink-0">
+            <div className="h-6 w-6 rounded-md bg-red-500/10/50 dark:bg-red-900/30 flex items-center justify-center text-red-500 shrink-0">
               <AlertCircle size={12} />
             </div>
           </div>
@@ -1080,14 +1081,14 @@ export default function BulkUploadPanel() {
           {/* Card 5 */}
           <div className="p-2 border rounded-lg bg-[var(--app-accent-soft)] border-[var(--app-border)] dark:bg-[var(--app-accent-soft)] dark:border-[var(--app-border)] shadow-3xs flex items-center justify-between h-[58px] transition-all">
             <div className="min-w-0 flex-1">
-              <span className="text-[9px] font-bold text-slate-455 dark:text-slate-500 uppercase tracking-wide leading-none block truncate">
+              <span className="text-[9px] font-bold text-slate-455 uppercase tracking-wide leading-none block truncate">
                 {selectedBatchId ? 'Voucher Types' : 'Posted Batches'}
               </span>
               <div className="flex items-baseline gap-1 mt-0.5">
-                <span className="text-lg font-black text-slate-900 dark:text-white leading-none">
+                <span className="text-lg font-black text-[var(--app-heading)] dark:text-white leading-none">
                   {selectedBatchId ? stats.uniqueCats : (stats.posted + 15)}
                 </span>
-                <span className="text-[8px] text-slate-400 dark:text-slate-500 leading-none">
+                <span className="text-[8px] text-[var(--app-muted)] leading-none">
                   {selectedBatchId ? 'Categories' : 'Synced to Tally'}
                 </span>
               </div>
@@ -1098,34 +1099,34 @@ export default function BulkUploadPanel() {
           </div>
 
           {/* Card 6 */}
-          <div className="p-2 border rounded-lg bg-slate-50 border-slate-100 dark:bg-slate-950/15 dark:border-slate-900/35 shadow-3xs flex items-center justify-between h-[58px] transition-all">
+          <div className="p-2 border rounded-lg bg-[var(--app-content-bg)] border-[var(--app-border)] shadow-3xs flex items-center justify-between h-[58px] transition-all">
             <div className="min-w-0 flex-1">
-              <span className="text-[9px] font-bold text-slate-455 dark:text-slate-500 uppercase tracking-wide leading-none block truncate">
+              <span className="text-[9px] font-bold text-slate-455 uppercase tracking-wide leading-none block truncate">
                 {selectedBatchId ? 'Total Batch Value' : 'Failed / Rejected'}
               </span>
               <div className="flex items-baseline gap-1 mt-0.5">
-                <span className="text-[12px] font-black text-slate-900 dark:text-white leading-none">
+                <span className="text-[12px] font-black text-[var(--app-heading)] dark:text-white leading-none">
                   {selectedBatchId 
                     ? `₹ ${stats.totalAmount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}` 
                     : (stats.failed + 3)
                   }
                 </span>
-                <span className="text-[8px] text-slate-400 dark:text-slate-500 leading-none">
+                <span className="text-[8px] text-[var(--app-muted)] leading-none">
                   {selectedBatchId ? 'Cumulative' : 'Voucher Errors'}
                 </span>
               </div>
             </div>
-            <div className="h-6 w-6 rounded-md bg-slate-200/50 dark:bg-slate-800/30 flex items-center justify-center text-slate-600 shrink-0">
+            <div className="h-6 w-6 rounded-md bg-[var(--app-border)]/50 flex items-center justify-center text-[var(--app-heading)] shrink-0">
               {selectedBatchId ? <Database size={12} /> : <ShieldAlert size={12} />}
             </div>
           </div>
         </div>
 
         {/* Filters row */}
-        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-1.5 shadow-3xs shrink-0">
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-2 bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-lg px-3 py-1.5 shadow-3xs shrink-0">
           {/* Search documents */}
           <div className="relative max-w-xs flex-1 group">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--app-muted)]" size={12} />
             <input
               type="text"
               placeholder={selectedBatchId ? "Search batch records..." : "Search batches..."}
@@ -1134,7 +1135,7 @@ export default function BulkUploadPanel() {
                 setSearch(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full h-7.5 pl-8 pr-2.5 rounded-lg border text-[11px] outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-[var(--app-accent)] transition-colors font-semibold"
+              className="w-full h-7.5 pl-8 pr-2.5 rounded-lg border text-[11px] outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)] transition-colors font-semibold"
             />
           </div>
 
@@ -1146,7 +1147,7 @@ export default function BulkUploadPanel() {
                 setStatusFilter(e.target.value);
                 setCurrentPage(1);
               }}
-              className="h-7.5 rounded-lg border px-2 text-[11px] outline-none bg-white dark:bg-slate-950/40 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 font-semibold cursor-pointer w-[140px]"
+              className="h-7.5 rounded-lg border px-2 text-[11px] outline-none bg-[var(--app-panel-bg)] text-[var(--app-heading)] border-[var(--app-border)] font-semibold cursor-pointer w-[140px]"
             >
               {selectedBatchId ? (
                 <>
@@ -1172,7 +1173,7 @@ export default function BulkUploadPanel() {
                 setActiveCategory(e.target.value);
                 setCurrentPage(1);
               }}
-              className="h-7.5 rounded-lg border px-2 text-[11px] outline-none bg-white dark:bg-slate-950/40 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 font-semibold cursor-pointer w-[125px]"
+              className="h-7.5 rounded-lg border px-2 text-[11px] outline-none bg-[var(--app-panel-bg)] text-[var(--app-heading)] border-[var(--app-border)] font-semibold cursor-pointer w-[125px]"
             >
               <option value="All">All Categories</option>
               {tabCategories.slice(1).map(c => (
@@ -1186,7 +1187,7 @@ export default function BulkUploadPanel() {
                 setVendorFilter(e.target.value);
                 setCurrentPage(1);
               }}
-              className="h-7.5 rounded-lg border px-2 text-[11px] outline-none bg-white dark:bg-slate-950/40 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 font-semibold cursor-pointer w-[160px]"
+              className="h-7.5 rounded-lg border px-2 text-[11px] outline-none bg-[var(--app-panel-bg)] text-[var(--app-heading)] border-[var(--app-border)] font-semibold cursor-pointer w-[160px]"
             >
               <option value="All Vendors/Customers">All Vendors/Customers</option>
               {uniqueVendors.map(v => (
@@ -1201,7 +1202,7 @@ export default function BulkUploadPanel() {
                   setDateRange(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="h-7.5 rounded-lg border pl-2.5 pr-7 text-[11px] outline-none bg-white dark:bg-slate-950/45 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 font-semibold w-[130px] appearance-none cursor-pointer"
+                className="h-7.5 rounded-lg border pl-2.5 pr-7 text-[11px] outline-none bg-[var(--app-panel-bg)] text-[var(--app-heading)] border-[var(--app-border)] font-semibold w-[130px] appearance-none cursor-pointer"
               >
                 <option value="">Upload Date</option>
                 <option value="23-06-2026">23-06-2026</option>
@@ -1209,7 +1210,7 @@ export default function BulkUploadPanel() {
                 <option value="21-06-2026">21-06-2026</option>
                 <option value="20-06-2026">20-06-2026</option>
               </select>
-              <Calendar className="absolute right-2.5 pointer-events-none text-slate-400" size={12} />
+              <Calendar className="absolute right-2.5 pointer-events-none text-[var(--app-muted)]" size={12} />
             </div>
 
             <button
@@ -1220,7 +1221,7 @@ export default function BulkUploadPanel() {
             </button>
             <button
               onClick={handleRestoreDefaults}
-              className="text-[11px] font-bold text-slate-500 hover:text-slate-700 bg-transparent transition-colors px-1 cursor-pointer"
+              className="text-[11px] font-bold text-[var(--app-muted)] hover:text-[var(--app-heading)] bg-transparent transition-colors px-1 cursor-pointer"
               title="Reset all batch data to default mock records"
             >
               Restore Defaults
@@ -1229,18 +1230,18 @@ export default function BulkUploadPanel() {
         </div>
 
         {/* --- MAIN INTERACTIVE VIEW AREA (Table Container) --- */}
-        <div className="border rounded-lg flex-1 overflow-hidden flex flex-col bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800/80 shadow-3xs min-h-[300px]">
+        <div className="border rounded-lg flex-1 overflow-hidden flex flex-col bg-[var(--app-panel-bg)] border-[var(--app-border)] shadow-3xs min-h-[300px]">
 
           {!selectedBatchId ? (
             /* --- batches List View --- */
             <div className="overflow-x-auto flex-1">
               <table className="w-full text-left border-collapse min-w-[800px] text-[11px] whitespace-nowrap">
                 <thead>
-                  <tr className="bg-slate-50/50 dark:bg-slate-950/30 border-b text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-800 font-semibold uppercase tracking-wider">
+                  <tr className="bg-[var(--app-content-bg)]/50 border-b text-[var(--app-muted)] border-[var(--app-border)] font-semibold uppercase tracking-wider">
                     <th className="py-2.5 px-3 w-9 text-center">
                       <input
                         type="checkbox"
-                        className="rounded border-slate-300 dark:border-slate-700 text-[var(--app-accent)] focus:ring-[var(--app-accent-soft)] cursor-pointer h-3.5 w-3.5"
+                        className="rounded border-[var(--app-border)] text-[var(--app-accent)] focus:ring-[var(--app-accent-soft)] cursor-pointer h-3.5 w-3.5"
                         onChange={handleSelectAll}
                         checked={paginatedBatches.length > 0 && paginatedBatches.every(b => checkedBatchIds.includes(b.id))}
                       />
@@ -1253,7 +1254,7 @@ export default function BulkUploadPanel() {
                     <th className="py-2.5 px-3 font-semibold text-center w-28">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
+                <tbody className="divide-y divide-[var(--app-border)] dark:divide-slate-800/60 font-medium">
                   {paginatedBatches.length > 0 ? (
                     paginatedBatches.map((batch) => {
                       const isChecked = checkedBatchIds.includes(batch.id);
@@ -1261,14 +1262,14 @@ export default function BulkUploadPanel() {
                         <tr
                           key={batch.id}
                           onClick={() => openBatchReview(batch.id)}
-                          className={`hover:bg-slate-50/40 dark:hover:bg-slate-900/30 cursor-pointer transition-colors ${
+                          className={`hover:bg-[var(--app-content-bg)]/40 cursor-pointer transition-colors ${
                             isChecked ? 'bg-[var(--app-accent-soft)] dark:bg-[var(--app-accent-soft)]' : ''
                           }`}
                         >
                           <td className="py-2 px-3 text-center" onClick={(e) => e.stopPropagation()}>
                             <input
                               type="checkbox"
-                              className="rounded border-slate-300 dark:border-slate-700 text-[var(--app-accent)] focus:ring-[var(--app-accent-soft)] cursor-pointer h-3.5 w-3.5"
+                              className="rounded border-[var(--app-border)] text-[var(--app-accent)] focus:ring-[var(--app-accent-soft)] cursor-pointer h-3.5 w-3.5"
                               checked={isChecked}
                               onChange={() => handleSelectRow(batch.id)}
                             />
@@ -1276,18 +1277,18 @@ export default function BulkUploadPanel() {
                           <td className="py-2 px-3 font-bold text-[var(--app-accent)] dark:text-[var(--app-accent)] font-mono text-[10px]">
                             {batch.id}
                           </td>
-                          <td className="py-2 px-3 text-slate-900 dark:text-slate-100 font-semibold">
+                          <td className="py-2 px-3 text-[var(--app-heading)] font-semibold">
                             <div className="flex items-center gap-1.5">
                               {getDocIcon(batch.filename)}
                               <span className="truncate max-w-[240px]" title={batch.filename}>{batch.filename}</span>
                             </div>
                           </td>
-                          <td className="py-2 px-3 text-center text-slate-900 dark:text-slate-100 font-bold">
-                            <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 font-bold text-[10px]">
+                          <td className="py-2 px-3 text-center text-[var(--app-heading)] font-bold">
+                            <span className="px-2 py-0.5 rounded-full bg-[var(--app-table-head-bg)] font-bold text-[10px]">
                               {batch.totalRecords || (Array.isArray(batch.records) ? batch.records.length : 0)}
                             </span>
                           </td>
-                          <td className="py-2 px-3 text-center text-slate-500 dark:text-slate-400 font-semibold">
+                          <td className="py-2 px-3 text-center text-[var(--app-muted)] font-semibold">
                             {batch.uploadDate}
                           </td>
                           <td className="py-2 px-3 text-center">
@@ -1296,10 +1297,10 @@ export default function BulkUploadPanel() {
                             </span>
                           </td>
                           <td className="py-2 px-3 text-center" onClick={(e) => e.stopPropagation()}>
-                            <div className="flex items-center justify-center gap-2 text-slate-400 dark:text-slate-500">
+                            <div className="flex items-center justify-center gap-2 text-[var(--app-muted)]">
                               <button
                                 onClick={() => openBatchReview(batch.id)}
-                                className="p-1 hover:text-[var(--app-accent)] dark:hover:text-[var(--app-accent)] hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition cursor-pointer"
+                                className="p-1 hover:text-[var(--app-accent)] dark:hover:text-[var(--app-accent)] hover:bg-[var(--app-table-head-bg)] rounded transition cursor-pointer"
                                 title="Open Batch Review"
                               >
                                 <Eye size={13} />
@@ -1313,12 +1314,12 @@ export default function BulkUploadPanel() {
                                   });
                                   toast.success(`Removed batch ${batch.id}`);
                                 }}
-                                className="p-1 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition cursor-pointer"
+                                className="p-1 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-[var(--app-table-head-bg)] rounded transition cursor-pointer"
                                 title="Delete Batch"
                               >
                                 <Trash2 size={13} />
                               </button>
-                              <button className="p-1 hover:text-slate-700 dark:hover:text-slate-300 rounded transition cursor-pointer">
+                              <button className="p-1 hover:text-[var(--app-heading)] rounded transition cursor-pointer">
                                 <MoreVertical size={12} />
                               </button>
                             </div>
@@ -1328,9 +1329,9 @@ export default function BulkUploadPanel() {
                     })
                   ) : (
                     <tr>
-                      <td colSpan={7} className="p-12 text-center text-slate-400 dark:text-slate-500 font-medium">
+                      <td colSpan={7} className="p-12 text-center text-[var(--app-muted)] font-medium">
                         <div className="flex flex-col items-center justify-center gap-1">
-                          <Info size={24} className="text-slate-355 dark:text-slate-700" />
+                          <ObjectDoodle name="upload" className="w-28 h-20 mx-auto" />
                           <span>No batches matching the criteria were found.</span>
                         </div>
                       </td>
@@ -1343,7 +1344,7 @@ export default function BulkUploadPanel() {
             /* --- Spreadsheet-style Batch Review View --- */
             <div className="flex-1 flex flex-col min-w-0">
               <div className="overflow-auto flex-1 max-h-[500px]">
-                <table className="w-full text-left border-collapse table-fixed min-w-[1100px] text-[11px] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+                <table className="w-full text-left border-collapse table-fixed min-w-[1100px] text-[11px] border border-[var(--app-border)] bg-[var(--app-panel-bg)]">
                   <colgroup>
                     <col className="w-9" />
                     <col className="w-9" />
@@ -1359,31 +1360,31 @@ export default function BulkUploadPanel() {
                     <col className="w-[60px]" />
                   </colgroup>
                   <thead>
-                    <tr className="bg-slate-100 dark:bg-slate-950/50 text-slate-650 dark:text-slate-300 border-b border-slate-250 dark:border-slate-850 font-bold uppercase tracking-wider text-[10px] select-none text-center">
-                      <th className="border-r border-slate-200 dark:border-slate-800 p-1 w-9 text-center bg-slate-50 dark:bg-slate-950 text-slate-400">
+                    <tr className="bg-[var(--app-table-head-bg)] text-slate-650 border-b border-slate-250 font-bold uppercase tracking-wider text-[10px] select-none text-center">
+                      <th className="border-r border-[var(--app-border)] p-1 w-9 text-center bg-[var(--app-content-bg)] text-[var(--app-muted)]">
                         {/* Empty cell for spreadsheet corner */}
                       </th>
-                      <th className="border-r border-slate-200 dark:border-slate-800 p-1 w-9 text-center">
+                      <th className="border-r border-[var(--app-border)] p-1 w-9 text-center">
                         <input
                           type="checkbox"
-                          className="rounded border-slate-300 dark:border-slate-700 text-[var(--app-accent)] focus:ring-[var(--app-accent-soft)] cursor-pointer h-3.5 w-3.5"
+                          className="rounded border-[var(--app-border)] text-[var(--app-accent)] focus:ring-[var(--app-accent-soft)] cursor-pointer h-3.5 w-3.5"
                           onChange={handleSelectAll}
                           checked={paginatedRecords.length > 0 && paginatedRecords.every(r => checkedRecordIds.includes(r.id))}
                         />
                       </th>
-                      <th className="border-r border-slate-200 dark:border-slate-800 py-1.5 px-2 font-bold text-left">Date</th>
-                      <th className="border-r border-slate-200 dark:border-slate-800 py-1.5 px-2 font-bold text-left">Invoice No</th>
-                      <th className="border-r border-slate-200 dark:border-slate-800 py-1.5 px-2 font-bold text-left">Voucher Type</th>
-                      <th className="border-r border-slate-200 dark:border-slate-800 py-1.5 px-2 font-bold text-left">Party / Ledger Name</th>
-                      <th className="border-r border-slate-200 dark:border-slate-800 py-1.5 px-2 font-bold text-left">GSTIN</th>
-                      <th className="border-r border-slate-200 dark:border-slate-800 py-1.5 px-2 font-bold text-right">Taxable Value</th>
-                      <th className="border-r border-slate-200 dark:border-slate-800 py-1.5 px-2 font-bold text-right">Tax (GST)</th>
-                      <th className="border-r border-slate-200 dark:border-slate-800 py-1.5 px-2 font-bold text-right">Total Amount</th>
-                      <th className="border-r border-slate-200 dark:border-slate-800 py-1.5 px-2 font-bold text-center">Status</th>
+                      <th className="border-r border-[var(--app-border)] py-1.5 px-2 font-bold text-left">Date</th>
+                      <th className="border-r border-[var(--app-border)] py-1.5 px-2 font-bold text-left">Invoice No</th>
+                      <th className="border-r border-[var(--app-border)] py-1.5 px-2 font-bold text-left">Voucher Type</th>
+                      <th className="border-r border-[var(--app-border)] py-1.5 px-2 font-bold text-left">Party / Ledger Name</th>
+                      <th className="border-r border-[var(--app-border)] py-1.5 px-2 font-bold text-left">GSTIN</th>
+                      <th className="border-r border-[var(--app-border)] py-1.5 px-2 font-bold text-right">Taxable Value</th>
+                      <th className="border-r border-[var(--app-border)] py-1.5 px-2 font-bold text-right">Tax (GST)</th>
+                      <th className="border-r border-[var(--app-border)] py-1.5 px-2 font-bold text-right">Total Amount</th>
+                      <th className="border-r border-[var(--app-border)] py-1.5 px-2 font-bold text-center">Status</th>
                       <th className="py-1.5 px-2 font-bold text-center">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                  <tbody className="divide-y divide-[var(--app-border)] dark:divide-[var(--app-border)]">
                     {paginatedRecords.length > 0 ? (
                       paginatedRecords.map((record, index) => {
                         const isChecked = checkedRecordIds.includes(record.id);
@@ -1397,55 +1398,55 @@ export default function BulkUploadPanel() {
                         return (
                           <tr
                             key={record.id}
-                            className={`hover:bg-slate-50/20 dark:hover:bg-slate-900/10 transition-colors ${rowStatusClass} ${
+                            className={`hover:bg-[var(--app-content-bg)]/20 transition-colors ${rowStatusClass} ${
                               isChecked ? 'bg-[var(--app-accent-soft)] dark:bg-[var(--app-accent-soft)] border-l-2 border-l-blue-500' : ''
                             }`}
                           >
                             {/* Excel Leftmost Row Index (S.No.) */}
-                            <td className="border-r border-slate-200 dark:border-slate-800 py-1.5 text-center font-mono font-bold bg-slate-50/80 dark:bg-slate-950/50 text-slate-400 select-none text-[10px]">
+                            <td className="border-r border-[var(--app-border)] py-1.5 text-center font-mono font-bold bg-[var(--app-content-bg)]/80 text-[var(--app-muted)] select-none text-[10px]">
                               {rowNumber}
                             </td>
-                            <td className="border-r border-slate-200 dark:border-slate-800 py-1.5 text-center">
+                            <td className="border-r border-[var(--app-border)] py-1.5 text-center">
                               <input
                                 type="checkbox"
-                                className="rounded border-slate-300 dark:border-slate-700 text-[var(--app-accent)] focus:ring-[var(--app-accent-soft)] cursor-pointer h-3.5 w-3.5"
+                                className="rounded border-[var(--app-border)] text-[var(--app-accent)] focus:ring-[var(--app-accent-soft)] cursor-pointer h-3.5 w-3.5"
                                 checked={isChecked}
                                 onChange={() => handleSelectRow(record.id)}
                               />
                             </td>
                             {/* Cells */}
-                            <td className="border-r border-slate-200 dark:border-slate-800 p-0 text-slate-900 dark:text-slate-100">
+                            <td className="border-r border-[var(--app-border)] p-0 text-[var(--app-heading)]">
                               {renderCell(record, 'date', 'date')}
                             </td>
-                            <td className="border-r border-slate-200 dark:border-slate-800 p-0 font-semibold text-slate-700 dark:text-slate-300">
+                            <td className="border-r border-[var(--app-border)] p-0 font-semibold text-[var(--app-heading)]">
                               {renderCell(record, 'docNo', 'text')}
                             </td>
-                            <td className="border-r border-slate-200 dark:border-slate-800 p-0 text-slate-900 dark:text-slate-100">
+                            <td className="border-r border-[var(--app-border)] p-0 text-[var(--app-heading)]">
                               {renderCell(record, 'category', 'select')}
                             </td>
-                            <td className="border-r border-slate-200 dark:border-slate-800 p-0 font-bold text-slate-900 dark:text-slate-100">
+                            <td className="border-r border-[var(--app-border)] p-0 font-bold text-[var(--app-heading)]">
                               {renderCell(record, 'partyName', 'text')}
                             </td>
-                            <td className="border-r border-slate-200 dark:border-slate-800 p-0 font-mono text-slate-700 dark:text-slate-300">
+                            <td className="border-r border-[var(--app-border)] p-0 font-mono text-[var(--app-heading)]">
                               {renderCell(record, 'gstin', 'text')}
                             </td>
-                            <td className="border-r border-slate-200 dark:border-slate-800 p-0 text-right font-bold text-slate-900 dark:text-white">
+                            <td className="border-r border-[var(--app-border)] p-0 text-right font-bold text-[var(--app-heading)] dark:text-white">
                               {renderCell(record, 'taxableValue', 'number')}
                             </td>
-                            <td className="border-r border-slate-200 dark:border-slate-800 p-0 text-right font-bold text-slate-900 dark:text-white">
+                            <td className="border-r border-[var(--app-border)] p-0 text-right font-bold text-[var(--app-heading)] dark:text-white">
                               {renderCell(record, 'taxAmount', 'number')}
                             </td>
-                            <td className="border-r border-slate-200 dark:border-slate-800 p-0 text-right font-black text-slate-905 dark:text-white bg-slate-50/20 dark:bg-slate-950/20">
+                            <td className="border-r border-[var(--app-border)] p-0 text-right font-black text-slate-905 dark:text-white bg-[var(--app-content-bg)]/20">
                               {renderCell(record, 'totalAmount', 'number')}
                             </td>
-                            <td className="border-r border-slate-200 dark:border-slate-800 py-1.5 text-center font-bold">
+                            <td className="border-r border-[var(--app-border)] py-1.5 text-center font-bold">
                               {renderStatusBadge(record)}
                             </td>
                             <td className="py-1 px-2 text-center">
-                              <div className="flex items-center justify-center gap-1.5 text-slate-400 dark:text-slate-500">
+                              <div className="flex items-center justify-center gap-1.5 text-[var(--app-muted)]">
                                 <button
                                   onClick={() => handleDeleteRow(record.id)}
-                                  className="p-1 hover:text-rose-500 dark:hover:text-rose-450 hover:bg-slate-100 dark:hover:bg-slate-850 rounded transition cursor-pointer"
+                                  className="p-1 hover:text-rose-500 dark:hover:text-rose-450 hover:bg-[var(--app-table-head-bg)] rounded transition cursor-pointer"
                                   title="Delete Record Row"
                                 >
                                   <Trash2 size={12} />
@@ -1457,9 +1458,9 @@ export default function BulkUploadPanel() {
                       })
                     ) : (
                       <tr>
-                        <td colSpan={12} className="p-12 text-center text-slate-400 dark:text-slate-500 font-medium">
+                        <td colSpan={12} className="p-12 text-center text-[var(--app-muted)] font-medium">
                           <div className="flex flex-col items-center justify-center gap-1">
-                            <Info size={24} className="text-slate-300 dark:text-slate-700" />
+                            <Info size={24} className="text-[var(--app-muted)]" />
                             <span>No spreadsheet records matched your query. Double-click cells to edit or add a row.</span>
                           </div>
                         </td>
@@ -1470,7 +1471,7 @@ export default function BulkUploadPanel() {
               </div>
 
               {/* Spreadsheet editing hint bar */}
-              <div className="px-3 py-1.5 bg-slate-50 dark:bg-slate-950/60 border-t border-slate-200 dark:border-slate-800 text-[10px] text-slate-500 flex justify-between items-center font-semibold">
+              <div className="px-3 py-1.5 bg-[var(--app-content-bg)] border-t border-[var(--app-border)] text-[10px] text-[var(--app-muted)] flex justify-between items-center font-semibold">
                 <div className="flex items-center gap-1.5 text-slate-450">
                   <span className="h-2 w-2 rounded-full bg-[var(--app-accent)] animate-pulse"></span>
                   <span>Spreadsheet Mode: Double-click any cell to edit details. Taxable/Tax/Total will auto-calculate!</span>
@@ -1486,18 +1487,18 @@ export default function BulkUploadPanel() {
 
         {/* Footer Navigation Page indices */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-3 shrink-0 pb-1 mt-1">
-          <div className="text-slate-500 dark:text-slate-400 font-medium">
-            Showing <span className="font-bold text-slate-900 dark:text-white">
+          <div className="text-[var(--app-muted)] font-medium">
+            Showing <span className="font-bold text-[var(--app-heading)] dark:text-white">
               {((currentPage - 1) * itemsPerPage) + (selectedBatchId ? (filteredRecords.length > 0 ? 1 : 0) : (filteredBatches.length > 0 ? 1 : 0))}
             </span> to{' '}
-            <span className="font-bold text-slate-900 dark:text-white">
+            <span className="font-bold text-[var(--app-heading)] dark:text-white">
               {Math.min(currentPage * itemsPerPage, selectedBatchId ? filteredRecords.length : filteredBatches.length)}
             </span>{' '}
-            of <span className="font-bold text-slate-900 dark:text-white">
+            of <span className="font-bold text-[var(--app-heading)] dark:text-white">
               {selectedBatchId ? filteredRecords.length : filteredBatches.length}
             </span> entries
             {!selectedBatchId && activeCategory === 'All' && search === '' && statusFilter === 'All Status' && (
-              <span className="text-slate-400 text-xs"> (Filtered from 48 total)</span>
+              <span className="text-[var(--app-muted)] text-xs"> (Filtered from 48 total)</span>
             )}
           </div>
 
@@ -1505,7 +1506,7 @@ export default function BulkUploadPanel() {
             <button
               onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
               disabled={currentPage === 1}
-              className="h-7 w-7 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 transition disabled:opacity-40 cursor-pointer"
+              className="h-7 w-7 flex items-center justify-center rounded-lg border border-[var(--app-border)] text-[var(--app-muted)] hover:bg-[var(--app-content-bg)] transition disabled:opacity-40 cursor-pointer"
             >
               <ChevronLeft size={13} />
             </button>
@@ -1520,7 +1521,7 @@ export default function BulkUploadPanel() {
                   className={`h-7 w-7 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                     isActive
                       ? 'bg-[var(--app-accent)] text-white font-bold shadow-2xs'
-                      : 'border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800'
+                      : 'border border-[var(--app-border)] text-[var(--app-heading)] bg-[var(--app-panel-bg)] hover:bg-[var(--app-content-bg)]'
                   }`}
                 >
                   {pageNum}
@@ -1531,7 +1532,7 @@ export default function BulkUploadPanel() {
             <button
               onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
               disabled={currentPage === totalPages}
-              className="h-7 w-7 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 transition disabled:opacity-40 cursor-pointer"
+              className="h-7 w-7 flex items-center justify-center rounded-lg border border-[var(--app-border)] text-[var(--app-muted)] hover:bg-[var(--app-content-bg)] transition disabled:opacity-40 cursor-pointer"
             >
               <ChevronRight size={13} />
             </button>
@@ -1548,33 +1549,33 @@ export default function BulkUploadPanel() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.96, opacity: 0 }}
               transition={{ duration: 0.12 }}
-              className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xl max-w-4xl w-full overflow-hidden flex flex-col"
+              className="bg-[var(--app-panel-bg)] rounded-xl border border-[var(--app-border)] shadow-xl max-w-4xl w-full overflow-hidden flex flex-col"
             >
               {/* Modal Header */}
-              <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-white dark:bg-slate-900">
-                <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <div className="px-6 py-4 border-b border-[var(--app-border)] flex justify-between items-center bg-[var(--app-panel-bg)]">
+                <h3 className="text-base font-bold text-[var(--app-heading)] dark:text-white flex items-center gap-2">
                   <UploadCloud size={16} className="text-[var(--app-accent)] animate-pulse" />
                   <span>Upload Batches (Excel / CSV)</span>
                 </h3>
                 <button
                   type="button"
                   onClick={() => setShowUploadModal(false)}
-                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                  className="text-[var(--app-muted)] hover:text-[var(--app-heading)] cursor-pointer"
                 >
                   <X size={18} />
                 </button>
               </div>
 
               {/* Modal Body */}
-              <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8 items-center bg-white dark:bg-slate-900">
+              <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8 items-center bg-[var(--app-panel-bg)]">
                 {/* Left Side: Drag and drop / file browser choice */}
                 <div className="flex flex-col">
                   <div
                     onClick={handleBrowse}
-                    className="border border-dashed rounded-lg p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-slate-800/10 border-[var(--app-border)] dark:border-slate-700 bg-[var(--app-accent-soft)] dark:bg-slate-900/10 min-h-[148px]"
+                    className="border border-dashed rounded-lg p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-all hover:bg-[var(--app-content-bg)] border-[var(--app-border)] bg-[var(--app-accent-soft)] min-h-[148px]"
                   >
-                    <UploadCloud size={40} className="text-[var(--app-accent)] mb-2" />
-                    <p className="text-[12px] text-slate-500 dark:text-slate-400">Drag & drop spreadsheet files here or</p>
+                    <ObjectDoodle name="upload" className="w-24 h-16 mb-1" />
+                    <p className="text-[12px] text-[var(--app-muted)]">Drag & drop spreadsheet files here or</p>
 
                     <div className="flex items-center gap-2 mt-4 flex-wrap justify-center" onClick={(e) => e.stopPropagation()}>
                       <button
@@ -1593,7 +1594,7 @@ export default function BulkUploadPanel() {
                       />
                       <button
                         type="button"
-                        className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-900 font-semibold text-xs flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
+                        className="px-4 py-2 rounded-lg border border-[var(--app-border)] hover:bg-[var(--app-content-bg)] text-[var(--app-heading)] bg-[var(--app-panel-bg)] font-semibold text-xs flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
                         onClick={() => toast.info('Initiated importing batch folder')}
                       >
                         <FolderOpen size={13} />
@@ -1602,45 +1603,45 @@ export default function BulkUploadPanel() {
                     </div>
                   </div>
 
-                  <div className="text-[10px] text-slate-400 dark:text-slate-500 text-center mt-3 leading-none">
+                  <div className="text-[10px] text-[var(--app-muted)] text-center mt-3 leading-none">
                     Supports Microsoft Excel (.xlsx, .xls) and CSV (.csv) (Max 100MB)
                   </div>
                 </div>
 
                 {/* Right Side: Description & illustration */}
-                <div className="flex items-center gap-6 bg-white dark:bg-slate-900">
+                <div className="flex items-center gap-6 bg-[var(--app-panel-bg)]">
                   <svg className="w-32 h-32 text-emerald-500/80 shrink-0" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <rect x="25" y="15" width="55" height="75" rx="8" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="3 3" className="text-slate-255 dark:text-slate-755" />
-                    <rect x="40" y="30" width="55" height="75" rx="8" fill="white" className="dark:fill-slate-800" stroke="currentColor" strokeWidth="1.8" />
+                    <rect x="25" y="15" width="55" height="75" rx="8" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="3 3" className="text-slate-255" />
+                    <rect x="40" y="30" width="55" height="75" rx="8" fill="white" className="dark:fill-[var(--app-border)]" stroke="currentColor" strokeWidth="1.8" />
                     {/* spreadsheet lines grid */}
-                    <line x1="45" y1="46" x2="90" y2="46" stroke="currentColor" strokeWidth="1" strokeLinecap="round" className="text-slate-200 dark:text-slate-700" />
-                    <line x1="45" y1="58" x2="90" y2="58" stroke="currentColor" strokeWidth="1" strokeLinecap="round" className="text-slate-200 dark:text-slate-700" />
-                    <line x1="45" y1="70" x2="90" y2="70" stroke="currentColor" strokeWidth="1" strokeLinecap="round" className="text-slate-200 dark:text-slate-700" />
-                    <line x1="45" y1="82" x2="90" y2="82" stroke="currentColor" strokeWidth="1" strokeLinecap="round" className="text-slate-200 dark:text-slate-700" />
-                    <line x1="60" y1="38" x2="60" y2="95" stroke="currentColor" strokeWidth="1" strokeLinecap="round" className="text-slate-200 dark:text-slate-700" />
-                    <line x1="75" y1="38" x2="75" y2="95" stroke="currentColor" strokeWidth="1" strokeLinecap="round" className="text-slate-200 dark:text-slate-700" />
+                    <line x1="45" y1="46" x2="90" y2="46" stroke="currentColor" strokeWidth="1" strokeLinecap="round" className="text-slate-200" />
+                    <line x1="45" y1="58" x2="90" y2="58" stroke="currentColor" strokeWidth="1" strokeLinecap="round" className="text-slate-200" />
+                    <line x1="45" y1="70" x2="90" y2="70" stroke="currentColor" strokeWidth="1" strokeLinecap="round" className="text-slate-200" />
+                    <line x1="45" y1="82" x2="90" y2="82" stroke="currentColor" strokeWidth="1" strokeLinecap="round" className="text-slate-200" />
+                    <line x1="60" y1="38" x2="60" y2="95" stroke="currentColor" strokeWidth="1" strokeLinecap="round" className="text-slate-200" />
+                    <line x1="75" y1="38" x2="75" y2="95" stroke="currentColor" strokeWidth="1" strokeLinecap="round" className="text-slate-200" />
                     <rect x="45" y="38" width="45" height="8" rx="1.5" fill="currentColor" className="text-emerald-100 dark:text-emerald-950/40" />
                   </svg>
 
                   <div className="flex flex-col">
-                    <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 mb-2.5">
+                    <h4 className="text-xs font-bold text-[var(--app-heading)] mb-2.5">
                       Batch Processing Features:
                     </h4>
                     <ul className="space-y-2">
-                      <li className="flex items-start gap-2 text-slate-600 dark:text-slate-400">
-                        <Check size={14} className="text-emerald-600 mt-0.5 shrink-0" />
+                      <li className="flex items-start gap-2 text-[var(--app-heading)]">
+                        <Check size={14} className="text-emerald-500 mt-0.5 shrink-0" />
                         <span>Excel & CSV validation rules</span>
                       </li>
-                      <li className="flex items-start gap-2 text-slate-600 dark:text-slate-400">
-                        <Check size={14} className="text-emerald-600 mt-0.5 shrink-0" />
+                      <li className="flex items-start gap-2 text-[var(--app-heading)]">
+                        <Check size={14} className="text-emerald-500 mt-0.5 shrink-0" />
                         <span>Interactive spreadsheet editor</span>
                       </li>
-                      <li className="flex items-start gap-2 text-slate-600 dark:text-slate-400">
-                        <Check size={14} className="text-emerald-600 mt-0.5 shrink-0" />
+                      <li className="flex items-start gap-2 text-[var(--app-heading)]">
+                        <Check size={14} className="text-emerald-500 mt-0.5 shrink-0" />
                         <span>Inline error detection</span>
                       </li>
-                      <li className="flex items-start gap-2 text-slate-600 dark:text-slate-400">
-                        <Check size={14} className="text-emerald-600 mt-0.5 shrink-0" />
+                      <li className="flex items-start gap-2 text-[var(--app-heading)]">
+                        <Check size={14} className="text-emerald-500 mt-0.5 shrink-0" />
                         <span>Direct Tally posting</span>
                       </li>
                     </ul>
