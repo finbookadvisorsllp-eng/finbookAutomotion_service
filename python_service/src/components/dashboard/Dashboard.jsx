@@ -6,6 +6,8 @@ import Sidebar from '../layout/Sidebar'
 import { LABEL_TO_PATH, PATH_TO_LABEL } from '../../routes/routePaths'
 import { useAppStore } from '../../stores/useAppStore'
 import { fetchCompanies } from '../companies/api'
+import CompanionBar from '../ui/CompanionBar'
+import SearchOverlay from '../ui/SearchOverlay'
 
 
 // Design tokens now live in src/styles/index.css (:root / .dark) so every
@@ -200,6 +202,10 @@ function Dashboard() {
           )}
         </AnimatePresence>
       </motion.div>
+
+      {/* Ambient AI companion + ⌘K search overlay */}
+      <CompanionBar />
+      <SearchOverlay />
     </div>
   )
 }

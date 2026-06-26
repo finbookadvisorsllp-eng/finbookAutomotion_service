@@ -22,6 +22,8 @@ import Select from '../ui/Select'
 import StatCard from '../ui/StatCard'
 import Button from '../ui/Button'
 import HeroDoodle from '../ui/HeroDoodle'
+import ThinkingLoader from '../ui/ThinkingLoader'
+import BusinessTimeline from '../ui/BusinessTimeline'
 
 export default function DashboardTable() {
   const selectedCompany = useAppStore((s) => s.selectedCompany)
@@ -81,10 +83,7 @@ export default function DashboardTable() {
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-solid border-[var(--app-accent)] border-r-transparent"></div>
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--app-muted)]">Loading dashboard data...</span>
-        </div>
+        <ThinkingLoader />
       </div>
     )
   }
@@ -141,14 +140,14 @@ export default function DashboardTable() {
           <div className="min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--app-muted)' }}>{today}</p>
             <h1 className="text-[26px] md:text-[34px] font-black tracking-tight leading-tight mt-1" style={{ color: 'var(--app-heading)' }}>
-              {greetText}, <span style={{ background: 'var(--app-accent-gradient)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>Rahul</span>
+              {greetText}, <span style={{ background: 'var(--app-accent-gradient)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>Anjalee Bisen</span>
             </h1>
             <p className="text-[12px] md:text-[13px] font-medium mt-2 flex items-center gap-2 flex-wrap" style={{ color: 'var(--app-muted)' }}>
-              <span className="inline-flex items-center gap-1"><Sparkles size={13} className="text-[var(--app-accent)]" /> 3 tasks need attention</span>
+              <span className="inline-flex items-center gap-1"><Sparkles size={13} className="text-[var(--app-accent)]" /> 12 vouchers need review</span>
               <span className="opacity-40">·</span>
-              <span>Compliance score <b style={{ color: 'var(--app-heading)' }}>92%</b></span>
+              <span><b style={{ color: 'var(--app-heading)' }}>40</b> ready to export</span>
               <span className="opacity-40 hidden sm:inline">·</span>
-              <span className="hidden sm:inline">Everything else looks healthy</span>
+              <span className="hidden sm:inline">Tally connected</span>
             </p>
           </div>
           <HeroDoodle tod={tod} className="w-28 h-24 md:w-44 md:h-36 shrink-0" style={{ color: 'var(--app-muted)' }} />
@@ -178,16 +177,26 @@ export default function DashboardTable() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
             <StatCard index={0} label="Total Vouchers" value="25,648" icon={FileText} delta={{ value: '12.5%', dir: 'up' }}
+              insight="AI confidence 97% · likely to exceed last month"
               right={(
                 <svg viewBox="0 0 100 40" className="w-16 h-8" style={{ color: 'var(--app-accent)' }}>
                   <path d="M 5 35 Q 25 15 45 28 T 85 10 T 95 5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
                 </svg>
               )}
             />
-            <StatCard index={1} label="Pending Approval" value="32" icon={Clock} delta={{ value: '8.3%', dir: 'up' }} />
-            <StatCard index={2} label="OCR Documents Processed" value="1,037" icon={Cpu} delta={{ value: '15.2%', dir: 'up' }} />
-            <StatCard index={3} label="Excel Rows Uploaded" value="1,334" icon={FileSpreadsheet} delta={{ value: '9.1%', dir: 'up' }} />
+            <StatCard index={1} label="Pending Approval" value="32" icon={Clock} delta={{ value: '8.3%', dir: 'up' }} insight="AI confidence 88% · 6 likely auto-approvable" />
+            <StatCard index={2} label="OCR Documents Processed" value="1,037" icon={Cpu} delta={{ value: '15.2%', dir: 'up' }} insight="AI confidence 99% · 2 need manual review" />
+            <StatCard index={3} label="Excel Rows Uploaded" value="1,334" icon={FileSpreadsheet} delta={{ value: '9.1%', dir: 'up' }} insight="AI confidence 94% · no anomalies detected" />
           </div>
+        </div>
+
+        {/* Section: Business story — Yesterday / Today / Tomorrow */}
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-1.5">
+            <Sparkles size={13} className="text-[var(--app-accent)]" />
+            <h2 className="text-[10px] font-extrabold uppercase tracking-widest" style={{ color: 'var(--app-heading)' }}>YOUR BUSINESS STORY</h2>
+          </div>
+          <BusinessTimeline />
         </div>
 
         {/* Section: Analytics & Company Overview Grid */}
