@@ -1,6 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { Search, HelpCircle, ChevronLeft, ChevronRight, ChevronDown, RefreshCw, Settings, Plus, X, BookOpen, Package, User, ShieldCheck, Landmark, FileSpreadsheet, Percent, IndianRupee, Info } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Search, RefreshCw, Plus, X, BookOpen, Package, User, Users, Percent, IndianRupee, Info, AlertTriangle, CheckCircle2, Coins } from 'lucide-react';
 import { toast } from 'sonner';
+import DataTable from '../ui/DataTable';
+import StatCard from '../ui/StatCard';
+import Badge from '../ui/Badge';
 import salesApi from '../../services/salesApi';
 import fundflowApi from '../../services/fundflowApi';
 
@@ -8,8 +11,6 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
   const [activeTab, setActiveTab] = useState(propMode || 'Party Ledger');
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [pageSize, setPageSize] = useState(10);
   const [onlyUnsynced, setOnlyUnsynced] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -212,340 +213,63 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
 
   // Statistics Display Config
   const ledgerStats = [
-    { label: 'Total Party Ledgers', count: partyDataList.length, color: 'text-[var(--app-accent)] dark:text-[var(--app-accent)]', countColor: 'text-[var(--app-accent)] dark:text-[var(--app-accent)]', cardBg: 'bg-[var(--app-accent-soft)] border-[var(--app-border)] dark:bg-[var(--app-accent-soft)] dark:border-[var(--app-border)]' },
-    { label: 'Sundry Debtors', count: partyDataList.filter(p => p.parentGroup === 'Sundry Debtors').length, color: 'text-emerald-800 dark:text-emerald-300', countColor: 'text-emerald-950 dark:text-emerald-50', cardBg: 'bg-emerald-50/80 border-emerald-200/80 dark:bg-emerald-950/20 dark:border-emerald-900/30' },
-    { label: 'Sundry Creditors', count: partyDataList.filter(p => p.parentGroup === 'Sundry Creditors').length, color: 'text-[var(--app-accent)] dark:text-[var(--app-accent)]', countColor: 'text-[var(--app-accent)] dark:text-[var(--app-accent)]', cardBg: 'bg-[var(--app-accent-soft)] border-[var(--app-border)] dark:bg-[var(--app-accent-soft)] dark:border-[var(--app-border)]' },
-    { label: 'Unsynced Ledgers', count: partyDataList.filter(p => !p.isSynced).length, color: 'text-amber-800 dark:text-amber-300', countColor: 'text-amber-950 dark:text-amber-50', cardBg: 'bg-amber-50/80 border-amber-200/80 dark:bg-amber-950/20 dark:border-amber-900/30' }
+    { label: 'Total Ledgers', value: partyDataList.length, icon: Users },
+    { label: 'Sundry Debtors', value: partyDataList.filter(p => p.parentGroup === 'Sundry Debtors').length, icon: User },
+    { label: 'Sundry Creditors', value: partyDataList.filter(p => p.parentGroup === 'Sundry Creditors').length, icon: BookOpen },
+    { label: 'Unsynced', value: partyDataList.filter(p => !p.isSynced).length, icon: AlertTriangle },
   ];
 
   const stockStats = [
-    { label: 'Total Stock Items', count: stockDataList.length, color: 'text-[var(--app-accent)] dark:text-[var(--app-accent)]', countColor: 'text-[var(--app-accent)] dark:text-[var(--app-accent)]', cardBg: 'bg-[var(--app-accent-soft)] border-[var(--app-border)] dark:bg-[var(--app-accent-soft)] dark:border-[var(--app-border)]' },
-    { label: 'Active Items', count: stockDataList.filter(s => s.qty > 0).length, color: 'text-emerald-800 dark:text-emerald-300', countColor: 'text-emerald-950 dark:text-emerald-50', cardBg: 'bg-emerald-50/80 border-emerald-200/80 dark:bg-emerald-950/20 dark:border-emerald-900/30' },
-    { label: 'Out of Stock', count: stockDataList.filter(s => s.qty === 0).length, color: 'text-rose-800 dark:text-rose-300', countColor: 'text-rose-950 dark:text-rose-50', cardBg: 'bg-rose-50/80 border-rose-200/80 dark:bg-rose-950/20 dark:border-rose-900/30' },
-    { label: 'Total Stock Value', count: `₹${stockDataList.reduce((acc, s) => acc + s.value, 0).toLocaleString('en-IN')}`, color: 'text-[var(--app-accent)] dark:text-[var(--app-accent)]', countColor: 'text-[var(--app-accent)] dark:text-[var(--app-accent)]', cardBg: 'bg-[var(--app-accent-soft)] border-[var(--app-border)] dark:bg-[var(--app-accent-soft)] dark:border-[var(--app-border)] font-semibold' }
+    { label: 'Total Items', value: stockDataList.length, icon: Package },
+    { label: 'Active Items', value: stockDataList.filter(s => s.qty > 0).length, icon: CheckCircle2 },
+    { label: 'Out of Stock', value: stockDataList.filter(s => s.qty === 0).length, icon: AlertTriangle },
+    { label: 'Stock Value', value: `₹${stockDataList.reduce((acc, s) => acc + s.value, 0).toLocaleString('en-IN')}`, icon: Coins },
   ];
 
   const activeStats = isStock ? stockStats : ledgerStats;
 
-  const IconButton = ({ icon: Icon, color, onClick, label, isPrimary, border }) => {
-    const toneMap = {
-      purple:  '#8B5CF6',
-      blue:    '#38bdf8',
-      emerald: '#10B981',
-      slate:   'var(--app-text)',
-    };
-    const tone = toneMap[color] || 'var(--app-text)';
-
-    if (label) {
-      return (
-        <button
-          onClick={onClick}
-          className="h-8 px-3 rounded flex items-center gap-1.5 font-semibold text-[11px] uppercase transition-all shadow-sm active:scale-95 text-white"
-          style={{
-            background: isPrimary 
-              ? 'var(--app-accent-gradient)' 
-              : 'linear-gradient(135deg, #475569 0%, #334155 100%)'
-          }}
-        >
-          <Icon size={12} strokeWidth={2.5} />
-          {label}
-        </button>
-      );
-    }
-
-    return (
-      <button
-        onClick={onClick}
-        title={Icon?.displayName}
-        aria-label={Icon?.displayName}
-        className="h-8 w-8 rounded border flex items-center justify-center transition-all active:scale-90 hover:bg-[var(--app-control-hover)] shadow-sm"
-        style={{
-          borderColor: border ? tone + '40' : 'var(--app-border)',
-          color: tone,
-          backgroundColor: 'var(--app-control-bg)',
-        }}
-      >
-        <Icon size={13} strokeWidth={2.5} />
-      </button>
-    );
-  };
-
-  const TableHead = ({ label, center, width, borderRight }) => (
-    <th 
-      className={`p-2 border-b text-[11px] font-bold tracking-tight uppercase ${center ? 'text-center' : ''} ${borderRight ? 'border-r border-[var(--app-border)]' : ''}`} 
-      style={{ 
-        borderColor: 'var(--app-row-border)', 
-        color: 'var(--app-muted)', 
-        width: width, 
-        minWidth: width,
-        backgroundColor: 'var(--app-table-head-bg)'
-      }}
-    >
-      {label}
-    </th>
-  );
-
-  const renderPartyLedgerTable = () => {
-    const filteredParty = partyDataList.filter(item => {
-      if (onlyUnsynced && item.isSynced) return false;
-      return (
-        item.ledger.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.parentGroup.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.gst.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+  // Filtered rows (search + unsynced) for the active tab.
+  const rows = useMemo(() => {
+    const list = isStock ? stockDataList : partyDataList;
+    const q = searchQuery.trim().toLowerCase();
+    return list.filter((r) => {
+      if (onlyUnsynced && r.isSynced) return false;
+      if (!q) return true;
+      return isStock
+        ? `${r.name}${r.group}${r.hsn}`.toLowerCase().includes(q)
+        : `${r.ledger}${r.parentGroup}${r.gst}`.toLowerCase().includes(q);
     });
+  }, [isStock, stockDataList, partyDataList, searchQuery, onlyUnsynced]);
 
-    return (
-      <div className="flex-1 overflow-auto themed-scrollbar">
-        <table className="w-full text-left border-collapse min-w-[1500px] text-[13px]">
-          <thead className="sticky top-0 z-10">
-            <tr style={{ backgroundColor: 'var(--app-table-head-bg)' }}>
-              <TableHead label="Sr No" borderRight width="60px" />
-              <TableHead label="Ledger" borderRight width="220px" />
-              <TableHead label="Parent Group" borderRight width="130px" />
-              <TableHead label="Sub Group" borderRight width="130px" />
-              <TableHead label="GST Number" borderRight width="150px" />
-              <TableHead label="Name" borderRight width="180px" />
-              <TableHead label="Place of Supply" borderRight width="130px" />
-              <TableHead label="GST Registration" borderRight width="130px" />
-              <TableHead label="Address 1" borderRight width="250px" />
-              <TableHead label="Address 2" borderRight width="250px" />
-              <TableHead label="City" borderRight width="120px" />
-              <TableHead label="Sync Status" width="100px" center />
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={12} className="p-8 text-center text-slate-400 font-semibold animate-pulse">
-                  Loading party ledgers from Tally database...
-                </td>
-              </tr>
-            ) : filteredParty.length > 0 ? (
-              filteredParty.map((row, index) => (
-                <tr 
-                  key={row.sr} 
-                  className="border-b transition-colors hover:bg-slate-50/50 dark:hover:bg-slate-900/10 font-medium text-[var(--app-text)]" 
-                  style={{ 
-                    backgroundColor: index % 2 === 0 ? 'transparent' : 'var(--app-table-head-bg)', 
-                    borderColor: 'var(--app-row-border)' 
-                  }}
-                >
-                  <td className="p-2 border-r text-center text-slate-500 border-[var(--app-border)]">{index + 1}</td>
-                  <td className="p-2 border-r font-bold text-[var(--app-heading)] border-[var(--app-border)]">{row.ledger}</td>
-                  <td className="p-2 border-r border-[var(--app-border)]">{row.parentGroup}</td>
-                  <td className="p-2 border-r border-[var(--app-border)] text-slate-500">{row.subGroup}</td>
-                  <td className="p-2 border-r font-mono border-[var(--app-border)] font-semibold">{row.gst}</td>
-                  <td className="p-2 border-r border-[var(--app-border)] text-[var(--app-heading)]">{row.name}</td>
-                  <td className="p-2 border-r border-[var(--app-border)] text-slate-500">{row.pos}</td>
-                  <td className="p-2 border-r border-[var(--app-border)] text-slate-500">{row.type}</td>
-                  <td className="p-2 border-r border-[var(--app-border)] text-slate-500 truncate max-w-[240px]">{row.add1}</td>
-                  <td className="p-2 border-r border-[var(--app-border)] text-slate-500 truncate max-w-[240px]">{row.add2}</td>
-                  <td className="p-2 border-r border-[var(--app-border)] text-slate-500">{row.city}</td>
-                  <td className="p-2 text-center">
-                    <span className={`px-1.5 py-0.5 rounded border text-[10.5px] font-bold ${
-                      row.isSynced 
-                        ? 'bg-emerald-50 text-emerald-700 border-emerald-250 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30' 
-                        : 'bg-amber-50 text-amber-700 border-amber-250 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/30'
-                    }`}>
-                      {row.isSynced ? 'Synced' : 'Pending'}
-                    </span>
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan={12} className="p-8 text-center text-slate-400 font-medium">
-                  No party ledgers found.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    );
-  };
+  const ledgerColumns = [
+    { key: 'sr', header: 'Sr', width: '52px', align: 'center', render: (_r, i) => <span style={{ color: 'var(--app-muted)' }}>{i + 1}</span> },
+    { key: 'ledger', header: 'Ledger', sortable: true, render: (r) => <span className="font-bold" style={{ color: 'var(--app-heading)' }}>{r.ledger}</span> },
+    { key: 'parentGroup', header: 'Parent Group', sortable: true, render: (r) => <Badge tone="neutral">{r.parentGroup}</Badge> },
+    { key: 'subGroup', header: 'Sub Group', render: (r) => <span style={{ color: 'var(--app-muted)' }}>{r.subGroup}</span> },
+    { key: 'gst', header: 'GST Number', render: (r) => <span className="font-mono font-semibold">{r.gst}</span> },
+    { key: 'name', header: 'Name', sortable: true, render: (r) => <span style={{ color: 'var(--app-heading)' }}>{r.name}</span> },
+    { key: 'pos', header: 'Place of Supply', render: (r) => <span style={{ color: 'var(--app-muted)' }}>{r.pos}</span> },
+    { key: 'type', header: 'GST Reg', render: (r) => <span style={{ color: 'var(--app-muted)' }}>{r.type}</span> },
+    { key: 'add1', header: 'Address', render: (r) => <span className="truncate block max-w-[220px]" title={r.add1} style={{ color: 'var(--app-muted)' }}>{r.add1}</span> },
+    { key: 'city', header: 'City', render: (r) => <span style={{ color: 'var(--app-muted)' }}>{r.city}</span> },
+    { key: 'isSynced', header: 'Sync', align: 'center', sortable: true, sortValue: (r) => (r.isSynced ? 1 : 0), render: (r) => <Badge tone={r.isSynced ? 'success' : 'warning'}>{r.isSynced ? 'Synced' : 'Pending'}</Badge> },
+  ];
 
-  const renderStockTable = () => {
-    const filteredStock = stockDataList.filter(item => {
-      if (onlyUnsynced && item.isSynced) return false;
-      return (
-        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.group.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.hsn.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    });
-
-    return (
-      <div className="flex-1 overflow-auto themed-scrollbar">
-        <table className="w-full text-left border-collapse min-w-[1000px] text-[13px]">
-          <thead className="sticky top-0 z-10">
-            <tr style={{ backgroundColor: 'var(--app-table-head-bg)' }}>
-              <TableHead label="Sr No" borderRight width="60px" />
-              <TableHead label="Item Name" borderRight width="280px" />
-              <TableHead label="Stock Group" borderRight width="180px" />
-              <TableHead label="Unit (UOM)" borderRight width="120px" />
-              <TableHead label="HSN Code" borderRight width="140px" />
-              <TableHead label="GST Rate" borderRight width="120px" />
-              <TableHead label="Opening Qty" borderRight width="120px" center />
-              <TableHead label="Rate (₹)" borderRight width="140px" center />
-              <TableHead label="Opening Value (₹)" borderRight width="160px" center />
-              <TableHead label="Sync Status" width="100px" center />
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={10} className="p-8 text-center text-slate-400 font-semibold animate-pulse">
-                  Loading stock items from Tally database...
-                </td>
-              </tr>
-            ) : filteredStock.length > 0 ? (
-              filteredStock.map((row, index) => (
-                <tr 
-                  key={row.sr} 
-                  className="border-b transition-colors hover:bg-slate-50/50 dark:hover:bg-slate-900/10 font-medium text-[var(--app-text)]" 
-                  style={{ 
-                    backgroundColor: index % 2 === 0 ? 'transparent' : 'var(--app-table-head-bg)', 
-                    borderColor: 'var(--app-row-border)' 
-                  }}
-                >
-                  <td className="p-2 border-r text-center text-slate-500 border-[var(--app-border)]">{index + 1}</td>
-                  <td className="p-2 border-r font-bold text-[var(--app-heading)] border-[var(--app-border)]">{row.name}</td>
-                  <td className="p-2 border-r border-[var(--app-border)]">{row.group}</td>
-                  <td className="p-2 border-r border-[var(--app-border)]">{row.uom}</td>
-                  <td className="p-2 border-r font-mono border-[var(--app-border)] font-semibold">{row.hsn}</td>
-                  <td className="p-2 border-r font-semibold text-[var(--app-accent)] border-[var(--app-border)]">{row.gstRate}</td>
-                  <td className="p-2 border-r text-right font-semibold text-[var(--app-heading)] border-[var(--app-border)]">{row.qty}</td>
-                  <td className="p-2 border-r text-right border-[var(--app-border)]">₹{(row.rate ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                  <td className="p-2 border-r text-right font-bold text-emerald-600 dark:text-emerald-400 border-[var(--app-border)]">₹{(row.value ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                  <td className="p-2 text-center">
-                    <span className={`px-1.5 py-0.5 rounded border text-[10.5px] font-bold ${
-                      row.isSynced 
-                        ? 'bg-emerald-50 text-emerald-700 border-emerald-250 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30' 
-                        : 'bg-amber-50 text-amber-700 border-amber-250 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/30'
-                    }`}>
-                      {row.isSynced ? 'Synced' : 'Pending'}
-                    </span>
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan={10} className="p-8 text-center text-slate-400 font-medium">
-                  No stock items found.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    );
-  };
-
-  const renderLedgerForm = () => (
-    <form
-      onSubmit={handleCreateLedger}
-      className="space-y-2 bg-[var(--app-panel-bg)]"
-    >
-      <div className="flex items-center justify-between border-b pb-1.5 mb-2.5 border-[var(--app-border)]">
-        <h3 className="text-[14px] font-bold text-[var(--app-heading)] uppercase tracking-wider">Create Party Ledger</h3>
-        <button type="button" onClick={() => setShowCreateForm(false)} className="text-slate-400 hover:text-slate-600"><X size={14} /></button>
-      </div>
-
-      <div className="space-y-2">
-        <div>
-          <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Ledger Name *</label>
-          <input
-            type="text"
-            placeholder="e.g. A K TRADING"
-            value={ledgerForm.ledgerName}
-            onChange={(e) => setLedgerForm(prev => ({ ...prev, ledgerName: e.target.value }))}
-            className="w-full h-8 rounded border px-2.5 text-[13px] outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
-            required
-          />
-        </div>
-
-        <div>
-          <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Parent Group</label>
-          <select
-            value={ledgerForm.parentGroup}
-            onChange={(e) => setLedgerForm(prev => ({ ...prev, parentGroup: e.target.value }))}
-            className="w-full h-8 rounded border px-2 text-[13px] outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
-          >
-            <option value="Sundry Debtors">Sundry Debtors</option>
-            <option value="Sundry Creditors">Sundry Creditors</option>
-          </select>
-        </div>
-
-        <div>
-          <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">GSTIN Number</label>
-          <input
-            type="text"
-            placeholder="e.g. 07DDTPAD879K1Z7"
-            value={ledgerForm.gstin}
-            onChange={(e) => setLedgerForm(prev => ({ ...prev, gstin: e.target.value }))}
-            className="w-full h-8 rounded border px-2.5 text-[13px] outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
-          />
-        </div>
-
-        <div>
-          <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Place of Supply</label>
-          <select
-            value={ledgerForm.pos}
-            onChange={(e) => setLedgerForm(prev => ({ ...prev, pos: e.target.value }))}
-            className="w-full h-8 rounded border px-2 text-[13px] outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
-          >
-            <option value="Delhi">Delhi</option>
-            <option value="Madhya Pradesh">Madhya Pradesh</option>
-            <option value="Maharashtra">Maharashtra</option>
-            <option value="Gujarat">Gujarat</option>
-          </select>
-        </div>
-
-        <div>
-          <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Address Line 1</label>
-          <input
-            type="text"
-            placeholder="e.g. RIGHT PORTION 1st Floor, KH N.589"
-            value={ledgerForm.add1}
-            onChange={(e) => setLedgerForm(prev => ({ ...prev, add1: e.target.value }))}
-            className="w-full h-8 rounded border px-2.5 text-[13px] outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
-          />
-        </div>
-
-        <div>
-          <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">City</label>
-          <input
-            type="text"
-            placeholder="e.g. Delhi"
-            value={ledgerForm.city}
-            onChange={(e) => setLedgerForm(prev => ({ ...prev, city: e.target.value }))}
-            className="w-full h-8 rounded border px-2.5 text-[13px] outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
-          />
-        </div>
-      </div>
-
-      <div className="flex gap-2 pt-3 border-t border-[var(--app-border)]">
-        <button
-          type="button"
-          onClick={() => setShowCreateForm(false)}
-          className="h-8 flex-1 rounded border text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors uppercase font-bold text-[11px] border-[var(--app-border)]"
-        >
-          Cancel
-        </button>
-        <button
-          type="submit"
-          className="h-8 flex-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-bold uppercase text-[11px] shadow transition-colors"
-        >
-          Save Ledger
-        </button>
-      </div>
-    </form>
-  );
+  const stockColumns = [
+    { key: 'sr', header: 'Sr', width: '52px', align: 'center', render: (_r, i) => <span style={{ color: 'var(--app-muted)' }}>{i + 1}</span> },
+    { key: 'name', header: 'Item Name', sortable: true, render: (r) => <span className="font-bold" style={{ color: 'var(--app-heading)' }}>{r.name}</span> },
+    { key: 'group', header: 'Stock Group', sortable: true, render: (r) => <Badge tone="neutral">{r.group}</Badge> },
+    { key: 'uom', header: 'UOM', render: (r) => <span style={{ color: 'var(--app-muted)' }}>{r.uom}</span> },
+    { key: 'hsn', header: 'HSN', render: (r) => <span className="font-mono font-semibold">{r.hsn}</span> },
+    { key: 'gstRate', header: 'GST', render: (r) => <span className="font-semibold" style={{ color: 'var(--app-accent)' }}>{r.gstRate}</span> },
+    { key: 'qty', header: 'Opening Qty', align: 'right', sortable: true, sortValue: (r) => r.qty, render: (r) => <span className="font-semibold tabular-nums" style={{ color: 'var(--app-heading)' }}>{r.qty}</span> },
+    { key: 'rate', header: 'Rate', align: 'right', sortable: true, sortValue: (r) => r.rate, render: (r) => <span className="tabular-nums">₹{(r.rate ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span> },
+    { key: 'value', header: 'Opening Value', align: 'right', sortable: true, sortValue: (r) => r.value, render: (r) => <span className="font-bold tabular-nums text-emerald-600 dark:text-emerald-400">₹{(r.value ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span> },
+    { key: 'isSynced', header: 'Sync', align: 'center', sortable: true, sortValue: (r) => (r.isSynced ? 1 : 0), render: (r) => <Badge tone={r.isSynced ? 'success' : 'warning'}>{r.isSynced ? 'Synced' : 'Pending'}</Badge> },
+  ];
 
   return (
-    <div className="flex flex-col gap-2.5 h-full animate-in fade-in duration-500 overflow-y-auto pr-1 text-[13px] text-[var(--app-text)]">
+    <div className="flex flex-col gap-2.5 h-full animate-in fade-in duration-500 overflow-hidden p-1 text-[13px] text-[var(--app-text)]">
       
       {/* Title Header */}
       <div 
@@ -576,117 +300,39 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
         </button>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5 shrink-0">
-        {activeStats.map((s, idx) => (
-          <div key={idx} className={`p-2 border rounded-xl flex flex-col justify-between transition-all ${s.cardBg}`}>
-            <span className={`text-[10px] uppercase font-bold tracking-wider leading-none block ${s.color}`}>{s.label}</span>
-            <span className={`text-[15px] font-extrabold mt-1 block leading-none ${s.countColor}`}>{s.count}</span>
-          </div>
+      {/* KPI cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 shrink-0">
+        {activeStats.map((s, i) => (
+          <StatCard key={s.label} index={i} label={s.label} value={s.value} icon={s.icon} />
         ))}
       </div>
 
-      {/* Toolbar filters */}
-      <div className="border rounded px-2.5 py-2 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2 bg-[var(--app-panel-bg)] border-[var(--app-border)] shrink-0">
-        {/* Search */}
-        <div className="relative w-full md:max-w-xs flex-1 group">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
-          <input
-            type="text"
-            placeholder={isStock ? "Search stock items..." : "Search party ledgers..."}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full h-7 pl-8 pr-2.5 rounded border text-[14px] outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
-          />
-        </div>
-
-        <div className="flex items-center gap-2">
-          <label className="flex items-center gap-1.5 cursor-pointer group select-none">
-            <input 
-              type="checkbox" 
-              checked={onlyUnsynced}
-              onChange={(e) => setOnlyUnsynced(e.target.checked)}
-              className="w-3.5 h-3.5 rounded border-slate-300 accent-[var(--app-accent)] cursor-pointer" 
-            />
-            <span className="text-[12px] font-semibold text-slate-500 group-hover:text-slate-800 transition-colors">Unsynced Only</span>
-          </label>
-
-          <button
-            onClick={() => {
-              setSearchQuery('');
-              setOnlyUnsynced(false);
-              fetchMasterData();
-              toast.info('Lists refreshed from Tally cache');
-            }}
-            className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 border rounded text-[var(--app-muted)] border-[var(--app-border)]"
-            type="button"
-          >
-            <RefreshCw size={13} />
-          </button>
-        </div>
+      {/* Master table */}
+      <div className="flex-1 min-h-0">
+        <DataTable
+          minWidth={isStock ? '1000px' : '1400px'}
+          data={rows}
+          rowKey={(r) => r.sr}
+          loading={loading}
+          emptyText={isStock ? 'No stock items found.' : 'No party ledgers found.'}
+          columns={isStock ? stockColumns : ledgerColumns}
+          search={{ value: searchQuery, onChange: setSearchQuery, placeholder: isStock ? 'Search stock items…' : 'Search party ledgers…' }}
+          filters={
+            <>
+              <label className="flex items-center gap-1.5 cursor-pointer select-none px-1">
+                <input type="checkbox" checked={onlyUnsynced} onChange={(e) => setOnlyUnsynced(e.target.checked)} className="w-3.5 h-3.5 rounded accent-[var(--app-accent)] cursor-pointer" />
+                <span className="text-[11px] font-semibold whitespace-nowrap" style={{ color: 'var(--app-muted)' }}>Unsynced Only</span>
+              </label>
+              <button type="button" title="Refresh" aria-label="Refresh" onClick={() => { setSearchQuery(''); setOnlyUnsynced(false); fetchMasterData(); toast.info('Lists refreshed from Tally cache'); }} className="h-8 w-8 flex items-center justify-center border rounded-lg text-[var(--app-muted)] border-[var(--app-border)] hover:bg-[var(--app-control-hover)] transition-colors">
+                <RefreshCw size={13} />
+              </button>
+            </>
+          }
+        />
       </div>
 
-      {/* Main Grid: Left Table List, Right Creation Form */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 flex-1 overflow-hidden">
-        
-        {/* Table List Column */}
-        <div className="lg:col-span-12 flex flex-col border rounded-xl overflow-hidden bg-[var(--app-panel-bg)] border-[var(--app-border)] shadow-sm">
-          {isStock ? renderStockTable() : renderPartyLedgerTable()}
-
-          {/* Pagination Footer */}
-          <div 
-            className="flex items-center justify-center gap-4 py-2 border-t shrink-0 relative text-[12px] font-semibold" 
-            style={{ borderColor: 'var(--app-row-border)', backgroundColor: 'var(--app-table-head-bg)' }}
-          >
-            <span className="text-[11px] font-bold text-[var(--app-accent)] dark:text-[var(--app-accent)]">
-              1 - {isStock ? stockDataList.length : partyDataList.length} of {isStock ? stockDataList.length : partyDataList.length}
-            </span>
-            
-            <div className="flex items-center gap-1">
-              <button className="text-slate-300 hover:text-slate-500 p-1"><ChevronLeft size={14} /></button>
-              <button className="text-slate-300 hover:text-slate-500 p-1"><ChevronRight size={14} /></button>
-            </div>
-            
-            <div className="relative">
-              <button 
-                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="border rounded px-2 py-1 flex items-center gap-2 transition-all shadow-sm"
-                style={{ 
-                  backgroundColor: 'var(--app-control-bg)', 
-                  borderColor: isDropdownOpen ? 'var(--app-accent)' : 'var(--app-border)' 
-                }}
-              >
-                <span className="text-[11px] font-bold w-4 text-left" style={{ color: 'var(--app-text)' }}>{pageSize}</span>
-                <ChevronDown size={12} className="transition-transform" style={{ color: 'var(--app-muted)', transform: isDropdownOpen ? 'rotate(180deg)' : 'none' }} />
-              </button>
-
-              {isDropdownOpen && (
-                <div 
-                  className="absolute bottom-full left-0 mb-1 w-full border rounded-lg shadow-lg overflow-hidden py-1 z-50 animate-in fade-in slide-in-from-bottom-2 duration-200" 
-                  style={{ backgroundColor: 'var(--app-panel-bg)', borderColor: 'var(--app-border)' }}
-                >
-                  {[10, 50, 100].map((size) => (
-                    <button
-                      key={size}
-                      onClick={() => {
-                        setPageSize(size);
-                        setIsDropdownOpen(false);
-                      }}
-                      className="w-full text-left px-3 py-1.5 text-[11px] font-bold transition-colors"
-                      style={{ 
-                        backgroundColor: size === pageSize ? 'var(--app-accent-soft)' : 'transparent',
-                        color: size === pageSize ? (isDark ? '#38bdf8' : 'var(--app-accent)') : 'var(--app-text)'
-                      }}
-                    >
-                      {size}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
+      {/* Create modals */}
+      <div className="contents">
         {/* Stock Item Pop-up Modal */}
         {showCreateForm && isStock && (
           <div className="fixed inset-0 z-50 flex items-start md:items-center justify-center bg-black/50 backdrop-blur-[2px] p-0 md:p-4 overflow-y-auto">
