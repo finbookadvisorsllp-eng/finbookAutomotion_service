@@ -9,57 +9,60 @@
    shell + Login both toggle it), so tokens cascade either way.
    ────────────────────────────────────────────────────────────── */
 :root {
-  --app-bg: #FAFAFB;
+  --app-bg: #F5F6F8;
   --app-panel-bg: #FFFFFF;
-  --app-content-bg: #F6F7F9;
+  --app-content-bg: #F0F2F5;
   --app-sidebar-bg: #FFFFFF;
-  --app-border: #ECEEF2;
-  --app-heading: #0B0B12;
-  --app-text: #5B6478;
-  --app-muted: #8A93A6;
+  --app-border: #E2E5EB;
+  --app-heading: #0F1117;
+  --app-text: #51596B;
+  --app-muted: #858C9A;
   --app-accent: #2563EB;
   --app-accent-strong: #1D4ED8;
-  --app-accent-soft: rgba(37, 99, 235, 0.08);
-  --app-accent-gradient: linear-gradient(135deg, #1D4ED8 0%, #2563EB 55%, #3B82F6 100%);
-  --app-table-head-bg: #F6F7F9;
-  --app-row-border: #F1F2F5;
-  --app-row-hover: #F6F7F9;
+  --app-accent-soft: rgba(37, 99, 235, 0.09);
+  --app-accent-gradient: linear-gradient(135deg, #1D4ED8 0%, #2563EB 100%);
+  --app-table-head-bg: #F4F6F9;
+  --app-row-border: #EDEFF3;
+  --app-row-hover: #F4F6F9;
   --app-control-bg: #FFFFFF;
-  --app-control-hover: #F6F7F9;
+  --app-control-hover: #F1F3F6;
   --app-success: #059669;
   --app-warning: #D97706;
   --app-danger-bg: #FEF2F2;
   --app-danger-border: #FECACA;
   --app-danger-text: #B91C1C;
-  --app-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px -16px rgba(15, 23, 42, 0.18);
-  --app-shadow-lg: 0 24px 60px -24px rgba(15, 23, 42, 0.22), 0 2px 6px -2px rgba(15, 23, 42, 0.06);
+  /* Tiles need to read as distinct surfaces — visible but soft elevation. */
+  --app-shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 2px 8px -2px rgba(16, 24, 40, 0.08);
+  --app-shadow-lg: 0 12px 32px -10px rgba(16, 24, 40, 0.18), 0 2px 6px -2px rgba(16, 24, 40, 0.06);
 }
 
 .dark {
-  --app-bg: #07070A;
-  --app-panel-bg: rgba(17, 18, 24, 0.82);
-  --app-content-bg: #0A0A0F;
-  --app-sidebar-bg: rgba(13, 14, 20, 0.82);
-  --app-border: rgba(255, 255, 255, 0.08);
-  --app-heading: #F4F5F7;
-  --app-text: #C9CDD6;
-  --app-muted: #868C99;
-  --app-accent: #60A5FA;
+  /* Calm deep-slate (not pure black), solid panels, desaturated accent —
+     refined for long sessions, no neon glow. */
+  --app-bg: #0B0D12;
+  --app-panel-bg: #15171F;
+  --app-content-bg: #0B0D12;
+  --app-sidebar-bg: #101219;
+  --app-border: #262A33;
+  --app-heading: #E8EAEF;
+  --app-text: #AEB4C0;
+  --app-muted: #6F7686;
+  --app-accent: #5E9BF0;
   --app-accent-strong: #3B82F6;
-  --app-accent-soft: rgba(96, 165, 250, 0.14);
-  --app-accent-gradient: linear-gradient(135deg, #3B82F6 0%, #60A5FA 55%, #7DD3FC 100%);
-  --app-table-head-bg: rgba(255, 255, 255, 0.03);
-  --app-row-border: rgba(255, 255, 255, 0.06);
-  --app-row-hover: rgba(255, 255, 255, 0.04);
-  --app-control-bg: rgba(255, 255, 255, 0.03);
-  --app-control-hover: rgba(255, 255, 255, 0.06);
+  --app-accent-soft: rgba(94, 155, 240, 0.14);
+  --app-accent-gradient: linear-gradient(135deg, #3B82F6 0%, #5E9BF0 100%);
+  --app-table-head-bg: #1A1D26;
+  --app-row-border: #21242E;
+  --app-row-hover: #1C1F29;
+  --app-control-bg: #1A1D26;
+  --app-control-hover: #222530;
   --app-success: #34D399;
   --app-warning: #FBBF24;
-  --app-danger-bg: rgba(239, 68, 68, 0.12);
-  --app-danger-border: rgba(239, 68, 68, 0.30);
+  --app-danger-bg: rgba(239, 68, 68, 0.14);
+  --app-danger-border: rgba(239, 68, 68, 0.32);
   --app-danger-text: #FCA5A5;
-  --app-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 32px -18px rgba(0, 0, 0, 0.6);
-  --app-shadow-lg: 0 30px 80px -24px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --app-shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 4px 14px -4px rgba(0, 0, 0, 0.55);
+  --app-shadow-lg: 0 16px 44px -14px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 @layer base {
