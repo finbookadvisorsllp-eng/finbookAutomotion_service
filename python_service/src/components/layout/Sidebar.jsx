@@ -19,9 +19,9 @@ import { motion } from 'motion/react'
 
 const menuItems = [
   { key: 'Dashboard', icon: LayoutDashboard },
-  { key: 'Manual Entry', icon: FileText },
+  { key: 'Manual Voucher Entry', icon: FileText },
   { key: 'Bulk Upload', icon: Upload },
-  { key: 'AI Processing Center', icon: Brain },
+  { key: 'OCR Upload', icon: Brain },
   { key: 'Approval Center', icon: CheckCircle2 },
   { key: 'Ledger Master', icon: BookOpen },
   { key: 'Item Master', icon: Package },

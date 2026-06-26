@@ -112,6 +112,7 @@ class PurchaseService:
                 "partyGstin": doc.get("gstDetails", {}).get("gstin"),
                 "purchaseLedger": doc.get("purchaseLedger") or doc.get("purchaseLedgerName"),
                 "consigneeLedger": doc.get("consigneeLedger"),
+                "consigneeGstin": doc.get("consigneeGstin") or "",
                 "gstRegistration": doc.get("gstRegistration"),
                 "gstRegistrationType": doc.get("gstRegistrationType"),
                 "grandTotal": doc.get("totals", {}).get("grandTotal") or doc.get("total_amount") or 0.0,
@@ -119,7 +120,9 @@ class PurchaseService:
                 "status": "approved",
                 "productLines": doc.get("inventoryEntries", []),
                 "purchaseLines": doc.get("ledgerEntries", []),
-                "entryMode": "manual"
+                "entryMode": doc.get("entryMode") or "manual",
+                "ocrMetadata": doc.get("ocrMetadata"),
+                "bulkMetadata": doc.get("bulkMetadata")
             }
             return mapped
             

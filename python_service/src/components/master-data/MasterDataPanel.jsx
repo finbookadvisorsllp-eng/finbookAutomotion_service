@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Search, HelpCircle, ChevronLeft, ChevronRight, ChevronDown, RefreshCw, Settings, Plus, X, BookOpen, Package, User, ShieldCheck, Landmark, FileSpreadsheet, Percent, IndianRupee, Info } from 'lucide-react';
 import { toast } from 'sonner';
+import salesApi from '../../services/salesApi';
+import fundflowApi from '../../services/fundflowApi';
 
 const MasterDataPanel = ({ mode: propMode, isDark }) => {
   const [activeTab, setActiveTab] = useState(propMode || 'Party Ledger');
@@ -9,11 +11,62 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [pageSize, setPageSize] = useState(10);
   const [onlyUnsynced, setOnlyUnsynced] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const fetchMasterData = async () => {
+    setLoading(true);
+    try {
+      const [ledgersRes, stockRes] = await Promise.all([
+        fundflowApi.getLedgers().catch(() => ({ data: { ledgers: [] } })),
+        salesApi.getStockItems().catch(() => ({ data: [] }))
+      ]);
+
+      // Map Ledgers
+      const rawLedgers = ledgersRes.data?.ledgers || [];
+      const mappedLedgers = rawLedgers.map((l, index) => ({
+        sr: index + 1,
+        ledger: l.ledgerName || l.name || '',
+        parentGroup: l.groupName || 'Sundry Debtors',
+        subGroup: l.groupName || 'Sundry Debtors',
+        gst: l.gstin || 'N/A',
+        name: l.ledgerName || l.name || '',
+        pos: l.gstState || '—',
+        type: l.registrationType || 'Regular',
+        add1: l.add1 || '—',
+        add2: l.add2 || '—',
+        city: l.city || '—',
+        isSynced: l.isSynced ?? true
+      }));
+      setPartyDataList(mappedLedgers);
+
+      // Map Stock Items
+      const rawStock = stockRes.data || [];
+      const mappedStock = rawStock.map((s, index) => ({
+        sr: index + 1,
+        name: s.name || '',
+        group: s.group || 'General',
+        uom: s.unit || 'Nos',
+        hsn: s.hsnCode || 'N/A',
+        gstRate: s.gstRate ? `${s.gstRate}%` : '0%',
+        qty: s.qty ?? 0,
+        rate: s.rate ?? 0,
+        value: s.value ?? 0,
+        isSynced: s.isSynced ?? true
+      }));
+      setStockDataList(mappedStock);
+    } catch (err) {
+      console.error('Error fetching master data:', err);
+      toast.error('Failed to load master data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (propMode) {
       setActiveTab(propMode);
     }
+    fetchMasterData();
   }, [propMode]);
 
   // Form states
@@ -60,22 +113,8 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
   });
 
   // Data states
-  const [partyDataList, setPartyDataList] = useState([
-    { sr: 1, ledger: 'A K TRADING', parentGroup: 'Sundry Debtors', subGroup: 'Sundry Debtors', gst: '07DDTPAD879K1Z7', name: 'A K TRADING', pos: 'Delhi', type: 'Regular', add1: 'RIGHT PORTION 1st Floor, KH N.589, Extended Lal Dora Road', add2: 'Village Alipur, West Delhi, Delhi', city: 'Delhi', isSynced: true },
-    { sr: 2, ledger: 'A R V Foods', parentGroup: 'Sundry Debtors', subGroup: 'Sundry Debtors', gst: '07AOCPK6867N1Z4', name: 'A R V Foods', pos: 'Delhi', type: 'Regular', add1: 'GROUND FLOOR, KH NO 1247, VILLAGE BHALAWA', add2: 'NEAR K BLOCK, JAHANGIRPURI, North Delhi', city: 'Delhi', isSynced: true },
-    { sr: 3, ledger: 'A-one Product', parentGroup: 'Sundry Debtors', subGroup: 'Sundry Debtors', gst: '23AAUFA5062G1Z0', name: 'A-one Product', pos: 'Madhya Pradesh', type: 'Regular', add1: '104 A, SECTOR F INDUSTRIAL AREA, SANWER ROAD', add2: 'Indore', city: 'Indore', isSynced: true },
-    { sr: 4, ledger: 'A.M. Industries', parentGroup: 'Sundry Debtors', subGroup: 'Sundry Debtors', gst: '23ABPFA7400G1ZR', name: 'A.M. Industries', pos: 'Madhya Pradesh', type: 'Regular', add1: '17, Khandewal Compound,', add2: 'Palda Industrial Area, Indore-452001', city: 'Indore', isSynced: false },
-    { sr: 5, ledger: 'ABEL Health Care', parentGroup: 'Sundry Debtors', subGroup: 'Sundry Debtors', gst: '23ABDFN3351G1Z5', name: 'ABEL Health Care', pos: 'Madhya Pradesh', type: 'Regular', add1: '—', add2: '—', city: 'Indore', isSynced: true },
-    { sr: 6, ledger: 'Accent Graphics', parentGroup: 'Sundry Debtors', subGroup: 'Sundry Debtors', gst: '23ADIPN4243G1Z6', name: 'Accent Graphics', pos: 'Madhya Pradesh', type: 'Regular', add1: 'PLOT NO. 9, CHOUDHARY COMPOUND', add2: 'KHATIPURA, NEAR BRIDGE, SUKHALIYA', city: 'Indore', isSynced: true },
-  ]);
-
-  const [stockDataList, setStockDataList] = useState([
-    { sr: 1, name: 'Monitor LG 24"', group: 'Computer Hardware', uom: 'Pcs', hsn: '84713010', gstRate: '18%', qty: 12, rate: 8500, value: 102000, isSynced: true },
-    { sr: 2, name: 'Logitech Keyboard K120', group: 'Accessories', uom: 'Pcs', hsn: '84716060', gstRate: '18%', qty: 50, rate: 450, value: 22500, isSynced: true },
-    { sr: 3, name: 'HP LaserJet Printer', group: 'Printers', uom: 'Pcs', hsn: '84433210', gstRate: '18%', qty: 5, rate: 12500, value: 62500, isSynced: false },
-    { sr: 4, name: 'Dell Mouse WM126', group: 'Accessories', uom: 'Pcs', hsn: '84716060', gstRate: '18%', qty: 35, rate: 650, value: 22750, isSynced: true },
-    { sr: 5, name: 'Consulting Services', group: 'Services', uom: 'Hours', hsn: '998311', gstRate: '18%', qty: 0, rate: 1500, value: 0, isSynced: true }
-  ]);
+  const [partyDataList, setPartyDataList] = useState([]);
+  const [stockDataList, setStockDataList] = useState([]);
 
   const handleCreateLedger = (e) => {
     e.preventDefault();
@@ -274,7 +313,13 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
             </tr>
           </thead>
           <tbody>
-            {filteredParty.length > 0 ? (
+            {loading ? (
+              <tr>
+                <td colSpan={12} className="p-8 text-center text-slate-400 font-semibold animate-pulse">
+                  Loading party ledgers from Tally database...
+                </td>
+              </tr>
+            ) : filteredParty.length > 0 ? (
               filteredParty.map((row, index) => (
                 <tr 
                   key={row.sr} 
@@ -347,7 +392,13 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
             </tr>
           </thead>
           <tbody>
-            {filteredStock.length > 0 ? (
+            {loading ? (
+              <tr>
+                <td colSpan={10} className="p-8 text-center text-slate-400 font-semibold animate-pulse">
+                  Loading stock items from Tally database...
+                </td>
+              </tr>
+            ) : filteredStock.length > 0 ? (
               filteredStock.map((row, index) => (
                 <tr 
                   key={row.sr} 
@@ -364,8 +415,8 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
                   <td className="p-2 border-r font-mono border-slate-200 dark:border-slate-800 font-semibold">{row.hsn}</td>
                   <td className="p-2 border-r font-semibold text-indigo-500 border-slate-200 dark:border-slate-800">{row.gstRate}</td>
                   <td className="p-2 border-r text-right font-semibold text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800">{row.qty}</td>
-                  <td className="p-2 border-r text-right border-slate-200 dark:border-slate-800">₹{row.rate.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                  <td className="p-2 border-r text-right font-bold text-emerald-600 dark:text-emerald-400 border-slate-200 dark:border-slate-800">₹{row.value.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                  <td className="p-2 border-r text-right border-slate-200 dark:border-slate-800">₹{(row.rate ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                  <td className="p-2 border-r text-right font-bold text-emerald-600 dark:text-emerald-400 border-slate-200 dark:border-slate-800">₹{(row.value ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
                   <td className="p-2 text-center">
                     <span className={`px-1.5 py-0.5 rounded border text-[10.5px] font-bold ${
                       row.isSynced 
@@ -562,6 +613,7 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
             onClick={() => {
               setSearchQuery('');
               setOnlyUnsynced(false);
+              fetchMasterData();
               toast.info('Lists refreshed from Tally cache');
             }}
             className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 border rounded text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-800"

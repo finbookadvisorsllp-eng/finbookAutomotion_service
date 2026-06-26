@@ -31,7 +31,7 @@ async def list_vouchers(
     status: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
-    limit: int = Query(50, ge=1, le=100),
+    limit: int = Query(50, ge=1, le=500),
     service: SalesVoucherService = Depends(get_sales_voucher_service)
 ):
     result = await service.list_vouchers(

@@ -12,7 +12,6 @@ const DEFAULT_FORM = {
   amount:              0,
   drCrType:            'Debit (Dr)',
   ledgerGroup:         'Sundry Creditors',
-  currency:            'INR',
 
   cashLedger:          '',
   cashAmount:          0,
@@ -52,7 +51,10 @@ const DEFAULT_FORM = {
   difference:          0,
   excessOption:        '',
   remarks:             '',
-  instType:            '',
+  entryMode:           'manual',
+  costCategory:        '',
+  costCenter:          '',
+  costAmount:          0,
 };
 
 const calculateFormTotals = (form) => {
@@ -215,7 +217,18 @@ export const useFundFlowStore = create((set, get) => ({
     set((s) => ({ loading: { ...s.loading, detail: true }, error: null }));
     try {
       const res = await fundflowApi.getById(id);
-      set({ selectedTransaction: res.data, form: { ...res.data } });
+      set({
+        selectedTransaction: res.data,
+        form: {
+          ...res.data,
+          entryMode: res.data.entryMode || 'manual',
+          excessOption: res.data.excessOption || '',
+          remarks: res.data.remarks || '',
+          costCategory: res.data.costCategory || '',
+          costCenter: res.data.costCenter || '',
+          costAmount: res.data.costAmount || 0,
+        }
+      });
     } catch (err) {
       set({ error: err.response?.data?.message || 'Failed to retrieve transaction' });
     } finally {
@@ -249,7 +262,6 @@ export const useFundFlowStore = create((set, get) => ({
       voucherDate: new Date().toISOString().substring(0, 10),
       excessOption: '',
       remarks: '',
-      instType: '',
     },
     error: null,
   }),
@@ -269,7 +281,17 @@ export const useFundFlowStore = create((set, get) => ({
       } else {
         res = await fundflowApi.create(payload);
       }
-      set({ form: { ...res.data } });
+      set({
+        form: {
+          ...res.data,
+          entryMode: res.data.entryMode || 'manual',
+          excessOption: res.data.excessOption || '',
+          remarks: res.data.remarks || '',
+          costCategory: res.data.costCategory || '',
+          costCenter: res.data.costCenter || '',
+          costAmount: res.data.costAmount || 0,
+        }
+      });
       return { success: true, data: res.data };
     } catch (err) {
       const msg = err.response?.data?.message || 'Failed to save draft';
@@ -284,14 +306,24 @@ export const useFundFlowStore = create((set, get) => ({
     const { form } = get();
     set((s) => ({ loading: { ...s.loading, save: true }, error: null }));
     try {
-      const payload = { ...form, status: 'pending_review' };
+      const payload = { ...form, status: 'pending_approval' };
       let res;
       if (form._id) {
         res = await fundflowApi.update(form._id, payload);
       } else {
         res = await fundflowApi.create(payload);
       }
-      set({ form: { ...res.data } });
+      set({
+        form: {
+          ...res.data,
+          entryMode: res.data.entryMode || 'manual',
+          excessOption: res.data.excessOption || '',
+          remarks: res.data.remarks || '',
+          costCategory: res.data.costCategory || '',
+          costCenter: res.data.costCenter || '',
+          costAmount: res.data.costAmount || 0,
+        }
+      });
       return { success: true, data: res.data };
     } catch (err) {
       const msg = err.response?.data?.message || 'Failed to submit for review';

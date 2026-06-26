@@ -29,8 +29,8 @@ export default function RolePanel({ mode: propMode, isDark }) {
 
   // Permission Matrix Modules & columns
   const modulesList = [
-    'Dashboard', 'Manual Entry', 'Bulk Upload', 'Masters', 'Approval', 
-    'AI Processing', 'Tally Connector', 'Document Archive', 'Configuration'
+    'Dashboard', 'Manual Voucher Entry', 'Bulk Upload', 'Masters', 'Approval', 
+    'OCR Upload', 'Tally Connector', 'Document Archive', 'Configuration'
   ];
 
   const permissionActions = ['Create', 'Edit', 'Delete', 'Approve', 'Post To Tally'];

@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   X, Plus, RefreshCw, Edit3, Trash2, Send, CheckCircle2,
   ChevronLeft, ChevronRight, Loader2, ArrowUpDown, FileText,
-  BookText, ArrowLeftRight, Layout, Settings, AlertCircle, Eye, Copy, ArrowRightLeft
+  BookText, ArrowLeftRight, Layout, Settings, AlertCircle, Eye, Copy, ArrowRightLeft,
+  ChevronDown
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -123,6 +124,20 @@ const ManualEntryPanel = ({ isDark }) => {
     setVoucherTypeFilter('all');
   }, [activeTab]);
 
+  const [showCreateDropdown, setShowCreateDropdown] = useState(false);
+  const createDropdownRef = useRef(null);
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (createDropdownRef.current && !createDropdownRef.current.contains(event.target)) {
+        setShowCreateDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   // Fetch list helper
   const fetchList = () => {
     if (activeTab === 'sales_invoice') {
@@ -151,22 +166,38 @@ const ManualEntryPanel = ({ isDark }) => {
   useEffect(() => {
     if (location.state && location.state.voucherType) {
       const type = location.state.voucherType;
+      const editId = location.state.editId;
       salesStore.resetForm();
       purchaseStore.resetForm('purchase_invoice');
       fundFlowStore.resetForm(type);
 
       setActiveFormType(type);
       setActiveTab(type);
-      setIsEditing(false);
-      setEditingId(null);
-      setViewMode('form');
 
-      if (type.startsWith('sales_') || type === 'credit_note') {
-        salesStore.fetchNextInvoiceNumber(type);
-      } else if (type.startsWith('purchase_') || type === 'debit_note') {
-        purchaseStore.fetchNextInvoiceNumber(type);
+      if (editId) {
+        setIsEditing(true);
+        setEditingId(editId);
+        setViewMode('form');
+        
+        if (type.startsWith('sales_') || type === 'credit_note') {
+          salesStore.fetchById(editId);
+        } else if (type.startsWith('purchase_') || type === 'debit_note') {
+          purchaseStore.fetchTransactionById(editId);
+        } else {
+          fundFlowStore.fetchTransaction(editId);
+        }
       } else {
-        fundFlowStore.fetchNextVoucherNumber(type);
+        setIsEditing(false);
+        setEditingId(null);
+        setViewMode('form');
+
+        if (type.startsWith('sales_') || type === 'credit_note') {
+          salesStore.fetchNextInvoiceNumber(type);
+        } else if (type.startsWith('purchase_') || type === 'debit_note') {
+          purchaseStore.fetchNextInvoiceNumber(type);
+        } else {
+          fundFlowStore.fetchNextVoucherNumber(type);
+        }
       }
 
       // Clear location state
@@ -267,24 +298,28 @@ const ManualEntryPanel = ({ isDark }) => {
   };
 
   // Create Voucher Trigger
-  const handleCreateVoucher = () => {
+  const handleCreateVoucherWithType = (type) => {
     salesStore.resetForm();
     purchaseStore.resetForm('purchase_invoice');
-    fundFlowStore.resetForm(activeTab);
+    fundFlowStore.resetForm(type);
 
-    setActiveFormType(activeTab);
+    setActiveFormType(type);
     setIsEditing(false);
     setEditingId(null);
     setViewMode('form');
 
     // Fetch next number
-    if (activeTab.startsWith('sales_') || activeTab === 'credit_note') {
-      salesStore.fetchNextInvoiceNumber(activeTab);
-    } else if (activeTab.startsWith('purchase_') || activeTab === 'debit_note') {
-      purchaseStore.fetchNextInvoiceNumber(activeTab);
+    if (type.startsWith('sales_') || type === 'credit_note') {
+      salesStore.fetchNextInvoiceNumber(type);
+    } else if (type.startsWith('purchase_') || type === 'debit_note') {
+      purchaseStore.fetchNextInvoiceNumber(type);
     } else {
-      fundFlowStore.fetchNextVoucherNumber(activeTab);
+      fundFlowStore.fetchNextVoucherNumber(type);
     }
+  };
+
+  const handleCreateVoucher = () => {
+    handleCreateVoucherWithType(activeTab);
   };
 
   // Row Edit Trigger
@@ -539,7 +574,7 @@ const ManualEntryPanel = ({ isDark }) => {
                 )}
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 relative" ref={createDropdownRef}>
                 <button
                   onClick={fetchList}
                   className="p-1.5 border hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500 rounded-lg transition-colors"
@@ -547,13 +582,91 @@ const ManualEntryPanel = ({ isDark }) => {
                 >
                   <RefreshCw size={13} className={listLoading ? 'animate-spin' : ''} />
                 </button>
-                <button
-                  onClick={handleCreateVoucher}
-                  className="px-4 py-1.5 bg-[#4f46e5] hover:bg-indigo-700 text-white font-black text-[10.5px] uppercase tracking-wider rounded-lg shadow-sm flex items-center gap-1.5 transition-all"
-                >
-                  <Plus size={13} strokeWidth={3} />
-                  Create Voucher
-                </button>
+                {['sales_invoice', 'purchase_invoice'].includes(activeTab) ? (
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowCreateDropdown(!showCreateDropdown)}
+                      className="px-4 py-1.5 bg-[#4f46e5] hover:bg-indigo-700 text-white font-black text-[10.5px] uppercase tracking-wider rounded-lg shadow-sm flex items-center gap-1.5 transition-all cursor-pointer"
+                    >
+                      <Plus size={13} strokeWidth={3} />
+                      Create Voucher
+                      <ChevronDown size={12} />
+                    </button>
+                    {showCreateDropdown && (
+                      <div className="absolute right-0 mt-1.5 w-44 bg-white dark:bg-[#0d0f12] border border-slate-200 dark:border-slate-800 rounded-lg shadow-xl z-50 overflow-hidden py-1 animate-in fade-in slide-in-from-top-1 duration-150">
+                        {activeTab === 'sales_invoice' ? (
+                          <>
+                            <button
+                              onClick={() => {
+                                setShowCreateDropdown(false);
+                                handleCreateVoucherWithType('sales_order');
+                              }}
+                              className="w-full px-4 py-2 text-left text-[11.5px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors uppercase"
+                            >
+                              Sales Order
+                            </button>
+                            <button
+                              onClick={() => {
+                                setShowCreateDropdown(false);
+                                handleCreateVoucherWithType('sales_invoice');
+                              }}
+                              className="w-full px-4 py-2 text-left text-[11.5px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors uppercase"
+                            >
+                              Sales Invoice
+                            </button>
+                            <button
+                              onClick={() => {
+                                setShowCreateDropdown(false);
+                                handleCreateVoucherWithType('credit_note');
+                              }}
+                              className="w-full px-4 py-2 text-left text-[11.5px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors uppercase"
+                            >
+                              Credit Note
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => {
+                                setShowCreateDropdown(false);
+                                handleCreateVoucherWithType('purchase_order');
+                              }}
+                              className="w-full px-4 py-2 text-left text-[11.5px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors uppercase"
+                            >
+                              Purchase Order
+                            </button>
+                            <button
+                              onClick={() => {
+                                setShowCreateDropdown(false);
+                                handleCreateVoucherWithType('purchase_invoice');
+                              }}
+                              className="w-full px-4 py-2 text-left text-[11.5px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors uppercase"
+                            >
+                              Purchase Invoice
+                            </button>
+                            <button
+                              onClick={() => {
+                                setShowCreateDropdown(false);
+                                handleCreateVoucherWithType('debit_note');
+                              }}
+                              className="w-full px-4 py-2 text-left text-[11.5px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors uppercase"
+                            >
+                              Debit Note
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleCreateVoucher}
+                    className="px-4 py-1.5 bg-[#4f46e5] hover:bg-indigo-700 text-white font-black text-[10.5px] uppercase tracking-wider rounded-lg shadow-sm flex items-center gap-1.5 transition-all"
+                  >
+                    <Plus size={13} strokeWidth={3} />
+                    Create Voucher
+                  </button>
+                )}
               </div>
             </div>
 
@@ -735,7 +848,7 @@ const ManualEntryPanel = ({ isDark }) => {
               <AlertCircle size={24} />
               <h3 className="text-[13px] font-black uppercase tracking-wide">Unsaved Changes</h3>
             </div>
-            <p className="text-[11px] font-bold text-slate-655 dark:text-slate-400 mb-6 leading-relaxed">
+            <p className="text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-6 leading-relaxed">
               You have unsaved changes on this form. Are you sure you want to discard them and continue?
             </p>
             <div className="flex justify-end gap-2 text-[10px] font-black uppercase tracking-wider">
@@ -748,7 +861,7 @@ const ManualEntryPanel = ({ isDark }) => {
               </button>
               <button
                 onClick={handleConfirmDiscard}
-                className="px-4 py-2 bg-red-655 hover:bg-red-700 text-white rounded-xl shadow-sm transition-all"
+                className="px-4 py-2 bg-red-800 hover:bg-red-950 text-white rounded-xl shadow-sm transition-all"
               >
                 Discard & Continue
               </button>

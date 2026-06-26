@@ -362,11 +362,26 @@ class SalesVoucherRepository:
                     unit = unit_raw
                 else:
                     unit = doc.get("baseUnit") or doc.get("unitOfMeasure") or ""
+                qty = float(((doc.get("inventory") or {}).get("openingStock") or {}).get("quantity") or 0.0)
+                value = float(((doc.get("inventory") or {}).get("openingStock") or {}).get("value") or 0.0)
+                rate = float(((doc.get("inventory") or {}).get("openingStock") or {}).get("rate") or 0.0)
+                if rate == 0.0 and qty > 0.0:
+                    rate = round(value / qty, 2)
+                group = doc.get("stockGroupName") or ""
+                is_synced = doc.get("auditInfo", {}).get("syncedFromTally", False)
+                if is_synced is None:
+                    is_synced = False
+
                 results.append({
                     "name": name,
                     "hsnCode": str(hsn_code),
                     "gstRate": float(gst_rate),
-                    "unit": str(unit)
+                    "unit": str(unit),
+                    "group": group,
+                    "qty": qty,
+                    "rate": rate,
+                    "value": value,
+                    "isSynced": is_synced
                 })
             return results
         except Exception as e:

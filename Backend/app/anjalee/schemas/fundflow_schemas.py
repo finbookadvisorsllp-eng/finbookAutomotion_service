@@ -25,6 +25,7 @@ class FundFlowTransactionCreate(BaseModel):
     narration: Optional[str] = ""
     status: Optional[str] = "draft"
     billRows: Optional[List[dict]] = []
+    ledgerRows: Optional[List[dict]] = []
     costCenters: Optional[List[dict]] = []
 
     # UI Fields for saving all fund flow details
@@ -46,6 +47,9 @@ class FundFlowTransactionCreate(BaseModel):
     totalDebit: Optional[float] = 0.0
     totalCredit: Optional[float] = 0.0
     difference: Optional[float] = 0.0
+    entryMode: Optional[str] = "manual"
+    excessOption: Optional[str] = None
+    remarks: Optional[str] = None
 
 class StatusUpdate(BaseModel):
     status: str

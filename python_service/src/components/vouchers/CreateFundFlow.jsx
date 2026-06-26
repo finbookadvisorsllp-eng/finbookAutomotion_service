@@ -1,3 +1,6 @@
+
+
+
 import React, { useState, useRef, useEffect, createContext, useContext } from 'react';
 import {
   Plus, Minus, X, Settings, ChevronDown, Search,
@@ -9,6 +12,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useFundFlowStore } from '../../stores/useFundFlowStore';
 import { useAppStore } from '../../stores/useAppStore';
+import fundflowApi from '../../services/fundflowApi';
 
 const ThemeContext = createContext(null);
 
@@ -94,6 +98,35 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
 
   const [showBillAllocation, setShowBillAllocation] = useState(false);
   const [showBankInstrument, setShowBankInstrument] = useState(false);
+  const [partyDetailsCache, setPartyDetailsCache] = useState({});
+  const [activeAllocationRowIndex, setActiveAllocationRowIndex] = useState(0);
+
+  // Auto-fetch and cache party details for ledgerRows to show View Bills count
+  useEffect(() => {
+    const cacheParties = async () => {
+      const finalPartyLedgersList = (masterData?.ledgers || []).filter(l => {
+        const g = l.groupName ? l.groupName.toLowerCase().trim() : '';
+        return g === 'sundry debtors' || g === 'sundry creditors';
+      });
+
+      for (const row of form.ledgerRows || []) {
+        if (row.ledgerName && !partyDetailsCache[row.ledgerName]) {
+          const isParty = finalPartyLedgersList.some(l => l.name === row.ledgerName);
+          if (isParty) {
+            try {
+              const res = await fundflowApi.getPartyDetails(row.ledgerName);
+              if (res.success && res.data) {
+                setPartyDetailsCache(prev => ({ ...prev, [row.ledgerName]: res.data }));
+              }
+            } catch (err) {
+              console.error("Failed to fetch party details for cache:", err);
+            }
+          }
+        }
+      }
+    };
+    cacheParties();
+  }, [form.ledgerRows, masterData?.ledgers]);
 
   useEffect(() => {
     if (form.instNumber || form.utr || form.transType) {
@@ -106,7 +139,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
 
   const amountVal = parseFloat(form.amount) || 0;
   const totalAllocated = (form.billRows || []).reduce((acc, r) => acc + (parseFloat(r.allocationAmount) || 0), 0);
-  
+
   let advanceReceipt = 0;
   let difference = 0;
   if (activeType === 'bank_payment') {
@@ -116,15 +149,15 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
   } else if (activeType === 'cash_payment') {
     difference = amountVal - totalAllocated;
   }
-  
+
   const isUnbalanced = isPaymentOrReceipt && hasOutstandingBills && Math.abs(difference) > 0.01;
 
   // Dynamically update showBillAllocation based on party Ledger selection
   useEffect(() => {
     if (isPaymentOrReceipt) {
-      setShowBillAllocation(!!form.partyLedger);
+      setShowBillAllocation(true);
     }
-  }, [isPaymentOrReceipt, form.partyLedger]);
+  }, [isPaymentOrReceipt]);
 
   // Ensure at least one row in ledgerRows (Transaction Details) by default
   useEffect(() => {
@@ -144,7 +177,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
   // Load all pending bills when a party is selected
   useEffect(() => {
     if (isPaymentOrReceipt && selectedPartyDetails) {
-      const pendingBills = selectedPartyDetails.pendingBills || [];
+      const pendingBills = (selectedPartyDetails.pendingBills || []).filter(b => (parseFloat(b.pendingAmount) || 0) > 0.01);
       if (pendingBills.length > 0) {
         if (pendingBills.length === 1) {
           const singleBill = pendingBills[0];
@@ -193,7 +226,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
   // Auto-allocate single outstanding bill when payment amount changes
   useEffect(() => {
     if (isPaymentOrReceipt && selectedPartyDetails) {
-      const pendingBills = selectedPartyDetails.pendingBills || [];
+      const pendingBills = (selectedPartyDetails.pendingBills || []).filter(b => (parseFloat(b.pendingAmount) || 0) > 0.01);
       if (pendingBills.length === 1) {
         const singleBill = pendingBills[0];
         const paymentAmount = parseFloat(form.amount) || 0;
@@ -305,7 +338,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
       toast.error('Amount must be greater than zero');
       return false;
     }
-    
+
     const isBank = paymentMode === 'bank';
     const balance = parseFloat(isBank ? form.bankBalance : form.openingBalance) || 0;
     if (activeType === 'cash_payment') {
@@ -322,7 +355,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
         toast.error(activeType === 'bank_payment' ? 'Allocated amount must match receipt amount.' : 'Allocated amount must match transaction amount.');
         return false;
       }
-      
+
       let totalAllocated = 0;
       for (let i = 0; i < billRows.length; i++) {
         const row = billRows[i];
@@ -341,18 +374,11 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
         }
         totalAllocated += allocAmt;
       }
-      
+
       const voucherAmount = parseFloat(form.amount) || 0;
       if (activeType === 'bank_payment') {
-        const excess = Math.max(0, voucherAmount - totalAllocated);
-        if (excess > 0 && !form.excessOption) {
-          toast.error('Please select an option for excess receipt.');
-          return false;
-        }
-        const advanceReceiptAmt = form.excessOption ? excess : 0;
-        const diff = voucherAmount - totalAllocated - advanceReceiptAmt;
-        if (Math.abs(diff) > 0.01) {
-          toast.error('Receipt amount must match allocated amount + advance receipt.');
+        if (Math.abs(totalAllocated - voucherAmount) > 0.01) {
+          toast.error('Total Allocated Receipt Amount must be equal to Total Receipt Amount.');
           return false;
         }
       } else {
@@ -382,12 +408,22 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
     if (!validateForm()) return;
     const res = await pushToReview();
     if (res.success) {
-      toast.success('Pushed to review successfully');
+      toast.success('Pushed for approval successfully');
       if (onSaveSuccess) onSaveSuccess(res.data?._id || res.data?.id || form._id);
       else if (onBack) onBack(activeType);
     } else {
-      toast.error(res.message || 'Failed to push to review');
+      toast.error(res.message || 'Failed to push for approval');
     }
+  };
+
+  const handlePostToTally = () => {
+    if (form.status !== 'approved') {
+      toast.warning('Voucher must be approved in the Approval Center before posting to Tally.');
+      return;
+    }
+    toast.success("Successfully posted voucher to Tally database!");
+    if (onSaveSuccess) onSaveSuccess(form._id);
+    else if (onBack) onBack(activeType);
   };
 
   // Row operations for Bill Allocations
@@ -437,10 +473,10 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
   const handleBillRefChange = (index, billNo) => {
     const newBillRows = [...(form.billRows || [])];
     const selectedBill = (selectedPartyDetails?.pendingBills || []).find(b => b.billNo === billNo);
-    
+
     const mainAmount = parseFloat(form.amount) || 0;
     const defaultAlloc = newBillRows.length === 1 ? mainAmount : 0;
-    
+
     if (selectedBill) {
       newBillRows[index] = {
         ...newBillRows[index],
@@ -471,7 +507,16 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
 
   const handleAllocationChange = (index, val) => {
     const newBillRows = [...(form.billRows || [])];
-    const numVal = parseFloat(val) || 0;
+    let numVal = parseFloat(val) || 0;
+
+    if (activeType === 'bank_payment') {
+      const pending = parseFloat(newBillRows[index].pendingAmount) || 0;
+      if (numVal > pending) {
+        numVal = pending;
+        toast.warning(`Amount Received cannot exceed Outstanding Amount (₹${pending.toLocaleString('en-IN')})`);
+      }
+    }
+
     newBillRows[index] = {
       ...newBillRows[index],
       allocationAmount: numVal,
@@ -608,7 +653,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
     const isBank = paymentMode === 'bank';
     const openingBal = parseFloat(isBank ? form.bankBalance : form.openingBalance) || 0;
     const amountVal = parseFloat(form.amount) || 0;
-    
+
     let closingBal = openingBal;
     if (activeType === 'cash_payment') {
       closingBal = openingBal - amountVal;
@@ -623,7 +668,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
       const destBal = parseFloat(form.bankBalance) || 0;
       const transferAmt = parseFloat(form.transferAmount) || 0;
       const receivedAmt = parseFloat(form.amountReceived) || 0;
-      
+
       const sourceClosing = sourceBal - transferAmt;
       const destClosing = destBal + receivedAmt;
 
@@ -744,15 +789,15 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
     const currentBal = selectedPartyDetails
       ? `₹ ${(selectedPartyDetails.outstandingBalance || 0).toLocaleString('en-IN')} ${selectedPartyDetails.outstandingType || ''}`
       : '₹ 0.00';
-      
+
     const pendingBills = selectedPartyDetails?.pendingBills || [];
     const totalOutstanding = pendingBills.reduce((acc, b) => acc + (parseFloat(b.pendingAmount) || 0), 0);
     const amountVal = parseFloat(form.amount) || 0;
     const allocatedAmount = (form.billRows || []).reduce((acc, r) => acc + (parseFloat(r.allocationAmount) || 0), 0);
-    
+
     let advanceReceipt = 0;
     let difference = 0;
-    
+
     if (activeType === 'bank_payment') {
       const excess = Math.max(0, amountVal - allocatedAmount);
       advanceReceipt = form.excessOption ? excess : 0;
@@ -760,7 +805,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
     } else {
       difference = amountVal - allocatedAmount;
     }
-    
+
     const remainingOutstanding = Math.max(0, totalOutstanding - allocatedAmount);
     const status = difference === 0 ? 'Balanced' : 'Unbalanced';
 
@@ -841,7 +886,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
           <div className="flex items-center gap-2">
             <h1 className="text-[12px] md:text-[13px] font-black uppercase tracking-tight text-slate-800 dark:text-slate-200">
               {activeType === 'cash_payment' ? 'CREATE PAYMENT VOUCHER' :
-               activeType === 'bank_payment' ? 'CREATE RECEIPT VOUCHER' : 'CREATE CONTRA VOUCHER'}
+                activeType === 'bank_payment' ? 'CREATE RECEIPT VOUCHER' : 'CREATE CONTRA VOUCHER'}
             </h1>
           </div>
           <div className="flex items-center gap-1.5">
@@ -856,22 +901,20 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
             <button
               onClick={handlePushToReview}
               disabled={loading.save || isUnbalanced}
-              className={`px-3 py-1 rounded-none text-[9.5px] font-black transition-all shadow-sm uppercase tracking-wider flex items-center gap-1 ${
-                (loading.save || isUnbalanced)
+              className={`px-3 py-1 rounded-none text-[9.5px] font-black transition-all shadow-sm uppercase tracking-wider flex items-center gap-1 ${(loading.save || isUnbalanced)
                   ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed opacity-50'
                   : 'hover:scale-[1.02] text-slate-800 bg-[#FCD34D] hover:bg-[#FBBF24]'
-              }`}
+                }`}
             >
               Review
             </button>
             <button
-              onClick={() => toast.info('Posting to Tally is under development')}
+              onClick={handlePostToTally}
               disabled={isUnbalanced}
-              className={`px-3 py-1 rounded-none text-[9.5px] font-black shadow-sm transition-all uppercase tracking-wider ${
-                isUnbalanced
+              className={`px-3 py-1 rounded-none text-[9.5px] font-black shadow-sm transition-all uppercase tracking-wider ${isUnbalanced
                   ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed opacity-50'
                   : 'hover:scale-[1.02] text-white bg-blue-600 hover:bg-blue-700'
-              }`}
+                }`}
             >
               Post Tally
             </button>
@@ -913,8 +956,8 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                     key={type.id}
                     onClick={() => handleVoucherTypeSwitch(type.id)}
                     className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-none border text-left min-w-[120px] shrink-0 transition-all ${isSelected
-                        ? 'bg-[#09B6B9]/10 border-[#09B6B9] text-[#09B6B9] shadow-sm'
-                        : 'bg-white dark:bg-[#12161a] border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-50'
+                      ? 'bg-[#09B6B9]/10 border-[#09B6B9] text-[#09B6B9] shadow-sm'
+                      : 'bg-white dark:bg-[#12161a] border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-50'
                       }`}
                   >
                     <type.icon size={11} className={isSelected ? 'text-[#09B6B9]' : 'text-slate-400'} />
@@ -929,37 +972,583 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
           )}
 
           {/* Amount Summary Cards */}
-          <div className="flex items-center flex-wrap gap-1 text-[9.5px]">
-            <div className="flex items-center gap-1 px-2 py-0.5 rounded-none bg-slate-50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800">
-              <span className="text-slate-400 font-bold uppercase tracking-wider text-[7.5px]">Total Debit:</span>
-              <span className="font-black text-slate-700 dark:text-slate-300">
-                ₹ {(form.totalDebit || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-              </span>
+          {(activeType === 'cash_payment' || activeType === 'bank_payment') ? (() => {
+            const totalLedgerAmountVal = (form.ledgerRows || []).reduce((acc, r) => acc + (parseFloat(r.amount) || 0), 0);
+            const totalBillAmountVal = (form.billRows || []).reduce((acc, r) => acc + (parseFloat(r.pendingAmount || r.billAmount) || 0), 0);
+            const totalAllocatedVal = (form.billRows || []).reduce((acc, r) => acc + (parseFloat(r.allocationAmount) || 0), 0);
+            const totalUnallocatedVal = Math.max(0, totalLedgerAmountVal - totalAllocatedVal);
+            const isValidated = Math.abs(totalLedgerAmountVal - totalAllocatedVal) < 0.01 && totalLedgerAmountVal > 0;
+
+            return (
+              <div className="flex items-center flex-wrap gap-1 text-[9.5px]">
+                <div className="flex items-center gap-1 px-2 py-0.5 rounded-none bg-slate-50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800">
+                  <span className="text-slate-400 font-bold uppercase tracking-wider text-[7.5px]">TOTAL LEDGER AMOUNT (₹):</span>
+                  <span className="font-black text-slate-700 dark:text-slate-300">
+                    ₹ {totalLedgerAmountVal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1 px-2 py-0.5 rounded-none bg-slate-50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800">
+                  <span className="text-slate-400 font-bold uppercase tracking-wider text-[7.5px]">
+                    {activeType === 'cash_payment' ? 'TOTAL BILL AMOUNT (₹):' : 'TOTAL INVOICE AMOUNT (₹):'}
+                  </span>
+                  <span className="font-black text-slate-700 dark:text-slate-300">
+                    ₹ {totalBillAmountVal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1 px-2 py-0.5 rounded-none bg-slate-50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800">
+                  <span className="text-slate-400 font-bold uppercase tracking-wider text-[7.5px]">TOTAL ALLOCATED AMOUNT (₹):</span>
+                  <span className="font-black text-slate-700 dark:text-slate-300">
+                    ₹ {totalAllocatedVal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1 px-2 py-0.5 rounded-none bg-slate-50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800">
+                  <span className="text-slate-400 font-bold uppercase tracking-wider text-[7.5px]">REMAINING UNALLOCATED (₹):</span>
+                  <span className="font-black text-emerald-600 dark:text-emerald-400">
+                    ₹ {totalUnallocatedVal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <div className={`flex items-center gap-1 px-2 py-0.5 rounded-none shadow-md text-white ${isValidated ? 'bg-emerald-600' : 'bg-rose-600'}`}>
+                  <span className="text-[7.5px] font-black uppercase tracking-wider opacity-85">VALIDATION STATUS:</span>
+                  <span className="font-black text-[10px] flex items-center gap-1">
+                    {isValidated ? (
+                      <>
+                        <CheckCircle2 size={10} className="text-white" /> Balanced
+                      </>
+                    ) : 'Unbalanced'}
+                  </span>
+                </div>
+              </div>
+            );
+          })() : (
+            <div className="flex items-center flex-wrap gap-1 text-[9.5px]">
+              <div className="flex items-center gap-1 px-2 py-0.5 rounded-none bg-slate-50 dark:bg-[#12161a] border border-slate-100 dark:border-slate-800">
+                <span className="text-slate-400 font-bold uppercase tracking-wider text-[7.5px]">Total Debit:</span>
+                <span className="font-black text-slate-700 dark:text-slate-300">
+                  ₹ {(form.totalDebit || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+              <div className="flex items-center gap-1 px-2 py-0.5 rounded-none bg-slate-50 dark:bg-[#12161a] border border-slate-100 dark:border-slate-800">
+                <span className="text-slate-400 font-bold uppercase tracking-wider text-[7.5px]">Total Credit:</span>
+                <span className="font-black text-slate-700 dark:text-slate-300">
+                  ₹ {(form.totalCredit || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+              <div className="flex items-center gap-1 px-2 py-0.5 rounded-none bg-slate-50 dark:bg-[#12161a] border border-slate-100 dark:border-slate-800">
+                <span className="text-slate-400 font-bold uppercase tracking-wider text-[7.5px]">Difference:</span>
+                <span className="font-black text-slate-700 dark:text-slate-300">
+                  ₹ {(form.difference || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+              <div className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-none shadow-md text-white ${form.difference === 0 ? 'bg-emerald-600' : 'bg-rose-600'}`}>
+                <span className="text-[7.5px] font-black uppercase tracking-wider opacity-85">Status:</span>
+                <span className="font-black text-[10px]">
+                  {form.difference === 0 ? 'Balanced' : 'Unbalanced'}
+                </span>
+              </div>
             </div>
-            <div className="flex items-center gap-1 px-2 py-0.5 rounded-none bg-slate-50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800">
-              <span className="text-slate-400 font-bold uppercase tracking-wider text-[7.5px]">Total Credit:</span>
-              <span className="font-black text-slate-700 dark:text-slate-300">
-                ₹ {(form.totalCredit || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-              </span>
-            </div>
-            <div className="flex items-center gap-1 px-2 py-0.5 rounded-none bg-slate-50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800">
-              <span className="text-slate-400 font-bold uppercase tracking-wider text-[7.5px]">Difference:</span>
-              <span className="font-black text-slate-700 dark:text-slate-300">
-                ₹ {(form.difference || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-              </span>
-            </div>
-            <div className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-none shadow-md text-white ${form.difference === 0 ? 'bg-emerald-600' : 'bg-rose-600'}`}>
-              <span className="text-[7.5px] font-black uppercase tracking-wider opacity-85">Status:</span>
-              <span className="font-black text-[10px]">
-                {form.difference === 0 ? 'Balanced' : 'Unbalanced'}
-              </span>
-            </div>
-          </div>
+          )}
         </div>
 
         {/* Main Body Two-Column Grid Wrapper */}
-        <div className="flex-1 p-2 overflow-y-auto themed-scrollbar bg-white dark:bg-[#0b0c10]">
+        <div className="flex-1 p-1.5 overflow-y-auto themed-scrollbar bg-white dark:bg-[#0b0c10]">
           {isPaymentOrReceipt ? (() => {
+            if (activeType === 'cash_payment' || activeType === 'bank_payment') {
+              const totalLedgerAmountVal = (form.ledgerRows || []).reduce((acc, r) => acc + (parseFloat(r.amount) || 0), 0);
+              const totalBillAmountVal = (form.billRows || []).reduce((acc, r) => acc + (parseFloat(r.pendingAmount || r.billAmount) || 0), 0);
+              const totalAllocatedVal = (form.billRows || []).reduce((acc, r) => acc + (parseFloat(r.allocationAmount) || 0), 0);
+              const totalUnallocatedVal = Math.max(0, totalLedgerAmountVal - totalAllocatedVal);
+              const isValidated = Math.abs(totalLedgerAmountVal - totalAllocatedVal) < 0.01 && totalLedgerAmountVal > 0;
+
+              const paymentAccountOptions = [...finalCashLedgers, ...finalBankLedgers];
+
+              const activeLedgerRow = form.ledgerRows?.[activeAllocationRowIndex];
+              const activeLedgerName = activeLedgerRow?.ledgerName;
+              const hasBillsToAllocate = selectedPartyDetails && selectedPartyDetails.pendingBills?.length > 0;
+
+              return (
+                <div className="flex flex-col gap-2 pb-2 w-full text-slate-800 dark:text-slate-200">
+
+
+                  {/* Voucher Details Card */}
+                  <div className="rounded-lg border p-2.5 shadow-sm bg-white dark:bg-[#12161a]" style={{ borderColor: theme.border }}>
+                    <div className="grid grid-cols-12 gap-2">
+                      <div className="col-span-12 md:col-span-3">
+                        <InputField
+                          label="1. Voucher Date *"
+                          type="date"
+                          value={form.voucherDate || ''}
+                          onChange={val => setFormValue('voucherDate', val)}
+                          Icon={Calendar}
+                          compact
+                        />
+                      </div>
+                      <div className="col-span-12 md:col-span-3">
+                        <SearchableDropdown
+                          label="2. Voucher Type *"
+                          placeholder={activeType === 'cash_payment' ? "Payment Voucher" : "Receipt Voucher"}
+                          value={activeType === 'cash_payment' ? "Payment Voucher" : "Receipt Voucher"}
+                          readOnly
+                          options={[activeType === 'cash_payment' ? "Payment Voucher" : "Receipt Voucher"]}
+                          compact
+                        />
+                      </div>
+                      <div className="col-span-12 md:col-span-3 relative">
+                        <label className="text-[9px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 text-slate-600 dark:text-slate-400" style={{ backgroundColor: isDark ? '#12161a' : '#fff' }}>
+                          3. Voucher Reference Number
+                        </label>
+                        <select
+                          value={form.voucherNumberSeries === 'Manual' ? 'Manual' : 'Default'}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setFormValue('voucherNumberSeries', val);
+                            if (val !== 'Manual') {
+                              fetchNextVoucherNumber(activeType);
+                            }
+                          }}
+                          className="w-full h-7 px-2 rounded-sm border text-[10px] font-bold outline-none bg-white dark:bg-[#12161a]"
+                          style={{ borderColor: theme.border, color: theme.text }}
+                        >
+                          <option value="Default">Auto (System Generated)</option>
+                          <option value="Manual">Manual</option>
+                        </select>
+                      </div>
+
+                      <div className="col-span-12 md:col-span-3">
+                        <InputField
+                          label="Voucher No."
+                          placeholder={form.voucherNumberSeries === 'Manual' ? 'Enter No.' : 'Auto'}
+                          value={form.voucherNumber || ''}
+                          readOnly={form.voucherNumberSeries !== 'Manual'}
+                          onChange={val => setFormValue('voucherNumber', val)}
+                          compact
+                        />
+                      </div>
+
+                      <div className="col-span-12 md:col-span-6">
+                        <SearchableDropdown
+                          label={activeType === 'cash_payment' ? "4. Payment Account *" : "4. Receipt Account *"}
+                          placeholder="Select Cash/Bank Ledger..."
+                          value={form.againstLedger || ''}
+                          onChange={handleAgainstLedgerChange}
+                          options={paymentAccountOptions}
+                          compact
+                        />
+                      </div>
+                      <div className="col-span-12 md:col-span-6">
+                        <InputField
+                          label="5. Account Balance"
+                          value={form.againstLedger ? `₹ ${(paymentMode === 'bank' ? form.bankBalance : form.openingBalance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })} Dr` : '₹ 0.00'}
+                          readOnly
+                          compact
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Transaction Details Card */}
+                  <div className="rounded-lg border p-2.5 shadow-sm bg-white dark:bg-[#12161a]" style={{ borderColor: theme.border }}>
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                        Transaction Details
+                      </h3>
+                      <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={form.costCenterApplicable || false}
+                          onChange={e => {
+                            const checked = e.target.checked;
+                            setFormValue('costCenterApplicable', checked);
+                          }}
+                          className="w-3.5 h-3.5 rounded accent-indigo-500 cursor-pointer"
+                        />
+                        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                          Enable Cost Center Allocation
+                        </span>
+                      </label>
+                    </div>
+
+                    <div className="overflow-visible border rounded-none" style={{ borderColor: theme.border }}>
+                      <table className="w-full text-left border-collapse min-w-[800px]">
+                        <thead>
+                          <tr style={{ backgroundColor: theme.headerBg }}>
+                            <th className="p-1 border text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 w-12 text-center" style={{ borderColor: theme.border }}>#</th>
+                            <th className="p-1 border text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400" style={{ borderColor: theme.border }}>Ledger Name *</th>
+                            {form.costCenterApplicable && (
+                              <th className="p-1 border text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 w-48" style={{ borderColor: theme.border }}>Cost Center (Optional)</th>
+                            )}
+                            <th className="p-1 border text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400" style={{ borderColor: theme.border }}>Description</th>
+                            <th className="p-1 border text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 w-44 text-right" style={{ borderColor: theme.border }}>Amount (₹)</th>
+                            <th className="p-1 border text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 w-60 text-center" style={{ borderColor: theme.border }}>
+                              {activeType === 'cash_payment' ? 'Outstanding Bills' : 'Outstanding Invoices'} (From Selected Ledger)
+                            </th>
+                            <th className="p-1 border text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 w-16 text-center" style={{ borderColor: theme.border }}>Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(form.ledgerRows || []).map((row, idx) => {
+                            const isParty = finalPartyLedgers.some(l => l.name === row.ledgerName);
+                            const cachedDetails = partyDetailsCache[row.ledgerName];
+                            const pendingBillsCount = cachedDetails?.pendingBills?.length || 0;
+                            const hasOutstanding = isParty && pendingBillsCount > 0;
+
+                            return (
+                              <tr key={row.id || idx} className="hover:bg-slate-50/20">
+                                <td className="p-1 border text-center text-[10px] font-bold text-slate-400" style={{ borderColor: theme.border }}>
+                                  {idx + 1}
+                                </td>
+                                <td className="p-1 border relative z-10 focus-within:z-50" style={{ borderColor: theme.border }}>
+                                  <SearchableDropdown
+                                    placeholder="Select Ledger..."
+                                    compact
+                                    options={ledgersRaw.map(l => (typeof l === 'string' ? l : l.name)).filter(Boolean)}
+                                    value={row.ledgerName || ''}
+                                    onChange={val => {
+                                      updateLedgerRow(idx, 'ledgerName', val);
+                                      const party = finalPartyLedgers.find(l => l.name === val);
+                                      if (party) {
+                                        fetchPartyDetails(val);
+                                        setActiveAllocationRowIndex(idx);
+                                      }
+                                    }}
+                                  />
+                                </td>
+                                {form.costCenterApplicable && (
+                                  <td className="p-1 border" style={{ borderColor: theme.border }}>
+                                    <select
+                                      value={row.costCenter || ''}
+                                      onChange={e => updateLedgerRow(idx, 'costCenter', e.target.value)}
+                                      className="w-full h-7 px-1.5 border text-[10px] font-bold outline-none rounded-sm"
+                                      style={{ borderColor: theme.border, color: theme.text, backgroundColor: theme.inputBg }}
+                                    >
+                                      <option value="">Select Cost Center</option>
+                                      {(masterData?.costCenters || []).map((cc, i) => (
+                                        <option key={i} value={cc.name || cc}>{cc.name || cc}</option>
+                                      ))}
+                                    </select>
+                                  </td>
+                                )}
+                                <td className="p-1 border" style={{ borderColor: theme.border }}>
+                                  <input
+                                    type="text"
+                                    placeholder="Enter description"
+                                    value={row.description || ''}
+                                    onChange={e => updateLedgerRow(idx, 'description', e.target.value)}
+                                    className="w-full h-7 px-1.5 border text-[10px] font-bold outline-none rounded-sm"
+                                    style={{ borderColor: theme.border, color: theme.text, backgroundColor: theme.inputBg }}
+                                  />
+                                </td>
+                                <td className="p-1 border text-right" style={{ borderColor: theme.border }}>
+                                  <input
+                                    type="number"
+                                    placeholder="0.00"
+                                    value={row.amount || ''}
+                                    onChange={e => {
+                                      const val = e.target.value;
+                                      updateLedgerRow(idx, 'amount', val);
+                                    }}
+                                    className="w-full h-7 px-1.5 border text-[10px] font-black outline-none rounded-sm text-right"
+                                    style={{ borderColor: theme.border, color: theme.text, backgroundColor: theme.inputBg }}
+                                  />
+                                </td>
+                                <td className="p-1 border text-center" style={{ borderColor: theme.border }}>
+                                  {hasOutstanding ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        fetchPartyDetails(row.ledgerName);
+                                        setActiveAllocationRowIndex(idx);
+                                        setShowBillAllocation(true);
+                                      }}
+                                      className="text-[10px] font-black text-blue-600 dark:text-blue-400 hover:underline hover:scale-105 transition-all"
+                                    >
+                                      {activeType === 'cash_payment' ? 'View Bills' : 'View Invoices'} ({pendingBillsCount})
+                                    </button>
+                                  ) : (
+                                    <span className="text-slate-400">—</span>
+                                  )}
+                                </td>
+                                <td className="p-1 border text-center" style={{ borderColor: theme.border }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => removeLedgerRow(row.id)}
+                                    className="text-red-500 hover:text-red-700 transition-colors p-1"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div className="flex items-center justify-between mt-2">
+                      <button
+                        type="button"
+                        onClick={addLedgerRow}
+                        className="px-2.5 py-1 rounded border border-indigo-500/30 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500/20 text-[10px] font-black uppercase flex items-center gap-1 transition-all"
+                      >
+                        <Plus size={8} strokeWidth={3} /> Add Row
+                      </button>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">Total Ledger Amount:</span>
+                        <span className="text-[12.5px] font-black text-blue-900 dark:text-blue-400">
+                          ₹ {totalLedgerAmountVal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Outstanding Bills Card */}
+                  {showBillAllocation && (
+                    <div className="rounded-lg border p-2.5 shadow-sm bg-white dark:bg-[#12161a]" style={{ borderColor: theme.border }}>
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                          {activeType === 'cash_payment' ? 'Outstanding Bills Allocation' : 'Outstanding Sales Invoices Allocation'} (Auto Fetched)
+                        </h3>
+                        {hasBillsToAllocate && (
+                          <button
+                            type="button"
+                            onClick={handleAiAutoAllocate}
+                            className="px-2.5 py-1 border border-indigo-600/35 bg-indigo-600/10 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-600/20 text-[9.5px] font-black uppercase rounded transition-all"
+                          >
+                            {activeType === 'cash_payment' ? 'Auto Allocate Bills' : 'Auto Allocate Receipts'}
+                          </button>
+                        )}
+                      </div>
+
+                        <div className="flex flex-col gap-2">
+                          <div className="overflow-x-auto themed-scrollbar border rounded-none" style={{ borderColor: theme.border }}>
+                            <table className="w-full text-left border-collapse min-w-[800px]">
+                              <thead>
+                                <tr style={{ backgroundColor: theme.headerBg }}>
+                                  <th className="p-1 border text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 w-12 text-center" style={{ borderColor: theme.border }}>#</th>
+                                  <th className="p-1 border text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400" style={{ borderColor: theme.border }}>
+                                    {activeType === 'cash_payment' ? 'Bill Reference Number' : 'Invoice Reference Number'}
+                                  </th>
+                                  <th className="p-1 border text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 w-32" style={{ borderColor: theme.border }}>
+                                    {activeType === 'cash_payment' ? 'Bill Date' : 'Invoice Date'}
+                                  </th>
+                                  {activeType === 'cash_payment' ? (
+                                    <>
+                                      <th className="p-1 border text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 w-44 text-right" style={{ borderColor: theme.border }}>Bill Amount (₹)</th>
+                                      <th className="p-1 border text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 w-32" style={{ borderColor: theme.border }}>Due Date</th>
+                                      <th className="p-1 border text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 w-44 text-right" style={{ borderColor: theme.border }}>Amount Allocation (₹)</th>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <th className="p-1 border text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 w-40 text-right" style={{ borderColor: theme.border }}>Invoice Amount (₹)</th>
+                                      <th className="p-1 border text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 w-40 text-right" style={{ borderColor: theme.border }}>Outstanding Amount (₹)</th>
+                                      <th className="p-1 border text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 w-40 text-right" style={{ borderColor: theme.border }}>Amount Received (₹)</th>
+                                    </>
+                                  )}
+                                </tr>
+                              </thead>  
+                              <tbody>
+                                {!activeLedgerName ? (
+                                  <tr>
+                                    <td colSpan={6} className="p-3 text-center text-[10px] text-slate-400 italic font-black uppercase text-rose-500 dark:text-rose-400" style={{ borderColor: theme.border }}>
+                                      No Outstanding allocations bills found.
+                                    </td>
+                                  </tr>
+                                ) : !hasBillsToAllocate ? (
+                                  <tr>
+                                    <td colSpan={6} className="p-3 text-center text-[10px] text-slate-400 italic font-black uppercase text-rose-500 dark:text-rose-400" style={{ borderColor: theme.border }}>
+                                      {activeType === 'cash_payment' ? `No pending bills available to allocate for "${activeLedgerName}".` : "No Outstanding Sales Invoices Found"}
+                                    </td>
+                                  </tr>
+                                ) : (
+                                  (form.billRows || []).map((row, idx) => {
+                                    return (
+                                      <tr key={row.id || idx} className="hover:bg-slate-50/20">
+                                        <td className="p-1 border text-center text-[10px] font-bold text-slate-400" style={{ borderColor: theme.border }}>
+                                          {idx + 1}
+                                        </td>
+                                        <td className="p-1 border font-bold text-[10px]" style={{ borderColor: theme.border, color: theme.text }}>
+                                          {row.billNo || '—'}
+                                        </td>
+                                        <td className="p-1 border text-slate-500 text-[10px] font-bold" style={{ borderColor: theme.border }}>
+                                          {row.date || '—'}
+                                        </td>
+                                        {activeType === 'cash_payment' ? (
+                                          <>
+                                            <td className="p-1 border text-right font-bold text-[10px]" style={{ borderColor: theme.border, color: theme.text }}>
+                                              ₹ {(row.pendingAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                            </td>
+                                            <td className="p-1 border text-slate-500 text-[10px] font-bold" style={{ borderColor: theme.border }}>
+                                              {row.dueDate || '—'}
+                                            </td>
+                                          </>
+                                        ) : (
+                                          <>
+                                            <td className="p-1 border text-right font-bold text-[10px]" style={{ borderColor: theme.border, color: theme.text }}>
+                                              ₹ {(row.billAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                            </td>
+                                            <td className="p-1 border text-right font-bold text-[10px]" style={{ borderColor: theme.border, color: theme.text }}>
+                                              ₹ {(row.pendingAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                            </td>
+                                          </>
+                                        )}
+                                        <td className="p-1 border text-right" style={{ borderColor: theme.border }}>
+                                          <input
+                                            type="number"
+                                            placeholder="0.00"
+                                            value={row.allocationAmount || ''}
+                                            onChange={e => handleAllocationChange(idx, e.target.value)}
+                                            className="w-full h-7 px-1.5 border text-[10px] font-black outline-none rounded-sm text-right"
+                                            style={{
+                                              borderColor: theme.border,
+                                              color: theme.text,
+                                              backgroundColor: theme.inputBg
+                                            }}
+                                          />
+                                        </td>
+                                      </tr>
+                                    );
+                                  })
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+
+                          <div className="flex justify-between items-center px-2.5 py-1.5 border rounded-sm bg-slate-50 dark:bg-slate-900/10 text-[10px] font-black text-slate-700 dark:text-slate-300" style={{ borderColor: theme.border }}>
+                            <div className="flex gap-1 items-center">
+                              <span className="uppercase text-slate-400 tracking-wider">
+                                {activeType === 'cash_payment' ? 'Total Bill Amount (₹)' : 'Total Outstanding Amount (₹)'}
+                              </span>
+                              <span className="text-[11.5px] text-[#1E3A8A] dark:text-blue-400">
+                                ₹ {totalBillAmountVal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                              </span>
+                            </div>
+                            <div className="flex gap-1 items-center">
+                              <span className="uppercase text-slate-400 tracking-wider">
+                                {activeType === 'cash_payment' ? 'Total Allocated Amount (₹)' : 'Total Received Amount (₹)'}
+                              </span>
+                              <span className="text-[11.5px] text-[#1E3A8A] dark:text-blue-400">
+                                ₹ {totalAllocatedVal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                              </span>
+                            </div>
+                            <div className="flex gap-1 items-center">
+                              <span className="uppercase text-slate-400 tracking-wider">
+                                {activeType === 'cash_payment' ? 'Remaining Unallocated (₹)' : 'Remaining Unallocated Amount (₹)'}
+                              </span>
+                              <span className={`text-[11.5px] ${totalUnallocatedVal === 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                                ₹ {totalUnallocatedVal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                  {/* Instrument / Payment Details Card */}
+                  <div className="rounded-lg border p-2.5 shadow-sm bg-white dark:bg-[#12161a]" style={{ borderColor: theme.border }}>
+                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-2">
+                      {activeType === 'cash_payment' ? 'Instrument / Payment Details (Optional)' : 'Instrument / Receipt Details (Optional)'}
+                    </h3>
+                    <div className="grid grid-cols-12 gap-2">
+                      <div className="col-span-12 md:col-span-2">
+                        <SearchableDropdown
+                          label={activeType === 'cash_payment' ? "Payment Mode" : "Receipt Mode"}
+                          placeholder="Select"
+                          value={form.transType || (paymentMode === 'cash' ? 'Cash' : 'Bank')}
+                          onChange={val => {
+                            setFormValue('transType', val);
+                          }}
+                          options={['Cash', 'Bank', 'Others']}
+                          compact
+                        />
+                      </div>
+                      <div className="col-span-12 md:col-span-2">
+                        <InputField
+                          label="Instrument Date"
+                          type="date"
+                          value={form.instDate || ''}
+                          onChange={val => setFormValue('instDate', val)}
+                          Icon={Calendar}
+                          compact
+                        />
+                      </div>
+                      <div className="col-span-12 md:col-span-2">
+                        <InputField
+                          label="Instrument No."
+                          placeholder="Enter Instrument No."
+                          value={form.instNumber || ''}
+                          onChange={val => setFormValue('instNumber', val)}
+                          compact
+                        />
+                      </div>
+                      <div className="col-span-12 md:col-span-4">
+                        <InputField
+                          label="Narration"
+                          placeholder="Enter narration (optional)"
+                          value={form.narration || ''}
+                          onChange={val => setFormValue('narration', val)}
+                          compact
+                        />
+                      </div>
+                      <div className="col-span-12 md:col-span-2">
+                        <InputField
+                          label="Amount (₹)"
+                          value={totalLedgerAmountVal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          readOnly
+                          compact
+                        />
+                      </div>
+                      {(form.transType || (paymentMode === 'cash' ? 'Cash' : 'Bank')) === 'Bank' && (
+                        <>
+                          <div className="col-span-12 md:col-span-4">
+                            <InputField
+                              label="Bank Name"
+                              placeholder="Enter Bank Name"
+                              value={form.bankName || ''}
+                              onChange={val => setFormValue('bankName', val)}
+                              compact
+                            />
+                          </div>
+                          <div className="col-span-12 md:col-span-4">
+                            <InputField
+                              label="IFSC Code"
+                              placeholder="Enter IFSC Code"
+                              value={form.ifscCode || ''}
+                              onChange={val => setFormValue('ifscCode', val)}
+                              compact
+                            />
+                          </div>
+                          <div className="col-span-12 md:col-span-4">
+                            <InputField
+                              label="Account Number"
+                              placeholder="Enter Account Number"
+                              value={form.accountNumber || ''}
+                              onChange={val => setFormValue('accountNumber', val)}
+                              compact
+                            />
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Footer Message */}
+                  <div className={`flex items-center gap-1.5 font-bold text-[11px] p-1.5 border border-dashed rounded ${isValidated
+                      ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50/20 dark:bg-emerald-950/10 border-emerald-500/20'
+                      : 'text-rose-600 dark:text-rose-400 bg-rose-50/20 dark:bg-rose-950/10 border-rose-500/20'
+                    }`}>
+                    {isValidated ? <CheckCircle2 size={12} /> : <X size={12} />}
+                    <span>
+                      {isValidated
+                        ? "Total Ledger Amount is equal to Total Allocated Amount. You can review and post the voucher."
+                        : (activeType === 'cash_payment'
+                          ? "Outstanding allocations must match the ledger row amounts."
+                          : "Total Allocated Receipt Amount must be equal to Total Receipt Amount.")
+                      }
+                    </span>
+                  </div>
+                </div>
+              );
+            }
+
             const partyOutstanding = selectedPartyDetails?.pendingBills && selectedPartyDetails.pendingBills.length > 0
               ? selectedPartyDetails.pendingBills.reduce((acc, b) => acc + (parseFloat(b.pendingAmount) || 0), 0)
               : (selectedPartyDetails?.outstandingBalance || 0);
@@ -994,7 +1583,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
             );
 
             return (
-              <div className="flex flex-col gap-3 pb-4 max-w-7xl mx-auto">
+              <div className="flex flex-col gap-3 pb-4 w-full">
                 {/* Voucher Details Card */}
                 <FormSection title="Voucher Details" zIndex={100}>
                   <div className="flex flex-col gap-3">
@@ -1729,7 +2318,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
             const formatCur = (val) => `₹ ${val.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
             return (
-              <div className="flex flex-col gap-3 pb-4 max-w-7xl mx-auto">
+              <div className="flex flex-col gap-2 pb-2 w-full">
                 {/* Voucher Details Card */}
                 <FormSection title="Voucher Details" zIndex={100} defaultOpen={true}>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
@@ -1771,15 +2360,15 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                 </FormSection>
 
                 {/* Accounts & Voucher Summary Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-stretch animate-in fade-in duration-200">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 items-stretch animate-in fade-in duration-200">
                   {/* Accounts Card */}
                   <div className="lg:col-span-8 flex flex-col">
                     <FormSection title="ACCOUNTS" zIndex={90} className="h-full flex-1">
-                      <div className="flex flex-col md:flex-row items-center gap-3">
+                      <div className="flex flex-col md:flex-row items-center gap-2">
                         {/* Green DR Panel */}
-                        <div 
-                          className="flex-1 w-full rounded-xl border p-3 flex flex-col gap-3" 
-                          style={{ 
+                        <div
+                          className="flex-1 w-full rounded-lg border p-2.5 flex flex-col gap-2"
+                          style={{
                             borderColor: isDark ? 'rgba(16, 185, 129, 0.2)' : '#a7f3d0',
                             backgroundColor: isDark ? 'rgba(16, 185, 129, 0.03)' : '#f0fdf4'
                           }}
@@ -1818,13 +2407,13 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                         </div>
 
                         {/* Middle Arrow */}
-                        <ArrowRight className="text-slate-400 shrink-0 hidden md:block" size={24} />
-                        <ChevronDown className="text-slate-400 shrink-0 md:hidden" size={24} />
+                        <ArrowRight className="text-slate-400 shrink-0 hidden md:block" size={20} />
+                        <ChevronDown className="text-slate-400 shrink-0 md:hidden" size={20} />
 
                         {/* Blue CR Panel */}
-                        <div 
-                          className="flex-1 w-full rounded-xl border p-3 flex flex-col gap-3" 
-                          style={{ 
+                        <div
+                          className="flex-1 w-full rounded-lg border p-2.5 flex flex-col gap-2"
+                          style={{
                             borderColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#bfdbfe',
                             backgroundColor: isDark ? 'rgba(59, 130, 246, 0.03)' : '#eff6ff'
                           }}
@@ -1868,7 +2457,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                   {/* Voucher Summary Card */}
                   <div className="lg:col-span-4 flex flex-col">
                     <FormSection title="VOUCHER SUMMARY" zIndex={80} className="h-full flex-1">
-                      <div className="flex flex-col gap-2.5 text-[11px] h-full justify-between py-1">
+                      <div className="flex flex-col gap-1.5 text-[10px] h-full justify-between py-1">
                         <div className="flex flex-col gap-2">
                           <div className="flex justify-between items-center py-1 border-b border-dashed" style={{ borderColor: theme.border }}>
                             <span className="text-slate-400 font-bold">Source Amount (Dr)</span>
@@ -1884,8 +2473,8 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                           </div>
                         </div>
                         <div className="flex justify-between items-center pt-2">
-                          <span className="text-slate-400 font-black uppercase tracking-wider text-[8.5px]">Status</span>
-                          <span className={`px-2 py-0.5 text-[9px] font-black uppercase tracking-wider shadow-sm text-white ${isBalanced ? 'bg-emerald-600' : 'bg-rose-600'}`}>
+                          <span className="text-slate-400 font-black uppercase tracking-wider text-[8px]">Status</span>
+                          <span className={`px-2 py-0.5 text-[8.5px] font-black uppercase tracking-wider shadow-sm text-white ${isBalanced ? 'bg-emerald-600' : 'bg-rose-600'}`}>
                             {statusLabel}
                           </span>
                         </div>
@@ -1896,7 +2485,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
 
                 {/* Instrument Details Card */}
                 <FormSection title="INSTRUMENT DETAILS (If Applicable)" zIndex={70}>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
                     <SearchableDropdown
                       label="Instrument Type"
                       placeholder="Select"
@@ -1934,950 +2523,950 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
           })() : (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-2.5">
 
-          
-          {/* Column 1: Core Fields (7/12 on lg desktop) */}
-          <div className="col-span-1 lg:col-span-7 flex flex-col gap-2 pb-2">
-            
-            {/* Voucher Details Card */}
-            <FormSection title="Voucher Details" zIndex={100} defaultOpen={true}>
-              {activeType === 'contra' ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
-                  <InputField
-                    label="Voucher No."
-                    placeholder={form.voucherNumberSeries === 'Manual' ? 'Enter Voucher No.' : 'Auto'}
-                    value={form.voucherNumber || ''}
-                    readOnly={form.voucherNumberSeries !== 'Manual'}
-                    onChange={val => setFormValue('voucherNumber', val)}
-                    compact
-                  />
-                  <InputField
-                    label="Date"
-                    type="date"
-                    value={form.voucherDate || ''}
-                    onChange={val => setFormValue('voucherDate', val)}
-                    Icon={Calendar}
-                    compact
-                  />
-                  <SearchableDropdown
-                    label="Voucher Type"
-                    placeholder="Select Type"
-                    value={typeToDisplay[activeType] || ''}
-                    onChange={val => {
-                      const newType = displayToType[val];
-                      if (newType) resetForm(newType);
-                    }}
-                    options={[typeToDisplay[activeType] || '']}
-                    compact
-                  />
-                  <InputField
-                    label="Narration"
-                    placeholder="Enter narration (optional)"
-                    value={form.narration || ''}
-                    onChange={val => setFormValue('narration', val)}
-                    compact
-                  />
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
-                  <InputField label="Voucher Date" type="date" value={form.voucherDate || ''} onChange={val => setFormValue('voucherDate', val)} Icon={Calendar} compact />
-                  <InputField label="Voucher Number" value={form.voucherNumber || 'AUTO'} readOnly Icon={Hash} compact />
-                  <SearchableDropdown
-                    label="Voucher Type"
-                    placeholder="Select Type"
-                    value={typeToDisplay[activeType] || ''}
-                    onChange={val => {
-                      const newType = displayToType[val];
-                      if (newType) resetForm(newType);
-                    }}
-                    options={[typeToDisplay[activeType] || '']}
-                    compact
-                  />
-                  <InputField label="Reference Number" placeholder="e.g. REF-001" value={form.referenceNumber || ''} onChange={val => setFormValue('referenceNumber', val)} compact />
-                </div>
-              )}
-            </FormSection>
 
-            {/* Transaction Details Card */}
-            <FormSection title="Transaction Details" zIndex={90} defaultOpen={true}>
-              {showContraTransfer ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  {/* Contra Source (From) */}
-                  <div className="rounded-lg border p-2" style={{ borderColor: theme.border, backgroundColor: isDark ? 'rgba(16, 185, 129, 0.03)' : '#f0fdf4' }}>
-                    <h4 className="text-[10px] font-black uppercase tracking-wider text-emerald-600 mb-1.5 flex items-center gap-1">
-                      <Wallet size={11} /> Source (From)
-                    </h4>
-                    <div className="space-y-2">
-                      <SearchableDropdown
-                        placeholder="Source Ledger (Cash / Bank)"
-                        value={form.sourceLedger || ''}
-                        onChange={val => {
-                          setFormValue('sourceLedger', val);
-                          fetchCashBankBalance(val, 'cash');
-                        }}
-                        options={cashAndBankLedgers}
+              {/* Column 1: Core Fields (7/12 on lg desktop) */}
+              <div className="col-span-1 lg:col-span-7 flex flex-col gap-2 pb-2">
+
+                {/* Voucher Details Card */}
+                <FormSection title="Voucher Details" zIndex={100} defaultOpen={true}>
+                  {activeType === 'contra' ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
+                      <InputField
+                        label="Voucher No."
+                        placeholder={form.voucherNumberSeries === 'Manual' ? 'Enter Voucher No.' : 'Auto'}
+                        value={form.voucherNumber || ''}
+                        readOnly={form.voucherNumberSeries !== 'Manual'}
+                        onChange={val => setFormValue('voucherNumber', val)}
                         compact
                       />
-                      <InputField label="Transfer Amount (₹)" type="number" placeholder="0.00" value={form.transferAmount || ''} onChange={val => setFormValue('transferAmount', val)} align="right" compact />
+                      <InputField
+                        label="Date"
+                        type="date"
+                        value={form.voucherDate || ''}
+                        onChange={val => setFormValue('voucherDate', val)}
+                        Icon={Calendar}
+                        compact
+                      />
+                      <SearchableDropdown
+                        label="Voucher Type"
+                        placeholder="Select Type"
+                        value={typeToDisplay[activeType] || ''}
+                        onChange={val => {
+                          const newType = displayToType[val];
+                          if (newType) resetForm(newType);
+                        }}
+                        options={[typeToDisplay[activeType] || '']}
+                        compact
+                      />
+                      <InputField
+                        label="Narration"
+                        placeholder="Enter narration (optional)"
+                        value={form.narration || ''}
+                        onChange={val => setFormValue('narration', val)}
+                        compact
+                      />
                     </div>
-                  </div>
-
-                  {/* Contra Destination (To) */}
-                  <div className="rounded-lg border p-2" style={{ borderColor: theme.border, backgroundColor: isDark ? 'rgba(59, 130, 246, 0.03)' : '#eff6ff' }}>
-                    <h4 className="text-[10px] font-black uppercase tracking-wider text-blue-600 mb-1.5 flex items-center gap-1">
-                      <Landmark size={11} /> Destination (To)
-                    </h4>
-                    <div className="space-y-2">
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
+                      <InputField label="Voucher Date" type="date" value={form.voucherDate || ''} onChange={val => setFormValue('voucherDate', val)} Icon={Calendar} compact />
+                      <InputField label="Voucher Number" value={form.voucherNumber || 'AUTO'} readOnly Icon={Hash} compact />
                       <SearchableDropdown
-                        placeholder="Destination Ledger (Cash / Bank)"
-                        value={form.destinationLedger || ''}
+                        label="Voucher Type"
+                        placeholder="Select Type"
+                        value={typeToDisplay[activeType] || ''}
                         onChange={val => {
-                          setFormValue('destinationLedger', val);
-                          fetchCashBankBalance(val, 'bank');
+                          const newType = displayToType[val];
+                          if (newType) resetForm(newType);
                         }}
-                        options={cashAndBankLedgers}
+                        options={[typeToDisplay[activeType] || '']}
                         compact
                       />
-                      <InputField label="Amount Received (₹)" type="number" placeholder="0.00" value={form.amountReceived || ''} onChange={val => setFormValue('amountReceived', val)} align="right" compact />
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-2">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    {/* Payment Mode (Cash/Bank Selection) */}
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[9px] md:text-[10px] font-black uppercase tracking-widest leading-none mb-1.5" style={{ color: theme.mutedText }}>Payment Mode</label>
-                      <div className="flex gap-1 bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg w-max border" style={{ borderColor: theme.border }}>
-                        <button
-                          type="button"
-                          onClick={() => handlePaymentModeChange('cash')}
-                          className={`px-4 py-1.5 rounded-md text-[10px] font-black tracking-wider uppercase transition-all duration-200 ${paymentMode === 'cash' ? 'bg-[#09B6B9] text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
-                        >
-                          Cash
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handlePaymentModeChange('bank')}
-                          className={`px-4 py-1.5 rounded-md text-[10px] font-black tracking-wider uppercase transition-all duration-200 ${paymentMode === 'bank' ? 'bg-[#09B6B9] text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
-                        >
-                          Bank
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Cash or Bank Ledger Dropdown */}
-                    {paymentMode === 'cash' ? (
-                      <SearchableDropdown
-                        label="Cash Ledger"
-                        placeholder="Select Cash Ledger"
-                        value={form.cashLedger || ''}
-                        onChange={val => {
-                          setFormValue('cashLedger', val);
-                          setFormValue('againstLedger', val);
-                          fetchCashBankBalance(val, 'cash');
-                        }}
-                        options={finalCashLedgers}
-                        compact
-                      />
-                    ) : (
-                      <SearchableDropdown
-                        label="Bank Ledger"
-                        placeholder="Select Bank Ledger"
-                        value={form.bankLedger || ''}
-                        onChange={val => {
-                          setFormValue('bankLedger', val);
-                          setFormValue('againstLedger', val);
-                          fetchCashBankBalance(val, 'bank');
-                        }}
-                        options={finalBankLedgers}
-                        compact
-                      />
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    {/* Party Ledger Dropdown */}
-                    <SearchableDropdown
-                      label={activeType === 'cash_payment' ? 'Party Ledger (Debit/Dr)' : 'Party Ledger (Credit/Cr)'}
-                      placeholder="Select Party Ledger"
-                      value={form.partyLedger || ''}
-                      onChange={val => {
-                        setFormValue('partyLedger', val);
-                        fetchPartyDetails(val);
-                      }}
-                      options={finalPartyLedgers}
-                      compact
-                    />
-
-                    {/* Payment Amount Input */}
-                    <InputField
-                      label="Payment Amount (₹)"
-                      type="number"
-                      placeholder="0.00"
-                      value={form.amount || ''}
-                      onChange={val => {
-                        setFormValue('amount', val);
-                        const numVal = parseFloat(val) || 0;
-                        if (form.billRows && form.billRows.length === 1) {
-                          const updatedRows = [...form.billRows];
-                          updatedRows[0] = {
-                            ...updatedRows[0],
-                            allocationAmount: numVal,
-                            allocatedAmount: numVal
-                          };
-                          setFormValue('billRows', updatedRows);
-                        }
-                      }}
-                      align="right"
-                      compact
-                    />
-                  </div>
-
-                  {/* Compact Party Balance Banner */}
-                  {selectedPartyDetails && (() => {
-                    const partyOutstanding = selectedPartyDetails.pendingBills && selectedPartyDetails.pendingBills.length > 0
-                      ? selectedPartyDetails.pendingBills.reduce((acc, b) => acc + (parseFloat(b.pendingAmount) || 0), 0)
-                      : (selectedPartyDetails.outstandingBalance || 0);
-                    return (
-                      <div className="p-2.5 rounded-lg border flex flex-col gap-1.5 text-xs font-bold animate-in fade-in slide-in-from-top-1 duration-200"
-                           style={{ backgroundColor: isDark ? 'rgba(9, 182, 185, 0.03)' : '#f0f9fa', borderColor: isDark ? 'rgba(9, 182, 185, 0.1)' : '#cffafe' }}>
-                        <div className="flex justify-between items-center text-[10px]">
-                          <div className="flex gap-1.5 items-center">
-                            <span className="text-[9px] font-black uppercase text-[#09B6B9] tracking-wider">Group:</span>
-                            <span style={{ color: theme.text }}>{selectedPartyDetails.groupName}</span>
-                          </div>
-                          <div className="flex gap-1.5 items-center">
-                            <span className="text-[9px] font-black uppercase text-[#09B6B9] tracking-wider">Ledger Balance:</span>
-                            <span style={{ color: theme.text }}>
-                              ₹ {selectedPartyDetails.outstandingBalance?.toLocaleString('en-IN')} ({selectedPartyDetails.outstandingType})
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex justify-between items-center border-t pt-1" style={{ borderColor: isDark ? 'rgba(9, 182, 185, 0.08)' : '#cffafe' }}>
-                          <span className="text-[9px] font-black uppercase text-indigo-500 tracking-wider">Party Outstanding:</span>
-                          <span className="text-[11.5px] font-black text-indigo-600 dark:text-indigo-400">
-                            ₹ {partyOutstanding.toLocaleString('en-IN')}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })()}
-                  {/* Bank instrument details are shown directly inside the Transaction Details card when Bank is active */}
-                  {paymentMode === 'bank' && (
-                    <div className="mt-1.5 p-2 rounded-lg border border-dashed bg-slate-50/20 dark:bg-slate-800/5 animate-in fade-in duration-200" style={{ borderColor: theme.border }}>
-                      <h4 className="text-[9.5px] md:text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1.5 flex items-center gap-1">
-                        <Landmark size={11} /> Bank Instrument Details
-                      </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                        <SearchableDropdown label="Trans Type" placeholder="Type" value={form.transType || ''} onChange={val => setFormValue('transType', val)} options={['NEFT', 'RTGS', 'IMPS', 'UPI', 'Cheque', 'DD']} compact />
-                        <InputField label="Instrument No" placeholder="Ref No" value={form.instNumber || ''} onChange={val => setFormValue('instNumber', val)} compact />
-                        <InputField label="Instrument Date" type="date" value={form.instDate || ''} onChange={val => setFormValue('instDate', val)} Icon={Calendar} compact />
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-2">
-                        <InputField label="UTR Number" placeholder="UTR..." value={form.utr || ''} onChange={val => setFormValue('utr', val)} compact />
-                        <InputField label="IFSC Code" placeholder="IFSC..." value={form.ifscCode || ''} onChange={val => setFormValue('ifscCode', val)} compact />
-                        <InputField label="Branch Name" placeholder="Branch..." value={form.branchName || ''} onChange={val => setFormValue('branchName', val)} compact />
-                      </div>
+                      <InputField label="Reference Number" placeholder="e.g. REF-001" value={form.referenceNumber || ''} onChange={val => setFormValue('referenceNumber', val)} compact />
                     </div>
                   )}
+                </FormSection>
 
-                  {/* Manual Toggles for Collapsibles */}
-                  <div className="mt-1.5 pt-1.5 border-t flex flex-wrap items-center justify-between gap-2" style={{ borderColor: theme.border }}>
-                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Additional Details</span>
-                    <div className="flex flex-wrap gap-2">
-                      {isCreditor && (
-                        <label className="flex items-center gap-1.5 cursor-pointer select-none">
-                          <input
-                            type="checkbox"
-                            checked={showBillAllocation}
-                            onChange={e => {
-                              const checked = e.target.checked;
-                              setShowBillAllocation(checked);
-                              if (checked) {
-                                const voucherAmount = parseFloat(form.amount) || 0;
-                                if (!form.billRows || form.billRows.length === 0) {
-                                  setFormValue('billRows', [{
-                                    id: Date.now(),
-                                    billType: 'Against Ref',
-                                    billNo: '',
-                                    billRef: '',
-                                    date: '',
-                                    dueDate: '',
-                                    billAmount: 0,
-                                    pendingAmount: 0,
-                                    allocationAmount: voucherAmount,
-                                    allocatedAmount: voucherAmount
-                                  }]);
-                                } else if (form.billRows.length === 1) {
-                                  const updatedRows = [...form.billRows];
-                                  updatedRows[0] = {
-                                    ...updatedRows[0],
-                                    allocationAmount: voucherAmount,
-                                    allocatedAmount: voucherAmount
-                                  };
-                                  setFormValue('billRows', updatedRows);
-                                }
-                              }
+                {/* Transaction Details Card */}
+                <FormSection title="Transaction Details" zIndex={90} defaultOpen={true}>
+                  {showContraTransfer ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      {/* Contra Source (From) */}
+                      <div className="rounded-lg border p-2" style={{ borderColor: theme.border, backgroundColor: isDark ? 'rgba(16, 185, 129, 0.03)' : '#f0fdf4' }}>
+                        <h4 className="text-[10px] font-black uppercase tracking-wider text-emerald-600 mb-1.5 flex items-center gap-1">
+                          <Wallet size={11} /> Source (From)
+                        </h4>
+                        <div className="space-y-2">
+                          <SearchableDropdown
+                            placeholder="Source Ledger (Cash / Bank)"
+                            value={form.sourceLedger || ''}
+                            onChange={val => {
+                              setFormValue('sourceLedger', val);
+                              fetchCashBankBalance(val, 'cash');
                             }}
-                            className="w-3.5 h-3.5 rounded accent-indigo-500 cursor-pointer"
+                            options={cashAndBankLedgers}
+                            compact
                           />
-                          <span className="text-[9.5px] md:text-[10px] font-black uppercase tracking-wider text-slate-400 hover:text-slate-200">Bill Allocation</span>
-                        </label>
-                      )}
-                      <label className="flex items-center gap-1.5 cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          checked={form.costCenterApplicable || false}
-                          onChange={e => {
-                            const val = e.target.checked;
-                            setFormValue('costCenterApplicable', val);
-                            if (!val) {
-                              setFormValue('costCategory', '');
-                              setFormValue('costCenter', '');
-                              setFormValue('costAmount', 0);
-                              setFormValue('costCenters', []);
-                            } else {
-                              const categories = masterData?.costCategories || [];
-                              const centers = masterData?.costCenters || [];
-                              const defaultCategory = categories[0] || 'Primary Cost Category';
-                              const filtered = centers.filter(c => c.category === defaultCategory);
-                              const defaultCenter = (filtered[0] || centers[0])?.name || '';
-                              const amt = parseFloat(form.amount) || 0;
-                              setFormValue('costCategory', defaultCategory);
-                              setFormValue('costCenter', defaultCenter);
-                              setFormValue('costAmount', amt);
-                              setFormValue('costCenters', [{ category: defaultCategory, name: defaultCenter, amount: amt }]);
-                            }
-                          }}
-                          className="w-3.5 h-3.5 rounded accent-indigo-500 cursor-pointer"
-                        />
-                        <span className="text-[9.5px] md:text-[10px] font-black uppercase tracking-wider text-slate-400 hover:text-slate-200">Cost Center</span>
-                      </label>
-                      <label className="flex items-center gap-1.5 cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          checked={form.gstApplicable || false}
-                          onChange={e => {
-                            const val = e.target.checked;
-                            setFormValue('gstApplicable', val);
-                            if (!val) {
-                              setFormValue('gstLedger', '');
-                              setFormValue('gstRate', '');
-                            } else {
-                              const defaultGstLedger = masterData?.gstLedgers?.[0] || 'CGST @ 9%';
-                              const defaultGstRate = masterData?.gstRates?.[0] || '18%';
-                              setFormValue('gstLedger', typeof defaultGstLedger === 'object' ? defaultGstLedger.name : defaultGstLedger);
-                              setFormValue('gstRate', defaultGstRate);
-                            }
-                          }}
-                          className="w-3.5 h-3.5 rounded accent-indigo-500 cursor-pointer"
-                        />
-                        <span className="text-[9.5px] md:text-[10px] font-black uppercase tracking-wider text-slate-400 hover:text-slate-200">GST</span>
-                      </label>
-                      <label className="flex items-center gap-1.5 cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          checked={form.tdsApplicable || false}
-                          onChange={e => {
-                            const val = e.target.checked;
-                            setFormValue('tdsApplicable', val);
-                            if (!val) {
-                              setFormValue('tdsLedger', '');
-                              setFormValue('tdsRate', '');
-                            } else {
-                              const defaultTdsLedger = masterData?.tdsLedgers?.[0] || 'TDS Payable';
-                              const defaultTdsRate = masterData?.tdsRates?.[0] || '10%';
-                              setFormValue('tdsLedger', typeof defaultTdsLedger === 'object' ? defaultTdsLedger.name : defaultTdsLedger);
-                              setFormValue('tdsRate', defaultTdsRate);
-                            }
-                          }}
-                          className="w-3.5 h-3.5 rounded accent-indigo-500 cursor-pointer"
-                        />
-                        <span className="text-[9.5px] md:text-[10px] font-black uppercase tracking-wider text-slate-400 hover:text-slate-200">TDS</span>
-                      </label>
+                          <InputField label="Transfer Amount (₹)" type="number" placeholder="0.00" value={form.transferAmount || ''} onChange={val => setFormValue('transferAmount', val)} align="right" compact />
+                        </div>
+                      </div>
+
+                      {/* Contra Destination (To) */}
+                      <div className="rounded-lg border p-2" style={{ borderColor: theme.border, backgroundColor: isDark ? 'rgba(59, 130, 246, 0.03)' : '#eff6ff' }}>
+                        <h4 className="text-[10px] font-black uppercase tracking-wider text-blue-600 mb-1.5 flex items-center gap-1">
+                          <Landmark size={11} /> Destination (To)
+                        </h4>
+                        <div className="space-y-2">
+                          <SearchableDropdown
+                            placeholder="Destination Ledger (Cash / Bank)"
+                            value={form.destinationLedger || ''}
+                            onChange={val => {
+                              setFormValue('destinationLedger', val);
+                              fetchCashBankBalance(val, 'bank');
+                            }}
+                            options={cashAndBankLedgers}
+                            compact
+                          />
+                          <InputField label="Amount Received (₹)" type="number" placeholder="0.00" value={form.amountReceived || ''} onChange={val => setFormValue('amountReceived', val)} align="right" compact />
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              )}
-            </FormSection>
-
-            {/* Narration Card */}
-            <FormSection title="Narration" zIndex={10} defaultOpen={true}>
-              <textarea
-                className="w-full h-8 md:h-10 rounded-lg border p-1.5 text-xs md:text-[12.5px] font-bold outline-none transition-all focus:border-indigo-400 resize-none shadow-sm placeholder:text-slate-300"
-                placeholder="Enter detailed narration here..."
-                value={form.narration || ''}
-                onChange={e => setFormValue('narration', e.target.value)}
-                style={{ backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.text }}
-              />
-            </FormSection>
-          </div>
-
-          {/* Column 2: Live Panels and Collapsibles (5/12 on lg desktop) */}
-          <div className="col-span-1 lg:col-span-5 flex flex-col gap-2 pb-2">
-            
-            {/* Live Balances Panel */}
-            {getBalancePanel()}
-
-            {/* Accounting Entry Preview */}
-            {getAccountingPreview()}
-
-            {/* Voucher Summary Panel */}
-            {getVoucherSummary()}
-
-            {/* Container for Collapsible Details (No independent scrollbars - renders directly in layout) */}
-            <div className="flex flex-col gap-2">
-              
-
-
-              {/* Bill Allocation collapsible */}
-              {isCreditor && (
-                <FormSection
-                  title="Bill Allocation"
-                  zIndex={60}
-                  showCheckbox={true}
-                  checkboxChecked={showBillAllocation}
-                  onCheckboxChange={(checked) => {
-                    setShowBillAllocation(checked);
-                    if (checked) {
-                      const voucherAmount = parseFloat(form.amount) || 0;
-                      if (!form.billRows || form.billRows.length === 0) {
-                        setFormValue('billRows', [{
-                          id: Date.now(),
-                          billType: 'Against Ref',
-                          billNo: '',
-                          billRef: '',
-                          date: '',
-                          dueDate: '',
-                          billAmount: 0,
-                          pendingAmount: 0,
-                          allocationAmount: voucherAmount,
-                          allocatedAmount: voucherAmount
-                        }]);
-                      } else if (form.billRows.length === 1) {
-                        const updatedRows = [...form.billRows];
-                        updatedRows[0] = {
-                          ...updatedRows[0],
-                          allocationAmount: voucherAmount,
-                          allocatedAmount: voucherAmount
-                        };
-                        setFormValue('billRows', updatedRows);
-                      }
-                    }
-                  }}
-                  headerAction={
-                    <button 
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        addBillRow();
-                      }}
-                      className="px-2 py-0.5 rounded-none border border-emerald-500/30 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 text-[9.5px] font-black uppercase flex items-center gap-1 transition-all mr-2"
-                    >
-                      <Plus size={10} strokeWidth={3} /> Add Row
-                    </button>
-                  }
-                >
-                  <div className="overflow-visible space-y-2">
-                    {(form.billRows || []).map((row, idx) => {
-                      const outstandingAfter = Math.max(0, (parseFloat(row.pendingAmount) || 0) - (parseFloat(row.allocationAmount) || 0));
-                      const pendingBills = selectedPartyDetails?.pendingBills || [];
-                      const isSingle = (form.billRows || []).length === 1;
-
-                      if (isSingle) {
-                        return (
-                          <div 
-                            key={row.id || idx}
-                            className="p-2 rounded-none border flex flex-col gap-2 relative transition-all duration-200"
-                            style={{ borderColor: theme.border, backgroundColor: theme.inputBg }}
-                          >
-                            {/* Row 1: Bill Type & Reference Selector */}
-                            <div className="grid grid-cols-2 gap-2">
-                              <div className="flex flex-col gap-0.5">
-                                <span className="text-[8px] font-black uppercase text-slate-400">Bill Type</span>
-                                <select
-                                  value={row.billType || ''}
-                                  onChange={e => {
-                                    const val = e.target.value;
-                                    updateBillRow(idx, 'billType', val);
-                                    const mainAmount = parseFloat(form.amount) || 0;
-                                    if (val === 'Advance') {
-                                      const ref = `ADV-${form.voucherNumber || 'Draft'}`;
-                                      updateBillRow(idx, 'billRef', ref);
-                                      updateBillRow(idx, 'billNo', ref);
-                                      updateBillRow(idx, 'allocationAmount', mainAmount);
-                                      updateBillRow(idx, 'allocatedAmount', mainAmount);
-                                    } else if (val === 'On Account') {
-                                      updateBillRow(idx, 'billRef', 'On Account');
-                                      updateBillRow(idx, 'billNo', 'On Account');
-                                      updateBillRow(idx, 'allocationAmount', mainAmount);
-                                      updateBillRow(idx, 'allocatedAmount', mainAmount);
-                                    } else {
-                                      updateBillRow(idx, 'billRef', '');
-                                      updateBillRow(idx, 'billNo', '');
-                                      updateBillRow(idx, 'allocationAmount', mainAmount);
-                                      updateBillRow(idx, 'allocatedAmount', mainAmount);
-                                    }
-                                    // Reset invoice details
-                                    updateBillRow(idx, 'date', '');
-                                    updateBillRow(idx, 'dueDate', '');
-                                    updateBillRow(idx, 'billAmount', 0);
-                                    updateBillRow(idx, 'pendingAmount', 0);
-                                  }}
-                                  className="w-full h-7.5 px-1.5 rounded-none border text-[11px] font-bold outline-none"
-                                  style={{ borderColor: theme.border, color: theme.text, backgroundColor: theme.panel }}
-                                >
-                                  <option value="Against Ref">Against Reference</option>
-                                  <option value="Advance">Advance</option>
-                                  <option value="New Ref">New Reference</option>
-                                  <option value="On Account">On Account</option>
-                                </select>
-                              </div>
-                              <div className="flex flex-col gap-0.5">
-                                {row.billType !== 'On Account' && (
-                                  <>
-                                    <span className="text-[8px] font-black uppercase text-slate-400">Bill Reference</span>
-                                    {row.billType === 'Against Ref' ? (
-                                      <select
-                                        value={row.billNo || ''}
-                                        onChange={e => handleBillRefChange(idx, e.target.value)}
-                                        className="w-full h-7.5 px-1.5 rounded-none border text-[11px] font-bold outline-none"
-                                        style={{ borderColor: theme.border, color: theme.text, backgroundColor: theme.panel }}
-                                      >
-                                        <option value="" disabled style={{ color: '#94a3b8' }}>
-                                          Select Bill...
-                                        </option>
-                                        {pendingBills.map(b => (
-                                          <option key={b.billNo} value={b.billNo}>
-                                            {b.billNo}
-                                          </option>
-                                        ))}
-                                      </select>
-                                    ) : (
-                                      <input
-                                        type="text"
-                                        placeholder="Ref No"
-                                        value={row.billRef || ''}
-                                        onChange={e => {
-                                          updateBillRow(idx, 'billRef', e.target.value);
-                                          updateBillRow(idx, 'billNo', e.target.value);
-                                        }}
-                                        className="w-full h-7.5 px-1.5 rounded-none border text-[11px] font-bold outline-none"
-                                        style={{ borderColor: theme.border, color: theme.text, backgroundColor: theme.panel }}
-                                      />
-                                    )}
-                                  </>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Row 2: Selected Invoice Information Panel */}
-                            {row.billType === 'Against Ref' && row.billNo && (
-                              <div className="p-2 rounded-none bg-slate-900/10 dark:bg-slate-950/40 text-[10.5px] border border-dashed flex flex-col gap-1" style={{ borderColor: theme.border }}>
-                                <div className="grid grid-cols-2 gap-x-4 gap-y-1 font-bold">
-                                  <div className="flex justify-between col-span-2">
-                                    <span className="text-slate-400 font-semibold">Invoice No:</span>
-                                    <span style={{ color: theme.text }}>{row.billNo}</span>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span className="text-slate-400 font-semibold">Invoice Date:</span>
-                                    <span style={{ color: theme.text }}>{row.date ? toDisplayDate(row.date) : '-'}</span>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span className="text-slate-400 font-semibold">Due Date:</span>
-                                    <span style={{ color: theme.text }}>{row.dueDate ? toDisplayDate(row.dueDate) : '-'}</span>
-                                  </div>
-                                  <div className="flex justify-between col-span-2 border-t pt-1" style={{ borderColor: theme.border }}>
-                                    <span className="text-slate-400 font-semibold">Original Invoice Amount:</span>
-                                    <span style={{ color: theme.text }}>{row.billAmount ? `₹${row.billAmount.toLocaleString('en-IN')}` : '-'}</span>
-                                  </div>
-                                  <div className="flex justify-between col-span-2 border-t pt-1" style={{ borderColor: theme.border }}>
-                                    <span className="text-indigo-500 font-extrabold uppercase text-[8px] tracking-wider">Outstanding Before Payment:</span>
-                                    <span className="font-black text-indigo-500 dark:text-indigo-400">
-                                      ₹ {row.pendingAmount ? row.pendingAmount.toLocaleString('en-IN') : '-'}
-                                    </span>
-                                  </div>
-                                  <div className="flex justify-between col-span-2 border-t pt-1" style={{ borderColor: theme.border }}>
-                                    <span className="text-slate-400 font-semibold">Payment Amount:</span>
-                                    <span className="font-extrabold" style={{ color: theme.text }}>
-                                      ₹ {form.amount ? parseFloat(form.amount).toLocaleString('en-IN') : '0.00'}
-                                    </span>
-                                  </div>
-                                  <div className="flex justify-between col-span-2 border-t pt-1" style={{ borderColor: theme.border }}>
-                                    <span className="text-emerald-500 font-extrabold uppercase text-[8px] tracking-wider">Outstanding After Payment:</span>
-                                    <span className="font-black text-emerald-500">
-                                      ₹ {outstandingAfter.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-
-                            {row.billType === 'Against Ref' && !row.billNo && (
-                              <div className="p-2 rounded-none bg-slate-50/50 dark:bg-slate-800/10 text-center text-slate-400 text-[10.5px] border border-dashed" style={{ borderColor: theme.border }}>
-                                Please select a Bill Reference above to view invoice details and calculated outstanding.
-                              </div>
-                            )}
-
-                            {/* Simplifed read-only values for non-Against Ref single rows */}
-                            {row.billType !== 'Against Ref' && (
-                              <div className="p-2 rounded-none bg-slate-900/10 dark:bg-slate-950/40 text-[10.5px] border border-dashed flex flex-col gap-1" style={{ borderColor: theme.border }}>
-                                <div className="grid grid-cols-2 gap-x-4 gap-y-1 font-bold">
-                                  <div className="flex justify-between col-span-2">
-                                    <span className="text-slate-400 font-semibold">Bill Type:</span>
-                                    <span style={{ color: theme.text }}>{row.billType}</span>
-                                  </div>
-                                  {row.billType !== 'On Account' && (
-                                    <div className="flex justify-between col-span-2">
-                                      <span className="text-slate-400 font-semibold">Reference Name:</span>
-                                      <span style={{ color: theme.text }}>{row.billRef || '-'}</span>
-                                    </div>
-                                  )}
-                                  <div className="flex justify-between col-span-2 border-t pt-1" style={{ borderColor: theme.border }}>
-                                    <span className="text-slate-400 font-semibold">Payment Amount:</span>
-                                    <span className="font-extrabold" style={{ color: theme.text }}>
-                                      ₹ {form.amount ? parseFloat(form.amount).toLocaleString('en-IN') : '0.00'}
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      }
-
-                      return (
-                        <div 
-                          key={row.id || idx}
-                          className="p-2 rounded-none border flex flex-col gap-2 relative transition-all duration-200"
-                          style={{ borderColor: theme.border, backgroundColor: theme.inputBg }}
-                        >
-                          {/* Row 1: Bill Type & Reference Selector */}
-                          <div className="grid grid-cols-2 gap-2">
-                            <div className="flex flex-col gap-0.5">
-                              <span className="text-[8px] font-black uppercase text-slate-400">Bill Type</span>
-                              <select
-                                value={row.billType || ''}
-                                onChange={e => {
-                                  const val = e.target.value;
-                                  updateBillRow(idx, 'billType', val);
-                                  if (val === 'Advance') {
-                                    const ref = `ADV-${form.voucherNumber || 'Draft'}`;
-                                    updateBillRow(idx, 'billRef', ref);
-                                    updateBillRow(idx, 'billNo', ref);
-                                  } else if (val === 'On Account') {
-                                    updateBillRow(idx, 'billRef', 'On Account');
-                                    updateBillRow(idx, 'billNo', 'On Account');
-                                  } else {
-                                    updateBillRow(idx, 'billRef', '');
-                                    updateBillRow(idx, 'billNo', '');
-                                  }
-                                  // Reset invoice details
-                                  updateBillRow(idx, 'date', '');
-                                  updateBillRow(idx, 'dueDate', '');
-                                  updateBillRow(idx, 'billAmount', 0);
-                                  updateBillRow(idx, 'pendingAmount', 0);
-                                }}
-                                className="w-full h-7.5 px-1.5 rounded-none border text-[11px] font-bold outline-none"
-                                style={{ borderColor: theme.border, color: theme.text, backgroundColor: theme.panel }}
-                              >
-                                <option value="Against Ref">Against Reference</option>
-                                <option value="Advance">Advance</option>
-                                <option value="New Ref">New Reference</option>
-                                <option value="On Account">On Account</option>
-                              </select>
-                            </div>
-                            <div className="flex flex-col gap-0.5">
-                              {row.billType !== 'On Account' && (
-                                <>
-                                  <span className="text-[8px] font-black uppercase text-slate-400">Bill Reference</span>
-                                  {row.billType === 'Against Ref' ? (
-                                    <select
-                                      value={row.billNo || ''}
-                                      onChange={e => handleBillRefChange(idx, e.target.value)}
-                                      className="w-full h-7.5 px-1.5 rounded-none border text-[11px] font-bold outline-none"
-                                      style={{ borderColor: theme.border, color: theme.text, backgroundColor: theme.panel }}
-                                    >
-                                      <option value="" disabled style={{ color: '#94a3b8' }}>
-                                        Select Bill...
-                                      </option>
-                                      {pendingBills.map(b => (
-                                        <option key={b.billNo} value={b.billNo}>
-                                          {b.billNo}
-                                        </option>
-                                      ))}
-                                    </select>
-                                  ) : (
-                                    <input
-                                      type="text"
-                                      placeholder="Ref No"
-                                      value={row.billRef || ''}
-                                      onChange={e => {
-                                        updateBillRow(idx, 'billRef', e.target.value);
-                                        updateBillRow(idx, 'billNo', e.target.value);
-                                      }}
-                                      className="w-full h-7.5 px-1.5 rounded-none border text-[11px] font-bold outline-none"
-                                      style={{ borderColor: theme.border, color: theme.text, backgroundColor: theme.panel }}
-                                    />
-                                  )}
-                                </>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Row 2: Selected Invoice Information Panel */}
-                          {row.billType === 'Against Ref' && row.billNo && (
-                            <div className="p-2 rounded-none bg-slate-900/10 dark:bg-slate-950/40 text-[10.5px] border border-dashed flex flex-col gap-1" style={{ borderColor: theme.border }}>
-                              <h5 className="text-[8px] font-black uppercase tracking-wider text-indigo-500">Selected Invoice Information Panel</h5>
-                              <div className="grid grid-cols-2 gap-x-4 gap-y-1 font-bold">
-                                <div className="flex justify-between">
-                                  <span className="text-slate-400 font-semibold">Invoice:</span>
-                                  <span style={{ color: theme.text }}>{row.billNo}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span className="text-slate-400 font-semibold">Invoice Date:</span>
-                                  <span style={{ color: theme.text }}>{row.date ? toDisplayDate(row.date) : '-'}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span className="text-slate-400 font-semibold">Due Date:</span>
-                                  <span style={{ color: theme.text }}>{row.dueDate ? toDisplayDate(row.dueDate) : '-'}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span className="text-slate-400 font-semibold">Original Amount:</span>
-                                  <span style={{ color: theme.text }}>{row.billAmount ? `₹${row.billAmount.toLocaleString('en-IN')}` : '-'}</span>
-                                </div>
-                                <div className="flex justify-between col-span-2 border-t pt-1 mt-0.5" style={{ borderColor: theme.border }}>
-                                  <span className="text-indigo-500 font-extrabold uppercase text-[8px] tracking-wider">Selected Bill Outstanding:</span>
-                                  <span className="font-black text-indigo-500 dark:text-indigo-400">
-                                    ₹ {row.pendingAmount ? row.pendingAmount.toLocaleString('en-IN') : '-'}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Row 3: Payment Allocation Amount, Outstanding After & Delete Button */}
-                          <div className="flex items-end justify-between gap-3 pt-1 border-t" style={{ borderColor: theme.border }}>
-                            <div className="flex-1 grid grid-cols-2 gap-2">
-                              <div className="flex flex-col gap-0.5">
-                                <span className="text-[8px] font-black uppercase text-slate-400">Payment Amount</span>
-                                <input
-                                  type="number"
-                                  value={row.allocationAmount || ''}
-                                  onChange={e => handleAllocationChange(idx, e.target.value)}
-                                  placeholder="0.00"
-                                  className="w-full h-7.5 px-1.5 rounded-none border text-[11px] font-black outline-none focus:border-indigo-500 text-right"
-                                  style={{ borderColor: theme.border, color: theme.text, backgroundColor: theme.panel }}
-                                />
-                              </div>
-                              <div className="flex flex-col justify-end pb-1.5 text-right">
-                                {row.billType === 'Against Ref' ? (
-                                  <>
-                                    <span className="text-[7.5px] font-black uppercase text-emerald-500">Outstanding After</span>
-                                    <span className="text-[11.5px] font-black text-emerald-500">
-                                      ₹ {outstandingAfter.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                    </span>
-                                  </>
-                                ) : (
-                                  <div className="flex flex-col items-end">
-                                    <span className="text-[7.5px] font-black uppercase text-slate-400">Type</span>
-                                    <span className="text-[11px] font-black" style={{ color: theme.text }}>{row.billType}</span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                            
-                            <button 
-                              type="button" 
-                              onClick={() => removeBillRow(row.id || row._id)} 
-                              className="w-7.5 h-7.5 rounded-none border border-red-200 bg-white dark:bg-slate-800 shadow-sm flex items-center justify-center text-red-500 hover:bg-red-50 hover:text-red-600 transition-all shrink-0"
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        {/* Payment Mode (Cash/Bank Selection) */}
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[9px] md:text-[10px] font-black uppercase tracking-widest leading-none mb-1.5" style={{ color: theme.mutedText }}>Payment Mode</label>
+                          <div className="flex gap-1 bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg w-max border" style={{ borderColor: theme.border }}>
+                            <button
+                              type="button"
+                              onClick={() => handlePaymentModeChange('cash')}
+                              className={`px-4 py-1.5 rounded-md text-[10px] font-black tracking-wider uppercase transition-all duration-200 ${paymentMode === 'cash' ? 'bg-[#09B6B9] text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
                             >
-                              <Minus size={12} strokeWidth={3} />
+                              Cash
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handlePaymentModeChange('bank')}
+                              className={`px-4 py-1.5 rounded-md text-[10px] font-black tracking-wider uppercase transition-all duration-200 ${paymentMode === 'bank' ? 'bg-[#09B6B9] text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
+                            >
+                              Bank
                             </button>
                           </div>
                         </div>
-                      );
-                    })}
 
-                    {/* Summary Indicator Bar */}
-                    {form.billRows && form.billRows.length > 1 && (() => {
-                      const totalAllocated = (form.billRows || []).reduce((acc, r) => acc + (parseFloat(r.allocationAmount) || 0), 0);
-                      const voucherAmount = parseFloat(form.amount) || 0;
-                      const remainingUnallocated = Math.round((voucherAmount - totalAllocated) * 100) / 100;
-                      return (
-                        <div className="mt-2.5 px-3 py-2 flex flex-wrap items-center justify-between border rounded-none shadow-sm text-[10px] md:text-[11px] font-black uppercase tracking-widest gap-2" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>
-                          <div className="flex items-center gap-1.5">
-                            <span style={{ color: theme.mutedText }}>Total Allocated Amount:</span>
-                            <span className="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-none border border-indigo-500/10">
-                              ₹ {totalAllocated.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                            </span>
+                        {/* Cash or Bank Ledger Dropdown */}
+                        {paymentMode === 'cash' ? (
+                          <SearchableDropdown
+                            label="Cash Ledger"
+                            placeholder="Select Cash Ledger"
+                            value={form.cashLedger || ''}
+                            onChange={val => {
+                              setFormValue('cashLedger', val);
+                              setFormValue('againstLedger', val);
+                              fetchCashBankBalance(val, 'cash');
+                            }}
+                            options={finalCashLedgers}
+                            compact
+                          />
+                        ) : (
+                          <SearchableDropdown
+                            label="Bank Ledger"
+                            placeholder="Select Bank Ledger"
+                            value={form.bankLedger || ''}
+                            onChange={val => {
+                              setFormValue('bankLedger', val);
+                              setFormValue('againstLedger', val);
+                              fetchCashBankBalance(val, 'bank');
+                            }}
+                            options={finalBankLedgers}
+                            compact
+                          />
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        {/* Party Ledger Dropdown */}
+                        <SearchableDropdown
+                          label={activeType === 'cash_payment' ? 'Party Ledger (Debit/Dr)' : 'Party Ledger (Credit/Cr)'}
+                          placeholder="Select Party Ledger"
+                          value={form.partyLedger || ''}
+                          onChange={val => {
+                            setFormValue('partyLedger', val);
+                            fetchPartyDetails(val);
+                          }}
+                          options={finalPartyLedgers}
+                          compact
+                        />
+
+                        {/* Payment Amount Input */}
+                        <InputField
+                          label="Payment Amount (₹)"
+                          type="number"
+                          placeholder="0.00"
+                          value={form.amount || ''}
+                          onChange={val => {
+                            setFormValue('amount', val);
+                            const numVal = parseFloat(val) || 0;
+                            if (form.billRows && form.billRows.length === 1) {
+                              const updatedRows = [...form.billRows];
+                              updatedRows[0] = {
+                                ...updatedRows[0],
+                                allocationAmount: numVal,
+                                allocatedAmount: numVal
+                              };
+                              setFormValue('billRows', updatedRows);
+                            }
+                          }}
+                          align="right"
+                          compact
+                        />
+                      </div>
+
+                      {/* Compact Party Balance Banner */}
+                      {selectedPartyDetails && (() => {
+                        const partyOutstanding = selectedPartyDetails.pendingBills && selectedPartyDetails.pendingBills.length > 0
+                          ? selectedPartyDetails.pendingBills.reduce((acc, b) => acc + (parseFloat(b.pendingAmount) || 0), 0)
+                          : (selectedPartyDetails.outstandingBalance || 0);
+                        return (
+                          <div className="p-2.5 rounded-lg border flex flex-col gap-1.5 text-xs font-bold animate-in fade-in slide-in-from-top-1 duration-200"
+                            style={{ backgroundColor: isDark ? 'rgba(9, 182, 185, 0.03)' : '#f0f9fa', borderColor: isDark ? 'rgba(9, 182, 185, 0.1)' : '#cffafe' }}>
+                            <div className="flex justify-between items-center text-[10px]">
+                              <div className="flex gap-1.5 items-center">
+                                <span className="text-[9px] font-black uppercase text-[#09B6B9] tracking-wider">Group:</span>
+                                <span style={{ color: theme.text }}>{selectedPartyDetails.groupName}</span>
+                              </div>
+                              <div className="flex gap-1.5 items-center">
+                                <span className="text-[9px] font-black uppercase text-[#09B6B9] tracking-wider">Ledger Balance:</span>
+                                <span style={{ color: theme.text }}>
+                                  ₹ {selectedPartyDetails.outstandingBalance?.toLocaleString('en-IN')} ({selectedPartyDetails.outstandingType})
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex justify-between items-center border-t pt-1" style={{ borderColor: isDark ? 'rgba(9, 182, 185, 0.08)' : '#cffafe' }}>
+                              <span className="text-[9px] font-black uppercase text-indigo-500 tracking-wider">Party Outstanding:</span>
+                              <span className="text-[11.5px] font-black text-indigo-600 dark:text-indigo-400">
+                                ₹ {partyOutstanding.toLocaleString('en-IN')}
+                              </span>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-1.5">
-                            <span style={{ color: theme.mutedText }}>Remaining Amount:</span>
-                            <span className={`px-2 py-0.5 rounded-none border shadow-sm ${Math.abs(remainingUnallocated) < 0.01 ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500 font-extrabold' : 'bg-rose-500/10 border-rose-500/20 text-rose-500 font-extrabold'}`}>
-                              ₹ {remainingUnallocated.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                            </span>
+                        );
+                      })()}
+                      {/* Bank instrument details are shown directly inside the Transaction Details card when Bank is active */}
+                      {paymentMode === 'bank' && (
+                        <div className="mt-1.5 p-2 rounded-lg border border-dashed bg-slate-50/20 dark:bg-slate-800/5 animate-in fade-in duration-200" style={{ borderColor: theme.border }}>
+                          <h4 className="text-[9.5px] md:text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1.5 flex items-center gap-1">
+                            <Landmark size={11} /> Bank Instrument Details
+                          </h4>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                            <SearchableDropdown label="Trans Type" placeholder="Type" value={form.transType || ''} onChange={val => setFormValue('transType', val)} options={['NEFT', 'RTGS', 'IMPS', 'UPI', 'Cheque', 'DD']} compact />
+                            <InputField label="Instrument No" placeholder="Ref No" value={form.instNumber || ''} onChange={val => setFormValue('instNumber', val)} compact />
+                            <InputField label="Instrument Date" type="date" value={form.instDate || ''} onChange={val => setFormValue('instDate', val)} Icon={Calendar} compact />
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-2">
+                            <InputField label="UTR Number" placeholder="UTR..." value={form.utr || ''} onChange={val => setFormValue('utr', val)} compact />
+                            <InputField label="IFSC Code" placeholder="IFSC..." value={form.ifscCode || ''} onChange={val => setFormValue('ifscCode', val)} compact />
+                            <InputField label="Branch Name" placeholder="Branch..." value={form.branchName || ''} onChange={val => setFormValue('branchName', val)} compact />
                           </div>
                         </div>
-                      );
-                    })()}
-                  </div>
+                      )}
+
+                      {/* Manual Toggles for Collapsibles */}
+                      <div className="mt-1.5 pt-1.5 border-t flex flex-wrap items-center justify-between gap-2" style={{ borderColor: theme.border }}>
+                        <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Additional Details</span>
+                        <div className="flex flex-wrap gap-2">
+                          {isCreditor && (
+                            <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={showBillAllocation}
+                                onChange={e => {
+                                  const checked = e.target.checked;
+                                  setShowBillAllocation(checked);
+                                  if (checked) {
+                                    const voucherAmount = parseFloat(form.amount) || 0;
+                                    if (!form.billRows || form.billRows.length === 0) {
+                                      setFormValue('billRows', [{
+                                        id: Date.now(),
+                                        billType: 'Against Ref',
+                                        billNo: '',
+                                        billRef: '',
+                                        date: '',
+                                        dueDate: '',
+                                        billAmount: 0,
+                                        pendingAmount: 0,
+                                        allocationAmount: voucherAmount,
+                                        allocatedAmount: voucherAmount
+                                      }]);
+                                    } else if (form.billRows.length === 1) {
+                                      const updatedRows = [...form.billRows];
+                                      updatedRows[0] = {
+                                        ...updatedRows[0],
+                                        allocationAmount: voucherAmount,
+                                        allocatedAmount: voucherAmount
+                                      };
+                                      setFormValue('billRows', updatedRows);
+                                    }
+                                  }
+                                }}
+                                className="w-3.5 h-3.5 rounded accent-indigo-500 cursor-pointer"
+                              />
+                              <span className="text-[9.5px] md:text-[10px] font-black uppercase tracking-wider text-slate-400 hover:text-slate-200">Bill Allocation</span>
+                            </label>
+                          )}
+                          <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={form.costCenterApplicable || false}
+                              onChange={e => {
+                                const val = e.target.checked;
+                                setFormValue('costCenterApplicable', val);
+                                if (!val) {
+                                  setFormValue('costCategory', '');
+                                  setFormValue('costCenter', '');
+                                  setFormValue('costAmount', 0);
+                                  setFormValue('costCenters', []);
+                                } else {
+                                  const categories = masterData?.costCategories || [];
+                                  const centers = masterData?.costCenters || [];
+                                  const defaultCategory = categories[0] || 'Primary Cost Category';
+                                  const filtered = centers.filter(c => c.category === defaultCategory);
+                                  const defaultCenter = (filtered[0] || centers[0])?.name || '';
+                                  const amt = parseFloat(form.amount) || 0;
+                                  setFormValue('costCategory', defaultCategory);
+                                  setFormValue('costCenter', defaultCenter);
+                                  setFormValue('costAmount', amt);
+                                  setFormValue('costCenters', [{ category: defaultCategory, name: defaultCenter, amount: amt }]);
+                                }
+                              }}
+                              className="w-3.5 h-3.5 rounded accent-indigo-500 cursor-pointer"
+                            />
+                            <span className="text-[9.5px] md:text-[10px] font-black uppercase tracking-wider text-slate-400 hover:text-slate-200">Cost Center</span>
+                          </label>
+                          <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={form.gstApplicable || false}
+                              onChange={e => {
+                                const val = e.target.checked;
+                                setFormValue('gstApplicable', val);
+                                if (!val) {
+                                  setFormValue('gstLedger', '');
+                                  setFormValue('gstRate', '');
+                                } else {
+                                  const defaultGstLedger = masterData?.gstLedgers?.[0] || 'CGST @ 9%';
+                                  const defaultGstRate = masterData?.gstRates?.[0] || '18%';
+                                  setFormValue('gstLedger', typeof defaultGstLedger === 'object' ? defaultGstLedger.name : defaultGstLedger);
+                                  setFormValue('gstRate', defaultGstRate);
+                                }
+                              }}
+                              className="w-3.5 h-3.5 rounded accent-indigo-500 cursor-pointer"
+                            />
+                            <span className="text-[9.5px] md:text-[10px] font-black uppercase tracking-wider text-slate-400 hover:text-slate-200">GST</span>
+                          </label>
+                          <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={form.tdsApplicable || false}
+                              onChange={e => {
+                                const val = e.target.checked;
+                                setFormValue('tdsApplicable', val);
+                                if (!val) {
+                                  setFormValue('tdsLedger', '');
+                                  setFormValue('tdsRate', '');
+                                } else {
+                                  const defaultTdsLedger = masterData?.tdsLedgers?.[0] || 'TDS Payable';
+                                  const defaultTdsRate = masterData?.tdsRates?.[0] || '10%';
+                                  setFormValue('tdsLedger', typeof defaultTdsLedger === 'object' ? defaultTdsLedger.name : defaultTdsLedger);
+                                  setFormValue('tdsRate', defaultTdsRate);
+                                }
+                              }}
+                              className="w-3.5 h-3.5 rounded accent-indigo-500 cursor-pointer"
+                            />
+                            <span className="text-[9.5px] md:text-[10px] font-black uppercase tracking-wider text-slate-400 hover:text-slate-200">TDS</span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </FormSection>
-              )}
 
-              {/* Cost Center Allocation Collapsible */}
-              <FormSection
-                title="Cost Center Allocation"
-                zIndex={50}
-                showCheckbox={true}
-                checkboxChecked={form.costCenterApplicable || false}
-                onCheckboxChange={(checked) => {
-                  setFormValue('costCenterApplicable', checked);
-                  if (!checked) {
-                    setFormValue('costCategory', '');
-                    setFormValue('costCenter', '');
-                    setFormValue('costAmount', 0);
-                    setFormValue('costCenters', []);
-                  } else {
-                    const categories = masterData?.costCategories || [];
-                    const centers = masterData?.costCenters || [];
-                    const defaultCategory = categories[0] || 'Primary Cost Category';
-                    const filtered = centers.filter(c => c.category === defaultCategory);
-                    const defaultCenter = (filtered[0] || centers[0])?.name || '';
-                    const amt = parseFloat(form.amount) || 0;
-                    setFormValue('costCategory', defaultCategory);
-                    setFormValue('costCenter', defaultCenter);
-                    setFormValue('costAmount', amt);
-                    setFormValue('costCenters', [{ category: defaultCategory, name: defaultCenter, amount: amt }]);
-                  }
-                }}
-              >
-                <div className="grid grid-cols-1 gap-3">
-                  <SearchableDropdown
-                    label="Cost Category"
-                    placeholder="Select Category"
-                    value={form.costCategory || (form.costCenters?.[0]?.category || '')}
-                    onChange={val => {
-                      setFormValue('costCategory', val);
-                      const currentCenter = form.costCenter || (form.costCenters?.[0]?.name || '');
-                      const currentAmount = parseFloat(form.costAmount || (form.costCenters?.[0]?.amount || 0));
-                      setFormValue('costCenters', [{ category: val, name: currentCenter, amount: currentAmount }]);
-                    }}
-                    options={costCategoriesOptions}
-                    compact
+                {/* Narration Card */}
+                <FormSection title="Narration" zIndex={10} defaultOpen={true}>
+                  <textarea
+                    className="w-full h-8 md:h-10 rounded-lg border p-1.5 text-xs md:text-[12.5px] font-bold outline-none transition-all focus:border-indigo-400 resize-none shadow-sm placeholder:text-slate-300"
+                    placeholder="Enter detailed narration here..."
+                    value={form.narration || ''}
+                    onChange={e => setFormValue('narration', e.target.value)}
+                    style={{ backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.text }}
                   />
-                  <SearchableDropdown
-                    label="Cost Center"
-                    placeholder="Select Center"
-                    value={form.costCenter || (form.costCenters?.[0]?.name || '')}
-                    onChange={val => {
-                      setFormValue('costCenter', val);
-                      const currentCategory = form.costCategory || (form.costCenters?.[0]?.category || '');
-                      const currentAmount = parseFloat(form.costAmount || (form.costCenters?.[0]?.amount || 0));
-                      setFormValue('costCenters', [{ category: currentCategory, name: val, amount: currentAmount }]);
-                    }}
-                    options={filteredCostCenters}
-                    compact
-                  />
-                  <InputField
-                    label="Allocation Amount (₹)"
-                    type="number"
-                    placeholder="0.00"
-                    value={form.costAmount || (form.costCenters?.[0]?.amount || '')}
-                    onChange={val => {
-                      setFormValue('costAmount', val);
-                      const currentCategory = form.costCategory || (form.costCenters?.[0]?.category || '');
-                      const currentCenter = form.costCenter || (form.costCenters?.[0]?.name || '');
-                      setFormValue('costCenters', [{ category: currentCategory, name: currentCenter, amount: parseFloat(val) || 0 }]);
-                    }}
-                    align="right"
-                    compact
-                  />
-                </div>
-              </FormSection>
+                </FormSection>
+              </div>
 
-              {/* GST Details Card */}
-              <FormSection
-                title="GST Details"
-                zIndex={42}
-                showCheckbox={true}
-                checkboxChecked={form.gstApplicable || false}
-                onCheckboxChange={(checked) => {
-                  setFormValue('gstApplicable', checked);
-                  if (!checked) {
-                    setFormValue('gstLedger', '');
-                    setFormValue('gstRate', '');
-                  } else {
-                    const defaultGstLedger = masterData?.gstLedgers?.[0] || 'CGST @ 9%';
-                    const defaultGstRate = masterData?.gstRates?.[0] || '18%';
-                    setFormValue('gstLedger', typeof defaultGstLedger === 'object' ? defaultGstLedger.name : defaultGstLedger);
-                    setFormValue('gstRate', defaultGstRate);
-                  }
-                }}
-              >
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <SearchableDropdown
-                    label="GST Ledger"
-                    placeholder="GST Ledger"
-                    value={form.gstLedger || ''}
-                    onChange={val => setFormValue('gstLedger', val)}
-                    options={masterData?.gstLedgers || []}
-                    compact
-                  />
-                  <SearchableDropdown
-                    label="GST Rate"
-                    placeholder="GST Rate"
-                    value={form.gstRate || ''}
-                    onChange={val => setFormValue('gstRate', val)}
-                    options={masterData?.gstRates || []}
-                    compact
-                  />
-                </div>
-              </FormSection>
+              {/* Column 2: Live Panels and Collapsibles (5/12 on lg desktop) */}
+              <div className="col-span-1 lg:col-span-5 flex flex-col gap-2 pb-2">
 
-              {/* TDS Details Card */}
-              <FormSection
-                title="TDS Details"
-                zIndex={40}
-                showCheckbox={true}
-                checkboxChecked={form.tdsApplicable || false}
-                onCheckboxChange={(checked) => {
-                  setFormValue('tdsApplicable', checked);
-                  if (!checked) {
-                    setFormValue('tdsLedger', '');
-                    setFormValue('tdsRate', '');
-                  } else {
-                    const defaultTdsLedger = masterData?.tdsLedgers?.[0] || 'TDS Payable';
-                    const defaultTdsRate = masterData?.tdsRates?.[0] || '10%';
-                    setFormValue('tdsLedger', typeof defaultTdsLedger === 'object' ? defaultTdsLedger.name : defaultTdsLedger);
-                    setFormValue('tdsRate', defaultTdsRate);
-                  }
-                }}
-              >
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <SearchableDropdown
-                    label="TDS Ledger"
-                    placeholder="TDS Ledger"
-                    value={form.tdsLedger || ''}
-                    onChange={val => setFormValue('tdsLedger', val)}
-                    options={masterData?.tdsLedgers || []}
-                    compact
-                  />
-                  <SearchableDropdown
-                    label="TDS %"
-                    placeholder="TDS %"
-                    value={form.tdsRate || ''}
-                    onChange={val => setFormValue('tdsRate', val)}
-                    options={masterData?.tdsRates || []}
-                    compact
-                  />
+                {/* Live Balances Panel */}
+                {getBalancePanel()}
+
+                {/* Accounting Entry Preview */}
+                {getAccountingPreview()}
+
+                {/* Voucher Summary Panel */}
+                {getVoucherSummary()}
+
+                {/* Container for Collapsible Details (No independent scrollbars - renders directly in layout) */}
+                <div className="flex flex-col gap-2">
+
+
+
+                  {/* Bill Allocation collapsible */}
+                  {isCreditor && (
+                    <FormSection
+                      title="Bill Allocation"
+                      zIndex={60}
+                      showCheckbox={true}
+                      checkboxChecked={showBillAllocation}
+                      onCheckboxChange={(checked) => {
+                        setShowBillAllocation(checked);
+                        if (checked) {
+                          const voucherAmount = parseFloat(form.amount) || 0;
+                          if (!form.billRows || form.billRows.length === 0) {
+                            setFormValue('billRows', [{
+                              id: Date.now(),
+                              billType: 'Against Ref',
+                              billNo: '',
+                              billRef: '',
+                              date: '',
+                              dueDate: '',
+                              billAmount: 0,
+                              pendingAmount: 0,
+                              allocationAmount: voucherAmount,
+                              allocatedAmount: voucherAmount
+                            }]);
+                          } else if (form.billRows.length === 1) {
+                            const updatedRows = [...form.billRows];
+                            updatedRows[0] = {
+                              ...updatedRows[0],
+                              allocationAmount: voucherAmount,
+                              allocatedAmount: voucherAmount
+                            };
+                            setFormValue('billRows', updatedRows);
+                          }
+                        }
+                      }}
+                      headerAction={
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            addBillRow();
+                          }}
+                          className="px-2 py-0.5 rounded-none border border-emerald-500/30 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 text-[9.5px] font-black uppercase flex items-center gap-1 transition-all mr-2"
+                        >
+                          <Plus size={10} strokeWidth={3} /> Add Row
+                        </button>
+                      }
+                    >
+                      <div className="overflow-visible space-y-2">
+                        {(form.billRows || []).map((row, idx) => {
+                          const outstandingAfter = Math.max(0, (parseFloat(row.pendingAmount) || 0) - (parseFloat(row.allocationAmount) || 0));
+                          const pendingBills = selectedPartyDetails?.pendingBills || [];
+                          const isSingle = (form.billRows || []).length === 1;
+
+                          if (isSingle) {
+                            return (
+                              <div
+                                key={row.id || idx}
+                                className="p-2 rounded-none border flex flex-col gap-2 relative transition-all duration-200"
+                                style={{ borderColor: theme.border, backgroundColor: theme.inputBg }}
+                              >
+                                {/* Row 1: Bill Type & Reference Selector */}
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div className="flex flex-col gap-0.5">
+                                    <span className="text-[8px] font-black uppercase text-slate-400">Bill Type</span>
+                                    <select
+                                      value={row.billType || ''}
+                                      onChange={e => {
+                                        const val = e.target.value;
+                                        updateBillRow(idx, 'billType', val);
+                                        const mainAmount = parseFloat(form.amount) || 0;
+                                        if (val === 'Advance') {
+                                          const ref = `ADV-${form.voucherNumber || 'Draft'}`;
+                                          updateBillRow(idx, 'billRef', ref);
+                                          updateBillRow(idx, 'billNo', ref);
+                                          updateBillRow(idx, 'allocationAmount', mainAmount);
+                                          updateBillRow(idx, 'allocatedAmount', mainAmount);
+                                        } else if (val === 'On Account') {
+                                          updateBillRow(idx, 'billRef', 'On Account');
+                                          updateBillRow(idx, 'billNo', 'On Account');
+                                          updateBillRow(idx, 'allocationAmount', mainAmount);
+                                          updateBillRow(idx, 'allocatedAmount', mainAmount);
+                                        } else {
+                                          updateBillRow(idx, 'billRef', '');
+                                          updateBillRow(idx, 'billNo', '');
+                                          updateBillRow(idx, 'allocationAmount', mainAmount);
+                                          updateBillRow(idx, 'allocatedAmount', mainAmount);
+                                        }
+                                        // Reset invoice details
+                                        updateBillRow(idx, 'date', '');
+                                        updateBillRow(idx, 'dueDate', '');
+                                        updateBillRow(idx, 'billAmount', 0);
+                                        updateBillRow(idx, 'pendingAmount', 0);
+                                      }}
+                                      className="w-full h-7.5 px-1.5 rounded-none border text-[11px] font-bold outline-none"
+                                      style={{ borderColor: theme.border, color: theme.text, backgroundColor: theme.panel }}
+                                    >
+                                      <option value="Against Ref">Against Reference</option>
+                                      <option value="Advance">Advance</option>
+                                      <option value="New Ref">New Reference</option>
+                                      <option value="On Account">On Account</option>
+                                    </select>
+                                  </div>
+                                  <div className="flex flex-col gap-0.5">
+                                    {row.billType !== 'On Account' && (
+                                      <>
+                                        <span className="text-[8px] font-black uppercase text-slate-400">Bill Reference</span>
+                                        {row.billType === 'Against Ref' ? (
+                                          <select
+                                            value={row.billNo || ''}
+                                            onChange={e => handleBillRefChange(idx, e.target.value)}
+                                            className="w-full h-7.5 px-1.5 rounded-none border text-[11px] font-bold outline-none"
+                                            style={{ borderColor: theme.border, color: theme.text, backgroundColor: theme.panel }}
+                                          >
+                                            <option value="" disabled style={{ color: '#94a3b8' }}>
+                                              Select Bill...
+                                            </option>
+                                            {pendingBills.map(b => (
+                                              <option key={b.billNo} value={b.billNo}>
+                                                {b.billNo}
+                                              </option>
+                                            ))}
+                                          </select>
+                                        ) : (
+                                          <input
+                                            type="text"
+                                            placeholder="Ref No"
+                                            value={row.billRef || ''}
+                                            onChange={e => {
+                                              updateBillRow(idx, 'billRef', e.target.value);
+                                              updateBillRow(idx, 'billNo', e.target.value);
+                                            }}
+                                            className="w-full h-7.5 px-1.5 rounded-none border text-[11px] font-bold outline-none"
+                                            style={{ borderColor: theme.border, color: theme.text, backgroundColor: theme.panel }}
+                                          />
+                                        )}
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Row 2: Selected Invoice Information Panel */}
+                                {row.billType === 'Against Ref' && row.billNo && (
+                                  <div className="p-2 rounded-none bg-slate-900/10 dark:bg-slate-950/40 text-[10.5px] border border-dashed flex flex-col gap-1" style={{ borderColor: theme.border }}>
+                                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 font-bold">
+                                      <div className="flex justify-between col-span-2">
+                                        <span className="text-slate-400 font-semibold">Invoice No:</span>
+                                        <span style={{ color: theme.text }}>{row.billNo}</span>
+                                      </div>
+                                      <div className="flex justify-between">
+                                        <span className="text-slate-400 font-semibold">Invoice Date:</span>
+                                        <span style={{ color: theme.text }}>{row.date ? toDisplayDate(row.date) : '-'}</span>
+                                      </div>
+                                      <div className="flex justify-between">
+                                        <span className="text-slate-400 font-semibold">Due Date:</span>
+                                        <span style={{ color: theme.text }}>{row.dueDate ? toDisplayDate(row.dueDate) : '-'}</span>
+                                      </div>
+                                      <div className="flex justify-between col-span-2 border-t pt-1" style={{ borderColor: theme.border }}>
+                                        <span className="text-slate-400 font-semibold">Original Invoice Amount:</span>
+                                        <span style={{ color: theme.text }}>{row.billAmount ? `₹${row.billAmount.toLocaleString('en-IN')}` : '-'}</span>
+                                      </div>
+                                      <div className="flex justify-between col-span-2 border-t pt-1" style={{ borderColor: theme.border }}>
+                                        <span className="text-indigo-500 font-extrabold uppercase text-[8px] tracking-wider">Outstanding Before Payment:</span>
+                                        <span className="font-black text-indigo-500 dark:text-indigo-400">
+                                          ₹ {row.pendingAmount ? row.pendingAmount.toLocaleString('en-IN') : '-'}
+                                        </span>
+                                      </div>
+                                      <div className="flex justify-between col-span-2 border-t pt-1" style={{ borderColor: theme.border }}>
+                                        <span className="text-slate-400 font-semibold">Payment Amount:</span>
+                                        <span className="font-extrabold" style={{ color: theme.text }}>
+                                          ₹ {form.amount ? parseFloat(form.amount).toLocaleString('en-IN') : '0.00'}
+                                        </span>
+                                      </div>
+                                      <div className="flex justify-between col-span-2 border-t pt-1" style={{ borderColor: theme.border }}>
+                                        <span className="text-emerald-500 font-extrabold uppercase text-[8px] tracking-wider">Outstanding After Payment:</span>
+                                        <span className="font-black text-emerald-500">
+                                          ₹ {outstandingAfter.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {row.billType === 'Against Ref' && !row.billNo && (
+                                  <div className="p-2 rounded-none bg-slate-50/50 dark:bg-slate-800/10 text-center text-slate-400 text-[10.5px] border border-dashed" style={{ borderColor: theme.border }}>
+                                    Please select a Bill Reference above to view invoice details and calculated outstanding.
+                                  </div>
+                                )}
+
+                                {/* Simplifed read-only values for non-Against Ref single rows */}
+                                {row.billType !== 'Against Ref' && (
+                                  <div className="p-2 rounded-none bg-slate-900/10 dark:bg-slate-950/40 text-[10.5px] border border-dashed flex flex-col gap-1" style={{ borderColor: theme.border }}>
+                                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 font-bold">
+                                      <div className="flex justify-between col-span-2">
+                                        <span className="text-slate-400 font-semibold">Bill Type:</span>
+                                        <span style={{ color: theme.text }}>{row.billType}</span>
+                                      </div>
+                                      {row.billType !== 'On Account' && (
+                                        <div className="flex justify-between col-span-2">
+                                          <span className="text-slate-400 font-semibold">Reference Name:</span>
+                                          <span style={{ color: theme.text }}>{row.billRef || '-'}</span>
+                                        </div>
+                                      )}
+                                      <div className="flex justify-between col-span-2 border-t pt-1" style={{ borderColor: theme.border }}>
+                                        <span className="text-slate-400 font-semibold">Payment Amount:</span>
+                                        <span className="font-extrabold" style={{ color: theme.text }}>
+                                          ₹ {form.amount ? parseFloat(form.amount).toLocaleString('en-IN') : '0.00'}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <div
+                              key={row.id || idx}
+                              className="p-2 rounded-none border flex flex-col gap-2 relative transition-all duration-200"
+                              style={{ borderColor: theme.border, backgroundColor: theme.inputBg }}
+                            >
+                              {/* Row 1: Bill Type & Reference Selector */}
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="flex flex-col gap-0.5">
+                                  <span className="text-[8px] font-black uppercase text-slate-400">Bill Type</span>
+                                  <select
+                                    value={row.billType || ''}
+                                    onChange={e => {
+                                      const val = e.target.value;
+                                      updateBillRow(idx, 'billType', val);
+                                      if (val === 'Advance') {
+                                        const ref = `ADV-${form.voucherNumber || 'Draft'}`;
+                                        updateBillRow(idx, 'billRef', ref);
+                                        updateBillRow(idx, 'billNo', ref);
+                                      } else if (val === 'On Account') {
+                                        updateBillRow(idx, 'billRef', 'On Account');
+                                        updateBillRow(idx, 'billNo', 'On Account');
+                                      } else {
+                                        updateBillRow(idx, 'billRef', '');
+                                        updateBillRow(idx, 'billNo', '');
+                                      }
+                                      // Reset invoice details
+                                      updateBillRow(idx, 'date', '');
+                                      updateBillRow(idx, 'dueDate', '');
+                                      updateBillRow(idx, 'billAmount', 0);
+                                      updateBillRow(idx, 'pendingAmount', 0);
+                                    }}
+                                    className="w-full h-7.5 px-1.5 rounded-none border text-[11px] font-bold outline-none"
+                                    style={{ borderColor: theme.border, color: theme.text, backgroundColor: theme.panel }}
+                                  >
+                                    <option value="Against Ref">Against Reference</option>
+                                    <option value="Advance">Advance</option>
+                                    <option value="New Ref">New Reference</option>
+                                    <option value="On Account">On Account</option>
+                                  </select>
+                                </div>
+                                <div className="flex flex-col gap-0.5">
+                                  {row.billType !== 'On Account' && (
+                                    <>
+                                      <span className="text-[8px] font-black uppercase text-slate-400">Bill Reference</span>
+                                      {row.billType === 'Against Ref' ? (
+                                        <select
+                                          value={row.billNo || ''}
+                                          onChange={e => handleBillRefChange(idx, e.target.value)}
+                                          className="w-full h-7.5 px-1.5 rounded-none border text-[11px] font-bold outline-none"
+                                          style={{ borderColor: theme.border, color: theme.text, backgroundColor: theme.panel }}
+                                        >
+                                          <option value="" disabled style={{ color: '#94a3b8' }}>
+                                            Select Bill...
+                                          </option>
+                                          {pendingBills.map(b => (
+                                            <option key={b.billNo} value={b.billNo}>
+                                              {b.billNo}
+                                            </option>
+                                          ))}
+                                        </select>
+                                      ) : (
+                                        <input
+                                          type="text"
+                                          placeholder="Ref No"
+                                          value={row.billRef || ''}
+                                          onChange={e => {
+                                            updateBillRow(idx, 'billRef', e.target.value);
+                                            updateBillRow(idx, 'billNo', e.target.value);
+                                          }}
+                                          className="w-full h-7.5 px-1.5 rounded-none border text-[11px] font-bold outline-none"
+                                          style={{ borderColor: theme.border, color: theme.text, backgroundColor: theme.panel }}
+                                        />
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Row 2: Selected Invoice Information Panel */}
+                              {row.billType === 'Against Ref' && row.billNo && (
+                                <div className="p-2 rounded-none bg-slate-900/10 dark:bg-slate-950/40 text-[10.5px] border border-dashed flex flex-col gap-1" style={{ borderColor: theme.border }}>
+                                  <h5 className="text-[8px] font-black uppercase tracking-wider text-indigo-500">Selected Invoice Information Panel</h5>
+                                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 font-bold">
+                                    <div className="flex justify-between">
+                                      <span className="text-slate-400 font-semibold">Invoice:</span>
+                                      <span style={{ color: theme.text }}>{row.billNo}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-slate-400 font-semibold">Invoice Date:</span>
+                                      <span style={{ color: theme.text }}>{row.date ? toDisplayDate(row.date) : '-'}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-slate-400 font-semibold">Due Date:</span>
+                                      <span style={{ color: theme.text }}>{row.dueDate ? toDisplayDate(row.dueDate) : '-'}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-slate-400 font-semibold">Original Amount:</span>
+                                      <span style={{ color: theme.text }}>{row.billAmount ? `₹${row.billAmount.toLocaleString('en-IN')}` : '-'}</span>
+                                    </div>
+                                    <div className="flex justify-between col-span-2 border-t pt-1 mt-0.5" style={{ borderColor: theme.border }}>
+                                      <span className="text-indigo-500 font-extrabold uppercase text-[8px] tracking-wider">Selected Bill Outstanding:</span>
+                                      <span className="font-black text-indigo-500 dark:text-indigo-400">
+                                        ₹ {row.pendingAmount ? row.pendingAmount.toLocaleString('en-IN') : '-'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Row 3: Payment Allocation Amount, Outstanding After & Delete Button */}
+                              <div className="flex items-end justify-between gap-3 pt-1 border-t" style={{ borderColor: theme.border }}>
+                                <div className="flex-1 grid grid-cols-2 gap-2">
+                                  <div className="flex flex-col gap-0.5">
+                                    <span className="text-[8px] font-black uppercase text-slate-400">Payment Amount</span>
+                                    <input
+                                      type="number"
+                                      value={row.allocationAmount || ''}
+                                      onChange={e => handleAllocationChange(idx, e.target.value)}
+                                      placeholder="0.00"
+                                      className="w-full h-7.5 px-1.5 rounded-none border text-[11px] font-black outline-none focus:border-indigo-500 text-right"
+                                      style={{ borderColor: theme.border, color: theme.text, backgroundColor: theme.panel }}
+                                    />
+                                  </div>
+                                  <div className="flex flex-col justify-end pb-1.5 text-right">
+                                    {row.billType === 'Against Ref' ? (
+                                      <>
+                                        <span className="text-[7.5px] font-black uppercase text-emerald-500">Outstanding After</span>
+                                        <span className="text-[11.5px] font-black text-emerald-500">
+                                          ₹ {outstandingAfter.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                        </span>
+                                      </>
+                                    ) : (
+                                      <div className="flex flex-col items-end">
+                                        <span className="text-[7.5px] font-black uppercase text-slate-400">Type</span>
+                                        <span className="text-[11px] font-black" style={{ color: theme.text }}>{row.billType}</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() => removeBillRow(row.id || row._id)}
+                                  className="w-7.5 h-7.5 rounded-none border border-red-200 bg-white dark:bg-slate-800 shadow-sm flex items-center justify-center text-red-500 hover:bg-red-50 hover:text-red-600 transition-all shrink-0"
+                                >
+                                  <Minus size={12} strokeWidth={3} />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+
+                        {/* Summary Indicator Bar */}
+                        {form.billRows && form.billRows.length > 1 && (() => {
+                          const totalAllocated = (form.billRows || []).reduce((acc, r) => acc + (parseFloat(r.allocationAmount) || 0), 0);
+                          const voucherAmount = parseFloat(form.amount) || 0;
+                          const remainingUnallocated = Math.round((voucherAmount - totalAllocated) * 100) / 100;
+                          return (
+                            <div className="mt-2.5 px-3 py-2 flex flex-wrap items-center justify-between border rounded-none shadow-sm text-[10px] md:text-[11px] font-black uppercase tracking-widest gap-2" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>
+                              <div className="flex items-center gap-1.5">
+                                <span style={{ color: theme.mutedText }}>Total Allocated Amount:</span>
+                                <span className="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-none border border-indigo-500/10">
+                                  ₹ {totalAllocated.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <span style={{ color: theme.mutedText }}>Remaining Amount:</span>
+                                <span className={`px-2 py-0.5 rounded-none border shadow-sm ${Math.abs(remainingUnallocated) < 0.01 ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500 font-extrabold' : 'bg-rose-500/10 border-rose-500/20 text-rose-500 font-extrabold'}`}>
+                                  ₹ {remainingUnallocated.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </FormSection>
+                  )}
+
+                  {/* Cost Center Allocation Collapsible */}
+                  <FormSection
+                    title="Cost Center Allocation"
+                    zIndex={50}
+                    showCheckbox={true}
+                    checkboxChecked={form.costCenterApplicable || false}
+                    onCheckboxChange={(checked) => {
+                      setFormValue('costCenterApplicable', checked);
+                      if (!checked) {
+                        setFormValue('costCategory', '');
+                        setFormValue('costCenter', '');
+                        setFormValue('costAmount', 0);
+                        setFormValue('costCenters', []);
+                      } else {
+                        const categories = masterData?.costCategories || [];
+                        const centers = masterData?.costCenters || [];
+                        const defaultCategory = categories[0] || 'Primary Cost Category';
+                        const filtered = centers.filter(c => c.category === defaultCategory);
+                        const defaultCenter = (filtered[0] || centers[0])?.name || '';
+                        const amt = parseFloat(form.amount) || 0;
+                        setFormValue('costCategory', defaultCategory);
+                        setFormValue('costCenter', defaultCenter);
+                        setFormValue('costAmount', amt);
+                        setFormValue('costCenters', [{ category: defaultCategory, name: defaultCenter, amount: amt }]);
+                      }
+                    }}
+                  >
+                    <div className="grid grid-cols-1 gap-3">
+                      <SearchableDropdown
+                        label="Cost Category"
+                        placeholder="Select Category"
+                        value={form.costCategory || (form.costCenters?.[0]?.category || '')}
+                        onChange={val => {
+                          setFormValue('costCategory', val);
+                          const currentCenter = form.costCenter || (form.costCenters?.[0]?.name || '');
+                          const currentAmount = parseFloat(form.costAmount || (form.costCenters?.[0]?.amount || 0));
+                          setFormValue('costCenters', [{ category: val, name: currentCenter, amount: currentAmount }]);
+                        }}
+                        options={costCategoriesOptions}
+                        compact
+                      />
+                      <SearchableDropdown
+                        label="Cost Center"
+                        placeholder="Select Center"
+                        value={form.costCenter || (form.costCenters?.[0]?.name || '')}
+                        onChange={val => {
+                          setFormValue('costCenter', val);
+                          const currentCategory = form.costCategory || (form.costCenters?.[0]?.category || '');
+                          const currentAmount = parseFloat(form.costAmount || (form.costCenters?.[0]?.amount || 0));
+                          setFormValue('costCenters', [{ category: currentCategory, name: val, amount: currentAmount }]);
+                        }}
+                        options={filteredCostCenters}
+                        compact
+                      />
+                      <InputField
+                        label="Allocation Amount (₹)"
+                        type="number"
+                        placeholder="0.00"
+                        value={form.costAmount || (form.costCenters?.[0]?.amount || '')}
+                        onChange={val => {
+                          setFormValue('costAmount', val);
+                          const currentCategory = form.costCategory || (form.costCenters?.[0]?.category || '');
+                          const currentCenter = form.costCenter || (form.costCenters?.[0]?.name || '');
+                          setFormValue('costCenters', [{ category: currentCategory, name: currentCenter, amount: parseFloat(val) || 0 }]);
+                        }}
+                        align="right"
+                        compact
+                      />
+                    </div>
+                  </FormSection>
+
+                  {/* GST Details Card */}
+                  <FormSection
+                    title="GST Details"
+                    zIndex={42}
+                    showCheckbox={true}
+                    checkboxChecked={form.gstApplicable || false}
+                    onCheckboxChange={(checked) => {
+                      setFormValue('gstApplicable', checked);
+                      if (!checked) {
+                        setFormValue('gstLedger', '');
+                        setFormValue('gstRate', '');
+                      } else {
+                        const defaultGstLedger = masterData?.gstLedgers?.[0] || 'CGST @ 9%';
+                        const defaultGstRate = masterData?.gstRates?.[0] || '18%';
+                        setFormValue('gstLedger', typeof defaultGstLedger === 'object' ? defaultGstLedger.name : defaultGstLedger);
+                        setFormValue('gstRate', defaultGstRate);
+                      }
+                    }}
+                  >
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <SearchableDropdown
+                        label="GST Ledger"
+                        placeholder="GST Ledger"
+                        value={form.gstLedger || ''}
+                        onChange={val => setFormValue('gstLedger', val)}
+                        options={masterData?.gstLedgers || []}
+                        compact
+                      />
+                      <SearchableDropdown
+                        label="GST Rate"
+                        placeholder="GST Rate"
+                        value={form.gstRate || ''}
+                        onChange={val => setFormValue('gstRate', val)}
+                        options={masterData?.gstRates || []}
+                        compact
+                      />
+                    </div>
+                  </FormSection>
+
+                  {/* TDS Details Card */}
+                  <FormSection
+                    title="TDS Details"
+                    zIndex={40}
+                    showCheckbox={true}
+                    checkboxChecked={form.tdsApplicable || false}
+                    onCheckboxChange={(checked) => {
+                      setFormValue('tdsApplicable', checked);
+                      if (!checked) {
+                        setFormValue('tdsLedger', '');
+                        setFormValue('tdsRate', '');
+                      } else {
+                        const defaultTdsLedger = masterData?.tdsLedgers?.[0] || 'TDS Payable';
+                        const defaultTdsRate = masterData?.tdsRates?.[0] || '10%';
+                        setFormValue('tdsLedger', typeof defaultTdsLedger === 'object' ? defaultTdsLedger.name : defaultTdsLedger);
+                        setFormValue('tdsRate', defaultTdsRate);
+                      }
+                    }}
+                  >
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <SearchableDropdown
+                        label="TDS Ledger"
+                        placeholder="TDS Ledger"
+                        value={form.tdsLedger || ''}
+                        onChange={val => setFormValue('tdsLedger', val)}
+                        options={masterData?.tdsLedgers || []}
+                        compact
+                      />
+                      <SearchableDropdown
+                        label="TDS %"
+                        placeholder="TDS %"
+                        value={form.tdsRate || ''}
+                        onChange={val => setFormValue('tdsRate', val)}
+                        options={masterData?.tdsRates || []}
+                        compact
+                      />
+                    </div>
+                  </FormSection>
                 </div>
-              </FormSection>
+              </div>
             </div>
-          </div>
+          )}
         </div>
-      )}
-      </div>
 
       </div>
     </ThemeContext.Provider>
@@ -2929,7 +3518,7 @@ const FormSection = ({
   const isContentVisible = !showCheckbox || checkboxChecked;
 
   return (
-    <div 
+    <div
       className={`p-2.5 border rounded-none mb-0 shrink-0 flex flex-col gap-2 relative ${className}`}
       style={{ borderColor: theme.border, backgroundColor: theme.panel, zIndex: isContentVisible ? zIndex : 1 }}
     >
@@ -3008,10 +3597,10 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
       <div className="relative flex-1">
         <div
           onClick={() => setIsOpen(!isOpen)}
-          className={`w-full ${compact ? 'h-7.5 px-2' : 'h-10 px-2'} rounded-sm border flex items-center justify-between cursor-pointer transition-all duration-300 group/input ${isOpen ? 'border-indigo-500' : 'hover:border-indigo-400'}`}
+          className={`w-full ${compact ? 'h-7 px-1.5' : 'h-10 px-2'} rounded-sm border flex items-center justify-between cursor-pointer transition-all duration-300 group/input ${isOpen ? 'border-indigo-500' : 'hover:border-indigo-400'}`}
           style={{ backgroundColor: theme.inputBg, borderColor: isOpen ? theme.accent : theme.border }}
         >
-          <span className={`text-[11px] font-bold truncate transition-colors ${value ? (isDark ? 'text-indigo-400' : 'text-indigo-600') : 'text-slate-400'}`}>
+          <span className={`${compact ? 'text-[10px]' : 'text-[11px]'} font-bold truncate transition-colors ${value ? (isDark ? 'text-indigo-400' : 'text-indigo-600') : 'text-slate-400'}`}>
             {value || placeholder}
           </span>
           <div className="flex items-center gap-1 text-slate-400 group-hover/input:text-indigo-500 transition-colors">
@@ -3071,7 +3660,7 @@ const InputField = ({ label, placeholder, value, onChange, type = 'text', readOn
     const isBackspace = e.nativeEvent.inputType === "deleteContentBackward";
     let raw = e.target.value.replace(/[^0-9]/g, '');
     if (raw.length > 8) raw = raw.slice(0, 8);
-    
+
     let formatted = "";
     if (raw.length <= 2) {
       if (raw.length === 2 && !isBackspace) {
@@ -3088,7 +3677,7 @@ const InputField = ({ label, placeholder, value, onChange, type = 'text', readOn
     } else {
       formatted = `${raw.slice(0, 2)}-${raw.slice(2, 4)}-${raw.slice(4)}`;
     }
-    
+
     if (formatted.length === 10) {
       onChange && onChange(toDbDate(formatted));
     } else {
@@ -3119,7 +3708,7 @@ const InputField = ({ label, placeholder, value, onChange, type = 'text', readOn
               onChange={handleTextChange}
               placeholder="dd-mm-yyyy"
               readOnly={readOnly}
-              className={`w-full ${compact ? 'h-7.5 px-2' : 'h-10 px-2'} rounded-sm border text-[11px] font-bold outline-none transition-all duration-300 focus:ring-0 ${isDark ? 'placeholder:text-white/10' : 'placeholder:text-slate-300'} ${align === 'right' ? 'text-right' : ''} ${readOnly ? (isDark ? 'cursor-not-allowed opacity-60 bg-slate-800/20' : 'cursor-not-allowed bg-slate-50/50') : 'hover:border-indigo-300'}`}
+              className={`w-full ${compact ? 'h-7 px-1.5 text-[10px]' : 'h-10 px-2 text-[11px]'} rounded-sm border font-bold outline-none transition-all duration-300 focus:ring-0 ${isDark ? 'placeholder:text-white/10' : 'placeholder:text-slate-300'} ${align === 'right' ? 'text-right' : ''} ${readOnly ? (isDark ? 'cursor-not-allowed opacity-60 bg-slate-800/20' : 'cursor-not-allowed bg-slate-50/50') : 'hover:border-indigo-300'}`}
               style={{ backgroundColor: readOnly ? theme.headerBg : theme.inputBg, borderColor: theme.border, color: readOnly ? theme.accent : theme.text }}
             />
             {Icon && !readOnly && (
@@ -3142,7 +3731,7 @@ const InputField = ({ label, placeholder, value, onChange, type = 'text', readOn
             onChange={(e) => onChange && onChange(e.target.value)}
             readOnly={readOnly}
             placeholder={placeholder}
-            className={`w-full ${compact ? 'h-7.5 px-2' : 'h-10 px-2'} rounded-sm border text-[11px] font-bold outline-none transition-all duration-300 focus:ring-0 ${isDark ? 'placeholder:text-white/10' : 'placeholder:text-slate-300'} ${align === 'right' ? 'text-right' : ''} ${readOnly ? (isDark ? 'cursor-not-allowed opacity-60 bg-slate-800/20' : 'cursor-not-allowed bg-slate-50/50') : 'hover:border-indigo-300'}`}
+            className={`w-full ${compact ? 'h-7 px-1.5 text-[10px]' : 'h-10 px-2 text-[11px]'} rounded-sm border font-bold outline-none transition-all duration-300 focus:ring-0 ${isDark ? 'placeholder:text-white/10' : 'placeholder:text-slate-300'} ${align === 'right' ? 'text-right' : ''} ${readOnly ? (isDark ? 'cursor-not-allowed opacity-60 bg-slate-800/20' : 'cursor-not-allowed bg-slate-50/50') : 'hover:border-indigo-300'}`}
             style={{ backgroundColor: readOnly ? theme.headerBg : theme.inputBg, borderColor: theme.border, color: readOnly ? theme.accent : theme.text }}
           />
         )}

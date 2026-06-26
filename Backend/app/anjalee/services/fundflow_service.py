@@ -115,7 +115,14 @@ class FundFlowService:
                 "amount": doc.get("totals", {}).get("grandTotal") or doc.get("total_amount") or 0.0,
                 "narration": doc.get("narration"),
                 "status": "approved",
-                "entryMode": "manual"
+                "consigneeGstin": None,
+                "entryMode": doc.get("entryMode") or "manual",
+                "billRows": doc.get("billRows") or [],
+                "ledgerRows": doc.get("ledgerRows") or [],
+                "costCenters": doc.get("costCenters") or [],
+                "costCenterApplicable": doc.get("costCenterApplicable") or False,
+                "excessOption": doc.get("excessOption"),
+                "remarks": doc.get("remarks")
             }
             return mapped
             

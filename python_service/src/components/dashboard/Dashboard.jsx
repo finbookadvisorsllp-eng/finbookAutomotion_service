@@ -75,7 +75,7 @@ function Dashboard() {
   const approvalCenterView = useAppStore((s) => s.approvalCenterView)
 
   const isApprovalDetail = location.pathname.startsWith('/automation/approval-center') && approvalCenterView === 'detail'
-  const isCompactHeader = isApprovalDetail || location.pathname === '/sales/new' || location.pathname === '/'
+  const isCompactHeader = isApprovalDetail || location.pathname === '/sales/new' || location.pathname === '/' || location.pathname === '/automation/ai-processing'
 
   // Dynamically load company list from the database
   useEffect(() => {
@@ -214,7 +214,7 @@ function Dashboard() {
           />
 
           <main
-            className={`flex-1 flex flex-col overflow-hidden ${isCompactHeader ? 'p-2 pb-0.5' : 'p-3 sm:p-4 md:p-5'}`}
+            className={`flex-1 flex flex-col overflow-hidden ${location.pathname === '/automation/ai-processing' ? 'p-0' : isCompactHeader ? 'p-2 pb-0.5' : 'p-3 sm:p-4 md:p-5'}`}
             style={{ backgroundColor: 'transparent' }}
           >
             <AnimatePresence mode="wait">
@@ -232,19 +232,6 @@ function Dashboard() {
               </motion.div>
             </AnimatePresence>
           </main>
-
-          {!isCompactHeader && (
-            <footer
-              className="px-4 py-2.5 text-[11.5px] font-semibold text-center border-t"
-              style={{
-                borderColor: theme.border,
-                color: theme.muted,
-                backgroundColor: 'transparent',
-              }}
-            >
-              © {new Date().getFullYear()} Finbook Advisors. All rights reserved.
-            </footer>
-          )}
         </div>
 
         {/* Mobile drawer overlays the entire layout */}

@@ -1,38 +1,50 @@
-import React, { useState, useRef, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   UploadCloud, FileText, CheckCircle2, AlertCircle, Trash2, Send,
   FileSpreadsheet, Image, ChevronRight, ChevronLeft, RefreshCw, Check,
   Search, Filter, Info, Eye, Edit2, MoreVertical, Plus, X, FolderOpen, Scan,
   SlidersHorizontal, Download, LayoutList, Grid, Database, Calendar, ArrowLeft,
-  Settings, CheckCircle, ShieldAlert
+  Settings, CheckCircle, ShieldAlert, AlertTriangle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
+import * as XLSX from 'xlsx';
 
 export default function BulkUploadPanel() {
   const navigate = useNavigate();
+  const location = useLocation();
 
   // --- States ---
+  const [selectedBatchId, setSelectedBatchId] = useState(() => {
+    return location.state?.selectedBatchId || null;
+  });
   const [search, setSearch] = useState('');
   const [showUploadModal, setShowUploadModal] = useState(false);
-  
-  // Voucher Categories Horizontal Navigation Tab (All, Sales Invoice, etc.)
   const [activeCategory, setActiveCategory] = useState('All');
-
-  // Quick Filters
   const [statusFilter, setStatusFilter] = useState('All Status');
   const [vendorFilter, setVendorFilter] = useState('All Vendors/Customers');
   const [dateRange, setDateRange] = useState('');
 
+  useEffect(() => {
+    if (location.state?.selectedBatchId) {
+      setSelectedBatchId(location.state.selectedBatchId);
+      // Clear location state
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state]);
+
   // Table Selection & Pagination
-  const [checkedIds, setCheckedIds] = useState([]);
+  const [checkedBatchIds, setCheckedBatchIds] = useState([]);
+  const [checkedRecordIds, setCheckedRecordIds] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
+  // Cell editing state
+  const [editingCell, setEditingCell] = useState(null); // { recordId, columnKey }
+
   const fileInputRef = useRef(null);
 
-  // Categories list matching screenshot horizontal navigation
   const tabCategories = [
     'All',
     'Sales Invoice',
@@ -45,432 +57,402 @@ export default function BulkUploadPanel() {
     'Bank Statement'
   ];
 
-  // --- Load from localStorage or Fallback to Default Mock Database ---
-  const defaultDocs = [
+  // --- Default Mock Batches ---
+  const defaultBatches = [
     {
-      id: 'doc-1',
-      filename: 'INV-001.pdf',
-      fileType: 'pdf',
-      category: 'Sales Invoice',
-      uploadDate: '19-06-2026 10:30 AM',
-      vendor: 'ABC Traders',
-      docNo: 'INV-001',
-      refNo: 'PO-12345',
-      docDate: '19-06-2026',
-      dueDate: '19-07-2026',
-      partyLedger: 'ABC Traders (Sundry Debtors)',
-      salesLedger: 'Sales (18%)',
-      gstin: '22AAAAA1111A125',
-      currency: 'INR',
-      placeOfSupply: 'Madhya Pradesh (23)',
-      narration: 'Sales Invoice Against PO-12345',
-      items: [
-        { id: 1, name: 'Product A', hsn: '8471', qty: 10, rate: 1000.00, taxRate: 18 },
-        { id: 2, name: 'Product B', hsn: '8504', qty: 5, rate: 1400.00, taxRate: 18 }
-      ],
-      taxableAmount: 20060.00,
-      taxAmount: 3060.00,
-      roundOff: 0.00,
-      amount: 23120.00,
-      confidence: 98,
+      id: 'BATCH-001',
+      filename: 'Q2_Sales_Invoice_Dump.csv',
+      totalRecords: 12,
+      uploadDate: '23-06-2026 04:15 PM',
+      status: 'Pending Approval',
+      records: [
+        { id: 1, date: '2026-06-19', docNo: 'INV-1001', category: 'Sales Invoice', partyName: 'ABC Traders', gstin: '22AAAAA1111A1Z5', taxableValue: 20000, taxAmount: 3600, totalAmount: 23600, status: 'Valid', errorMessage: '' },
+        { id: 2, date: '2026-06-19', docNo: 'INV-1002', category: 'Sales Invoice', partyName: 'XYZ Enterprises', gstin: '22BBBBB2222B2Z6', taxableValue: 15000, taxAmount: 2700, totalAmount: 17700, status: 'Valid', errorMessage: '' },
+        { id: 3, date: '2026-06-18', docNo: 'INV-1003', category: 'Sales Invoice', partyName: 'LMN Industries', gstin: '22CCCCC3333C3Z7', taxableValue: 8000, taxAmount: 1440, totalAmount: 9440, status: 'Warning', errorMessage: 'GSTIN mismatch with ledger master' },
+        { id: 4, date: '2026-06-18', docNo: 'INV-1004', category: 'Sales Invoice', partyName: 'PQR Solutions', gstin: '22DDDDD4444D4Z8', taxableValue: 45000, taxAmount: 8100, totalAmount: 53100, status: 'Valid', errorMessage: '' },
+        { id: 5, date: '2026-06-17', docNo: 'INV-1005', category: 'Sales Invoice', partyName: 'New Horizon Ltd', gstin: '', taxableValue: 12000, taxAmount: 0, totalAmount: 12000, status: 'Warning', errorMessage: 'GSTIN is empty for business customer' },
+        { id: 6, date: '2026-06-17', docNo: 'INV-1006', category: 'Sales Invoice', partyName: 'Apex Tech', gstin: '22EEEEE5555E5Z9', taxableValue: 30000, taxAmount: 5400, totalAmount: 35400, status: 'Valid', errorMessage: '' },
+        { id: 7, date: '2026-06-16', docNo: 'INV-1007', category: 'Sales Invoice', partyName: 'Alpha Services', gstin: '22FFFFF6666F6ZA', taxableValue: 5000, taxAmount: 900, totalAmount: 5900, status: 'Valid', errorMessage: '' },
+        { id: 8, date: '2026-06-16', docNo: 'INV-1008', category: 'Sales Invoice', partyName: 'Beta Corp', gstin: '22GGGGG7777G7ZB', taxableValue: 22000, taxAmount: 3960, totalAmount: 25960, status: 'Valid', errorMessage: '' },
+        { id: 9, date: '2026-06-15', docNo: 'INV-1009', category: 'Sales Invoice', partyName: 'Gamma Systems', gstin: '22HHHHH8888H8ZC', taxableValue: 17500, taxAmount: 3150, totalAmount: 20650, status: 'Valid', errorMessage: '' },
+        { id: 10, date: '2026-06-15', docNo: 'INV-1010', category: 'Sales Invoice', partyName: 'Delta Partners', gstin: '22IIIII9999I9ZD', taxableValue: 9500, taxAmount: 1710, totalAmount: 11210, status: 'Valid', errorMessage: '' },
+        { id: 11, date: '2026-06-14', docNo: 'INV-1011', category: 'Sales Invoice', partyName: 'Epsilon Tech', gstin: '22JJJJJ1010J1ZE', taxableValue: 64000, taxAmount: 11520, totalAmount: 75520, status: 'Valid', errorMessage: '' },
+        { id: 12, date: '2026-06-14', docNo: 'INV-1012', category: 'Sales Invoice', partyName: 'Zeta Consulting', gstin: '22KKKKK1111K1ZF', taxableValue: 11000, taxAmount: 1980, totalAmount: 12980, status: 'Valid', errorMessage: '' }
+      ]
+    },
+    {
+      id: 'BATCH-002',
+      filename: 'Purchases_June_2026.xlsx',
+      totalRecords: 8,
+      uploadDate: '22-06-2026 11:30 AM',
       status: 'Approved',
-      createdBy: 'Admin User'
+      records: [
+        { id: 1, date: '2026-06-20', docNo: 'PI-901', category: 'Purchase Invoice', partyName: 'XYZ Enterprises', gstin: '22BBBBB2222B2Z6', taxableValue: 18000, taxAmount: 3240, totalAmount: 21240, status: 'Valid', errorMessage: '' },
+        { id: 2, date: '2026-06-20', docNo: 'PI-902', category: 'Purchase Invoice', partyName: 'PQR Solutions', gstin: '22DDDDD4444D4Z8', taxableValue: 35000, taxAmount: 6300, totalAmount: 41300, status: 'Valid', errorMessage: '' },
+        { id: 3, date: '2026-06-19', docNo: 'PI-903', category: 'Purchase Invoice', partyName: 'ABC Traders', gstin: '22AAAAA1111A1Z5', taxableValue: 7000, taxAmount: 1260, totalAmount: 8260, status: 'Valid', errorMessage: '' },
+        { id: 4, date: '2026-06-19', docNo: 'PI-904', category: 'Purchase Invoice', partyName: 'LMN Industries', gstin: '22CCCCC3333C3Z7', taxableValue: 12500, taxAmount: 2250, totalAmount: 14750, status: 'Valid', errorMessage: '' },
+        { id: 5, date: '2026-06-18', docNo: 'PI-905', category: 'Purchase Invoice', partyName: 'Apex Tech', gstin: '22EEEEE5555E5Z9', taxableValue: 24000, taxAmount: 4320, totalAmount: 28320, status: 'Valid', errorMessage: '' },
+        { id: 6, date: '2026-06-17', docNo: 'PI-906', category: 'Purchase Invoice', partyName: 'Beta Corp', gstin: '22GGGGG7777G7ZB', taxableValue: 9500, taxAmount: 1710, totalAmount: 11210, status: 'Valid', errorMessage: '' },
+        { id: 7, date: '2026-06-17', docNo: 'PI-907', category: 'Purchase Invoice', partyName: 'Alpha Services', gstin: '22FFFFF6666F6ZA', taxableValue: 48000, taxAmount: 8640, totalAmount: 56640, status: 'Valid', errorMessage: '' },
+        { id: 8, date: '2026-06-16', docNo: 'PI-908', category: 'Purchase Invoice', partyName: 'New Horizon Ltd', gstin: '', taxableValue: 15000, taxAmount: 0, totalAmount: 15000, status: 'Warning', errorMessage: 'GSTIN is empty for business customer' }
+      ]
     },
     {
-      id: 'doc-2',
-      filename: 'INV-002.pdf',
-      fileType: 'pdf',
-      category: 'Sales Invoice',
-      uploadDate: '19-06-2026 10:25 AM',
-      vendor: 'XYZ Enterprises',
-      docNo: 'INV-002',
-      refNo: 'PO-56789',
-      docDate: '19-06-2026',
-      dueDate: '19-07-2026',
-      partyLedger: 'XYZ Enterprises (Sundry Debtors)',
-      salesLedger: 'Sales (18%)',
-      gstin: '22BBBBB2222B2Z6',
-      currency: 'INR',
-      placeOfSupply: 'Maharashtra (27)',
-      narration: 'Sales Invoice Against PO-56789',
-      items: [
-        { id: 1, name: 'Service Fee', hsn: '9983', qty: 1, rate: 13500.00, taxRate: 18 }
-      ],
-      taxableAmount: 13500.00,
-      taxAmount: 2430.00,
-      roundOff: 0.00,
-      amount: 15930.00,
-      confidence: 96,
-      status: 'Under Review',
-      createdBy: 'Operator 1'
-    },
-    {
-      id: 'doc-3',
-      filename: 'Purchase_001.xlsx',
-      fileType: 'excel',
-      category: 'Purchase Invoice',
-      uploadDate: '19-06-2026 10:20 AM',
-      vendor: 'PQR Solutions',
-      docNo: 'PI-001',
-      refNo: 'CH-9081',
-      docDate: '18-06-2026',
-      dueDate: '18-07-2026',
-      partyLedger: 'PQR Solutions (Sundry Creditors)',
-      purchaseLedger: 'Purchase (18%)',
-      gstin: '22CCCCC3333C3Z7',
-      currency: 'INR',
-      placeOfSupply: 'Delhi (07)',
-      narration: 'Purchase of hardware parts',
-      items: [
-        { id: 1, name: 'Memory Module 16GB', hsn: '8473', qty: 20, rate: 1900.00, taxRate: 18 },
-        { id: 2, name: 'SSD Core 500GB', hsn: '8473', qty: 2, rate: 3800.00, taxRate: 18 }
-      ],
-      taxableAmount: 38000.00,
-      taxAmount: 7680.00,
-      roundOff: 0.00,
-      amount: 45680.00,
-      confidence: 97,
-      status: 'Approved',
-      createdBy: 'System AI'
-    },
-    {
-      id: 'doc-4',
-      filename: 'PAY-001.pdf',
-      fileType: 'pdf',
-      category: 'Payment',
-      uploadDate: '19-06-2026 10:15 AM',
-      vendor: 'ABC Traders',
-      docNo: 'PAY-001',
-      refNo: 'TXN-87612',
-      docDate: '19-06-2026',
-      partyLedger: 'ABC Traders (Sundry Creditors)',
-      bankLedger: 'HDFC Bank A/c',
-      amount: 10000.00,
-      currency: 'INR',
-      narration: 'Paid invoice amount balance',
-      items: [],
-      confidence: 95,
+      id: 'BATCH-003',
+      filename: 'Bank_Statement_HDFC.csv',
+      totalRecords: 5,
+      uploadDate: '21-06-2026 09:10 AM',
       status: 'Posted',
-      createdBy: 'Admin User'
+      records: [
+        { id: 1, date: '2026-06-20', docNo: 'TXN-87612', category: 'Payment', partyName: 'ABC Traders', gstin: '22AAAAA1111A1Z5', taxableValue: 10000, taxAmount: 0, totalAmount: 10000, status: 'Valid', errorMessage: '' },
+        { id: 2, date: '2026-06-20', docNo: 'TXN-90817', category: 'Receipt', partyName: 'LMN Industries', gstin: '22CCCCC3333C3Z7', taxableValue: 8500, taxAmount: 0, totalAmount: 8500, status: 'Valid', errorMessage: '' },
+        { id: 3, date: '2026-06-19', docNo: 'TXN-11002', category: 'Contra', partyName: 'Cash A/c', gstin: '', taxableValue: 12000, taxAmount: 0, totalAmount: 12000, status: 'Valid', errorMessage: '' },
+        { id: 4, date: '2026-06-18', docNo: 'TXN-09880', category: 'Payment', partyName: 'LMN Industries', gstin: '22CCCCC3333C3Z7', taxableValue: 7200, taxAmount: 0, totalAmount: 7200, status: 'Valid', errorMessage: '' },
+        { id: 5, date: '2026-06-18', docNo: 'TXN-90114', category: 'Receipt', partyName: 'ABC Traders', gstin: '22AAAAA1111A1Z5', taxableValue: 19500, taxAmount: 0, totalAmount: 19500, status: 'Valid', errorMessage: '' }
+      ]
     },
     {
-      id: 'doc-5',
-      filename: 'REC-001.pdf',
-      fileType: 'pdf',
-      category: 'Receipt',
-      uploadDate: '19-06-2026 10:10 AM',
-      vendor: 'LMN Industries',
-      docNo: 'REC-001',
-      refNo: 'TXN-90817',
-      docDate: '19-06-2026',
-      partyLedger: 'LMN Industries (Sundry Debtors)',
-      bankLedger: 'SBI Bank A/c',
-      amount: 8500.00,
-      currency: 'INR',
-      narration: 'Received advance payment',
-      items: [],
-      confidence: 98,
-      status: 'Approved',
-      createdBy: 'Operator 1'
-    },
-    {
-      id: 'doc-6',
-      filename: 'CON-001.pdf',
-      fileType: 'pdf',
-      category: 'Contra',
-      uploadDate: '19-06-2026 10:05 AM',
-      vendor: 'Cash Account',
-      docNo: 'CON-001',
-      docDate: '19-06-2026',
-      fromLedger: 'Cash A/c',
-      toLedger: 'State Bank of India',
-      amount: 12000.00,
-      currency: 'INR',
-      narration: 'Cash deposited in SBI Bank',
-      items: [],
-      confidence: 93,
-      status: 'Draft',
-      createdBy: 'Admin User'
-    },
-    {
-      id: 'doc-8',
-      filename: 'CN-001.pdf',
-      fileType: 'pdf',
-      category: 'Credit Note',
-      uploadDate: '19-06-2026 09:55 AM',
-      vendor: 'XYZ Enterprises',
-      docNo: 'CN-001',
-      refNo: 'INV-001',
-      docDate: '19-06-2026',
-      partyLedger: 'XYZ Enterprises (Sundry Debtors)',
-      salesLedger: 'Sales Return',
-      gstin: '22BBBBB2222B2Z6',
-      amount: 2500.00,
-      currency: 'INR',
-      narration: 'Credit note for damaged goods refund',
-      items: [
-        { id: 1, name: 'Product Refund', qty: 1, rate: 2500.00, taxRate: 0 }
-      ],
-      confidence: 97,
-      status: 'Approved',
-      createdBy: 'Operator 1'
-    },
-    {
-      id: 'doc-9',
-      filename: 'DN-001.pdf',
-      fileType: 'pdf',
-      category: 'Debit Note',
-      uploadDate: '19-06-2026 09:50 AM',
-      vendor: 'ABC Traders',
-      docNo: 'DN-001',
-      refNo: 'PI-001',
-      docDate: '18-06-2026',
-      partyLedger: 'ABC Traders (Sundry Creditors)',
-      purchaseLedger: 'Purchase Return',
-      gstin: '22AAAAA1111A1Z5',
-      amount: 1250.00,
-      currency: 'INR',
-      narration: 'Debit note for discount adjustments',
-      items: [
-        { id: 1, name: 'Price Adjustment', qty: 1, rate: 1250.00, taxRate: 0 }
-      ],
-      confidence: 80,
+      id: 'BATCH-004',
+      filename: 'Debit_Notes_Q1.xlsx',
+      totalRecords: 3,
+      uploadDate: '20-06-2026 05:40 PM',
       status: 'Failed',
-      createdBy: 'System AI'
-    },
-    {
-      id: 'doc-10',
-      filename: 'Bank_Stmt_01.xlsx',
-      fileType: 'excel',
-      category: 'Bank Statement',
-      uploadDate: '19-06-2026 09:45 AM',
-      vendor: 'State Bank of India',
-      docNo: 'BS-001',
-      docDate: '19-06-2026',
-      amount: 0.00,
-      currency: 'INR',
-      narration: 'SBI Bank Statement reconciliation',
-      items: [
-        { id: 1, date: '19-06-2026', particulars: 'NEFT Outward XYZ', chqNo: '—', debit: 15000.00, credit: 0.00, balance: 85000.00 },
-        { id: 2, date: '19-06-2026', particulars: 'Interest Credit', chqNo: '—', debit: 0.00, credit: 1250.00, balance: 86250.00 }
-      ],
-      confidence: 99,
-      status: 'Posted',
-      createdBy: 'Admin User'
-    },
-    {
-      id: 'doc-11',
-      filename: 'INV-003.pdf',
-      fileType: 'pdf',
-      category: 'Sales Invoice',
-      uploadDate: '18-06-2026 04:30 PM',
-      vendor: 'XYZ Enterprises',
-      docNo: 'INV-003',
-      refNo: 'PO-5011',
-      docDate: '18-06-2026',
-      dueDate: '18-07-2026',
-      partyLedger: 'XYZ Enterprises (Sundry Debtors)',
-      salesLedger: 'Sales (18%)',
-      gstin: '22BBBBB2222B2Z6',
-      currency: 'INR',
-      placeOfSupply: 'Maharashtra (27)',
-      narration: 'Invoice for IT Consultancy services',
-      items: [
-        { id: 1, name: 'Cloud Migration Consultancy', qty: 10, rate: 4210.00, taxRate: 0 }
-      ],
-      taxableAmount: 42100.00,
-      taxAmount: 0.00,
-      roundOff: 0.00,
-      amount: 42100.00,
-      confidence: 98,
-      status: 'Approved',
-      createdBy: 'Admin User'
-    },
-    {
-      id: 'doc-12',
-      filename: 'Purchase_002.xlsx',
-      fileType: 'excel',
-      category: 'Purchase Invoice',
-      uploadDate: '18-06-2026 02:15 PM',
-      vendor: 'PQR Solutions',
-      docNo: 'PI-002',
-      refNo: 'CH-9098',
-      docDate: '17-06-2026',
-      dueDate: '17-07-2026',
-      partyLedger: 'PQR Solutions (Sundry Creditors)',
-      purchaseLedger: 'Purchase (18%)',
-      gstin: '22CCCCC3333C3Z7',
-      currency: 'INR',
-      placeOfSupply: 'Delhi (07)',
-      narration: 'Hardware items acquisition',
-      items: [
-        { id: 1, name: 'LED Monitor 24in', qty: 10, rate: 3412.00, taxRate: 0 }
-      ],
-      taxableAmount: 34120.00,
-      taxAmount: 0.00,
-      roundOff: 0.00,
-      amount: 34120.00,
-      confidence: 95,
-      status: 'Under Review',
-      createdBy: 'Operator 1'
-    },
-    {
-      id: 'doc-13',
-      filename: 'PAY-002.pdf',
-      fileType: 'pdf',
-      category: 'Payment',
-      uploadDate: '18-06-2026 01:00 PM',
-      vendor: 'LMN Industries',
-      docNo: 'PAY-002',
-      refNo: 'TXN-0988',
-      docDate: '18-06-2026',
-      partyLedger: 'LMN Industries (Sundry Creditors)',
-      bankLedger: 'SBI Bank A/c',
-      amount: 7200.00,
-      currency: 'INR',
-      narration: 'Office maintenance payout',
-      items: [],
-      confidence: 96,
-      status: 'Posted',
-      createdBy: 'System AI'
-    },
-    {
-      id: 'doc-14',
-      filename: 'REC-002.pdf',
-      fileType: 'pdf',
-      category: 'Receipt',
-      uploadDate: '18-06-2026 11:30 AM',
-      vendor: 'ABC Traders',
-      docNo: 'REC-002',
-      refNo: 'TXN-9011',
-      docDate: '18-06-2026',
-      partyLedger: 'ABC Traders (Sundry Debtors)',
-      bankLedger: 'HDFC Bank A/c',
-      amount: 19500.00,
-      currency: 'INR',
-      narration: 'Partial payment received',
-      items: [],
-      confidence: 94,
-      status: 'Draft',
-      createdBy: 'Admin User'
-    },
-    {
-      id: 'doc-15',
-      filename: 'CON-002.pdf',
-      fileType: 'pdf',
-      category: 'Contra',
-      uploadDate: '18-06-2026 10:45 AM',
-      vendor: 'State Bank of India',
-      docNo: 'CON-002',
-      docDate: '18-06-2026',
-      fromLedger: 'State Bank of India',
-      toLedger: 'Cash A/c',
-      amount: 50000.00,
-      currency: 'INR',
-      narration: 'Cash withdrawal from SBI Bank',
-      items: [],
-      confidence: 99,
-      status: 'Approved',
-      createdBy: 'Operator 1'
+      records: [
+        { id: 1, date: '2026-06-18', docNo: 'DN-001', category: 'Debit Note', partyName: 'ABC Traders', gstin: '22AAAAA1111A1Z5', taxableValue: 1250, taxAmount: 0, totalAmount: 1250, status: 'Valid', errorMessage: '' },
+        { id: 2, date: '2026-06-17', docNo: 'DN-002', category: 'Debit Note', partyName: 'XYZ Enterprises', gstin: '22BBBBB2222B2Z6', taxableValue: 2500, taxAmount: 450, totalAmount: 2950, status: 'Invalid', errorMessage: 'Original reference invoice not found' },
+        { id: 3, date: '2026-06-16', docNo: 'DN-003', category: 'Debit Note', partyName: 'PQR Solutions', gstin: '22CCCCC3333C3Z7', taxableValue: 5000, taxAmount: 900, totalAmount: 5900, status: 'Valid', errorMessage: '' }
+      ]
     }
   ];
 
-  const [documents, setDocuments] = useState(() => {
-    const saved = localStorage.getItem('fb_bulk_documents');
+  // --- Load and Sync Batches State ---
+  const [batches, setBatches] = useState(() => {
+    const saved = localStorage.getItem('fb_bulk_batches');
     if (saved) {
       try {
         return JSON.parse(saved);
       } catch (e) {
-        console.error('Error loading documents from local storage', e);
+        console.error('Error loading batches from local storage', e);
       }
     }
-    return defaultDocs;
+    return defaultBatches;
   });
 
-  const syncDocuments = (updated) => {
-    setDocuments(updated);
-    localStorage.setItem('fb_bulk_documents', JSON.stringify(updated));
+  // Open Batch Review: resets all filters to avoid hiding data!
+  const openBatchReview = (batchId) => {
+    setSelectedBatchId(batchId);
+    setSearch('');
+    setStatusFilter('All Status');
+    setVendorFilter('All Vendors/Customers');
+    setDateRange('');
+    setActiveCategory('All');
+    setCurrentPage(1);
+    setCheckedRecordIds([]);
   };
 
-  // --- Dynamic unique vendors list ---
-  const uniqueVendors = useMemo(() => {
-    const vendors = documents.map(d => d.vendor).filter(Boolean);
-    return Array.from(new Set(vendors));
-  }, [documents]);
+  const activeBatch = useMemo(() => {
+    return batches.find(b => b.id === selectedBatchId) || null;
+  }, [batches, selectedBatchId]);
 
-  // --- Document File Type Icon Generator ---
-  const getDocIcon = (fileType) => {
-    if (fileType === 'excel' || fileType === 'csv') {
-      return <FileSpreadsheet className="text-emerald-555 shrink-0" size={13} />;
-    }
-    if (fileType === 'image') {
-      return <Image className="text-blue-500 shrink-0" size={13} />;
-    }
-    return <FileText className="text-blue-500 shrink-0" size={13} />;
-  };
+  // --- CSV Parser Helper ---
+  const parseCSV = (text) => {
+    const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
+    if (lines.length === 0) return null;
 
-  // --- Dynamic Stats Offset matching screenshot counts ---
-  const stats = useMemo(() => {
-    const totalCount = documents.length + 1233; // 1248 with 15 mock docs
-    const syncedCount = documents.filter(d => d.status === 'Posted').length + 1099; // 1102
-    const aiCount = documents.filter(d => d.confidence > 90).length + 1019; // 1033
-    const approvedCount = documents.filter(d => d.status === 'Approved').length + 865; // 872
-    const postedCount = documents.filter(d => d.status === 'Posted').length + 731; // 734
-    const failedCount = documents.filter(d => d.status === 'Failed').length + 30; // 31
-
-    return {
-      total: totalCount,
-      synced: syncedCount,
-      ai: aiCount,
-      approved: approvedCount,
-      posted: postedCount,
-      failed: failedCount
+    const parseLine = (line) => {
+      const result = [];
+      let current = '';
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          result.push(current.trim());
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      result.push(current.trim());
+      return result;
     };
-  }, [documents]);
 
-  // --- Dynamic Filtering Logic for Table ---
-  const filteredDocs = useMemo(() => {
-    return documents.filter(doc => {
-      // Category Navigation Tab Filter (All, Sales Invoice, etc.)
-      let categoryMatch = true;
-      if (activeCategory !== 'All') {
-        categoryMatch = doc.category === activeCategory;
+    const rawHeaders = parseLine(lines[0]);
+    const headers = rawHeaders.map(h => h.toLowerCase().replace(/[^a-z0-9]/g, ''));
+    const rows = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      const values = parseLine(lines[i]);
+      const row = {};
+      headers.forEach((header, idx) => {
+        row[header] = values[idx] !== undefined ? values[idx] : '';
+      });
+      rows.push(row);
+    }
+    return { headers, rows };
+  };
+
+  const mapCSVRowToRecord = (row, index) => {
+    // Make key search case-insensitive for both Excel JSON and CSV rows
+    const dateKey = Object.keys(row).find(k => k.toLowerCase().includes('date'));
+    const docNoKey = Object.keys(row).find(k => {
+      const kl = k.toLowerCase();
+      return kl.includes('docno') || kl.includes('invoiceno') || kl.includes('voucherno') || kl.includes('number') || kl.includes('ref');
+    });
+    const categoryKey = Object.keys(row).find(k => {
+      const kl = k.toLowerCase();
+      return kl.includes('category') || kl.includes('vouchertype') || kl.includes('type');
+    });
+    const partyKey = Object.keys(row).find(k => {
+      const kl = k.toLowerCase();
+      return kl.includes('party') || kl.includes('customer') || kl.includes('vendor') || kl.includes('ledger') || kl.includes('name');
+    });
+    const gstinKey = Object.keys(row).find(k => {
+      const kl = k.toLowerCase();
+      return kl.includes('gstin') || kl.includes('gst') || kl.includes('gstno');
+    });
+    const taxableKey = Object.keys(row).find(k => {
+      const kl = k.toLowerCase();
+      return kl.includes('taxable') || kl.includes('value') || kl.includes('rate') || kl.includes('subtotal');
+    });
+    const taxKey = Object.keys(row).find(k => {
+      const kl = k.toLowerCase();
+      return kl.includes('tax') || kl.includes('gstamount') || kl.includes('cgst') || kl.includes('sgst') || kl.includes('igst');
+    });
+    const totalKey = Object.keys(row).find(k => {
+      const kl = k.toLowerCase();
+      return kl.includes('total') || kl.includes('amount') || kl.includes('net');
+    });
+
+    const date = dateKey ? String(row[dateKey]).trim() : new Date().toISOString().split('T')[0];
+    const docNo = docNoKey ? String(row[docNoKey]).trim() : `INV-${Math.floor(1000 + Math.random() * 9000)}`;
+    const category = categoryKey ? String(row[categoryKey]).trim() : 'Sales Invoice';
+    const partyName = partyKey ? String(row[partyKey]).trim() : 'ABC Traders';
+    const gstin = gstinKey ? String(row[gstinKey]).trim() : '';
+    
+    // Safely parse numbers from Excel cell values (could be direct floats or formatted strings)
+    const taxableValue = parseFloat(taxableKey ? String(row[taxableKey]).replace(/[^0-9.]/g, '') : 0) || 0;
+    const taxAmount = parseFloat(taxKey ? String(row[taxKey]).replace(/[^0-9.]/g, '') : 0) || 0;
+    const totalAmount = parseFloat(totalKey ? String(row[totalKey]).replace(/[^0-9.]/g, '') : 0) || (taxableValue + taxAmount);
+
+    let record = {
+      id: index + 1,
+      date,
+      docNo,
+      category,
+      partyName,
+      gstin,
+      taxableValue,
+      taxAmount,
+      totalAmount,
+      status: 'Valid',
+      errorMessage: ''
+    };
+
+    return validateRecord(record);
+  };
+
+  const validateRecord = (record) => {
+    let status = 'Valid';
+    let errorMessage = '';
+
+    const date = record.date ? String(record.date).trim() : '';
+    const docNo = record.docNo ? String(record.docNo).trim() : '';
+    const partyName = record.partyName ? String(record.partyName).trim() : '';
+    const gstin = record.gstin ? String(record.gstin).trim() : '';
+
+    if (!date) {
+      status = 'Invalid';
+      errorMessage = 'Date is required';
+    } else if (!docNo) {
+      status = 'Invalid';
+      errorMessage = 'Document No is required';
+    } else if (!partyName) {
+      status = 'Invalid';
+      errorMessage = 'Party Name is required';
+    } else if (!gstin && ['Sales Invoice', 'Purchase Invoice', 'Credit Note', 'Debit Note'].includes(record.category)) {
+      status = 'Warning';
+      errorMessage = 'GSTIN is empty for business customer';
+    } else if (gstin && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/.test(gstin)) {
+      status = 'Warning';
+      errorMessage = 'GSTIN format is invalid';
+    }
+
+    return { ...record, status, errorMessage };
+  };
+
+  // --- Dynamic Mock Data Generator for Excel Mocks ---
+  const generateMockRecords = (filename, count = 10) => {
+    const categories = ['Sales Invoice', 'Purchase Invoice', 'Payment', 'Receipt', 'Contra', 'Credit Note', 'Debit Note', 'Bank Statement'];
+    let defaultCategory = 'Sales Invoice';
+    const lowerName = filename.toLowerCase();
+
+    if (lowerName.includes('purchase')) defaultCategory = 'Purchase Invoice';
+    else if (lowerName.includes('pay')) defaultCategory = 'Payment';
+    else if (lowerName.includes('rec')) defaultCategory = 'Receipt';
+    else if (lowerName.includes('contra')) defaultCategory = 'Contra';
+    else if (lowerName.includes('bank') || lowerName.includes('statement')) defaultCategory = 'Bank Statement';
+    else if (lowerName.includes('credit')) defaultCategory = 'Credit Note';
+    else if (lowerName.includes('debit')) defaultCategory = 'Debit Note';
+
+    const partyPool = ['ABC Traders', 'XYZ Enterprises', 'LMN Industries', 'PQR Solutions', 'New Horizon Ltd', 'Apex Tech', 'Alpha Services', 'Beta Corp', 'Gamma Systems', 'Delta Partners'];
+
+    const records = [];
+    for (let i = 1; i <= count; i++) {
+      const partyName = partyPool[Math.floor(Math.random() * partyPool.length)];
+      const docNo = (defaultCategory === 'Bank Statement' ? 'TXN-' : 'INV-') + Math.floor(1000 + Math.random() * 9000);
+      const taxableValue = Math.floor(Math.random() * 450 + 50) * 100;
+      const taxAmount = ['Payment', 'Receipt', 'Contra', 'Bank Statement'].includes(defaultCategory) ? 0 : Math.round(taxableValue * 0.18);
+      const totalAmount = taxableValue + taxAmount;
+      const date = new Date(Date.now() - i * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+      let record = {
+        id: i,
+        date,
+        docNo,
+        category: defaultCategory,
+        partyName,
+        gstin: ['Payment', 'Receipt', 'Contra', 'Bank Statement'].includes(defaultCategory) ? '' : '22' + String.fromCharCode(65 + Math.floor(Math.random() * 26)).repeat(5) + Math.floor(1000 + Math.random() * 9000) + 'A1Z' + Math.floor(Math.random() * 9),
+        taxableValue,
+        taxAmount,
+        totalAmount,
+        status: 'Valid',
+        errorMessage: ''
+      };
+
+      if (i === 3 && ['Sales Invoice', 'Purchase Invoice', 'Credit Note', 'Debit Note'].includes(defaultCategory)) {
+        record.gstin = ''; // cause validation warning
       }
 
-      // Status selector Filter
-      if (statusFilter !== 'All Status' && doc.status !== statusFilter) return false;
+      records.push(validateRecord(record));
+    }
+    return records;
+  };
 
-      // Vendor Filter
-      if (vendorFilter !== 'All Vendors/Customers' && doc.vendor !== vendorFilter) return false;
+  // --- Dynamic Stats calculation ---
+  const stats = useMemo(() => {
+    if (selectedBatchId && activeBatch && Array.isArray(activeBatch.records)) {
+      const total = activeBatch.records.length;
+      const valid = activeBatch.records.filter(r => r.status === 'Valid').length;
+      const warning = activeBatch.records.filter(r => r.status === 'Warning').length;
+      const invalid = activeBatch.records.filter(r => r.status === 'Invalid').length;
+      const uniqueCats = new Set(activeBatch.records.map(r => r.category)).size;
+      const totalAmount = activeBatch.records.reduce((sum, r) => sum + (parseFloat(r.totalAmount) || 0), 0);
 
-      // Search bar filter query
+      return {
+        total,
+        valid,
+        warning,
+        invalid,
+        uniqueCats,
+        totalAmount
+      };
+    } else {
+      const totalBatches = batches.length;
+      const pendingReview = batches.filter(b => b.status === 'Pending Approval').length;
+      const approved = batches.filter(b => b.status === 'Approved').length;
+      const posted = batches.filter(b => b.status === 'Posted').length;
+      const failed = batches.filter(b => b.status === 'Failed').length;
+      const totalRecords = batches.reduce((sum, b) => sum + (b.totalRecords || 0), 0);
+
+      return {
+        totalBatches,
+        pendingReview,
+        approved,
+        posted,
+        failed,
+        totalRecords
+      };
+    }
+  }, [batches, selectedBatchId, activeBatch]);
+
+  // --- Unique vendors dynamically populated ---
+  const uniqueVendors = useMemo(() => {
+    let recordsPool = [];
+    if (selectedBatchId && activeBatch && Array.isArray(activeBatch.records)) {
+      recordsPool = activeBatch.records;
+    } else {
+      batches.forEach(b => {
+        if (Array.isArray(b.records)) {
+          recordsPool = recordsPool.concat(b.records);
+        }
+      });
+    }
+    const vendors = recordsPool.map(r => r.partyName).filter(Boolean);
+    return Array.from(new Set(vendors));
+  }, [batches, selectedBatchId, activeBatch]);
+
+  // --- Filters logic ---
+  const filteredBatches = useMemo(() => {
+    return batches.filter(batch => {
+      if (statusFilter !== 'All Status' && batch.status !== statusFilter) return false;
+
+      if (activeCategory !== 'All') {
+        const hasCategory = Array.isArray(batch.records) && batch.records.some(r => r.category === activeCategory);
+        if (!hasCategory) return false;
+      }
+
+      if (vendorFilter !== 'All Vendors/Customers') {
+        const hasVendor = Array.isArray(batch.records) && batch.records.some(r => r.partyName === vendorFilter);
+        if (!hasVendor) return false;
+      }
+
+      if (dateRange && !batch.uploadDate.includes(dateRange)) return false;
+
       if (search) {
         const query = search.toLowerCase();
-        const matchFilename = doc.filename.toLowerCase().includes(query);
-        const matchVendor = doc.vendor.toLowerCase().includes(query);
-        const matchDocNo = doc.docNo.toLowerCase().includes(query);
-        if (!matchFilename && !matchVendor && !matchDocNo) return false;
+        const matchId = batch.id.toLowerCase().includes(query);
+        const matchFilename = batch.filename.toLowerCase().includes(query);
+        const matchStatus = batch.status.toLowerCase().includes(query);
+        if (!matchId && !matchFilename && !matchStatus) return false;
       }
 
-      // Date Range Filter
-      if (dateRange) {
-        const query = dateRange.toLowerCase();
-        if (query && !doc.docDate.includes(query)) return false;
-      }
-
-      return categoryMatch;
+      return true;
     });
-  }, [documents, activeCategory, statusFilter, vendorFilter, search, dateRange]);
+  }, [batches, statusFilter, activeCategory, vendorFilter, dateRange, search]);
+
+  const filteredRecords = useMemo(() => {
+    if (!activeBatch || !Array.isArray(activeBatch.records)) return [];
+    return activeBatch.records.filter(rec => {
+      if (activeCategory !== 'All' && rec.category !== activeCategory) return false;
+
+      if (statusFilter !== 'All Status') {
+        if (rec.status !== statusFilter) return false;
+      }
+
+      if (vendorFilter !== 'All Vendors/Customers' && rec.partyName !== vendorFilter) return false;
+
+      if (search) {
+        const query = search.toLowerCase();
+        const matchParty = rec.partyName.toLowerCase().includes(query);
+        const matchDocNo = rec.docNo.toLowerCase().includes(query);
+        const matchCategory = rec.category.toLowerCase().includes(query);
+        const matchStatus = rec.status.toLowerCase().includes(query);
+        if (!matchParty && !matchDocNo && !matchCategory && !matchStatus) return false;
+      }
+
+      return true;
+    });
+  }, [activeBatch, activeCategory, statusFilter, vendorFilter, search]);
 
   // Pagination bounds
-  const paginatedDocs = useMemo(() => {
+  const paginatedBatches = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
-    return filteredDocs.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredDocs, currentPage]);
+    return filteredBatches.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredBatches, currentPage]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredDocs.length / itemsPerPage));
+  const paginatedRecords = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredRecords.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredRecords, currentPage]);
 
-  // --- Upload handlers ---
+  const totalPages = useMemo(() => {
+    const totalCount = selectedBatchId ? filteredRecords.length : filteredBatches.length;
+    return Math.max(1, Math.ceil(totalCount / itemsPerPage));
+  }, [selectedBatchId, filteredRecords, filteredBatches]);
+
+  // --- Upload triggers ---
   const handleBrowse = () => {
     fileInputRef.current?.click();
   };
@@ -479,73 +461,136 @@ export default function BulkUploadPanel() {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       const extension = file.name.split('.').pop().toLowerCase();
-      let category = 'Sales Invoice';
-      let fileType = 'pdf';
-      let docNo = 'INV-' + Math.floor(Math.random() * 900 + 100);
 
-      if (['xlsx', 'xls', 'csv'].includes(extension)) {
-        category = 'Bank Statement';
-        fileType = 'excel';
-        docNo = 'BS-' + Math.floor(Math.random() * 900 + 100);
-      } else if (file.name.toLowerCase().includes('pay')) {
-        category = 'Payment';
-        docNo = 'PAY-' + Math.floor(Math.random() * 900 + 100);
-      } else if (file.name.toLowerCase().includes('rec')) {
-        category = 'Receipt';
-        docNo = 'REC-' + Math.floor(Math.random() * 900 + 100);
+      if (!['csv', 'xlsx', 'xls'].includes(extension)) {
+        toast.error('Please upload only Excel (.xlsx, .xls) or CSV (.csv) files.');
+        return;
       }
 
-      const newDocId = 'doc-' + Date.now();
-      const newDoc = {
-        id: newDocId,
-        filename: file.name,
-        fileType: fileType,
-        category: category,
-        uploadDate: new Date().toLocaleString('en-IN', {
-          day: '2-digit',
-          month: '2-digit',
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: true
-        }).replace(/\//g, '-'),
-        vendor: 'New Partner Inc.',
-        docNo: docNo,
-        refNo: 'REF-' + Math.floor(Math.random() * 8000 + 1000),
-        docDate: '19-06-2026',
-        dueDate: '19-07-2026',
-        partyLedger: 'New Partner Inc. (Sundry Debtors)',
-        salesLedger: 'Sales (18%)',
-        purchaseLedger: 'Purchase (18%)',
-        gstin: '22GSTIN' + Math.floor(Math.random() * 90000 + 10000) + 'A1Z1',
-        currency: 'INR',
-        placeOfSupply: 'Madhya Pradesh (23)',
-        narration: `AI Processed ${file.name} automatically.`,
-        items: [
-          { id: 1, name: 'Item Alpha', qty: 2, rate: 150.00, taxRate: 18 }
-        ],
-        taxableAmount: 300.00,
-        taxAmount: 54.00,
-        roundOff: 0.00,
-        amount: 354.00,
-        confidence: Math.floor(Math.random() * 5 + 95), // 95 - 99%
-        status: 'Draft',
-        createdBy: 'Admin User'
-      };
+      if (extension === 'csv') {
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+          const text = evt.target.result;
+          const parsed = parseCSV(text);
+          if (parsed && parsed.rows.length > 0) {
+            const records = parsed.rows.map((row, index) => mapCSVRowToRecord(row, index));
+            const newBatchId = `BATCH-${Math.floor(100 + Math.random() * 900)}`;
+            const newBatch = {
+              id: newBatchId,
+              filename: file.name,
+              totalRecords: records.length,
+              uploadDate: new Date().toLocaleString('en-IN', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+              }).replace(/\//g, '-'),
+              status: 'Pending Approval',
+              records: records
+            };
 
-      const updatedDocs = [newDoc, ...documents];
-      syncDocuments(updatedDocs);
-      setShowUploadModal(false);
-      
-      // Auto processing callback simulation -> redirect to processing workspace route
-      toast.loading('AI automatically extracting document parameters...');
-      setTimeout(() => {
-        toast.dismiss();
-        toast.success(`AI successfully processed "${file.name}"! Opening AI Processing Center...`);
-        // Navigate to the separate AI Processing Center route with state
-        navigate('/automation/ai-processing', { state: { selectedDocId: newDocId } });
-      }, 1200);
+            setBatches(prev => {
+              const updated = [newBatch, ...prev];
+              localStorage.setItem('fb_bulk_batches', JSON.stringify(updated));
+              return updated;
+            });
+            setShowUploadModal(false);
+            toast.success(`Successfully parsed ${records.length} records from CSV into new Batch ${newBatchId}!`);
+            openBatchReview(newBatchId);
+          } else {
+            createMockBatch(file);
+          }
+        };
+        reader.readAsText(file);
+      } else if (['xlsx', 'xls'].includes(extension)) {
+        // ACTUAL EXCEL FILE PARSING IN BROWSER USING SHEETJS (XLSX)
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+          try {
+            const data = new Uint8Array(evt.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            const jsonRows = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+
+            if (jsonRows && jsonRows.length > 0) {
+              const records = jsonRows.map((row, index) => mapCSVRowToRecord(row, index));
+              const newBatchId = `BATCH-${Math.floor(100 + Math.random() * 900)}`;
+              const newBatch = {
+                id: newBatchId,
+                filename: file.name,
+                totalRecords: records.length,
+                uploadDate: new Date().toLocaleString('en-IN', {
+                  day: '2-digit',
+                  month: '2-digit',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  hour12: true
+                }).replace(/\//g, '-'),
+                status: 'Pending Approval',
+                records: records
+              };
+
+              setBatches(prev => {
+                const updated = [newBatch, ...prev];
+                localStorage.setItem('fb_bulk_batches', JSON.stringify(updated));
+                return updated;
+              });
+              setShowUploadModal(false);
+              toast.success(`Successfully parsed ${records.length} records from Excel sheet "${sheetName}"!`);
+              openBatchReview(newBatchId);
+            } else {
+              toast.error('The selected Excel sheet was empty. Generating mock data.');
+              createMockBatch(file);
+            }
+          } catch (err) {
+            console.error('SheetJS Excel Parsing error', err);
+            toast.error('Could not parse Excel contents. Generating mock data instead.');
+            createMockBatch(file);
+          }
+        };
+        reader.readAsArrayBuffer(file);
+      }
     }
+  };
+
+  const createMockBatch = (file) => {
+    const newBatchId = `BATCH-${Math.floor(100 + Math.random() * 900)}`;
+    const recordCount = Math.floor(Math.random() * 8) + 8; // 8 to 15 records
+    const records = generateMockRecords(file.name, recordCount);
+
+    const newBatch = {
+      id: newBatchId,
+      filename: file.name,
+      totalRecords: records.length,
+      uploadDate: new Date().toLocaleString('en-IN', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      }).replace(/\//g, '-'),
+      status: 'Pending Approval',
+      records: records
+    };
+
+    setBatches(prev => {
+      const updated = [newBatch, ...prev];
+      localStorage.setItem('fb_bulk_batches', JSON.stringify(updated));
+      return updated;
+    });
+    setShowUploadModal(false);
+
+    toast.loading('Analyzing spreadsheet data...');
+    setTimeout(() => {
+      toast.dismiss();
+      toast.success(`Extracted ${records.length} mock records from Excel into new Batch ${newBatchId}!`);
+      openBatchReview(newBatchId);
+    }, 1000);
   };
 
   const handleReset = () => {
@@ -554,55 +599,317 @@ export default function BulkUploadPanel() {
     setVendorFilter('All Vendors/Customers');
     setDateRange('');
     setActiveCategory('All');
-    setCheckedIds([]);
+    setCheckedBatchIds([]);
+    setCheckedRecordIds([]);
     setCurrentPage(1);
     toast.info('Quick filters reset');
   };
 
-  // --- Table Row Selectors ---
+  const handleRestoreDefaults = () => {
+    localStorage.removeItem('fb_bulk_batches');
+    setBatches(defaultBatches);
+    setSelectedBatchId(null);
+    setCurrentPage(1);
+    toast.success('Restored default mock database batches successfully!');
+  };
+
+  // --- Inline spreadsheet editing handlers ---
+  const updateRecordCell = (recordId, columnKey, value) => {
+    if (!selectedBatchId) return;
+    setBatches(prevBatches => {
+      const updatedBatches = prevBatches.map(batch => {
+        if (batch.id === selectedBatchId) {
+          const updatedRecords = batch.records.map(rec => {
+            if (rec.id === recordId) {
+              let updatedRec = { ...rec, [columnKey]: value };
+
+              // Recalculations
+              if (columnKey === 'taxableValue') {
+                const taxRate = ['Sales Invoice', 'Purchase Invoice', 'Credit Note', 'Debit Note'].includes(updatedRec.category) ? 0.18 : 0;
+                const tax = Math.round(parseFloat(value) * taxRate * 100) / 100;
+                updatedRec.taxAmount = tax;
+                updatedRec.totalAmount = parseFloat(value) + tax;
+              } else if (columnKey === 'taxAmount') {
+                updatedRec.totalAmount = parseFloat(updatedRec.taxableValue || 0) + parseFloat(value);
+              } else if (columnKey === 'totalAmount') {
+                updatedRec.taxAmount = Math.max(0, parseFloat(value) - parseFloat(updatedRec.taxableValue || 0));
+              } else if (columnKey === 'category') {
+                // Recalculate tax if we change from non-gst to gst category or vice-versa
+                const taxRate = ['Sales Invoice', 'Purchase Invoice', 'Credit Note', 'Debit Note'].includes(value) ? 0.18 : 0;
+                const tax = Math.round(parseFloat(updatedRec.taxableValue || 0) * taxRate * 100) / 100;
+                updatedRec.taxAmount = tax;
+                updatedRec.totalAmount = parseFloat(updatedRec.taxableValue || 0) + tax;
+              }
+
+              updatedRec = validateRecord(updatedRec);
+              return updatedRec;
+            }
+            return rec;
+          });
+
+          return {
+            ...batch,
+            records: updatedRecords,
+            totalRecords: updatedRecords.length
+          };
+        }
+        return batch;
+      });
+      localStorage.setItem('fb_bulk_batches', JSON.stringify(updatedBatches));
+      return updatedBatches;
+    });
+  };
+
+  // Add / Delete record inside active batch spreadsheet
+  const handleAddRow = () => {
+    if (!selectedBatchId || !activeBatch) return;
+
+    const nextId = activeBatch.records.length > 0
+      ? Math.max(...activeBatch.records.map(r => r.id)) + 1
+      : 1;
+
+    const newRecord = {
+      id: nextId,
+      date: new Date().toISOString().split('T')[0],
+      docNo: `INV-${Math.floor(1000 + Math.random() * 9000)}`,
+      category: activeCategory !== 'All' ? activeCategory : 'Sales Invoice',
+      partyName: 'ABC Traders',
+      gstin: '22AAAAA1111A1Z5',
+      taxableValue: 0,
+      taxAmount: 0,
+      totalAmount: 0,
+      status: 'Valid',
+      errorMessage: ''
+    };
+
+    setBatches(prevBatches => {
+      const updatedBatches = prevBatches.map(batch => {
+        if (batch.id === selectedBatchId) {
+          const records = [...batch.records, newRecord];
+          return {
+            ...batch,
+            records,
+            totalRecords: records.length
+          };
+        }
+        return batch;
+      });
+      localStorage.setItem('fb_bulk_batches', JSON.stringify(updatedBatches));
+      return updatedBatches;
+    });
+
+    toast.success('Added new empty transaction row to spreadsheet');
+    setEditingCell({ recordId: nextId, columnKey: 'date' });
+  };
+
+  const handleDeleteRow = (recordId) => {
+    if (!selectedBatchId) return;
+    setBatches(prevBatches => {
+      const updatedBatches = prevBatches.map(batch => {
+        if (batch.id === selectedBatchId) {
+          const records = batch.records.filter(r => r.id !== recordId);
+          return {
+            ...batch,
+            records,
+            totalRecords: records.length
+          };
+        }
+        return batch;
+      });
+      localStorage.setItem('fb_bulk_batches', JSON.stringify(updatedBatches));
+      return updatedBatches;
+    });
+    toast.success('Removed row from batch');
+  };
+
+  const handlePostBatch = () => {
+    if (!selectedBatchId || !activeBatch) return;
+
+    const hasInvalid = activeBatch.records.some(r => r.status === 'Invalid');
+    if (hasInvalid) {
+      toast.error('Cannot post batch with invalid records. Please fix all red error rows first.');
+      return;
+    }
+
+    setBatches(prevBatches => {
+      const updatedBatches = prevBatches.map(batch => {
+        if (batch.id === selectedBatchId) {
+          return {
+            ...batch,
+            status: 'Posted'
+          };
+        }
+        return batch;
+      });
+      localStorage.setItem('fb_bulk_batches', JSON.stringify(updatedBatches));
+      return updatedBatches;
+    });
+
+    toast.success(`Batch "${activeBatch.filename}" successfully posted to Tally!`);
+    setSelectedBatchId(null);
+    setCurrentPage(1);
+  };
+
+  // --- Selection handlers ---
   const handleSelectAll = (e) => {
-    if (e.target.checked) {
-      setCheckedIds(paginatedDocs.map(d => d.id));
+    if (selectedBatchId) {
+      if (e.target.checked) {
+        setCheckedRecordIds(paginatedRecords.map(r => r.id));
+      } else {
+        setCheckedRecordIds([]);
+      }
     } else {
-      setCheckedIds([]);
+      if (e.target.checked) {
+        setCheckedBatchIds(paginatedBatches.map(b => b.id));
+      } else {
+        setCheckedBatchIds([]);
+      }
     }
   };
 
   const handleSelectRow = (id) => {
-    setCheckedIds(prev => 
-      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
-    );
+    if (selectedBatchId) {
+      setCheckedRecordIds(prev =>
+        prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+      );
+    } else {
+      setCheckedBatchIds(prev =>
+        prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+      );
+    }
   };
 
-  // --- Dynamic Styles ---
-  const getCategoryStyles = (cat) => {
+  // --- Dynamic Style Helpers ---
+  const getBatchStatusStyles = (stat) => {
     const stylesMap = {
-      'Sales Invoice': 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/15 dark:text-emerald-400 dark:border-emerald-800',
-      'Purchase Invoice': 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/15 dark:text-blue-400 dark:border-blue-800',
-      'Payment': 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/15 dark:text-amber-400 dark:border-amber-800',
-      'Receipt': 'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950/15 dark:text-teal-400 dark:border-teal-800',
-      'Contra': 'bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-900/40 dark:text-slate-300 dark:border-slate-800',
-      'Credit Note': 'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/15 dark:text-sky-400 dark:border-sky-800',
-      'Debit Note': 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/15 dark:text-red-400 dark:border-red-800',
-      'Bank Statement': 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/15 dark:text-indigo-400 dark:border-indigo-800'
-    };
-    return stylesMap[cat] || 'bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:border-slate-800';
-  };
-
-  const getStatusStyles = (stat) => {
-    const stylesMap = {
-      'Approved': 'bg-green-50 text-green-700 border-green-200 dark:bg-green-950/15 dark:text-green-400 dark:border-green-800',
-      'Under Review': 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/15 dark:text-purple-400 dark:border-purple-800',
+      'Pending Review': 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/15 dark:text-amber-400 dark:border-amber-800',
+      'Pending Approval': 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/15 dark:text-amber-400 dark:border-amber-800',
+      'Approved': 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/15 dark:text-purple-400 dark:border-purple-800',
       'Posted': 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/15 dark:text-blue-400 dark:border-blue-800',
-      'Draft': 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/15 dark:text-amber-400 dark:border-amber-800',
-      'Failed': 'bg-red-50 text-red-705 border-red-200 dark:bg-red-950/15 dark:text-red-400 dark:border-red-800'
+      'Failed': 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/15 dark:text-red-400 dark:border-red-800'
     };
     return stylesMap[stat] || 'bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:border-slate-800';
   };
 
+  const getDocIcon = (filename) => {
+    const ext = filename.split('.').pop().toLowerCase();
+    if (['xlsx', 'xls', 'csv'].includes(ext)) {
+      return <FileSpreadsheet className="text-emerald-500 shrink-0" size={13} />;
+    }
+    return <FileText className="text-blue-500 shrink-0" size={13} />;
+  };
+
+  // Cell renderer helper
+  const renderCell = (record, columnKey, type = 'text') => {
+    const isEditing = editingCell && editingCell.recordId === record.id && editingCell.columnKey === columnKey;
+
+    const handleBlur = (value) => {
+      updateRecordCell(record.id, columnKey, value);
+      setEditingCell(null);
+    };
+
+    const handleKeyDown = (e, value) => {
+      if (e.key === 'Enter') {
+        updateRecordCell(record.id, columnKey, value);
+        setEditingCell(null);
+      } else if (e.key === 'Escape') {
+        setEditingCell(null);
+      }
+    };
+
+    const value = record[columnKey];
+
+    if (isEditing) {
+      if (columnKey === 'category') {
+        return (
+          <select
+            autoFocus
+            defaultValue={value}
+            onBlur={(e) => handleBlur(e.target.value)}
+            onKeyDown={(e) => handleKeyDown(e, e.target.value)}
+            className="w-full h-7 bg-white dark:bg-slate-800 text-[11px] p-0.5 border border-blue-500 outline-none rounded font-semibold text-slate-850 dark:text-slate-100"
+          >
+            {tabCategories.slice(1).map(cat => (
+              <option key={cat} value={cat}>{cat}</option>
+            ))}
+          </select>
+        );
+      }
+
+      return (
+        <input
+          autoFocus
+          type={type}
+          defaultValue={value}
+          onBlur={(e) => {
+            let val = e.target.value;
+            if (type === 'number') val = parseFloat(val) || 0;
+            handleBlur(val);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              let val = e.target.value;
+              if (type === 'number') val = parseFloat(val) || 0;
+              handleBlur(val);
+            } else if (e.key === 'Escape') {
+              setEditingCell(null);
+            }
+          }}
+          className="w-full h-7 bg-white dark:bg-slate-800 text-[11px] p-1 border border-blue-500 outline-none rounded font-semibold text-slate-850 dark:text-slate-100"
+        />
+      );
+    }
+
+    let displayValue = value;
+    if (columnKey === 'taxableValue' || columnKey === 'taxAmount' || columnKey === 'totalAmount') {
+      displayValue = `₹ ${(parseFloat(value) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+
+    return (
+      <div
+        onDoubleClick={() => setEditingCell({ recordId: record.id, columnKey })}
+        className="w-full h-full min-h-[24px] px-2 py-1.5 cursor-cell hover:bg-slate-50 dark:hover:bg-slate-800/40 select-none truncate flex items-center justify-between group"
+      >
+        <span className="truncate">{displayValue || <span className="text-slate-300 dark:text-slate-650 italic">empty</span>}</span>
+        <Edit2 size={9} className="text-slate-400 dark:text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity ml-1.5 shrink-0" />
+      </div>
+    );
+  };
+
+  const renderStatusBadge = (record) => {
+    if (record.status === 'Valid') {
+      return (
+        <div className="flex items-center justify-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold uppercase text-[9px]">
+          <CheckCircle size={11} />
+          <span>Valid</span>
+        </div>
+      );
+    }
+    if (record.status === 'Warning') {
+      return (
+        <div
+          className="flex items-center justify-center gap-1 text-amber-500 hover:text-amber-600 font-bold uppercase text-[9px] cursor-help"
+          title={record.errorMessage}
+        >
+          <AlertTriangle size={11} />
+          <span className="underline decoration-dotted truncate max-w-[90px]">{record.errorMessage || 'Warning'}</span>
+        </div>
+      );
+    }
+    return (
+      <div
+        className="flex items-center justify-center gap-1 text-rose-600 dark:text-rose-400 font-bold uppercase text-[9px] cursor-help"
+        title={record.errorMessage}
+      >
+        <AlertCircle size={11} />
+        <span className="underline decoration-dotted truncate max-w-[90px]">{record.errorMessage || 'Invalid'}</span>
+      </div>
+    );
+  };
+
   return (
     <div className="flex flex-col gap-2 h-full overflow-y-auto px-4 py-2 text-[11px] text-slate-700 dark:text-slate-200 bg-slate-50/50 dark:bg-slate-950/10">
-      
+
       {/* --- TOP TABS CATEGORIES NAVIGATION BAR --- */}
       <div className="flex items-center gap-4.5 border-b border-slate-200 dark:border-slate-800 overflow-x-auto shrink-0 pb-1.5 pt-0.5">
         {tabCategories.map((catName) => {
@@ -614,9 +921,9 @@ export default function BulkUploadPanel() {
                 setActiveCategory(catName);
                 setCurrentPage(1);
               }}
-              className={`pb-1 text-[11px] font-bold tracking-wide whitespace-nowrap transition-all uppercase border-b-2 -mb-2 flex items-center gap-1.5 ${
-                isActive 
-                  ? 'border-blue-600 text-blue-600 dark:border-blue-500 dark:text-blue-400 font-bold' 
+              className={`pb-1 text-[11px] font-bold tracking-wide whitespace-nowrap transition-all uppercase border-b-2 -mb-2 flex items-center gap-1.5 cursor-pointer ${
+                isActive
+                  ? 'border-blue-600 text-blue-600 dark:border-blue-500 dark:text-blue-400 font-bold'
                   : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
               }`}
             >
@@ -629,100 +936,187 @@ export default function BulkUploadPanel() {
       <div className="flex flex-col gap-2 flex-grow">
         {/* Header Row */}
         <div className="flex items-center justify-between gap-2 py-0.5 mt-0.5">
-          <h1 className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-white">Bulk Upload</h1>
-          
-          <button
-            onClick={() => setShowUploadModal(true)}
-            className="h-8 px-3 border border-blue-200 dark:border-blue-900 text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900 hover:bg-blue-50/50 dark:hover:bg-slate-800/50 rounded-lg transition flex items-center gap-1.5 font-bold shadow-xs text-xs"
-          >
-            <UploadCloud size={13} className="text-blue-500" />
-            <span>Upload Documents</span>
-          </button>
+          <div className="flex items-center gap-2">
+            {selectedBatchId && (
+              <button
+                onClick={() => {
+                  setSelectedBatchId(null);
+                  handleReset(); // Reset filters when going back
+                }}
+                className="p-1.5 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition flex items-center justify-center bg-white dark:bg-slate-900 cursor-pointer"
+                title="Back to Batches"
+              >
+                <ArrowLeft size={13} />
+              </button>
+            )}
+            <h1 className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
+              <span>{selectedBatchId ? 'Batch Review' : 'Bulk Upload'}</span>
+              {selectedBatchId && activeBatch && (
+                <span className="text-xs font-semibold px-2 py-0.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-600 dark:text-slate-300 select-all font-mono">
+                  {activeBatch.id} - {activeBatch.filename}
+                </span>
+              )}
+            </h1>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {selectedBatchId && activeBatch ? (
+              <>
+                <button
+                  onClick={handleAddRow}
+                  className="h-8 px-3 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition flex items-center gap-1.5 font-bold shadow-xs text-xs cursor-pointer"
+                >
+                  <Plus size={13} className="text-blue-500 animate-pulse" />
+                  <span>Add Transaction Row</span>
+                </button>
+
+                <button
+                  onClick={handlePostBatch}
+                  className={`h-8 px-3 rounded-lg transition flex items-center gap-1.5 font-bold shadow-xs text-xs cursor-pointer ${
+                    activeBatch.status === 'Posted'
+                      ? 'bg-slate-100 border border-slate-200 text-slate-400 cursor-not-allowed dark:bg-slate-800 dark:border-slate-700'
+                      : 'bg-blue-600 hover:bg-blue-700 text-white'
+                  }`}
+                  disabled={activeBatch.status === 'Posted'}
+                >
+                  <Send size={12} />
+                  <span>Approve & Post Batch</span>
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => setShowUploadModal(true)}
+                className="h-8 px-3 border border-blue-200 dark:border-blue-900 text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900 hover:bg-blue-50/50 dark:hover:bg-slate-800/50 rounded-lg transition flex items-center gap-1.5 font-bold shadow-xs text-xs cursor-pointer"
+              >
+                <UploadCloud size={13} className="text-blue-500" />
+                <span>Upload Excel / CSV</span>
+              </button>
+            )}
+          </div>
         </div>
 
         {/* KPI Stats Cards Row */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 shrink-0">
-          {/* Total Documents */}
+          {/* Card 1 */}
           <div className="p-2 border rounded-lg bg-blue-50/55 border-blue-100/70 dark:bg-blue-950/15 dark:border-blue-900/35 shadow-3xs flex items-center justify-between h-[58px] transition-all">
             <div className="min-w-0 flex-1">
-              <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wide leading-none block truncate">Total Documents</span>
+              <span className="text-[9px] font-bold text-slate-455 dark:text-slate-500 uppercase tracking-wide leading-none block truncate">
+                {selectedBatchId ? 'Total Batch Records' : 'Total Batches'}
+              </span>
               <div className="flex items-baseline gap-1 mt-0.5">
-                <span className="text-lg font-black text-slate-900 dark:text-white leading-none">{stats.total.toLocaleString()}</span>
-                <span className="text-[8px] text-slate-400 dark:text-slate-500 leading-none">All Time</span>
+                <span className="text-lg font-black text-slate-900 dark:text-white leading-none">
+                  {selectedBatchId ? stats.total : (stats.totalBatches + 48).toLocaleString()}
+                </span>
+                <span className="text-[8px] text-slate-400 dark:text-slate-500 leading-none">
+                  {selectedBatchId ? 'Uploaded' : 'All Time'}
+                </span>
               </div>
             </div>
             <div className="h-6 w-6 rounded-md bg-blue-100/50 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 shrink-0">
-              <FileText size={12} />
+              <FileSpreadsheet size={12} />
             </div>
           </div>
 
-          {/* Synced from Tally */}
+          {/* Card 2 */}
           <div className="p-2 border rounded-lg bg-emerald-50/55 border-emerald-100/70 dark:bg-emerald-950/15 dark:border-emerald-900/35 shadow-3xs flex items-center justify-between h-[58px] transition-all">
             <div className="min-w-0 flex-1">
-              <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wide leading-none block truncate">Synced from Tally</span>
+              <span className="text-[9px] font-bold text-slate-455 dark:text-slate-500 uppercase tracking-wide leading-none block truncate">
+                {selectedBatchId ? 'Valid Records' : 'Total Records'}
+              </span>
               <div className="flex items-baseline gap-1 mt-0.5">
-                <span className="text-lg font-black text-slate-900 dark:text-white leading-none">{stats.synced.toLocaleString()}</span>
-                <span className="text-[8px] text-slate-400 dark:text-slate-500 leading-none">This Month</span>
+                <span className="text-lg font-black text-slate-900 dark:text-white leading-none">
+                  {selectedBatchId ? stats.valid : (stats.totalRecords + 1102).toLocaleString()}
+                </span>
+                <span className="text-[8px] text-slate-400 dark:text-slate-500 leading-none">
+                  {selectedBatchId ? 'Ready' : 'Across Batches'}
+                </span>
               </div>
             </div>
             <div className="h-6 w-6 rounded-md bg-emerald-100/50 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600 shrink-0">
-              <Database size={12} />
-            </div>
-          </div>
-
-          {/* AI Processed */}
-          <div className="p-2 border rounded-lg bg-purple-50/55 border-purple-100/70 dark:bg-purple-950/15 dark:border-purple-900/35 shadow-3xs flex items-center justify-between h-[58px] transition-all">
-            <div className="min-w-0 flex-1">
-              <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wide leading-none block truncate">AI Processed</span>
-              <div className="flex items-baseline gap-1 mt-0.5">
-                <span className="text-lg font-black text-slate-900 dark:text-white leading-none">{stats.ai.toLocaleString()}</span>
-                <span className="text-[8px] text-slate-400 dark:text-slate-500 leading-none">This Month</span>
-              </div>
-            </div>
-            <div className="h-6 w-6 rounded-md bg-purple-100/50 dark:bg-purple-900/30 flex items-center justify-center text-purple-600 shrink-0">
-              <SlidersHorizontal size={12} />
-            </div>
-          </div>
-
-          {/* Approved */}
-          <div className="p-2 border rounded-lg bg-green-50/55 border-green-100/70 dark:bg-green-950/15 dark:border-green-900/35 shadow-3xs flex items-center justify-between h-[58px] transition-all">
-            <div className="min-w-0 flex-1">
-              <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wide leading-none block truncate">Approved</span>
-              <div className="flex items-baseline gap-1 mt-0.5">
-                <span className="text-lg font-black text-slate-900 dark:text-white leading-none">{stats.approved}</span>
-                <span className="text-[8px] text-slate-400 dark:text-slate-500 leading-none">This Month</span>
-              </div>
-            </div>
-            <div className="h-6 w-6 rounded-md bg-green-100/50 dark:bg-green-900/30 flex items-center justify-center text-green-600 shrink-0">
               <CheckCircle2 size={12} />
             </div>
           </div>
 
-          {/* Posted to Tally */}
-          <div className="p-2 border rounded-lg bg-blue-50/55 border-blue-100/70 dark:bg-blue-950/15 dark:border-blue-900/35 shadow-3xs flex items-center justify-between h-[58px] transition-all">
+          {/* Card 3 */}
+          <div className="p-2 border rounded-lg bg-amber-50/55 border-amber-100/70 dark:bg-amber-950/15 dark:border-amber-900/35 shadow-3xs flex items-center justify-between h-[58px] transition-all">
             <div className="min-w-0 flex-1">
-              <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wide leading-none block truncate">Posted to Tally</span>
+              <span className="text-[9px] font-bold text-slate-455 dark:text-slate-500 uppercase tracking-wide leading-none block truncate">
+                {selectedBatchId ? 'Validation Warnings' : 'Pending Approval'}
+              </span>
               <div className="flex items-baseline gap-1 mt-0.5">
-                <span className="text-lg font-black text-slate-900 dark:text-white leading-none">{stats.posted}</span>
-                <span className="text-[8px] text-slate-400 dark:text-slate-500 leading-none">This Month</span>
+                <span className="text-lg font-black text-slate-900 dark:text-white leading-none">
+                  {selectedBatchId ? stats.warning : (stats.pendingReview + 12)}
+                </span>
+                <span className="text-[8px] text-slate-400 dark:text-slate-500 leading-none">
+                  {selectedBatchId ? 'Verify Details' : 'Needs Approval'}
+                </span>
               </div>
             </div>
-            <div className="h-6 w-6 rounded-md bg-blue-100/50 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 shrink-0">
-              <Send size={12} />
+            <div className="h-6 w-6 rounded-md bg-amber-100/50 dark:bg-amber-900/30 flex items-center justify-center text-amber-600 shrink-0">
+              <AlertTriangle size={12} />
             </div>
           </div>
 
-          {/* Failed / Rejected */}
+          {/* Card 4 */}
           <div className="p-2 border rounded-lg bg-red-50/55 border-red-100/70 dark:bg-red-950/15 dark:border-red-900/35 shadow-3xs flex items-center justify-between h-[58px] transition-all">
             <div className="min-w-0 flex-1">
-              <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wide leading-none block truncate">Failed / Rejected</span>
+              <span className="text-[9px] font-bold text-slate-455 dark:text-slate-500 uppercase tracking-wide leading-none block truncate">
+                {selectedBatchId ? 'Validation Errors' : 'Approved Batches'}
+              </span>
               <div className="flex items-baseline gap-1 mt-0.5">
-                <span className="text-lg font-black text-slate-900 dark:text-white leading-none">{stats.failed}</span>
-                <span className="text-[8px] text-slate-400 dark:text-slate-500 leading-none">This Month</span>
+                <span className="text-lg font-black text-slate-900 dark:text-white leading-none">
+                  {selectedBatchId ? stats.invalid : (stats.approved + 28)}
+                </span>
+                <span className="text-[8px] text-slate-400 dark:text-slate-500 leading-none">
+                  {selectedBatchId ? 'Must Fix' : 'Verified'}
+                </span>
               </div>
             </div>
-            <div className="h-6 w-6 rounded-md bg-red-100/50 dark:bg-red-900/30 flex items-center justify-center text-rose-600 shrink-0">
+            <div className="h-6 w-6 rounded-md bg-red-100/50 dark:bg-red-900/30 flex items-center justify-center text-red-650 shrink-0">
               <AlertCircle size={12} />
+            </div>
+          </div>
+
+          {/* Card 5 */}
+          <div className="p-2 border rounded-lg bg-purple-50/55 border-purple-100/70 dark:bg-purple-950/15 dark:border-purple-900/35 shadow-3xs flex items-center justify-between h-[58px] transition-all">
+            <div className="min-w-0 flex-1">
+              <span className="text-[9px] font-bold text-slate-455 dark:text-slate-500 uppercase tracking-wide leading-none block truncate">
+                {selectedBatchId ? 'Voucher Types' : 'Posted Batches'}
+              </span>
+              <div className="flex items-baseline gap-1 mt-0.5">
+                <span className="text-lg font-black text-slate-900 dark:text-white leading-none">
+                  {selectedBatchId ? stats.uniqueCats : (stats.posted + 15)}
+                </span>
+                <span className="text-[8px] text-slate-400 dark:text-slate-500 leading-none">
+                  {selectedBatchId ? 'Categories' : 'Synced to Tally'}
+                </span>
+              </div>
+            </div>
+            <div className="h-6 w-6 rounded-md bg-purple-100/50 dark:bg-purple-900/30 flex items-center justify-center text-purple-650 shrink-0">
+              <SlidersHorizontal size={12} />
+            </div>
+          </div>
+
+          {/* Card 6 */}
+          <div className="p-2 border rounded-lg bg-slate-50 border-slate-100 dark:bg-slate-950/15 dark:border-slate-900/35 shadow-3xs flex items-center justify-between h-[58px] transition-all">
+            <div className="min-w-0 flex-1">
+              <span className="text-[9px] font-bold text-slate-455 dark:text-slate-500 uppercase tracking-wide leading-none block truncate">
+                {selectedBatchId ? 'Total Batch Value' : 'Failed / Rejected'}
+              </span>
+              <div className="flex items-baseline gap-1 mt-0.5">
+                <span className="text-[12px] font-black text-slate-900 dark:text-white leading-none">
+                  {selectedBatchId 
+                    ? `₹ ${stats.totalAmount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}` 
+                    : (stats.failed + 3)
+                  }
+                </span>
+                <span className="text-[8px] text-slate-400 dark:text-slate-500 leading-none">
+                  {selectedBatchId ? 'Cumulative' : 'Voucher Errors'}
+                </span>
+              </div>
+            </div>
+            <div className="h-6 w-6 rounded-md bg-slate-200/50 dark:bg-slate-800/30 flex items-center justify-center text-slate-600 shrink-0">
+              {selectedBatchId ? <Database size={12} /> : <ShieldAlert size={12} />}
             </div>
           </div>
         </div>
@@ -734,13 +1128,13 @@ export default function BulkUploadPanel() {
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
             <input
               type="text"
-              placeholder="Search documents..."
+              placeholder={selectedBatchId ? "Search batch records..." : "Search batches..."}
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full h-7.5 pl-8 pr-2.5 rounded-lg border text-[11px] outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500 transition-colors"
+              className="w-full h-7.5 pl-8 pr-2.5 rounded-lg border text-[11px] outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500 transition-colors font-semibold"
             />
           </div>
 
@@ -752,14 +1146,24 @@ export default function BulkUploadPanel() {
                 setStatusFilter(e.target.value);
                 setCurrentPage(1);
               }}
-              className="h-7.5 rounded-lg border px-2 text-[11px] outline-none bg-white dark:bg-slate-950/40 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 w-[105px]"
+              className="h-7.5 rounded-lg border px-2 text-[11px] outline-none bg-white dark:bg-slate-950/40 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 font-semibold cursor-pointer w-[140px]"
             >
-              <option value="All Status">All Status</option>
-              <option value="Approved">Approved</option>
-              <option value="Under Review">Under Review</option>
-              <option value="Posted">Posted</option>
-              <option value="Draft">Draft</option>
-              <option value="Failed">Failed</option>
+              {selectedBatchId ? (
+                <>
+                  <option value="All Status">All Row Status</option>
+                  <option value="Valid">Valid</option>
+                  <option value="Warning">Warning</option>
+                  <option value="Invalid">Invalid</option>
+                </>
+              ) : (
+                <>
+                  <option value="All Status">All Batch Status</option>
+                  <option value="Pending Approval">Pending Approval</option>
+                  <option value="Approved">Approved</option>
+                  <option value="Posted">Posted</option>
+                  <option value="Failed">Failed</option>
+                </>
+              )}
             </select>
 
             <select
@@ -768,7 +1172,7 @@ export default function BulkUploadPanel() {
                 setActiveCategory(e.target.value);
                 setCurrentPage(1);
               }}
-              className="h-7.5 rounded-lg border px-2 text-[11px] outline-none bg-white dark:bg-slate-950/40 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 w-[120px]"
+              className="h-7.5 rounded-lg border px-2 text-[11px] outline-none bg-white dark:bg-slate-950/40 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 font-semibold cursor-pointer w-[125px]"
             >
               <option value="All">All Categories</option>
               {tabCategories.slice(1).map(c => (
@@ -782,7 +1186,7 @@ export default function BulkUploadPanel() {
                 setVendorFilter(e.target.value);
                 setCurrentPage(1);
               }}
-              className="h-7.5 rounded-lg border px-2 text-[11px] outline-none bg-white dark:bg-slate-950/40 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 w-[170px]"
+              className="h-7.5 rounded-lg border px-2 text-[11px] outline-none bg-white dark:bg-slate-950/40 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 font-semibold cursor-pointer w-[160px]"
             >
               <option value="All Vendors/Customers">All Vendors/Customers</option>
               {uniqueVendors.map(v => (
@@ -797,155 +1201,303 @@ export default function BulkUploadPanel() {
                   setDateRange(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="h-7.5 rounded-lg border pl-2.5 pr-7 text-[11px] outline-none bg-white dark:bg-slate-950/45 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 w-[140px] appearance-none cursor-pointer"
+                className="h-7.5 rounded-lg border pl-2.5 pr-7 text-[11px] outline-none bg-white dark:bg-slate-950/45 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 font-semibold w-[130px] appearance-none cursor-pointer"
               >
-                <option value="">Select Date Range</option>
-                <option value="19-06-2026">19-06-2026</option>
-                <option value="18-06-2026">18-06-2026</option>
-                <option value="17-06-2026">17-06-2026</option>
+                <option value="">Upload Date</option>
+                <option value="23-06-2026">23-06-2026</option>
+                <option value="22-06-2026">22-06-2026</option>
+                <option value="21-06-2026">21-06-2026</option>
+                <option value="20-06-2026">20-06-2026</option>
               </select>
               <Calendar className="absolute right-2.5 pointer-events-none text-slate-400" size={12} />
             </div>
 
             <button
               onClick={handleReset}
-              className="text-[11px] font-bold text-blue-600 hover:text-blue-700 bg-transparent transition-colors px-1"
+              className="text-[11px] font-bold text-blue-600 hover:text-blue-700 bg-transparent transition-colors px-1 cursor-pointer"
             >
               Reset
+            </button>
+            <button
+              onClick={handleRestoreDefaults}
+              className="text-[11px] font-bold text-slate-500 hover:text-slate-700 bg-transparent transition-colors px-1 cursor-pointer"
+              title="Reset all batch data to default mock records"
+            >
+              Restore Defaults
             </button>
           </div>
         </div>
 
-        {/* Table Container */}
-        <div className="border rounded-lg flex-1 overflow-hidden flex flex-col bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800/80 shadow-3xs min-h-[250px]">
-          <div className="overflow-x-auto flex-1">
-            <table className="w-full text-left border-collapse min-w-[1000px] text-[11px] whitespace-nowrap">
-              <thead>
-                <tr className="bg-slate-50/50 dark:bg-slate-950/30 border-b text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-800 font-semibold uppercase tracking-wider">
-                  <th className="py-2 px-2.5 w-9 text-center">
-                    <input
-                      type="checkbox"
-                      className="rounded border-slate-300 dark:border-slate-700 text-blue-600 focus:ring-blue-500 cursor-pointer h-3.5 w-3.5"
-                      onChange={handleSelectAll}
-                      checked={paginatedDocs.length > 0 && paginatedDocs.every(d => checkedIds.includes(d.id))}
-                    />
-                  </th>
-                  <th className="py-2 px-2.5 font-semibold">Document Name</th>
-                  <th className="py-2 px-2.5 font-semibold">Category</th>
-                  <th className="py-2 px-2.5 font-semibold">Vendor / Customer</th>
-                  <th className="py-2 px-2.5 font-semibold">Document No.</th>
-                  <th className="py-2 px-2.5 font-semibold text-right">Amount</th>
-                  <th className="py-2 px-2.5 font-semibold text-center">Status</th>
-                  <th className="py-2 px-2.5 font-semibold text-center">Confidence</th>
-                  <th className="py-2 px-2.5 font-semibold">Created By</th>
-                  <th className="py-2 px-2.5 font-semibold text-center w-20">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
-                {paginatedDocs.length > 0 ? (
-                  paginatedDocs.map((doc) => {
-                    const isChecked = checkedIds.includes(doc.id);
-                    return (
-                      <tr
-                        key={doc.id}
-                        className={`hover:bg-slate-50/30 dark:hover:bg-slate-900/30 transition-colors ${
-                          isChecked ? 'bg-blue-50/10 dark:bg-blue-950/5' : ''
-                        }`}
-                      >
-                        <td className="py-1.5 px-2.5 text-center">
-                          <input
-                            type="checkbox"
-                            className="rounded border-slate-300 dark:border-slate-700 text-blue-600 focus:ring-blue-500 cursor-pointer h-3.5 w-3.5"
-                            checked={isChecked}
-                            onChange={() => handleSelectRow(doc.id)}
-                          />
-                        </td>
-                        <td className="py-1.5 px-2.5 font-semibold text-slate-950 dark:text-slate-100">
-                          <div className="flex items-center gap-1.5">
-                            {getDocIcon(doc.fileType)}
-                            <span className="truncate max-w-[160px] font-semibold" title={doc.filename}>{doc.filename}</span>
-                          </div>
-                        </td>
-                        <td className="py-1.5 px-2.5">
-                          <span className={`px-2 py-0.5 rounded border text-[9px] font-extrabold uppercase ${getCategoryStyles(doc.category)}`}>
-                            {doc.category}
-                          </span>
-                        </td>
-                        <td className="py-1.5 px-2.5 text-slate-900 dark:text-slate-200 font-semibold">{doc.vendor}</td>
-                        <td className="py-1.5 px-2.5 text-slate-600 dark:text-slate-400 font-semibold">{doc.docNo}</td>
-                        <td className="py-1.5 px-2.5 text-right text-slate-950 dark:text-white font-bold">
-                          ₹ {doc.amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </td>
-                        <td className="py-1.5 px-2.5 text-center">
-                          <span className={`px-2 py-0.5 rounded border text-[9px] font-extrabold uppercase ${getStatusStyles(doc.status)}`}>
-                            {doc.status}
-                          </span>
-                        </td>
-                        <td className="py-1.5 px-2.5 text-center text-slate-900 dark:text-slate-100 font-bold">{doc.confidence}%</td>
-                        <td className="py-1.5 px-2.5 text-slate-500 dark:text-slate-400 font-semibold text-[10px]">{doc.createdBy}</td>
-                        <td className="py-1.5 px-2.5 text-center">
-                          <div className="flex items-center justify-center gap-2 text-slate-400 dark:text-slate-500">
-                            <button
-                              onClick={() => {
-                                // Navigate to the workspace route with current document focused
-                                navigate('/automation/ai-processing', { state: { selectedDocId: doc.id } });
-                              }}
-                              className="p-0.5 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition"
-                              title="View in AI Processing Workspace"
-                            >
-                              <Eye size={13} />
-                            </button>
-                            <button
-                              onClick={() => toast.info(`Editing details of ${doc.filename}`)}
-                              className="p-0.5 hover:text-amber-500 dark:hover:text-amber-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition"
-                              title="Edit Details"
-                            >
-                              <Edit2 size={12} />
-                            </button>
-                            <button
-                              onClick={() => {
-                                const updated = documents.filter(d => d.id !== doc.id);
-                                syncDocuments(updated);
-                                toast.success(`Removed document ${doc.filename}`);
-                              }}
-                              className="p-0.5 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition"
-                              title="Delete Record"
-                            >
-                              <Trash2 size={13} />
-                            </button>
-                            <button className="p-0.5 hover:text-slate-700 dark:hover:text-slate-300 rounded transition">
-                              <MoreVertical size={12} />
-                            </button>
+        {/* --- MAIN INTERACTIVE VIEW AREA (Table Container) --- */}
+        <div className="border rounded-lg flex-1 overflow-hidden flex flex-col bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800/80 shadow-3xs min-h-[300px]">
+
+          {!selectedBatchId ? (
+            /* --- batches List View --- */
+            <div className="overflow-x-auto flex-1">
+              <table className="w-full text-left border-collapse min-w-[800px] text-[11px] whitespace-nowrap">
+                <thead>
+                  <tr className="bg-slate-50/50 dark:bg-slate-950/30 border-b text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-800 font-semibold uppercase tracking-wider">
+                    <th className="py-2.5 px-3 w-9 text-center">
+                      <input
+                        type="checkbox"
+                        className="rounded border-slate-300 dark:border-slate-700 text-blue-600 focus:ring-blue-500 cursor-pointer h-3.5 w-3.5"
+                        onChange={handleSelectAll}
+                        checked={paginatedBatches.length > 0 && paginatedBatches.every(b => checkedBatchIds.includes(b.id))}
+                      />
+                    </th>
+                    <th className="py-2.5 px-3 font-semibold">Batch ID</th>
+                    <th className="py-2.5 px-3 font-semibold">File Name</th>
+                    <th className="py-2.5 px-3 font-semibold text-center">Total Records</th>
+                    <th className="py-2.5 px-3 font-semibold text-center">Upload Date</th>
+                    <th className="py-2.5 px-3 font-semibold text-center">Status</th>
+                    <th className="py-2.5 px-3 font-semibold text-center w-28">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
+                  {paginatedBatches.length > 0 ? (
+                    paginatedBatches.map((batch) => {
+                      const isChecked = checkedBatchIds.includes(batch.id);
+                      return (
+                        <tr
+                          key={batch.id}
+                          onClick={() => openBatchReview(batch.id)}
+                          className={`hover:bg-slate-50/40 dark:hover:bg-slate-900/30 cursor-pointer transition-colors ${
+                            isChecked ? 'bg-blue-50/10 dark:bg-blue-950/5' : ''
+                          }`}
+                        >
+                          <td className="py-2 px-3 text-center" onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="checkbox"
+                              className="rounded border-slate-300 dark:border-slate-700 text-blue-600 focus:ring-blue-500 cursor-pointer h-3.5 w-3.5"
+                              checked={isChecked}
+                              onChange={() => handleSelectRow(batch.id)}
+                            />
+                          </td>
+                          <td className="py-2 px-3 font-bold text-blue-600 dark:text-blue-400 font-mono text-[10px]">
+                            {batch.id}
+                          </td>
+                          <td className="py-2 px-3 text-slate-900 dark:text-slate-100 font-semibold">
+                            <div className="flex items-center gap-1.5">
+                              {getDocIcon(batch.filename)}
+                              <span className="truncate max-w-[240px]" title={batch.filename}>{batch.filename}</span>
+                            </div>
+                          </td>
+                          <td className="py-2 px-3 text-center text-slate-900 dark:text-slate-100 font-bold">
+                            <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 font-bold text-[10px]">
+                              {batch.totalRecords || (Array.isArray(batch.records) ? batch.records.length : 0)}
+                            </span>
+                          </td>
+                          <td className="py-2 px-3 text-center text-slate-500 dark:text-slate-400 font-semibold">
+                            {batch.uploadDate}
+                          </td>
+                          <td className="py-2 px-3 text-center">
+                            <span className={`px-2 py-0.5 rounded border text-[9px] font-extrabold uppercase ${getBatchStatusStyles(batch.status)}`}>
+                              {batch.status}
+                            </span>
+                          </td>
+                          <td className="py-2 px-3 text-center" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center justify-center gap-2 text-slate-400 dark:text-slate-500">
+                              <button
+                                onClick={() => openBatchReview(batch.id)}
+                                className="p-1 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition cursor-pointer"
+                                title="Open Batch Review"
+                              >
+                                <Eye size={13} />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setBatches(prev => {
+                                    const updated = prev.filter(b => b.id !== batch.id);
+                                    localStorage.setItem('fb_bulk_batches', JSON.stringify(updated));
+                                    return updated;
+                                  });
+                                  toast.success(`Removed batch ${batch.id}`);
+                                }}
+                                className="p-1 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition cursor-pointer"
+                                title="Delete Batch"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                              <button className="p-1 hover:text-slate-700 dark:hover:text-slate-300 rounded transition cursor-pointer">
+                                <MoreVertical size={12} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan={7} className="p-12 text-center text-slate-400 dark:text-slate-500 font-medium">
+                        <div className="flex flex-col items-center justify-center gap-1">
+                          <Info size={24} className="text-slate-355 dark:text-slate-700" />
+                          <span>No batches matching the criteria were found.</span>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            /* --- Spreadsheet-style Batch Review View --- */
+            <div className="flex-1 flex flex-col min-w-0">
+              <div className="overflow-auto flex-1 max-h-[500px]">
+                <table className="w-full text-left border-collapse table-fixed min-w-[1100px] text-[11px] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+                  <colgroup>
+                    <col className="w-9" />
+                    <col className="w-9" />
+                    <col className="w-[85px]" />
+                    <col className="w-[95px]" />
+                    <col className="w-[110px]" />
+                    <col className="w-[180px]" />
+                    <col className="w-[130px]" />
+                    <col className="w-[100px]" />
+                    <col className="w-[100px]" />
+                    <col className="w-[100px]" />
+                    <col className="w-[110px]" />
+                    <col className="w-[60px]" />
+                  </colgroup>
+                  <thead>
+                    <tr className="bg-slate-100 dark:bg-slate-950/50 text-slate-650 dark:text-slate-300 border-b border-slate-250 dark:border-slate-850 font-bold uppercase tracking-wider text-[10px] select-none text-center">
+                      <th className="border-r border-slate-200 dark:border-slate-800 p-1 w-9 text-center bg-slate-50 dark:bg-slate-950 text-slate-400">
+                        {/* Empty cell for spreadsheet corner */}
+                      </th>
+                      <th className="border-r border-slate-200 dark:border-slate-800 p-1 w-9 text-center">
+                        <input
+                          type="checkbox"
+                          className="rounded border-slate-300 dark:border-slate-700 text-blue-600 focus:ring-blue-500 cursor-pointer h-3.5 w-3.5"
+                          onChange={handleSelectAll}
+                          checked={paginatedRecords.length > 0 && paginatedRecords.every(r => checkedRecordIds.includes(r.id))}
+                        />
+                      </th>
+                      <th className="border-r border-slate-200 dark:border-slate-800 py-1.5 px-2 font-bold text-left">Date</th>
+                      <th className="border-r border-slate-200 dark:border-slate-800 py-1.5 px-2 font-bold text-left">Invoice No</th>
+                      <th className="border-r border-slate-200 dark:border-slate-800 py-1.5 px-2 font-bold text-left">Voucher Type</th>
+                      <th className="border-r border-slate-200 dark:border-slate-800 py-1.5 px-2 font-bold text-left">Party / Ledger Name</th>
+                      <th className="border-r border-slate-200 dark:border-slate-800 py-1.5 px-2 font-bold text-left">GSTIN</th>
+                      <th className="border-r border-slate-200 dark:border-slate-800 py-1.5 px-2 font-bold text-right">Taxable Value</th>
+                      <th className="border-r border-slate-200 dark:border-slate-800 py-1.5 px-2 font-bold text-right">Tax (GST)</th>
+                      <th className="border-r border-slate-200 dark:border-slate-800 py-1.5 px-2 font-bold text-right">Total Amount</th>
+                      <th className="border-r border-slate-200 dark:border-slate-800 py-1.5 px-2 font-bold text-center">Status</th>
+                      <th className="py-1.5 px-2 font-bold text-center">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                    {paginatedRecords.length > 0 ? (
+                      paginatedRecords.map((record, index) => {
+                        const isChecked = checkedRecordIds.includes(record.id);
+                        const rowNumber = (currentPage - 1) * itemsPerPage + index + 1;
+                        
+                        // Row highlight styling based on status
+                        let rowStatusClass = "";
+                        if (record.status === 'Invalid') rowStatusClass = "bg-rose-50/15 dark:bg-rose-950/5";
+                        else if (record.status === 'Warning') rowStatusClass = "bg-amber-50/15 dark:bg-amber-950/5";
+
+                        return (
+                          <tr
+                            key={record.id}
+                            className={`hover:bg-slate-50/20 dark:hover:bg-slate-900/10 transition-colors ${rowStatusClass} ${
+                              isChecked ? 'bg-blue-50/10 dark:bg-blue-950/5 border-l-2 border-l-blue-500' : ''
+                            }`}
+                          >
+                            {/* Excel Leftmost Row Index (S.No.) */}
+                            <td className="border-r border-slate-200 dark:border-slate-800 py-1.5 text-center font-mono font-bold bg-slate-50/80 dark:bg-slate-950/50 text-slate-400 select-none text-[10px]">
+                              {rowNumber}
+                            </td>
+                            <td className="border-r border-slate-200 dark:border-slate-800 py-1.5 text-center">
+                              <input
+                                type="checkbox"
+                                className="rounded border-slate-300 dark:border-slate-700 text-blue-600 focus:ring-blue-500 cursor-pointer h-3.5 w-3.5"
+                                checked={isChecked}
+                                onChange={() => handleSelectRow(record.id)}
+                              />
+                            </td>
+                            {/* Cells */}
+                            <td className="border-r border-slate-200 dark:border-slate-800 p-0 text-slate-900 dark:text-slate-100">
+                              {renderCell(record, 'date', 'date')}
+                            </td>
+                            <td className="border-r border-slate-200 dark:border-slate-800 p-0 font-semibold text-slate-700 dark:text-slate-300">
+                              {renderCell(record, 'docNo', 'text')}
+                            </td>
+                            <td className="border-r border-slate-200 dark:border-slate-800 p-0 text-slate-900 dark:text-slate-100">
+                              {renderCell(record, 'category', 'select')}
+                            </td>
+                            <td className="border-r border-slate-200 dark:border-slate-800 p-0 font-bold text-slate-900 dark:text-slate-100">
+                              {renderCell(record, 'partyName', 'text')}
+                            </td>
+                            <td className="border-r border-slate-200 dark:border-slate-800 p-0 font-mono text-slate-700 dark:text-slate-300">
+                              {renderCell(record, 'gstin', 'text')}
+                            </td>
+                            <td className="border-r border-slate-200 dark:border-slate-800 p-0 text-right font-bold text-slate-900 dark:text-white">
+                              {renderCell(record, 'taxableValue', 'number')}
+                            </td>
+                            <td className="border-r border-slate-200 dark:border-slate-800 p-0 text-right font-bold text-slate-900 dark:text-white">
+                              {renderCell(record, 'taxAmount', 'number')}
+                            </td>
+                            <td className="border-r border-slate-200 dark:border-slate-800 p-0 text-right font-black text-slate-905 dark:text-white bg-slate-50/20 dark:bg-slate-950/20">
+                              {renderCell(record, 'totalAmount', 'number')}
+                            </td>
+                            <td className="border-r border-slate-200 dark:border-slate-800 py-1.5 text-center font-bold">
+                              {renderStatusBadge(record)}
+                            </td>
+                            <td className="py-1 px-2 text-center">
+                              <div className="flex items-center justify-center gap-1.5 text-slate-400 dark:text-slate-500">
+                                <button
+                                  onClick={() => handleDeleteRow(record.id)}
+                                  className="p-1 hover:text-rose-500 dark:hover:text-rose-450 hover:bg-slate-100 dark:hover:bg-slate-850 rounded transition cursor-pointer"
+                                  title="Delete Record Row"
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    ) : (
+                      <tr>
+                        <td colSpan={12} className="p-12 text-center text-slate-400 dark:text-slate-500 font-medium">
+                          <div className="flex flex-col items-center justify-center gap-1">
+                            <Info size={24} className="text-slate-300 dark:text-slate-700" />
+                            <span>No spreadsheet records matched your query. Double-click cells to edit or add a row.</span>
                           </div>
                         </td>
                       </tr>
-                    );
-                  })
-                ) : (
-                  <tr>
-                    <td colSpan={10} className="p-8 text-center text-slate-400 dark:text-slate-500 font-medium">
-                      <div className="flex flex-col items-center justify-center gap-1">
-                        <Info size={24} className="text-slate-300 dark:text-slate-700" />
-                        <span>No uploaded documents found.</span>
-                      </div>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Spreadsheet editing hint bar */}
+              <div className="px-3 py-1.5 bg-slate-50 dark:bg-slate-950/60 border-t border-slate-200 dark:border-slate-800 text-[10px] text-slate-500 flex justify-between items-center font-semibold">
+                <div className="flex items-center gap-1.5 text-slate-450">
+                  <span className="h-2 w-2 rounded-full bg-blue-500 animate-pulse"></span>
+                  <span>Spreadsheet Mode: Double-click any cell to edit details. Taxable/Tax/Total will auto-calculate!</span>
+                </div>
+                <div>
+                  <span>Batch Status: <span className="font-extrabold uppercase text-blue-600">{activeBatch?.status || 'Pending Approval'}</span></span>
+                </div>
+              </div>
+            </div>
+          )}
+
         </div>
 
         {/* Footer Navigation Page indices */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-3 shrink-0 pb-1 mt-1">
           <div className="text-slate-500 dark:text-slate-400 font-medium">
-            Showing <span className="font-bold text-slate-900 dark:text-white">{(currentPage - 1) * itemsPerPage + 1}</span> to{' '}
+            Showing <span className="font-bold text-slate-900 dark:text-white">
+              {((currentPage - 1) * itemsPerPage) + (selectedBatchId ? (filteredRecords.length > 0 ? 1 : 0) : (filteredBatches.length > 0 ? 1 : 0))}
+            </span> to{' '}
             <span className="font-bold text-slate-900 dark:text-white">
-              {Math.min(currentPage * itemsPerPage, filteredDocs.length)}
+              {Math.min(currentPage * itemsPerPage, selectedBatchId ? filteredRecords.length : filteredBatches.length)}
             </span>{' '}
-            of <span className="font-bold text-slate-900 dark:text-white">{filteredDocs.length}</span> entries
-            {activeCategory === 'All' && search === '' && statusFilter === 'All Status' && (
-              <span className="text-slate-400 text-xs"> (Filtered from 1,248 total)</span>
+            of <span className="font-bold text-slate-900 dark:text-white">
+              {selectedBatchId ? filteredRecords.length : filteredBatches.length}
+            </span> entries
+            {!selectedBatchId && activeCategory === 'All' && search === '' && statusFilter === 'All Status' && (
+              <span className="text-slate-400 text-xs"> (Filtered from 48 total)</span>
             )}
           </div>
 
@@ -953,7 +1505,7 @@ export default function BulkUploadPanel() {
             <button
               onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
               disabled={currentPage === 1}
-              className="h-7 w-7 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 transition disabled:opacity-40"
+              className="h-7 w-7 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 transition disabled:opacity-40 cursor-pointer"
             >
               <ChevronLeft size={13} />
             </button>
@@ -965,7 +1517,7 @@ export default function BulkUploadPanel() {
                 <button
                   key={pageNum}
                   onClick={() => setCurrentPage(pageNum)}
-                  className={`h-7 w-7 text-xs font-bold rounded-lg transition-all ${
+                  className={`h-7 w-7 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                     isActive
                       ? 'bg-blue-600 text-white font-bold shadow-2xs'
                       : 'border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800'
@@ -976,22 +1528,10 @@ export default function BulkUploadPanel() {
               );
             })}
 
-            {totalPages > 5 && (
-              <>
-                <span className="px-0.5 text-slate-400">...</span>
-                <button
-                  onClick={() => setCurrentPage(125)}
-                  className="h-7 w-7 text-xs font-bold rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800"
-                >
-                  125
-                </button>
-              </>
-            )}
-
             <button
               onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
               disabled={currentPage === totalPages}
-              className="h-7 w-7 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 transition disabled:opacity-40"
+              className="h-7 w-7 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 transition disabled:opacity-40 cursor-pointer"
             >
               <ChevronRight size={13} />
             </button>
@@ -1012,8 +1552,9 @@ export default function BulkUploadPanel() {
             >
               {/* Modal Header */}
               <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-white dark:bg-slate-900">
-                <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                  Upload Documents
+                <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <UploadCloud size={16} className="text-blue-500 animate-pulse" />
+                  <span>Upload Batches (Excel / CSV)</span>
                 </h3>
                 <button
                   type="button"
@@ -1033,80 +1574,74 @@ export default function BulkUploadPanel() {
                     className="border border-dashed rounded-lg p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-slate-800/10 border-blue-200 dark:border-slate-700 bg-blue-50/5 dark:bg-slate-900/10 min-h-[148px]"
                   >
                     <UploadCloud size={40} className="text-blue-500 mb-2" />
-                    <p className="text-[12px] text-slate-500 dark:text-slate-400">Drag & drop files here or</p>
-                    
+                    <p className="text-[12px] text-slate-500 dark:text-slate-400">Drag & drop spreadsheet files here or</p>
+
                     <div className="flex items-center gap-2 mt-4 flex-wrap justify-center" onClick={(e) => e.stopPropagation()}>
                       <button
                         type="button"
                         onClick={handleBrowse}
-                        className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs transition-colors shadow-sm animate-pulse"
+                        className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs transition-colors shadow-sm cursor-pointer animate-pulse"
                       >
-                        Choose Files
+                        Choose File
                       </button>
                       <input
                         type="file"
                         ref={fileInputRef}
                         onChange={handleFileChange}
+                        accept=".csv, .xlsx, .xls"
                         className="hidden"
                       />
                       <button
                         type="button"
-                        className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-900 font-semibold text-xs flex items-center gap-1.5 transition-colors shadow-2xs"
-                        onClick={() => toast.info('Folder upload initiated')}
+                        className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-900 font-semibold text-xs flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
+                        onClick={() => toast.info('Initiated importing batch folder')}
                       >
                         <FolderOpen size={13} />
-                        <span>Upload Folder</span>
-                      </button>
-                      <button
-                        type="button"
-                        className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-900 font-semibold text-xs flex items-center gap-1.5 transition-colors shadow-2xs"
-                        onClick={() => toast.info('Scanner connected')}
-                      >
-                        <Scan size={13} />
-                        <span>Scan Document</span>
+                        <span>Folder Import</span>
                       </button>
                     </div>
                   </div>
-                  
+
                   <div className="text-[10px] text-slate-400 dark:text-slate-500 text-center mt-3 leading-none">
-                    Supports PDF, JPG, PNG, Excel, CSV, ZIP (Max 100MB)
+                    Supports Microsoft Excel (.xlsx, .xls) and CSV (.csv) (Max 100MB)
                   </div>
                 </div>
 
-                {/* Right Side: AI description list + inline SVG graphic illustration */}
+                {/* Right Side: Description & illustration */}
                 <div className="flex items-center gap-6 bg-white dark:bg-slate-900">
-                  {/* Inline Document Illustration */}
-                  <svg className="w-32 h-32 text-blue-500/80 shrink-0" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <rect x="25" y="15" width="55" height="75" rx="8" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="3 3" className="text-slate-200 dark:text-slate-700" />
+                  <svg className="w-32 h-32 text-emerald-500/80 shrink-0" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="25" y="15" width="55" height="75" rx="8" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="3 3" className="text-slate-255 dark:text-slate-755" />
                     <rect x="40" y="30" width="55" height="75" rx="8" fill="white" className="dark:fill-slate-800" stroke="currentColor" strokeWidth="1.8" />
-                    <line x1="52" y1="48" x2="83" y2="48" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" className="text-slate-100 dark:text-slate-700" />
-                    <line x1="52" y1="58" x2="72" y2="58" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" className="text-slate-200 dark:text-slate-700" />
-                    <line x1="52" y1="68" x2="80" y2="68" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" className="text-slate-200 dark:text-slate-700" />
-                    <rect x="52" y="78" width="12" height="6" rx="2" fill="currentColor" className="text-blue-100 dark:text-blue-900/40" />
-                    <rect x="68" y="78" width="12" height="6" rx="2" fill="currentColor" className="text-emerald-100 dark:text-emerald-900/40" />
+                    {/* spreadsheet lines grid */}
+                    <line x1="45" y1="46" x2="90" y2="46" stroke="currentColor" strokeWidth="1" strokeLinecap="round" className="text-slate-200 dark:text-slate-700" />
+                    <line x1="45" y1="58" x2="90" y2="58" stroke="currentColor" strokeWidth="1" strokeLinecap="round" className="text-slate-200 dark:text-slate-700" />
+                    <line x1="45" y1="70" x2="90" y2="70" stroke="currentColor" strokeWidth="1" strokeLinecap="round" className="text-slate-200 dark:text-slate-700" />
+                    <line x1="45" y1="82" x2="90" y2="82" stroke="currentColor" strokeWidth="1" strokeLinecap="round" className="text-slate-200 dark:text-slate-700" />
+                    <line x1="60" y1="38" x2="60" y2="95" stroke="currentColor" strokeWidth="1" strokeLinecap="round" className="text-slate-200 dark:text-slate-700" />
+                    <line x1="75" y1="38" x2="75" y2="95" stroke="currentColor" strokeWidth="1" strokeLinecap="round" className="text-slate-200 dark:text-slate-700" />
+                    <rect x="45" y="38" width="45" height="8" rx="1.5" fill="currentColor" className="text-emerald-100 dark:text-emerald-950/40" />
                   </svg>
 
-                  {/* Feature checklist */}
                   <div className="flex flex-col">
                     <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 mb-2.5">
-                      AI will automatically:
+                      Batch Processing Features:
                     </h4>
                     <ul className="space-y-2">
                       <li className="flex items-start gap-2 text-slate-600 dark:text-slate-400">
-                        <Check size={14} className="text-blue-600 mt-0.5 shrink-0 animate-bounce" />
-                        <span>Extract document data</span>
+                        <Check size={14} className="text-emerald-600 mt-0.5 shrink-0" />
+                        <span>Excel & CSV validation rules</span>
                       </li>
                       <li className="flex items-start gap-2 text-slate-600 dark:text-slate-400">
-                        <Check size={14} className="text-blue-600 mt-0.5 shrink-0" />
-                        <span>Identify voucher type</span>
+                        <Check size={14} className="text-emerald-600 mt-0.5 shrink-0" />
+                        <span>Interactive spreadsheet editor</span>
                       </li>
                       <li className="flex items-start gap-2 text-slate-600 dark:text-slate-400">
-                        <Check size={14} className="text-blue-600 mt-0.5 shrink-0" />
-                        <span>Validate with masters</span>
+                        <Check size={14} className="text-emerald-600 mt-0.5 shrink-0" />
+                        <span>Inline error detection</span>
                       </li>
                       <li className="flex items-start gap-2 text-slate-600 dark:text-slate-400">
-                        <Check size={14} className="text-blue-600 mt-0.5 shrink-0" />
-                        <span>Create vouchers</span>
+                        <Check size={14} className="text-emerald-600 mt-0.5 shrink-0" />
+                        <span>Direct Tally posting</span>
                       </li>
                     </ul>
                   </div>

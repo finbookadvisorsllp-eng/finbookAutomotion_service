@@ -44,38 +44,72 @@ const calculateFormTotals = (form) => {
   let cgstTotal = 0;
   let sgstTotal = 0;
   let igstTotal = 0;
+  let itemAmount = 0;
+  let ledgerAmount = 0;
 
   // Compare first 2 chars of partyGstin and gstRegistration to determine if interstate
   const partyState = form.partyGstin?.trim().substring(0, 2);
   const companyState = form.gstRegistration ? (form.gstRegistration.includes('Maharashtra') ? '27' : '23') : '';
   const isInterstate = partyState && companyState && partyState !== companyState;
 
-  if (form.entryTab === 'with_item' && Array.isArray(form.productLines)) {
-    form.productLines.forEach((line) => {
-      const qty = parseFloat(line.billQuantity) || 0;
-      const rate = parseFloat(line.billRate) || 0;
-      const disc = parseFloat(line.discountPercent) || 0;
-      const amount = parseFloat((qty * rate * (1 - disc / 100)).toFixed(2));
-      const gstRate = parseFloat(line.gstRate) || 0;
+  if (form.entryTab === 'with_item') {
+    if (Array.isArray(form.productLines)) {
+      form.productLines.forEach((line) => {
+        const qty = parseFloat(line.billQuantity) || 0;
+        const rate = parseFloat(line.billRate) || 0;
+        const disc = parseFloat(line.discountPercent) || 0;
+        const amount = parseFloat((qty * rate * (1 - disc / 100)).toFixed(2));
+        line.amount = amount;
+        itemAmount += amount;
+      });
+    }
 
-      baseTotal += amount;
-      if (line.taxabilityType === 'Taxable' && !line.rcm) {
-        if (isInterstate) {
-          igstTotal += (amount * gstRate) / 100;
-        } else {
-          cgstTotal += (amount * (gstRate / 2)) / 100;
-          sgstTotal += (amount * (gstRate / 2)) / 100;
+    if (Array.isArray(form.salesLines)) {
+      form.salesLines.forEach((line) => {
+        ledgerAmount += parseFloat(line.amount) || 0;
+      });
+    }
+
+    baseTotal = itemAmount + ledgerAmount;
+
+    // Calculate tax for each item line allocating ledgerAmount proportionally
+    if (Array.isArray(form.productLines)) {
+      form.productLines.forEach((line) => {
+        const amount = line.amount || 0;
+        const proportion = itemAmount > 0 ? (amount / itemAmount) : (1 / form.productLines.length);
+        const allocatedLedger = ledgerAmount * proportion;
+        const lineTaxable = amount + allocatedLedger;
+        const gstRate = parseFloat(line.gstRate) || 0;
+
+        if (line.taxabilityType === 'Taxable' && !line.rcm) {
+          if (isInterstate) {
+            igstTotal += (lineTaxable * gstRate) / 100;
+          } else {
+            cgstTotal += (lineTaxable * (gstRate / 2)) / 100;
+            sgstTotal += (lineTaxable * (gstRate / 2)) / 100;
+          }
         }
-      }
-    });
+      });
+    }
   }
 
   if (form.entryTab === 'without_item' && Array.isArray(form.salesLines)) {
+    // Change by Anjalee: For Without Item mode, GST rate comes from the Sales Ledger
+    // selected in Basic Details (form.salesLedger), NOT from individual row gstRate.
+    // Extract rate via regex — e.g. 'Sales Local 18%' → 18, 'Exempt Sales' → 0
+    let salesLedgerGstRate = 0;
+    if (form.salesLedger) {
+      const m = form.salesLedger.match(/(\d+)\s*%/);
+      if (m) salesLedgerGstRate = parseFloat(m[1]);
+      else if (/exempt|nil|zero/i.test(form.salesLedger)) salesLedgerGstRate = 0;
+    }
+
     form.salesLines.forEach((line) => {
       const amount = parseFloat(line.amount) || 0;
-      const gstRate = parseFloat(line.gstRate) || 0;
+      // Use gstRate from basic details Sales Ledger; fall back to row gstRate if ledger has no rate
+      const gstRate = salesLedgerGstRate > 0 ? salesLedgerGstRate : (parseFloat(line.gstRate) || 0);
 
-      baseTotal += amount;
+      ledgerAmount += amount;
       if (isInterstate) {
         igstTotal += (amount * gstRate) / 100;
       } else {
@@ -83,6 +117,7 @@ const calculateFormTotals = (form) => {
         sgstTotal += (amount * (gstRate / 2)) / 100;
       }
     });
+    baseTotal = ledgerAmount;
   }
 
   // Change by Anjalee: Sum additional charges using their own amount.
@@ -118,11 +153,15 @@ const calculateFormTotals = (form) => {
     });
   }
 
-  const subTotal = baseTotal + cgstTotal + sgstTotal + igstTotal + additionalTotal;
-
   let tdsTotal = 0;
   if (Array.isArray(form.tdsDetails)) {
-    form.tdsDetails.forEach((t) => { tdsTotal += parseFloat(t.amount) || 0; });
+    form.tdsDetails.forEach((t) => {
+      const baseAmt = parseFloat(baseTotal || 0);
+      const rate = t.rate !== undefined ? parseFloat(t.rate) : 2;
+      t.assessableValue = baseAmt;
+      t.amount = parseFloat((baseAmt * rate / 100).toFixed(2));
+      tdsTotal += t.amount;
+    });
   }
 
   let tcsTotal = 0;
@@ -136,9 +175,32 @@ const calculateFormTotals = (form) => {
     });
   }
 
-  const beforeRound = subTotal + tcsTotal - tdsTotal;
-  const grandTotal = Math.round(beforeRound);
-  const roundOff = grandTotal - beforeRound;
+  let subTotal = 0;
+  let grandTotal = 0;
+  let roundOff = 0;
+
+  if (form.entryTab === 'with_item') {
+    let ledgerAmountVal = 0;
+    if (Array.isArray(form.additionalCharges)) {
+      form.additionalCharges.forEach((c) => {
+        const nameUpper = (c.ledgerName || '').toUpperCase();
+        const isTaxLedger = nameUpper.includes('CGST') || nameUpper.includes('SGST') || nameUpper.includes('IGST') || nameUpper.includes('UTGST');
+        if (!isTaxLedger) {
+          ledgerAmountVal += parseFloat(c.amount) || 0;
+        }
+      });
+    }
+    const gst = cgstTotal + sgstTotal + igstTotal;
+    subTotal = baseTotal + ledgerAmountVal + gst;
+    const beforeRound = subTotal - tdsTotal;
+    grandTotal = Math.round(beforeRound);
+    roundOff = grandTotal - beforeRound;
+  } else {
+    subTotal = baseTotal + cgstTotal + sgstTotal + igstTotal + additionalTotal;
+    const beforeRound = subTotal + tcsTotal - tdsTotal;
+    grandTotal = Math.round(beforeRound);
+    roundOff = grandTotal - beforeRound;
+  }
 
   // Build GST breakup details
   const gstDetails = [];
@@ -148,6 +210,8 @@ const calculateFormTotals = (form) => {
 
   return {
     ...form,
+    itemAmount: itemAmount.toFixed(2),
+    ledgerAmount: ledgerAmount.toFixed(2),
     baseTotal: baseTotal.toFixed(2),
     subTotal: subTotal.toFixed(2),
     cgstTotal: cgstTotal.toFixed(2),
@@ -377,6 +441,10 @@ export const useSalesStore = create((set, get) => ({
         gstRegistration: data.gstRegistration || (data.companyState ? `${data.companyState} Registration` : (data.gstState ? `${data.gstState} Registration` : '')),
         gstRegistrationType: data.gstRegistrationType || '',
         consigneeLedger: data.consigneeLedger || 'Same as Party',
+        consigneeGstin: data.consigneeGstin || '',
+        entryMode: data.entryMode || 'manual',
+        ocrMetadata: data.ocrMetadata || null,
+        bulkMetadata: data.bulkMetadata || null,
         creditNoteDate: data.creditNoteDate || '',
         salesLedger: data.salesLedger || (salesLines[0]?.salesLedger || (get().masterData.salesLedgers?.[0] || '')),
         entryTab: data.entryTab || (data.salesEntries?.length ? 'without_item' : 'with_item'),
@@ -789,8 +857,15 @@ export const useSalesStore = create((set, get) => ({
     };
   }),
 
-  updateSalesLine: (id, field, value) => set((s) => {
-    const nextLines = s.form.salesLines.map((l) => l.id === id ? { ...l, [field]: value } : l);
+  // Change by Anjalee: Support both (id, field, value) and (id, {field: value, ...}) signatures
+  updateSalesLine: (id, fieldOrChanges, value) => set((s) => {
+    const nextLines = s.form.salesLines.map((l) => {
+      if (l.id !== id) return l;
+      const changes = typeof fieldOrChanges === 'object' && fieldOrChanges !== null
+        ? fieldOrChanges
+        : { [fieldOrChanges]: value };
+      return { ...l, ...changes };
+    });
     return {
       form: calculateFormTotals({ ...s.form, salesLines: nextLines }),
     };
@@ -916,6 +991,15 @@ export const useSalesStore = create((set, get) => ({
           amount: parseFloat(rest.amount) || 0,
           gstRate: parseFloat(rest.gstRate) || 0
         }));
+
+        const activeSalesLines = (form.salesLines || []).filter(l => l.salesLedger && l.salesLedger.trim() !== '');
+        salesEntries = activeSalesLines.map(({ id: _id, ...rest }) => ({
+          ledgerName: rest.salesLedger,
+          description: rest.description || '',
+          hsnSacCode: rest.hsnSacCode || '',
+          gstRate: parseFloat(rest.gstRate) || 0,
+          amount: parseFloat(rest.amount) || 0
+        }));
       } else {
         const activeLines = (form.salesLines || []).filter(l => l.salesLedger && l.salesLedger.trim() !== '');
         salesEntries = activeLines.map(({ id: _id, ...rest }) => ({
@@ -944,6 +1028,10 @@ export const useSalesStore = create((set, get) => ({
         partyGSTIN: form.partyGstin || undefined,
         gstRegistrationType: form.gstRegistrationType || undefined,
         consigneeLedger: form.consigneeLedger || undefined,
+        consigneeGstin: form.consigneeGstin || undefined,
+        entryMode: form.entryMode || 'manual',
+        ocrMetadata: form.ocrMetadata || undefined,
+        bulkMetadata: form.bulkMetadata || undefined,
         creditNoteDate: form.creditNoteDate || undefined,
         tcsAmount: parseFloat(form.tcsTotal) || 0.0,
         roundOffAmount: parseFloat(form.roundOff) || 0.0,
@@ -968,7 +1056,7 @@ export const useSalesStore = create((set, get) => ({
           amount: parseFloat(rest.amount) || 0
         })),
         narration: form.narration || '',
-        status: asDraft ? 'DRAFT' : 'PENDING_REVIEW'
+        status: asDraft ? 'DRAFT' : 'PENDING_APPROVAL'
       };
 
       let res;
@@ -1020,6 +1108,10 @@ export const useSalesStore = create((set, get) => ({
           gstRegistration: savedDoc.gstRegistration || (savedDoc.companyState ? `${savedDoc.companyState} Registration` : (savedDoc.gstState ? `${savedDoc.gstState} Registration` : '')),
           gstRegistrationType: savedDoc.gstRegistrationType || '',
           consigneeLedger: savedDoc.consigneeLedger || 'Same as Party',
+          consigneeGstin: savedDoc.consigneeGstin || '',
+          entryMode: savedDoc.entryMode || 'manual',
+          ocrMetadata: savedDoc.ocrMetadata || null,
+          bulkMetadata: savedDoc.bulkMetadata || null,
           creditNoteDate: savedDoc.creditNoteDate || '',
           salesLedger: savedDoc.salesLedger || (salesLines[0]?.salesLedger || (get().masterData.salesLedgers?.[0] || '')),
           entryTab: savedDoc.entryTab || (savedDoc.salesEntries?.length ? 'without_item' : 'with_item'),
@@ -1066,7 +1158,7 @@ export const useSalesStore = create((set, get) => ({
   pushToReview: async (id) => {
     set((s) => ({ loading: { ...s.loading, status: true } }));
     try {
-      const res = await salesApi.updateStatus(id, 'pending_review');
+      const res = await salesApi.updateStatus(id, 'pending_approval');
       set({ selectedTransaction: res.data });
       return { success: true };
     } catch (err) {

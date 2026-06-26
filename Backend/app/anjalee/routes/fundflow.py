@@ -158,6 +158,14 @@ async def get_fundflow_ledgers(
             prefix = gstin[:2]
             gst_state = STATE_CODES.get(prefix, "")
 
+        address = pd.get("address") or []
+        add1 = address[0] if len(address) > 0 else ""
+        add2 = address[1] if len(address) > 1 else ""
+        city = pd.get("city") or (address[-1] if len(address) > 0 else "")
+        is_synced = l.get("auditInfo", {}).get("syncedFromTally", False)
+        if is_synced is None:
+            is_synced = False
+
         results.append({
             "id": str(l["_id"]),
             "name": ledger_name,
@@ -166,7 +174,11 @@ async def get_fundflow_ledgers(
             "gstin": gstin,
             "gstState": gst_state,
             "registrationType": registration_type,
-            "phone": phone
+            "phone": phone,
+            "add1": add1,
+            "add2": add2,
+            "city": city,
+            "isSynced": is_synced
         })
 
     # Fetch Duties & Taxes ledgers

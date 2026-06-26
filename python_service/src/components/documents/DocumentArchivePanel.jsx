@@ -1,40 +1,160 @@
-import React, { useState } from 'react';
-import { Archive, Search, Filter, Download, ExternalLink, Calendar, Layers, User, Eye, Trash2, Plus, X, FileText } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, Download, ExternalLink, FileText } from 'lucide-react';
 import { toast } from 'sonner';
-import { motion, AnimatePresence } from 'motion/react';
 
-const initialArchives = [
-  { id: 'doc-1', name: 'Vendor_Invoice_INV291.pdf', category: 'Bulk Upload', type: 'Purchase Voucher', linkedVoucher: 'PI-2026-0007', date: '2026-06-19', uploadedBy: 'Admin Operator', status: 'Posted', size: '1.2 MB' },
-  { id: 'doc-2', name: 'Customer_Invoice_Cust98.png', category: 'OCR Upload', type: 'Sales Voucher', linkedVoucher: 'SI-2026-0001', date: '2026-06-19', uploadedBy: 'System AI', status: 'Pending', size: '450 KB' },
-  { id: 'doc-3', name: 'Bank_Statement_May2026.csv', category: 'Bank Upload', type: 'Banking', linkedVoucher: '—', date: '2026-06-19', uploadedBy: 'Admin Operator', status: 'Posted', size: '85 KB' },
-  { id: 'doc-4', name: 'Receipt_Copy_Fuel.jpg', category: 'Manual Entry Attachments', type: 'Receipt Voucher', linkedVoucher: 'RC-2026-0005', date: '2026-06-19', uploadedBy: 'Operator B', status: 'Posted', size: '320 KB' },
-  { id: 'doc-5', name: 'Payment_Advice_HDFC.pdf', category: 'Bulk Upload', type: 'Payment Voucher', linkedVoucher: 'PY-2026-0012', date: '2026-06-18', uploadedBy: 'Operator A', status: 'Pending', size: '950 KB' }
-];
+// Import backend API clients
+import salesApi from '../../services/salesApi';
+import purchaseApi from '../../services/purchaseApi';
+import fundflowApi from '../../services/fundflowApi';
 
 export default function DocumentArchivePanel() {
-  const [archives, setArchives] = useState(initialArchives);
+  const [archives, setArchives] = useState([]);
+  const [manuallyArchived, setManuallyArchived] = useState([]);
   const [search, setSearch] = useState('');
-  const [showCreateForm, setShowCreateForm] = useState(false);
   const [activeCategory, setActiveCategory] = useState('All Documents');
+  const [activeStatus, setActiveStatus] = useState('All Statuses');
+  const [loading, setLoading] = useState(false);
 
-  // Form state
-  const [form, setForm] = useState({
-    name: '',
-    category: 'Bulk Upload',
-    type: 'Purchase Voucher',
-    linkedVoucher: '',
-    uploadedBy: 'Admin Operator',
-    size: '1.0 MB'
-  });
+  const categories = ['All Documents', 'Manual Entry', 'Bulk Upload', 'OCR Upload'];
+  const statuses = ['All Statuses', 'Draft', 'Pending Approval', 'Approved', 'Posted To Tally', 'Rejected'];
 
-  const categories = [
-    'All Documents', 'Manual Entry Attachments', 'Bulk Upload', 'OCR Upload', 'Bank Upload',
-    'Sales', 'Purchase', 'Payment', 'Receipt', 'Contra', 'Posted', 'Pending'
-  ];
+  const getStatusKey = (statusText) => {
+    if (!statusText) return 'pending_approval';
+    const s = statusText.toLowerCase();
+    if (s.includes('draft')) return 'draft';
+    if (s.includes('approval') || s.includes('review') || s.includes('pending')) return 'pending_approval';
+    if (s.includes('approved')) return 'approved';
+    if (s.includes('reject') || s.includes('fail')) return 'rejected';
+    if (s.includes('post') || s.includes('sync')) return 'posted_to_tally';
+    return 'pending_approval';
+  };
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      // 1. Fetch Manual Entries from backend
+      const [salesRes, purchaseRes, fundflowRes] = await Promise.all([
+        salesApi.list({ limit: 150 }).catch(() => ({ data: [] })),
+        purchaseApi.list({ limit: 150 }).catch(() => ({ data: [] })),
+        fundflowApi.list({ limit: 150 }).catch(() => ({ data: [] }))
+      ]);
+
+      const salesList = (salesRes.data || []).map(v => {
+        const status = (v.status || 'draft').toLowerCase();
+        return {
+          id: v._id || v.id,
+          name: v.invoiceNumber || v.voucherNumber || 'sales_voucher.pdf',
+          category: 'Manual Entry',
+          type: 'Sales Voucher',
+          linkedVoucher: v.voucherNumber || v.invoiceNumber || 'SI-' + (v._id || v.id),
+          date: v.voucherDate || v.invoiceDate || '—',
+          uploadedBy: 'Admin Operator',
+          status: status,
+          size: '1.2 MB'
+        };
+      });
+
+      const purchaseList = (purchaseRes.data || []).map(v => {
+        const status = (v.status || 'draft').toLowerCase();
+        return {
+          id: v._id || v.id,
+          name: v.invoiceNumber || v.voucherNumber || 'purchase_voucher.pdf',
+          category: 'Manual Entry',
+          type: 'Purchase Voucher',
+          linkedVoucher: v.voucherNumber || v.invoiceNumber || 'PI-' + (v._id || v.id),
+          date: v.voucherDate || v.invoiceDate || '—',
+          uploadedBy: 'Admin Operator',
+          status: status,
+          size: '950 KB'
+        };
+      });
+
+      const fundflowList = (fundflowRes.data || []).map(v => {
+        const status = (v.status || 'draft').toLowerCase();
+        const type = v.voucherType === 'cash_payment' ? 'Payment Voucher' : (v.voucherType === 'bank_payment' ? 'Receipt Voucher' : 'Contra Voucher');
+        return {
+          id: v._id || v.id,
+          name: 'fund_flow_' + (v._id || v.id) + '.pdf',
+          category: 'Manual Entry',
+          type: type,
+          linkedVoucher: v.voucherNumber || 'FF-' + (v._id || v.id),
+          date: v.voucherDate || '—',
+          uploadedBy: 'Admin Operator',
+          status: status,
+          size: '320 KB'
+        };
+      });
+
+      // 2. Fetch Bulk Entries from localStorage
+      let mappedBulk = [];
+      const savedBulk = localStorage.getItem('fb_bulk_batches');
+      if (savedBulk) {
+        const parsedBulk = JSON.parse(savedBulk);
+        mappedBulk = parsedBulk.map(b => {
+          let st = (b.status || 'Pending Approval').toLowerCase();
+          if (st.includes('post') || st.includes('sync')) st = 'posted_to_tally';
+          else if (st.includes('approved')) st = 'approved';
+          else if (st.includes('reject') || st.includes('fail')) st = 'rejected';
+          else st = 'pending_approval';
+
+          return {
+            id: b.id,
+            name: b.filename,
+            category: 'Bulk Upload',
+            type: 'Bulk Batch',
+            linkedVoucher: b.id,
+            date: b.uploadDate || '—',
+            uploadedBy: 'Admin Operator',
+            status: st,
+            size: '2.4 MB'
+          };
+        });
+      }
+
+      // 3. Fetch OCR Entries from localStorage
+      let mappedOcr = [];
+      const savedOcr = localStorage.getItem('fb_bulk_documents');
+      if (savedOcr) {
+        const parsedOcr = JSON.parse(savedOcr);
+        mappedOcr = parsedOcr.map(doc => {
+          let st = (doc.status || 'Pending Approval').toLowerCase();
+          if (st === 'under review' || st === 'ready for review') st = 'pending_approval';
+          else if (st.includes('post') || st.includes('sync') || st === 'posted') st = 'posted_to_tally';
+          else if (st.includes('approved')) st = 'approved';
+          else if (st.includes('reject') || st.includes('fail')) st = 'rejected';
+          else st = 'pending_approval';
+
+          return {
+            id: doc.id,
+            name: doc.filename || 'ocr_document.pdf',
+            category: 'OCR Upload',
+            type: doc.category || 'OCR Document',
+            linkedVoucher: doc.docNo || doc.id,
+            date: doc.docDate || doc.uploadDate || '—',
+            uploadedBy: 'System AI',
+            status: st,
+            size: '800 KB'
+          };
+        });
+      }
+
+      const merged = [...salesList, ...purchaseList, ...fundflowList, ...mappedBulk, ...mappedOcr];
+      setArchives(merged);
+    } catch (e) {
+      console.error('Error fetching archive data:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
 
   const handleDelete = (id) => {
     if (confirm('Are you sure you want to delete this document from the archive?')) {
       setArchives(prev => prev.filter(a => a.id !== id));
+      setManuallyArchived(prev => prev.filter(a => a.id !== id));
       toast.success('Document deleted from archive');
     }
   };
@@ -43,60 +163,42 @@ export default function DocumentArchivePanel() {
     toast.success(`Downloading ${name}...`);
   };
 
-  const handleFormSubmit = (e) => {
-    e.preventDefault();
-    if (!form.name) {
-      toast.error('Document name is required.');
-      return;
-    }
-    const newDoc = {
-      id: 'doc-' + Date.now(),
-      name: form.name,
-      category: form.category,
-      type: form.type,
-      linkedVoucher: form.linkedVoucher || '—',
-      date: new Date().toISOString().split('T')[0],
-      uploadedBy: form.uploadedBy,
-      status: 'Pending',
-      size: form.size
-    };
-    setArchives(prev => [newDoc, ...prev]);
-    setForm({ name: '', category: 'Bulk Upload', type: 'Purchase Voucher', linkedVoucher: '', uploadedBy: 'Admin Operator', size: '1.0 MB' });
-    setShowCreateForm(false);
-    toast.success('Document registered in archive!');
-  };
+
+
+  const allArchives = [...manuallyArchived, ...archives];
 
   // Filter logic
-  const filteredArchives = archives.filter(item => {
-    const matchesSearch = item.name.toLowerCase().includes(search.toLowerCase());
+  const filteredArchives = allArchives.filter(item => {
+    // 1. Search Query Filter
+    const matchesSearch = item.name.toLowerCase().includes(search.toLowerCase()) || 
+                          item.linkedVoucher.toLowerCase().includes(search.toLowerCase());
+    if (!matchesSearch) return false;
     
-    // Category mapping matching specifications
+    // 2. Category Filter
     if (activeCategory !== 'All Documents') {
-      if (activeCategory === 'Posted' && item.status !== 'Posted') return false;
-      if (activeCategory === 'Pending' && item.status !== 'Pending') return false;
-      if (activeCategory === 'Manual Entry Attachments' && item.category !== 'Manual Entry Attachments') return false;
-      if (activeCategory === 'Bulk Upload' && item.category !== 'Bulk Upload') return false;
-      if (activeCategory === 'OCR Upload' && item.category !== 'OCR Upload') return false;
-      if (activeCategory === 'Bank Upload' && item.category !== 'Bank Upload') return false;
-      
-      const vMap = {
-        'Sales': 'Sales Voucher',
-        'Purchase': 'Purchase Voucher',
-        'Payment': 'Payment Voucher',
-        'Receipt': 'Receipt Voucher',
-        'Contra': 'Contra Voucher'
-      };
-      if (vMap[activeCategory] && item.type !== vMap[activeCategory]) return false;
+      if (item.category !== activeCategory) return false;
     }
 
-    return matchesSearch;
+    // 3. Status Filter
+    if (activeStatus !== 'All Statuses') {
+      const statusMap = {
+        'Draft': 'draft',
+        'Pending Approval': 'pending_approval',
+        'Approved': 'approved',
+        'Posted To Tally': 'posted_to_tally',
+        'Rejected': 'rejected'
+      };
+      if (item.status !== statusMap[activeStatus]) return false;
+    }
+
+    return true;
   });
 
   const stats = [
-    { label: 'Total Archives', count: archives.length + 420, color: 'text-blue-600 dark:text-blue-400 bg-blue-500/10' },
-    { label: 'Sales Docs', count: archives.filter(a => a.type === 'Sales Voucher').length + 180, color: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10' },
-    { label: 'Purchase Docs', count: archives.filter(a => a.type === 'Purchase Voucher').length + 150, color: 'text-indigo-600 dark:text-indigo-400 bg-indigo-500/10' },
-    { label: 'Pending Audit', count: archives.filter(a => a.status === 'Pending').length + 90, color: 'text-rose-600 dark:text-rose-400 bg-rose-500/10' }
+    { label: 'Total Archives', count: allArchives.length, color: 'text-blue-600 dark:text-blue-400 bg-blue-500/10' },
+    { label: 'Manual Vouchers', count: allArchives.filter(a => a.category === 'Manual Entry').length, color: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10' },
+    { label: 'Bulk Batches', count: allArchives.filter(a => a.category === 'Bulk Upload').length, color: 'text-indigo-600 dark:text-indigo-400 bg-indigo-500/10' },
+    { label: 'OCR Scans', count: allArchives.filter(a => a.category === 'OCR Upload').length, color: 'text-rose-600 dark:text-rose-400 bg-rose-500/10' }
   ];
 
   return (
@@ -110,108 +212,19 @@ export default function DocumentArchivePanel() {
             Store and retrieve every uploaded document, ledger attachment and OCR scan.
           </p>
         </div>
-        <button
-          onClick={() => setShowCreateForm(p => !p)}
-          className="px-3.5 py-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-[11px] rounded flex items-center gap-1 transition-all"
-        >
-          {showCreateForm ? <X size={12} /> : <Plus size={12} />}
-          {showCreateForm ? 'Close Form' : 'Archive Document'}
-        </button>
       </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5 shrink-0">
         {stats.map((s, idx) => (
-          <div key={idx} className="p-2 border rounded bg-white dark:bg-slate-950/20 border-slate-200 dark:border-slate-800 flex flex-col justify-between">
+          <div key={idx} className="p-2 border rounded bg-white dark:bg-slate-955/20 border-slate-200 dark:border-slate-800 flex flex-col justify-between">
             <span className="text-[11px] text-slate-500 dark:text-slate-400 uppercase font-semibold tracking-wider leading-none block">{s.label}</span>
             <span className="text-[15px] font-bold mt-1 text-slate-900 dark:text-slate-100 block leading-none">{s.count}</span>
           </div>
         ))}
       </div>
 
-      {/* Form Area */}
-      <AnimatePresence>
-        {showCreateForm && (
-          <motion.form
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            onSubmit={handleFormSubmit}
-            className="border rounded p-3 space-y-2.5 overflow-hidden shrink-0 bg-white dark:bg-[var(--app-panel-bg)] border-slate-200 dark:border-slate-800"
-          >
-            <h3 className="text-[16px] font-semibold text-slate-900 dark:text-[var(--app-heading)] uppercase tracking-wider">Archive Document Entry</h3>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-2.5">
-              <div>
-                <label className="text-[12px] font-semibold text-slate-500 mb-0.5 block">Document Name *</label>
-                <input
-                  type="text"
-                  placeholder="e.g. statement_may2026.csv"
-                  value={form.name}
-                  onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full h-8 rounded border px-2.5 text-[13px] outline-none bg-slate-55 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800"
-                  required
-                />
-              </div>
 
-              <div>
-                <label className="text-[12px] font-semibold text-slate-500 mb-0.5 block">Source Category</label>
-                <select
-                  value={form.category}
-                  onChange={(e) => setForm(prev => ({ ...prev, category: e.target.value }))}
-                  className="w-full h-8 rounded border px-2 text-[13px] outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800"
-                >
-                  <option value="Bulk Upload">Bulk Upload</option>
-                  <option value="OCR Upload">OCR Upload</option>
-                  <option value="Bank Upload">Bank Upload</option>
-                  <option value="Manual Entry Attachments">Manual Entry Attachments</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-[12px] font-semibold text-slate-500 mb-0.5 block">Voucher Type Context</label>
-                <select
-                  value={form.type}
-                  onChange={(e) => setForm(prev => ({ ...prev, type: e.target.value }))}
-                  className="w-full h-8 rounded border px-2 text-[13px] outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800"
-                >
-                  <option value="Purchase Voucher">Purchase Voucher</option>
-                  <option value="Sales Voucher">Sales Voucher</option>
-                  <option value="Banking">Banking</option>
-                  <option value="Payment Voucher">Payment Voucher</option>
-                  <option value="Receipt Voucher">Receipt Voucher</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-[12px] font-semibold text-slate-500 mb-0.5 block">Linked Voucher Number</label>
-                <input
-                  type="text"
-                  placeholder="e.g. PI-2026-0007"
-                  value={form.linkedVoucher}
-                  onChange={(e) => setForm(prev => ({ ...prev, linkedVoucher: e.target.value }))}
-                  className="w-full h-8 rounded border px-2.5 text-[13px] outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800"
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-1">
-              <button
-                type="button"
-                onClick={() => setShowCreateForm(false)}
-                className="h-8 px-4 rounded border text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors uppercase font-bold text-[11px] border-slate-200 dark:border-slate-800"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="h-8 px-5 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-bold uppercase text-[11px] shadow transition-colors"
-              >
-                Archive Document
-              </button>
-            </div>
-          </motion.form>
-        )}
-      </AnimatePresence>
 
       {/* Category Filters */}
       <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 border-b border-slate-200 dark:border-slate-800 shrink-0">
@@ -226,6 +239,23 @@ export default function DocumentArchivePanel() {
             }`}
           >
             {cat}
+          </button>
+        ))}
+      </div>
+
+      {/* Status Filters */}
+      <div className="flex items-center gap-1.5 overflow-x-auto py-1 shrink-0">
+        {statuses.map(st => (
+          <button
+            key={st}
+            onClick={() => setActiveStatus(st)}
+            className={`px-3 py-1 text-[10.5px] font-bold tracking-wide whitespace-nowrap transition-all uppercase rounded-full border ${
+              activeStatus === st 
+                ? 'bg-blue-600 border-blue-600 text-white shadow-sm' 
+                : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            {st}
           </button>
         ))}
       </div>
@@ -245,7 +275,7 @@ export default function DocumentArchivePanel() {
       </div>
 
       {/* Archives Table */}
-      <div className="border rounded flex-1 overflow-hidden flex flex-col bg-white dark:bg-slate-950/10 border-slate-200 dark:border-slate-800">
+      <div className="border rounded flex-1 overflow-hidden flex flex-col bg-white dark:bg-slate-955/10 border-slate-200 dark:border-slate-800">
         <div className="overflow-auto themed-scrollbar flex-1">
           <table className="w-full text-left border-collapse min-w-[900px] text-[13px]">
             <thead>
@@ -262,11 +292,31 @@ export default function DocumentArchivePanel() {
               </tr>
             </thead>
             <tbody>
-              {filteredArchives.length > 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={9} className="p-8 text-center text-slate-400 font-medium">
+                    Loading archived files...
+                  </td>
+                </tr>
+              ) : filteredArchives.length > 0 ? (
                 filteredArchives.map((item, index) => {
-                  const statusColors = item.status === 'Posted' 
+                  const statusColors = item.status === 'posted_to_tally'
                     ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20' 
-                    : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20';
+                    : item.status === 'approved'
+                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                    : item.status === 'rejected'
+                    ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20'
+                    : item.status === 'pending_approval'
+                    ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
+                    : 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20'; // draft
+
+                  const statusLabels = {
+                    'draft': 'Draft',
+                    'pending_approval': 'Pending Approval',
+                    'approved': 'Approved',
+                    'posted_to_tally': 'Posted To Tally',
+                    'rejected': 'Rejected'
+                  };
 
                   return (
                     <tr key={item.id} className="border-b hover:bg-slate-50/50 dark:hover:bg-slate-900/10 font-medium text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800">
@@ -285,7 +335,7 @@ export default function DocumentArchivePanel() {
                       <td className="p-2 border-r border-slate-200 dark:border-slate-800 text-slate-550 dark:text-slate-400">{item.uploadedBy}</td>
                       <td className="p-2 border-r border-slate-200 dark:border-slate-800 text-center">
                         <span className={`px-1.5 py-0.2 rounded border text-[11px] font-semibold ${statusColors}`}>
-                          {item.status}
+                          {statusLabels[item.status] || item.status}
                         </span>
                       </td>
                       <td className="p-2 text-center">

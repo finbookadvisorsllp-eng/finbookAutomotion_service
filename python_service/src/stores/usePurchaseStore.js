@@ -34,31 +34,53 @@ const calculateFormTotals = (form) => {
   let cgstTotal = 0;
   let sgstTotal = 0;
   let igstTotal = 0;
+  let itemAmount = 0;
+  let ledgerAmount = 0;
 
   // Compare first 2 chars of partyGstin and gstRegistration to determine if interstate
   const partyState = form.partyGstin?.trim().substring(0, 2);
   const companyState = form.gstRegistration ? (form.gstRegistration.includes('Maharashtra') ? '27' : '23') : '';
   const isInterstate = partyState && companyState && partyState !== companyState;
 
-  if (form.entryTab === 'with_item' && Array.isArray(form.productLines)) {
-    form.productLines.forEach((line) => {
-      const qty = parseFloat(line.billQuantity) || 0;
-      const rate = parseFloat(line.billRate) || 0;
-      const disc = parseFloat(line.discountPercent) || 0;
-      const amount = parseFloat((qty * rate * (1 - disc / 100)).toFixed(2));
-      line.amount = amount;
-      const gstRate = parseFloat(line.gstRate) || 0;
+  if (form.entryTab === 'with_item') {
+    if (Array.isArray(form.productLines)) {
+      form.productLines.forEach((line) => {
+        const qty = parseFloat(line.billQuantity) || 0;
+        const rate = parseFloat(line.billRate) || 0;
+        const disc = parseFloat(line.discountPercent) || 0;
+        const amount = parseFloat((qty * rate * (1 - disc / 100)).toFixed(2));
+        line.amount = amount;
+        itemAmount += amount;
+      });
+    }
 
-      baseTotal += amount;
-      if (line.taxabilityType === 'Taxable' && !line.rcm) {
-        if (isInterstate) {
-          igstTotal += (amount * gstRate) / 100;
-        } else {
-          cgstTotal += (amount * (gstRate / 2)) / 100;
-          sgstTotal += (amount * (gstRate / 2)) / 100;
+    if (Array.isArray(form.purchaseLines)) {
+      form.purchaseLines.forEach((line) => {
+        ledgerAmount += parseFloat(line.amount) || 0;
+      });
+    }
+
+    baseTotal = itemAmount + ledgerAmount;
+
+    // Calculate tax for each item line allocating ledgerAmount proportionally
+    if (Array.isArray(form.productLines)) {
+      form.productLines.forEach((line) => {
+        const amount = line.amount || 0;
+        const proportion = itemAmount > 0 ? (amount / itemAmount) : (1 / form.productLines.length);
+        const allocatedLedger = ledgerAmount * proportion;
+        const lineTaxable = amount + allocatedLedger;
+        const gstRate = parseFloat(line.gstRate) || 0;
+
+        if (line.taxabilityType === 'Taxable' && !line.rcm) {
+          if (isInterstate) {
+            igstTotal += (lineTaxable * gstRate) / 100;
+          } else {
+            cgstTotal += (lineTaxable * (gstRate / 2)) / 100;
+            sgstTotal += (lineTaxable * (gstRate / 2)) / 100;
+          }
         }
-      }
-    });
+      });
+    }
   }
 
   if (form.entryTab === 'without_item' && Array.isArray(form.purchaseLines)) {
@@ -66,7 +88,7 @@ const calculateFormTotals = (form) => {
       const amount = parseFloat(line.amount) || 0;
       const gstRate = parseFloat(line.gstRate) || 0;
 
-      baseTotal += amount;
+      ledgerAmount += amount;
       if (isInterstate) {
         igstTotal += (amount * gstRate) / 100;
       } else {
@@ -74,6 +96,7 @@ const calculateFormTotals = (form) => {
         sgstTotal += (amount * (gstRate / 2)) / 100;
       }
     });
+    baseTotal = ledgerAmount;
   }
 
   let additionalTotal = 0;
@@ -107,11 +130,15 @@ const calculateFormTotals = (form) => {
     });
   }
 
-  const subTotal = baseTotal + cgstTotal + sgstTotal + igstTotal + additionalTotal;
-
   let tdsTotal = 0;
   if (Array.isArray(form.tdsDetails)) {
-    form.tdsDetails.forEach((t) => { tdsTotal += parseFloat(t.amount) || 0; });
+    form.tdsDetails.forEach((t) => {
+      const baseAmt = parseFloat(baseTotal || 0);
+      const rate = t.rate !== undefined ? parseFloat(t.rate) : 2;
+      t.assessableValue = baseAmt;
+      t.amount = parseFloat((baseAmt * rate / 100).toFixed(2));
+      tdsTotal += t.amount;
+    });
   }
 
   let tcsTotal = 0;
@@ -125,9 +152,32 @@ const calculateFormTotals = (form) => {
     });
   }
 
-  const beforeRound = subTotal + tcsTotal - tdsTotal;
-  const grandTotal = Math.round(beforeRound);
-  const roundOff = grandTotal - beforeRound;
+  let subTotal = 0;
+  let grandTotal = 0;
+  let roundOff = 0;
+
+  if (form.entryTab === 'with_item') {
+    let ledgerAmountVal = 0;
+    if (Array.isArray(form.additionalCharges)) {
+      form.additionalCharges.forEach((c) => {
+        const nameUpper = (c.ledgerName || '').toUpperCase();
+        const isTaxLedger = nameUpper.includes('CGST') || nameUpper.includes('SGST') || nameUpper.includes('IGST') || nameUpper.includes('UTGST');
+        if (!isTaxLedger) {
+          ledgerAmountVal += parseFloat(c.amount) || 0;
+        }
+      });
+    }
+    const gst = cgstTotal + sgstTotal + igstTotal;
+    subTotal = baseTotal + ledgerAmountVal + gst;
+    const beforeRound = subTotal + tdsTotal;
+    grandTotal = Math.round(beforeRound);
+    roundOff = grandTotal - beforeRound;
+  } else {
+    subTotal = baseTotal + cgstTotal + sgstTotal + igstTotal + additionalTotal;
+    const beforeRound = subTotal + tcsTotal + tdsTotal;
+    grandTotal = Math.round(beforeRound);
+    roundOff = grandTotal - beforeRound;
+  }
 
   // Build GST breakup details
   const gstDetails = [];
@@ -137,6 +187,8 @@ const calculateFormTotals = (form) => {
 
   return {
     ...form,
+    itemAmount: itemAmount.toFixed(2),
+    ledgerAmount: ledgerAmount.toFixed(2),
     baseTotal: baseTotal.toFixed(2),
     subTotal: subTotal.toFixed(2),
     cgstTotal: cgstTotal.toFixed(2),
@@ -320,6 +372,10 @@ export const usePurchaseStore = create((set, get) => ({
 
       const formValues = {
         ...doc,
+        consigneeGstin: doc.consigneeGstin || '',
+        entryMode: doc.entryMode || 'manual',
+        ocrMetadata: doc.ocrMetadata || null,
+        bulkMetadata: doc.bulkMetadata || null,
         voucherType: normalizeVoucherType(doc.voucherType),
         voucherDate: formatDate(doc.voucherDate || doc.invoiceDate),
         invoiceDate: formatDate(doc.invoiceDate || doc.voucherDate),
@@ -799,7 +855,9 @@ export const usePurchaseStore = create((set, get) => ({
           const { id: _id, ...rest } = firstLine;
           productLines = [rest];
         }
-        purchaseLines = [];
+        // Preserve purchaseLines (ledger details) for with_item mode
+        const activePurchaseLines = (form.purchaseLines || []).filter(l => l.purchaseLedger && l.purchaseLedger.trim() !== '');
+        purchaseLines = activePurchaseLines.map(({ id: _id, ...rest }) => rest);
       } else {
         const activeLines = (form.purchaseLines || []).filter(l => l.purchaseLedger && l.purchaseLedger.trim() !== '');
         if (activeLines.length > 0) {
@@ -814,11 +872,14 @@ export const usePurchaseStore = create((set, get) => ({
 
       const payload = {
         ...form,
+        consigneeGstin: form.consigneeGstin || undefined,
+        ocrMetadata: form.ocrMetadata || undefined,
+        bulkMetadata: form.bulkMetadata || undefined,
         invoiceNumber: form.voucherNumber || form.invoiceNumber || '',
         debitNoteDate: form.debitNoteDate || undefined,
         referenceNumber: form.referenceNumber || '',
-        status: asDraft ? 'draft' : 'pending_review',
-        entryMode: 'manual',
+        status: asDraft ? 'draft' : 'pending_approval',
+        entryMode: form.entryMode || 'manual',
         productLines,
         purchaseLines,
         additionalCharges: (form.additionalCharges || []).map(({ id: _id, ...rest }) => rest),
@@ -857,6 +918,10 @@ export const usePurchaseStore = create((set, get) => ({
 
         const updatedFormValues = {
           ...savedDoc,
+          consigneeGstin: savedDoc.consigneeGstin || '',
+          entryMode: savedDoc.entryMode || 'manual',
+          ocrMetadata: savedDoc.ocrMetadata || null,
+          bulkMetadata: savedDoc.bulkMetadata || null,
           voucherType: normalizeVoucherType(savedDoc.voucherType),
           voucherDate: formatDate(savedDoc.voucherDate || savedDoc.invoiceDate),
           invoiceDate: formatDate(savedDoc.invoiceDate || savedDoc.voucherDate),
@@ -898,7 +963,7 @@ export const usePurchaseStore = create((set, get) => ({
   pushToReview: async (id) => {
     set((s) => ({ loading: { ...s.loading, status: true } }));
     try {
-      const res = await purchaseApi.updateStatus(id, 'pending_review');
+      const res = await purchaseApi.updateStatus(id, 'pending_approval');
       set({ selectedTransaction: res.data });
       return { success: true };
     } catch (err) {

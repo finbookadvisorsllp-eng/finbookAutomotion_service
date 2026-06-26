@@ -26,6 +26,10 @@ class PurchaseVoucherCreate(BaseModel):
     additionalCharges: Optional[List[dict]] = []
     tdsDetails: Optional[List[dict]] = []
     tcsDetails: Optional[List[dict]] = []
+    consigneeGstin: Optional[str] = None
+    entryMode: Optional[str] = "manual"
+    ocrMetadata: Optional[dict] = None
+    bulkMetadata: Optional[dict] = None
 
 class StatusUpdate(BaseModel):
     status: str

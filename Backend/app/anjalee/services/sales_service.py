@@ -45,6 +45,9 @@ class SalesVoucherService:
         if not tcs_amount and payload.tcsDetails:
             tcs_amount = sum(float(item.get("amount") or 0.0) for item in payload.tcsDetails)
 
+        # Sum TDS details if provided
+        tds_amount = sum(float(item.get("amount") or 0.0) for item in payload.tdsDetails) if payload.tdsDetails else 0.0
+
         # 5. GST and Totals Calculations
         tax_results = calculate_taxes(
             company_state=company_state,
@@ -53,7 +56,8 @@ class SalesVoucherService:
             inventory_entries=inventory_entries_dict,
             tcs_amount=tcs_amount,
             round_off_amount=payload.roundOffAmount,
-            additional_charges=payload.additionalCharges
+            additional_charges=payload.additionalCharges,
+            tds_amount=tds_amount
         )
 
         # 6. Map to MongoDB schema
@@ -67,6 +71,7 @@ class SalesVoucherService:
             "creditNoteDate": payload.creditNoteDate,
             "salesLedger": payload.salesLedger,
             "consigneeLedger": payload.consigneeLedger,
+            "consigneeGstin": payload.consigneeGstin or "",
             "partyLedgerId": ObjectId(party_details["id"]) if party_details["id"] else None,
             "partyLedgerName": party_details["name"],
             "partyGSTIN": party_details["gstin"] or payload.partyGSTIN or "",
@@ -84,6 +89,9 @@ class SalesVoucherService:
             "grandTotal": tax_results["grandTotal"],
             "entryTab": payload.entryTab or ("with_item" if inventory_entries_dict else "without_item"),
             "gstRegistration": payload.gstRegistration,
+            "entryMode": payload.entryMode or "manual",
+            "ocrMetadata": payload.ocrMetadata,
+            "bulkMetadata": payload.bulkMetadata,
             "salesEntries": [
                 {
                     "ledgerId": ObjectId(entry.ledgerId) if entry.ledgerId else None,
@@ -213,6 +221,10 @@ class SalesVoucherService:
         if not tcs_amount and tcs_details:
             tcs_amount = sum(float(item.get("amount") or 0.0) for item in tcs_details)
 
+        # Sum TDS details if provided
+        tds_details = merged_doc.get("tdsDetails") or []
+        tds_amount = sum(float(item.get("amount") or 0.0) for item in tds_details)
+
         # Recalculate taxes
         tax_results = calculate_taxes(
             company_state=merged_doc.get("companyState") or "Madhya Pradesh",
@@ -221,7 +233,8 @@ class SalesVoucherService:
             inventory_entries=inventory_entries_dict,
             tcs_amount=tcs_amount,
             round_off_amount=merged_doc.get("roundOffAmount") or 0.0,
-            additional_charges=merged_doc.get("additionalCharges")
+            additional_charges=merged_doc.get("additionalCharges"),
+            tds_amount=tds_amount
         )
 
         # Fields to set in update
@@ -234,6 +247,7 @@ class SalesVoucherService:
             "creditNoteDate": merged_doc.get("creditNoteDate"),
             "salesLedger": merged_doc.get("salesLedger"),
             "consigneeLedger": merged_doc.get("consigneeLedger"),
+            "consigneeGstin": merged_doc.get("consigneeGstin") or "",
             "partyLedgerId": ObjectId(party_details["id"]) if party_details["id"] else None,
             "partyLedgerName": party_details["name"],
             "partyGSTIN": party_details["gstin"] or merged_doc.get("partyGSTIN") or "",
@@ -251,6 +265,9 @@ class SalesVoucherService:
             "grandTotal": tax_results["grandTotal"],
             "entryTab": merged_doc.get("entryTab") or ("with_item" if inventory_entries_dict else "without_item"),
             "gstRegistration": merged_doc.get("gstRegistration"),
+            "entryMode": merged_doc.get("entryMode") or "manual",
+            "ocrMetadata": merged_doc.get("ocrMetadata"),
+            "bulkMetadata": merged_doc.get("bulkMetadata"),
             "salesEntries": [
                 {
                     "ledgerId": ObjectId(entry["ledgerId"]) if entry.get("ledgerId") else None,

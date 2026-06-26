@@ -50,11 +50,11 @@ export const LABEL_TO_PATH = {
   'Manage User Permission': '/roles/permissions',
 
   // Voucher Entries
-  'Manual Entry': '/sales/new',
+  'Manual Voucher Entry': '/sales/new',
   'Bulk Upload': '/bulk-upload',
 
   // Automation
-  'AI Processing Center': '/automation/ai-processing',
+  'OCR Upload': '/automation/ai-processing',
   'Approval Center': '/automation/approval-center',
 
   // Tally Integration
