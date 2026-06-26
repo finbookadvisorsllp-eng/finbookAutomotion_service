@@ -21,6 +21,7 @@ import {
 import Select from '../ui/Select'
 import StatCard from '../ui/StatCard'
 import Button from '../ui/Button'
+import HeroDoodle from '../ui/HeroDoodle'
 
 export default function DashboardTable() {
   const selectedCompany = useAppStore((s) => s.selectedCompany)
@@ -124,33 +125,43 @@ export default function DashboardTable() {
 
   // Time-aware greeting — the workspace reacts to the moment, not a static title.
   const hr = new Date().getHours()
-  const greeting = hr < 12
-    ? { icon: '☀️', text: 'Good morning' }
-    : hr < 17
-      ? { icon: '🌤️', text: 'Good afternoon' }
-      : { icon: '🌙', text: 'Good evening' }
+  const tod = (hr >= 18 || hr < 5) ? 'night' : 'day'
+  const greetText = hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening'
+  const today = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      {/* Dashboard Title & Inline Filters */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5 mb-2 shrink-0">
-        <div>
-          <h1 className="text-[20px] font-extrabold tracking-tight flex items-center gap-2" style={{ color: 'var(--app-heading)' }}>
-            <span>{greeting.icon}</span> {greeting.text}
-          </h1>
-          <p className="text-[11px] font-medium mt-0.5" style={{ color: 'var(--app-muted)' }}>
-            Your business looks healthy today — here’s the latest.
-          </p>
+      {/* Greeting hero — big, bold, with an animated companion doodle. */}
+      <div
+        className="relative overflow-hidden rounded-2xl border p-4 md:p-5 mb-3 shrink-0"
+        style={{ borderColor: 'var(--app-border)', background: 'linear-gradient(120deg, var(--app-accent-soft) 0%, transparent 58%), var(--app-panel-bg)', boxShadow: 'var(--app-shadow)' }}
+      >
+        <div className="absolute -right-12 -top-20 h-60 w-60 rounded-full blur-3xl pointer-events-none" style={{ background: 'radial-gradient(circle, var(--app-accent-soft) 0%, transparent 70%)' }} />
+        <div className="relative flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--app-muted)' }}>{today}</p>
+            <h1 className="text-[26px] md:text-[34px] font-black tracking-tight leading-tight mt-1" style={{ color: 'var(--app-heading)' }}>
+              {greetText}, <span style={{ background: 'var(--app-accent-gradient)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>Rahul</span>
+            </h1>
+            <p className="text-[12px] md:text-[13px] font-medium mt-2 flex items-center gap-2 flex-wrap" style={{ color: 'var(--app-muted)' }}>
+              <span className="inline-flex items-center gap-1"><Sparkles size={13} className="text-[var(--app-accent)]" /> 3 tasks need attention</span>
+              <span className="opacity-40">·</span>
+              <span>Compliance score <b style={{ color: 'var(--app-heading)' }}>92%</b></span>
+              <span className="opacity-40 hidden sm:inline">·</span>
+              <span className="hidden sm:inline">Everything else looks healthy</span>
+            </p>
+          </div>
+          <HeroDoodle tod={tod} className="w-28 h-24 md:w-44 md:h-36 shrink-0" style={{ color: 'var(--app-muted)' }} />
         </div>
+      </div>
 
-        {/* Dropdowns Row */}
-        <div className="flex items-end gap-1.5 flex-wrap md:flex-nowrap">
-          <Select value={selectedPartyFilter} options={['All', ...(data?.partyLedgersList || [])]} onChange={setSelectedPartyFilter} placeholder="Party Ledger" align="right" searchable />
-          <Select value={partyType} options={['All', 'Customer', 'Supplier']} onChange={setPartyType} align="right" />
-          <Select value={ledgerGroup} options={['All', 'Sundry Debtors', 'Sundry Creditors']} onChange={setLedgerGroup} align="right" />
-          <Select value={selectedCity} options={uniqueCities} onChange={setSelectedCity} align="right" searchable />
-          <Button variant="primary" size="md" icon={Settings} className="shrink-0">Customize</Button>
-        </div>
+      {/* Filters row */}
+      <div className="flex items-end justify-end gap-1.5 flex-wrap md:flex-nowrap mb-2 shrink-0">
+        <Select value={selectedPartyFilter} options={['All', ...(data?.partyLedgersList || [])]} onChange={setSelectedPartyFilter} placeholder="Party Ledger" align="right" searchable />
+        <Select value={partyType} options={['All', 'Customer', 'Supplier']} onChange={setPartyType} align="right" />
+        <Select value={ledgerGroup} options={['All', 'Sundry Debtors', 'Sundry Creditors']} onChange={setLedgerGroup} align="right" />
+        <Select value={selectedCity} options={uniqueCities} onChange={setSelectedCity} align="right" searchable />
+        <Button variant="primary" size="md" icon={Settings} className="shrink-0">Customize</Button>
       </div>
 
       {/* Main Content Area */}
