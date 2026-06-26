@@ -115,7 +115,8 @@ export default function DashboardTable() {
         fill="transparent"
         stroke={src.color}
         strokeWidth="12"
-        strokeDasharray={`${dash} ${c}`}
+        strokeLinecap="round"
+        strokeDasharray={`${Math.max(dash - 4, 0)} ${c}`}
         strokeDashoffset={offset}
       />
     )
@@ -192,32 +193,33 @@ export default function DashboardTable() {
                 Voucher Creation Sources
               </h3>
 
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 {/* Donut SVG */}
-                <div className="relative w-20 h-20 shrink-0">
+                <div className="relative w-28 h-28 shrink-0">
                   <svg viewBox="0 0 120 120" className="w-full h-full transform -rotate-90">
+                    <circle cx="60" cy="60" r="50" fill="transparent" stroke="var(--app-row-border)" strokeWidth="12" />
                     {donutCircles}
                   </svg>
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
-                    <span className="text-[12px] font-extrabold text-[var(--app-heading)] leading-none">
+                    <span className="text-[18px] font-extrabold text-[var(--app-heading)] leading-none">
                       25,648
                     </span>
-                    <span className="text-[6px] font-bold uppercase tracking-wider text-[var(--app-muted)] mt-0.5">
+                    <span className="text-[8px] font-bold uppercase tracking-widest text-[var(--app-muted)] mt-1">
                       Total
                     </span>
                   </div>
                 </div>
 
                 {/* Legend */}
-                <div className="flex-1 flex flex-col gap-1 w-full">
+                <div className="flex-1 flex flex-col gap-1.5 w-full">
                   {donutSources.map((item, idx) => (
-                    <div key={idx} className="flex items-center justify-between text-[10px] font-semibold">
-                      <div className="flex items-center gap-1 min-w-0">
-                        <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${item.bg}`} />
+                    <div key={idx} className="flex items-center justify-between text-[11px] font-semibold">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className={`h-2 w-2 rounded-full shrink-0 ${item.bg}`} />
                         <span className="text-[var(--app-text)] truncate">{item.label}</span>
                       </div>
-                      <span className="text-[var(--app-heading)] ml-1">
-                        {item.pct}% <span className="text-[9px] font-medium text-[var(--app-muted)]">({item.val})</span>
+                      <span className="text-[var(--app-heading)] ml-1 tabular-nums">
+                        {item.pct}% <span className="text-[10px] font-medium text-[var(--app-muted)]">({item.val})</span>
                       </span>
                     </div>
                   ))}
@@ -428,7 +430,7 @@ export default function DashboardTable() {
                         <span>{item.label}</span>
                         <span>{item.pct}</span>
                       </div>
-                      <div className="w-full h-1 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--app-row-border)' }}>
+                      <div className="w-full h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--app-row-border)' }}>
                         <div className={`h-full ${item.color}`} style={{ width: item.pct }} />
                       </div>
                     </div>
@@ -464,7 +466,7 @@ export default function DashboardTable() {
                         <span>{item.label}</span>
                         <span>{item.pct}</span>
                       </div>
-                      <div className="w-full h-1 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--app-row-border)' }}>
+                      <div className="w-full h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--app-row-border)' }}>
                         <div className={`h-full ${item.color}`} style={{ width: item.pct }} />
                       </div>
                     </div>

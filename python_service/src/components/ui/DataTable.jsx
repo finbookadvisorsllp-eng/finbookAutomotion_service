@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'motion/react'
-import { ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react'
+import { ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight, Loader2, Inbox } from 'lucide-react'
 import { SearchInput } from './Input'
 
 /**
@@ -33,6 +33,23 @@ export default function DataTable({
   minWidth = '900px',
 }) {
   const [sort, setSort] = useState({ key: null, dir: 'asc' })
+  const searchRef = useRef(null)
+
+  // "/" focuses search; Esc clears it. Skips when already typing elsewhere.
+  useEffect(() => {
+    if (!search) return
+    const onKey = (e) => {
+      const tag = document.activeElement?.tagName
+      if (e.key === '/' && tag !== 'INPUT' && tag !== 'TEXTAREA') {
+        e.preventDefault()
+        searchRef.current?.focus()
+      } else if (e.key === 'Escape' && document.activeElement === searchRef.current && search.value) {
+        search.onChange('')
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [search])
 
   const sorted = useMemo(() => {
     if (!sort.key) return data
@@ -92,10 +109,11 @@ export default function DataTable({
               {filters}
               {search && (
                 <SearchInput
+                  ref={searchRef}
                   className="min-w-[220px] sm:max-w-xs"
                   value={search.value || ''}
                   onChange={(e) => search.onChange(e.target.value)}
-                  placeholder={search.placeholder || 'Search…'}
+                  placeholder={search.placeholder || 'Search…  ( / )'}
                 />
               )}
               {actions && <div className="flex items-center gap-1.5 flex-wrap">{actions}</div>}
@@ -122,7 +140,7 @@ export default function DataTable({
             <thead className="sticky top-0 z-10">
               <tr style={{ backgroundColor: 'var(--app-table-head-bg)' }}>
                 {selectable && (
-                  <th className="p-1.5 border-b border-r w-10 text-center" style={{ borderColor: 'var(--app-row-border)' }}>
+                  <th className="p-2.5 border-b w-10 text-center" style={{ borderColor: 'var(--app-border)' }}>
                     <input type="checkbox" className="w-3.5 h-3.5 rounded cursor-pointer accent-[var(--app-accent)]" checked={allChecked} onChange={(e) => onToggleAll?.(e.target.checked)} />
                   </th>
                 )}
@@ -133,8 +151,8 @@ export default function DataTable({
                     <th
                       key={col.key}
                       onClick={col.sortable ? () => toggleSort(col.key) : undefined}
-                      className={`px-2 py-1.5 border-b border-r text-[9.5px] font-bold uppercase tracking-wider ${col.sortable ? 'cursor-pointer select-none' : ''}`}
-                      style={{ borderColor: 'var(--app-row-border)', color: active ? 'var(--app-accent)' : 'var(--app-muted)', backgroundColor: 'var(--app-table-head-bg)', width: col.width }}
+                      className={`px-3 py-2.5 border-b text-[10px] font-bold uppercase tracking-wider whitespace-nowrap transition-colors ${col.sortable ? 'cursor-pointer select-none hover:text-[var(--app-accent)]' : ''}`}
+                      style={{ borderColor: 'var(--app-border)', color: active ? 'var(--app-accent)' : 'var(--app-muted)', backgroundColor: 'var(--app-table-head-bg)', width: col.width }}
                     >
                       <div className={`flex items-center gap-1.5 ${alignCls}`}>
                         {col.header}
@@ -151,15 +169,20 @@ export default function DataTable({
               {sorted.length > 0 ? (
                 sorted.map((row, idx) => {
                   const key = rowKey(row, idx)
+                  const selected = selectable && selectedKeys.includes(key)
                   return (
-                    <tr key={key} className={`transition-colors text-[10.5px] border-b hover:bg-[var(--app-row-hover)] ${rowClassName ? rowClassName(row) : ''}`} style={{ borderColor: 'var(--app-row-border)', color: 'var(--app-text)' }}>
+                    <tr
+                      key={key}
+                      className={`transition-colors text-[11.5px] border-b ${selected ? '' : 'even:bg-[var(--app-table-head-bg)]'} hover:bg-[var(--app-row-hover)] ${rowClassName ? rowClassName(row) : ''}`}
+                      style={{ borderColor: 'var(--app-row-border)', color: 'var(--app-text)', backgroundColor: selected ? 'var(--app-accent-soft)' : undefined }}
+                    >
                       {selectable && (
-                        <td className="p-1.5 px-2 border-r text-center" style={{ borderColor: 'var(--app-row-border)' }}>
-                          <input type="checkbox" className="w-3.5 h-3.5 rounded cursor-pointer accent-[var(--app-accent)]" checked={selectedKeys.includes(key)} onChange={() => onToggleRow?.(key)} />
+                        <td className="px-3 py-2.5 text-center" style={{ borderColor: 'var(--app-row-border)' }}>
+                          <input type="checkbox" className="w-3.5 h-3.5 rounded cursor-pointer accent-[var(--app-accent)]" checked={selected} onChange={() => onToggleRow?.(key)} />
                         </td>
                       )}
                       {columns.map((col) => (
-                        <td key={col.key} className={`p-1.5 px-2 border-r ${col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : ''} ${col.cellClassName || ''}`} style={{ borderColor: 'var(--app-row-border)' }}>
+                        <td key={col.key} className={`px-3 py-2.5 align-middle ${col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : ''} ${col.cellClassName || ''}`} style={{ borderColor: 'var(--app-row-border)' }}>
                           {col.render ? col.render(row, idx) : (row?.[col.key] ?? '—')}
                         </td>
                       ))}
@@ -168,8 +191,13 @@ export default function DataTable({
                 })
               ) : (
                 <tr>
-                  <td colSpan={columns.length + (selectable ? 1 : 0)} className="p-16 text-center">
-                    <p className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--app-muted)' }}>{emptyText}</p>
+                  <td colSpan={columns.length + (selectable ? 1 : 0)} className="px-4 py-16 text-center">
+                    <div className="flex flex-col items-center gap-2.5">
+                      <div className="h-11 w-11 rounded-2xl flex items-center justify-center" style={{ backgroundColor: 'var(--app-accent-soft)', color: 'var(--app-accent)' }}>
+                        <Inbox size={20} strokeWidth={1.8} />
+                      </div>
+                      <p className="text-[11px] font-semibold tracking-wide" style={{ color: 'var(--app-muted)' }}>{emptyText}</p>
+                    </div>
                   </td>
                 </tr>
               )}
@@ -179,7 +207,12 @@ export default function DataTable({
 
         {pagination && (
           <div className="py-1.5 px-3 shrink-0 flex items-center justify-between border-t" style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-table-head-bg)' }}>
-            <span className="text-[10px] font-semibold" style={{ color: 'var(--app-muted)' }}>
+            <span className="text-[10px] font-semibold flex items-center gap-2" style={{ color: 'var(--app-muted)' }}>
+              {selectable && selectedKeys.length > 0 && (
+                <span className="px-1.5 py-0.5 rounded-md font-bold" style={{ color: 'var(--app-accent)', backgroundColor: 'var(--app-accent-soft)' }}>
+                  {selectedKeys.length} selected
+                </span>
+              )}
               {pagination.label ?? `${pagination.total ?? data.length} entries`}
             </span>
             <div className="flex items-center gap-1.5">

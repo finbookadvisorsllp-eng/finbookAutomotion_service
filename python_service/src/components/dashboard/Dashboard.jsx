@@ -58,7 +58,8 @@ function Dashboard() {
   }, [setCompanies, setSelectedCompany, selectedCompany])
 
 
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const sidebarCollapsed = useAppStore((s) => s.sidebarCollapsed)
+  const toggleSidebar = useAppStore((s) => s.toggleSidebar)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const isDark = mode === 'dark'
 
@@ -108,7 +109,7 @@ function Dashboard() {
             activeItem={activeItem}
             onItemClick={handleItemClick}
             collapsed={sidebarCollapsed}
-            onToggle={() => setSidebarCollapsed((prev) => !prev)}
+            onToggle={toggleSidebar}
             isDark={isDark}
           />
         </div>

@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { AlertTriangle, X } from 'lucide-react'
 import Button from './Button'
@@ -20,6 +20,17 @@ export function ConfirmProvider({ children }) {
     state?.resolve(result)
     setState(null)
   }
+
+  // Esc cancels, Enter confirms while the dialog is open.
+  useEffect(() => {
+    if (!state) return
+    const onKey = (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); close(false) }
+      else if (e.key === 'Enter') { e.preventDefault(); close(true) }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [state])
 
   const o = state?.opts || {}
   const danger = o.tone !== 'default'
