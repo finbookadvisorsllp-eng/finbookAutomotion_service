@@ -50,18 +50,18 @@ const MyDocumentsPanel = ({ isDark }) => {
 
         <div className="flex items-center gap-6 absolute left-1/2 -translate-x-1/2">
           <label className="flex items-center gap-2 cursor-pointer group">
-            <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${viewMode === 'Month-wise' ? 'border-[var(--app-accent)]' : 'border-slate-350 dark:border-slate-700 group-hover:border-[var(--app-accent)]'}`}>
+            <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${viewMode === 'Month-wise' ? 'border-[var(--app-accent)]' : 'border-[var(--app-border)] dark:border-slate-700 group-hover:border-[var(--app-accent)]'}`}>
               {viewMode === 'Month-wise' && <div className="w-2 h-2 rounded-full bg-[var(--app-accent)]" />}
             </div>
             <input type="radio" className="hidden" checked={viewMode === 'Month-wise'} onChange={() => setViewMode('Month-wise')} />
-            <span className="text-[12px] font-bold text-slate-500 dark:text-slate-400 group-hover:text-slate-750 dark:group-hover:text-slate-200 transition-colors">Month-wise</span>
+            <span className="text-[12px] font-bold text-slate-500 dark:text-slate-400 group-hover:text-[var(--app-text)] dark:group-hover:text-slate-200 transition-colors">Month-wise</span>
           </label>
           <label className="flex items-center gap-2 cursor-pointer group">
-            <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${viewMode === 'Party-wise' ? 'border-[var(--app-accent)]' : 'border-slate-350 dark:border-slate-700 group-hover:border-[var(--app-accent)]'}`}>
+            <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${viewMode === 'Party-wise' ? 'border-[var(--app-accent)]' : 'border-[var(--app-border)] dark:border-slate-700 group-hover:border-[var(--app-accent)]'}`}>
               {viewMode === 'Party-wise' && <div className="w-2 h-2 rounded-full bg-[var(--app-accent)]" />}
             </div>
             <input type="radio" className="hidden" checked={viewMode === 'Party-wise'} onChange={() => setViewMode('Party-wise')} />
-            <span className="text-[12px] font-bold text-slate-500 dark:text-slate-400 group-hover:text-slate-750 dark:group-hover:text-slate-200 transition-colors">Party-wise</span>
+            <span className="text-[12px] font-bold text-slate-500 dark:text-slate-400 group-hover:text-[var(--app-text)] dark:group-hover:text-slate-200 transition-colors">Party-wise</span>
           </label>
         </div>
 
@@ -79,7 +79,7 @@ const MyDocumentsPanel = ({ isDark }) => {
             <button
               key={tab}
               onClick={() => { setActiveTab(tab); setSelectedFolder(null); }}
-              className={`flex-1 pb-3 text-[13px] font-black transition-all relative ${activeTab === tab ? 'text-[var(--app-accent)] dark:text-[var(--app-accent)]' : 'text-slate-500 dark:text-slate-400 hover:text-slate-750 dark:hover:text-slate-200'}`}
+              className={`flex-1 pb-3 text-[13px] font-black transition-all relative ${activeTab === tab ? 'text-[var(--app-accent)] dark:text-[var(--app-accent)]' : 'text-slate-500 dark:text-slate-400 hover:text-[var(--app-text)] dark:hover:text-slate-200'}`}
             >
               {tab}
               {activeTab === tab && (
@@ -115,7 +115,7 @@ const MyDocumentsPanel = ({ isDark }) => {
                   <IconButton icon={Download} color="purple" border />
                 </div>
                 
-                <div className="text-[11px] font-bold text-slate-600 dark:text-slate-350">
+                <div className="text-[11px] font-bold text-slate-600 dark:text-[var(--app-muted)]">
                   Total: 1 Documents
                 </div>
                 
@@ -190,7 +190,7 @@ const FilterModal = ({ onClose }) => {
       <div className="absolute right-4 top-16 bottom-16 w-[360px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
         <div className="px-5 py-4 flex items-center justify-between border-b" style={{ borderColor: 'var(--app-row-border)' }}>
           <h2 className="text-[15px] font-black text-[var(--app-accent)] tracking-tight">Filter</h2>
-          <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-655 hover:bg-slate-50 dark:hover:bg-slate-850 rounded-lg transition-colors"><X size={16} /></button>
+          <button onClick={onClose} className="p-1 text-slate-400 hover:text-[var(--app-text)] hover:bg-slate-50 dark:hover:bg-[var(--app-control-hover)] rounded-lg transition-colors"><X size={16} /></button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-5">

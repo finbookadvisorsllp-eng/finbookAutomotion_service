@@ -68,7 +68,7 @@ function SimulatedInvoicePage({ doc, pageNum, viewType, zoom, pageRef }) {
     return (
       <div
         ref={pageRef}
-        className={`bg-[var(--app-panel-bg)] text-[var(--app-heading)] p-10 border shadow-md font-mono relative shrink-0 transition-transform ${isImage ? 'filter grayscale contrast-125 rotate-[0.1deg] border-slate-350 bg-[var(--app-content-bg)]' : 'border-[var(--app-border)]'}`}
+        className={`bg-[var(--app-panel-bg)] text-[var(--app-heading)] p-10 border shadow-md font-mono relative shrink-0 transition-transform ${isImage ? 'filter grayscale contrast-125 rotate-[0.1deg] border-[var(--app-border)] bg-[var(--app-content-bg)]' : 'border-[var(--app-border)]'}`}
         style={{
           width: '210mm',
           minHeight: '297mm',
@@ -171,7 +171,7 @@ function SimulatedInvoicePage({ doc, pageNum, viewType, zoom, pageRef }) {
     return (
       <div
         ref={pageRef}
-        className={`bg-[var(--app-panel-bg)] text-[var(--app-heading)] p-10 border shadow-md font-mono relative shrink-0 transition-transform ${isImage ? 'filter grayscale contrast-125 rotate-[-0.1deg] border-slate-350 bg-[var(--app-content-bg)]' : 'border-[var(--app-border)]'}`}
+        className={`bg-[var(--app-panel-bg)] text-[var(--app-heading)] p-10 border shadow-md font-mono relative shrink-0 transition-transform ${isImage ? 'filter grayscale contrast-125 rotate-[-0.1deg] border-[var(--app-border)] bg-[var(--app-content-bg)]' : 'border-[var(--app-border)]'}`}
         style={{
           width: '210mm',
           minHeight: '297mm',
@@ -272,7 +272,7 @@ function SimulatedInvoicePage({ doc, pageNum, viewType, zoom, pageRef }) {
     return (
       <div
         ref={pageRef}
-        className={`bg-[var(--app-panel-bg)] text-[var(--app-heading)] p-10 border shadow-md font-mono relative shrink-0 transition-transform ${isImage ? 'filter grayscale contrast-125 rotate-[0.2deg] border-slate-350 bg-[var(--app-content-bg)]' : 'border-[var(--app-border)]'}`}
+        className={`bg-[var(--app-panel-bg)] text-[var(--app-heading)] p-10 border shadow-md font-mono relative shrink-0 transition-transform ${isImage ? 'filter grayscale contrast-125 rotate-[0.2deg] border-[var(--app-border)] bg-[var(--app-content-bg)]' : 'border-[var(--app-border)]'}`}
         style={{
           width: '210mm',
           minHeight: '297mm',
@@ -363,7 +363,7 @@ function SimulatedInvoicePage({ doc, pageNum, viewType, zoom, pageRef }) {
   return (
     <div
       ref={pageRef}
-      className={`bg-[var(--app-panel-bg)] text-[var(--app-heading)] p-10 border shadow-md font-mono relative shrink-0 transition-transform ${isImage ? 'filter grayscale contrast-125 rotate-[0.15deg] border-slate-350 bg-[var(--app-content-bg)] shadow-inner' : 'border-[var(--app-border)]'}`}
+      className={`bg-[var(--app-panel-bg)] text-[var(--app-heading)] p-10 border shadow-md font-mono relative shrink-0 transition-transform ${isImage ? 'filter grayscale contrast-125 rotate-[0.15deg] border-[var(--app-border)] bg-[var(--app-content-bg)] shadow-inner' : 'border-[var(--app-border)]'}`}
       style={{
         width: '210mm',
         minHeight: '297mm',
@@ -446,7 +446,7 @@ function SimulatedInvoicePage({ doc, pageNum, viewType, zoom, pageRef }) {
               </tbody>
             </table>
 
-            <div className="flex justify-between items-start pt-4 border-t border-slate-350">
+            <div className="flex justify-between items-start pt-4 border-t border-[var(--app-border)]">
               <div className="text-[9.5px] text-[var(--app-muted)] max-w-xs font-sans space-y-1">
                 <p className="font-bold uppercase text-[8.5px] font-mono text-[var(--app-muted)]">Declaration & Terms:</p>
                 <p>We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.</p>
@@ -1630,21 +1630,21 @@ export default function AiProcessingCenter() {
 
                 <button
                   onClick={handleActionSaveDraft}
-                  className="h-8.5 px-3 border border-[var(--app-border)] text-[var(--app-heading)] bg-[var(--app-panel-bg)] hover:bg-[var(--app-content-bg)] rounded-lg transition font-bold shadow-3xs text-[11px]"
+                  className="h-8.5 px-3 border border-[var(--app-border)] text-[var(--app-heading)] bg-[var(--app-panel-bg)] hover:bg-[var(--app-content-bg)] rounded-lg transition font-bold shadow-sm text-[11px]"
                 >
                   Save Draft
                 </button>
 
                 <button
                   onClick={() => toast.loading('Re-extracting details with AI OCR engines...')}
-                  className="h-8.5 px-3 border border-[var(--app-border)] text-[var(--app-heading)] bg-[var(--app-panel-bg)] hover:bg-[var(--app-content-bg)] rounded-lg transition font-bold shadow-3xs text-[11px]"
+                  className="h-8.5 px-3 border border-[var(--app-border)] text-[var(--app-heading)] bg-[var(--app-panel-bg)] hover:bg-[var(--app-content-bg)] rounded-lg transition font-bold shadow-sm text-[11px]"
                 >
                   Reprocess OCR
                 </button>
 
                 <button
                   onClick={handleActionReject}
-                  className="h-8.5 px-3 border border-rose-200 hover:bg-rose-50 hover:text-rose-700 bg-[var(--app-panel-bg)] text-rose-500 dark:border-rose-900/60 dark:hover:bg-rose-950/20 dark:text-rose-400 rounded-lg transition font-bold shadow-3xs text-[11px]"
+                  className="h-8.5 px-3 border border-rose-200 hover:bg-rose-50 hover:text-rose-700 bg-[var(--app-panel-bg)] text-rose-500 dark:border-rose-900/60 dark:hover:bg-rose-950/20 dark:text-rose-400 rounded-lg transition font-bold shadow-sm text-[11px]"
                 >
                   Reject Voucher
                 </button>
@@ -1673,7 +1673,7 @@ export default function AiProcessingCenter() {
                 onClick={() => setActiveMobileTab('viewer')}
                 className={`flex-1 py-1.5 text-center font-bold rounded-lg text-xs transition ${
                   activeMobileTab === 'viewer'
-                    ? 'bg-[var(--app-panel-bg)] text-[var(--app-accent)] dark:text-[var(--app-accent)] shadow-3xs'
+                    ? 'bg-[var(--app-panel-bg)] text-[var(--app-accent)] dark:text-[var(--app-accent)] shadow-sm'
                     : 'text-[var(--app-muted)] hover:text-[var(--app-heading)]'
                 }`}
               >
@@ -1683,7 +1683,7 @@ export default function AiProcessingCenter() {
                 onClick={() => setActiveMobileTab('form')}
                 className={`flex-1 py-1.5 text-center font-bold rounded-lg text-xs transition ${
                   activeMobileTab === 'form'
-                    ? 'bg-[var(--app-panel-bg)] text-[var(--app-accent)] dark:text-[var(--app-accent)] shadow-3xs'
+                    ? 'bg-[var(--app-panel-bg)] text-[var(--app-accent)] dark:text-[var(--app-accent)] shadow-sm'
                     : 'text-[var(--app-muted)] hover:text-[var(--app-heading)]'
                 }`}
               >
@@ -1710,7 +1710,7 @@ export default function AiProcessingCenter() {
                       onClick={() => setViewerMode('pdf')}
                       className={`px-2.5 py-1 rounded font-extrabold transition-all uppercase tracking-wider ${
                         viewerMode === 'pdf'
-                          ? 'bg-[var(--app-panel-bg)] text-[var(--app-heading)] shadow-3xs'
+                          ? 'bg-[var(--app-panel-bg)] text-[var(--app-heading)] shadow-sm'
                           : 'text-[var(--app-muted)] hover:text-[var(--app-heading)]'
                       }`}
                     >
@@ -1720,7 +1720,7 @@ export default function AiProcessingCenter() {
                       onClick={() => setViewerMode('image')}
                       className={`px-2.5 py-1 rounded font-extrabold transition-all uppercase tracking-wider ${
                         viewerMode === 'image'
-                          ? 'bg-[var(--app-panel-bg)] text-[var(--app-heading)] shadow-3xs'
+                          ? 'bg-[var(--app-panel-bg)] text-[var(--app-heading)] shadow-sm'
                           : 'text-[var(--app-muted)] hover:text-[var(--app-heading)]'
                       }`}
                     >
@@ -2329,7 +2329,7 @@ export default function AiProcessingCenter() {
                           Items / Particulars Breakdown
                         </h4>
 
-                        <div className="border border-slate-150 rounded-lg overflow-hidden">
+                        <div className="border border-[var(--app-border)] rounded-lg overflow-hidden">
                           <table className="w-full text-left border-collapse text-[10px]">
                             <thead>
                               <tr className="bg-[var(--app-content-bg)]/70 border-b text-[var(--app-muted)] border-[var(--app-border)] font-bold uppercase">
@@ -2462,7 +2462,7 @@ export default function AiProcessingCenter() {
                           <button
                             type="button"
                             onClick={activeDoc.category === 'Bank Statement' ? handleAddBankTransaction : handleAddItem}
-                            className="px-2.5 py-1 border border-[var(--app-border)] text-[10px] font-bold text-[var(--app-accent)] hover:bg-[var(--app-content-bg)] rounded flex items-center gap-1 shadow-3xs bg-[var(--app-panel-bg)]"
+                            className="px-2.5 py-1 border border-[var(--app-border)] text-[10px] font-bold text-[var(--app-accent)] hover:bg-[var(--app-content-bg)] rounded flex items-center gap-1 shadow-sm bg-[var(--app-panel-bg)]"
                           >
                             <Plus size={11} />
                             <span>Add Row</span>
@@ -2472,7 +2472,7 @@ export default function AiProcessingCenter() {
                             <button
                               type="button"
                               onClick={() => toast.info('Discount ledger field added')}
-                              className="px-2.5 py-1 border border-[var(--app-border)] text-[10px] font-bold text-[var(--app-heading)] hover:bg-[var(--app-content-bg)] rounded flex items-center gap-1 shadow-3xs bg-[var(--app-panel-bg)]"
+                              className="px-2.5 py-1 border border-[var(--app-border)] text-[10px] font-bold text-[var(--app-heading)] hover:bg-[var(--app-content-bg)] rounded flex items-center gap-1 shadow-sm bg-[var(--app-panel-bg)]"
                             >
                               <Plus size={11} />
                               <span>Add Discount</span>
@@ -2603,7 +2603,7 @@ export default function AiProcessingCenter() {
               className="relative w-full max-w-md bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-xl shadow-xl overflow-hidden flex flex-col font-sans text-[var(--app-heading)] z-10"
             >
               {/* Header */}
-              <div className="px-4 py-3 border-b border-slate-150 flex items-center justify-between">
+              <div className="px-4 py-3 border-b border-[var(--app-border)] flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <UploadCloud size={16} className="text-[var(--app-accent)]" />
                   <h3 className="text-xs font-bold uppercase tracking-wider">Upload Documents for AI OCR</h3>
@@ -2682,7 +2682,7 @@ export default function AiProcessingCenter() {
               </div>
 
               {/* Footer */}
-              <div className="px-4 py-3 border-t border-slate-150 bg-[var(--app-content-bg)]/50 flex items-center justify-end gap-2 shrink-0">
+              <div className="px-4 py-3 border-t border-[var(--app-border)] bg-[var(--app-content-bg)]/50 flex items-center justify-end gap-2 shrink-0">
                 <button
                   onClick={() => {
                     setIsUploadModalOpen(false);

@@ -109,7 +109,7 @@ export default function ClientManagementPanel() {
               <button
                 type="button"
                 onClick={() => setShowCreateForm(false)}
-                className="text-slate-400 hover:text-slate-650 dark:hover:text-slate-250 transition-colors p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
+                className="text-slate-400 hover:text-[var(--app-text)] dark:hover:text-[var(--app-muted)] transition-colors p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
               >
                 <X size={16} />
               </button>

@@ -586,7 +586,7 @@ const AddBankModal = ({ onClose }) => {
         <div className="p-6 flex items-center justify-between border-b" style={{ borderColor: 'var(--app-row-border)' }}>
           <h2 className="text-[18px] font-black text-[var(--app-accent)] tracking-tight">Add Bank</h2>
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full border flex items-center justify-center text-slate-405 hover:bg-[var(--app-content-bg)] transition-colors cursor-pointer" style={{ borderColor: 'var(--app-border)' }}>
+            <div className="w-8 h-8 rounded-full border flex items-center justify-center text-[var(--app-muted)] hover:bg-[var(--app-content-bg)] transition-colors cursor-pointer" style={{ borderColor: 'var(--app-border)' }}>
               <FileText size={16} />
             </div>
             <button onClick={onClose} className="p-1 text-[var(--app-muted)] hover:text-[var(--app-heading)] transition-colors"><X size={22} /></button>
@@ -601,8 +601,8 @@ const AddBankModal = ({ onClose }) => {
           <div className="grid grid-cols-2 gap-x-6 gap-y-5">
             <SearchableDropdown placeholder="Bank" items={BANKS} value={bank} onChange={setBank} />
             <SearchableDropdown placeholder="Bank Ledger" items={BANK_LEDGERS} value={ledger} onChange={setLedger} />
-            <input type="text" placeholder="Account Name" className="h-11 border rounded-xl px-4 text-[13px] font-bold outline-none focus:border-[var(--app-accent)] shadow-sm bg-[var(--app-content-bg)]/40 text-[var(--app-heading)] hover:border-slate-350 transition-colors" style={{ borderColor: 'var(--app-border)' }} />
-            <input type="text" placeholder="Account Number" className="h-11 border rounded-xl px-4 text-[13px] font-bold outline-none focus:border-[var(--app-accent)] shadow-sm bg-[var(--app-content-bg)]/40 text-[var(--app-heading)] hover:border-slate-350 transition-colors" style={{ borderColor: 'var(--app-border)' }} />
+            <input type="text" placeholder="Account Name" className="h-11 border rounded-xl px-4 text-[13px] font-bold outline-none focus:border-[var(--app-accent)] shadow-sm bg-[var(--app-content-bg)]/40 text-[var(--app-heading)] hover:border-[var(--app-border)] transition-colors" style={{ borderColor: 'var(--app-border)' }} />
+            <input type="text" placeholder="Account Number" className="h-11 border rounded-xl px-4 text-[13px] font-bold outline-none focus:border-[var(--app-accent)] shadow-sm bg-[var(--app-content-bg)]/40 text-[var(--app-heading)] hover:border-[var(--app-border)] transition-colors" style={{ borderColor: 'var(--app-border)' }} />
           </div>
 
           <div className="flex justify-center">
@@ -625,7 +625,7 @@ const UploadStatementModal = ({ onClose }) => {
       <div className="relative w-[800px] bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col">
         <div className="p-6 flex items-center justify-between border-b" style={{ borderColor: 'var(--app-row-border)' }}>
           <h2 className="text-[16px] font-black text-[var(--app-accent)] tracking-tight">Upload Statement</h2>
-          <button onClick={onClose} className="p-1 text-[var(--app-muted)] hover:text-slate-650 transition-colors"><X size={20} /></button>
+          <button onClick={onClose} className="p-1 text-[var(--app-muted)] hover:text-[var(--app-text)] transition-colors"><X size={20} /></button>
         </div>
 
         <div className="p-8 space-y-6">
@@ -633,7 +633,7 @@ const UploadStatementModal = ({ onClose }) => {
             <SearchableDropdown label="Bank *" items={BANKS} value={bank} onChange={setBank} />
 
             <div className="relative">
-              <input type="text" placeholder="Date Range" className="w-full h-12 border rounded-xl px-4 text-[13px] font-bold outline-none focus:border-[var(--app-accent)] shadow-sm bg-[var(--app-content-bg)]/40 text-[var(--app-heading)] hover:border-slate-350 transition-colors" style={{ borderColor: 'var(--app-border)' }} />
+              <input type="text" placeholder="Date Range" className="w-full h-12 border rounded-xl px-4 text-[13px] font-bold outline-none focus:border-[var(--app-accent)] shadow-sm bg-[var(--app-content-bg)]/40 text-[var(--app-heading)] hover:border-[var(--app-border)] transition-colors" style={{ borderColor: 'var(--app-border)' }} />
               <Calendar className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--app-muted)]" size={18} />
             </div>
           </div>
@@ -679,7 +679,7 @@ const AddRuleModal = ({ onClose }) => {
       <div className="relative w-[800px] bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col">
         <div className="p-6 flex items-center justify-between border-b" style={{ borderColor: 'var(--app-row-border)' }}>
           <h2 className="text-[18px] font-black text-[var(--app-accent)] tracking-tight">Add Rule</h2>
-          <button onClick={onClose} className="p-1 text-[var(--app-muted)] hover:text-slate-650 transition-colors"><X size={22} /></button>
+          <button onClick={onClose} className="p-1 text-[var(--app-muted)] hover:text-[var(--app-text)] transition-colors"><X size={22} /></button>
         </div>
 
         <div className="px-10 pb-10 space-y-6 mt-4">
@@ -693,14 +693,14 @@ const AddRuleModal = ({ onClose }) => {
               <div className="grid grid-cols-3 gap-4">
                 <SearchableDropdown placeholder="Account Number" items={ACCOUNT_NUMBERS} value={account} onChange={setAccount} />
                 <div className="relative">
-                  <input type="text" placeholder="Voucher Date" className="w-full h-11 border rounded-xl px-4 text-[13px] font-bold outline-none focus:border-[var(--app-accent)] shadow-sm bg-[var(--app-content-bg)]/40 text-[var(--app-heading)] hover:border-slate-350 transition-colors" style={{ borderColor: 'var(--app-border)' }} />
+                  <input type="text" placeholder="Voucher Date" className="w-full h-11 border rounded-xl px-4 text-[13px] font-bold outline-none focus:border-[var(--app-accent)] shadow-sm bg-[var(--app-content-bg)]/40 text-[var(--app-heading)] hover:border-[var(--app-border)] transition-colors" style={{ borderColor: 'var(--app-border)' }} />
                   <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--app-muted)]" size={16} />
                 </div>
-                <input type="text" placeholder="Description" className="h-11 border rounded-xl px-4 text-[13px] font-bold outline-none focus:border-[var(--app-accent)] shadow-sm bg-[var(--app-content-bg)]/40 text-[var(--app-heading)] hover:border-slate-350 transition-colors" style={{ borderColor: 'var(--app-border)' }} />
+                <input type="text" placeholder="Description" className="h-11 border rounded-xl px-4 text-[13px] font-bold outline-none focus:border-[var(--app-accent)] shadow-sm bg-[var(--app-content-bg)]/40 text-[var(--app-heading)] hover:border-[var(--app-border)] transition-colors" style={{ borderColor: 'var(--app-border)' }} />
                 <SearchableDropdown placeholder="Payment Mode" items={PAYMENT_MODES} value={payMode} onChange={setPayMode} />
                 <SearchableDropdown placeholder="Type" items={TRANSACTION_TYPES} value={type} onChange={setType} />
-                <input type="text" placeholder="Amount(Min)" className="h-11 border rounded-xl px-4 text-[13px] font-bold outline-none focus:border-[var(--app-accent)] shadow-sm bg-[var(--app-content-bg)]/40 text-[var(--app-heading)] hover:border-slate-350 transition-colors" style={{ borderColor: 'var(--app-border)' }} />
-                <input type="text" placeholder="Amount(Max)" className="h-11 border rounded-xl px-4 text-[13px] font-bold outline-none focus:border-[var(--app-accent)] shadow-sm bg-[var(--app-content-bg)]/40 text-[var(--app-heading)] hover:border-slate-350 transition-colors" style={{ borderColor: 'var(--app-border)' }} />
+                <input type="text" placeholder="Amount(Min)" className="h-11 border rounded-xl px-4 text-[13px] font-bold outline-none focus:border-[var(--app-accent)] shadow-sm bg-[var(--app-content-bg)]/40 text-[var(--app-heading)] hover:border-[var(--app-border)] transition-colors" style={{ borderColor: 'var(--app-border)' }} />
+                <input type="text" placeholder="Amount(Max)" className="h-11 border rounded-xl px-4 text-[13px] font-bold outline-none focus:border-[var(--app-accent)] shadow-sm bg-[var(--app-content-bg)]/40 text-[var(--app-heading)] hover:border-[var(--app-border)] transition-colors" style={{ borderColor: 'var(--app-border)' }} />
               </div>
             </div>
 
@@ -731,7 +731,7 @@ const BulkUploadRulesModal = ({ onClose }) => {
       <div className="relative w-[800px] bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col">
         <div className="p-6 flex items-center justify-between border-b" style={{ borderColor: 'var(--app-row-border)' }}>
           <h2 className="text-[16px] font-black text-[var(--app-accent)] tracking-tight">Bulk Upload Bank Rules</h2>
-          <button onClick={onClose} className="p-1 text-[var(--app-muted)] hover:text-slate-650 transition-colors"><X size={20} /></button>
+          <button onClick={onClose} className="p-1 text-[var(--app-muted)] hover:text-[var(--app-text)] transition-colors"><X size={20} /></button>
         </div>
 
         <div className="p-10 space-y-8">
@@ -770,7 +770,7 @@ const AddLedgerModal = ({ title, type, onClose }) => {
       <div className="relative w-[800px] bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col">
         <div className="p-6 flex items-center justify-between border-b" style={{ borderColor: 'var(--app-row-border)' }}>
           <h2 className="text-[16px] font-black text-[var(--app-accent)] tracking-tight">{title}</h2>
-          <button onClick={onClose} className="p-1 text-[var(--app-muted)] hover:text-slate-655 transition-colors"><X size={20} /></button>
+          <button onClick={onClose} className="p-1 text-[var(--app-muted)] hover:text-[var(--app-text)] transition-colors"><X size={20} /></button>
         </div>
 
         <div className="p-10 space-y-8">
@@ -779,7 +779,7 @@ const AddLedgerModal = ({ title, type, onClose }) => {
               <input
                 type="text"
                 placeholder="Ledger Name"
-                className="w-full h-11 border rounded-xl px-4 text-[13px] font-bold outline-none focus:border-[var(--app-accent)] shadow-sm bg-[var(--app-content-bg)]/40 text-[var(--app-heading)] hover:border-slate-350 transition-colors"
+                className="w-full h-11 border rounded-xl px-4 text-[13px] font-bold outline-none focus:border-[var(--app-accent)] shadow-sm bg-[var(--app-content-bg)]/40 text-[var(--app-heading)] hover:border-[var(--app-border)] transition-colors"
                 style={{ borderColor: 'var(--app-border)' }}
               />
             </div>
@@ -794,7 +794,7 @@ const AddLedgerModal = ({ title, type, onClose }) => {
                 <input
                   type="text"
                   placeholder="Credit Period"
-                  className="w-full h-11 border rounded-xl px-4 text-[13px] font-bold outline-none focus:border-[var(--app-accent)] shadow-sm bg-[var(--app-content-bg)]/40 text-[var(--app-heading)] hover:border-slate-350 transition-colors"
+                  className="w-full h-11 border rounded-xl px-4 text-[13px] font-bold outline-none focus:border-[var(--app-accent)] shadow-sm bg-[var(--app-content-bg)]/40 text-[var(--app-heading)] hover:border-[var(--app-border)] transition-colors"
                   style={{ borderColor: 'var(--app-border)' }}
                 />
               </div>
@@ -825,7 +825,7 @@ const ColumnConfigPopup = ({ onClose, activeTab }) => {
       <div className="relative w-[400px] bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-2xl shadow-2xl animate-in zoom-in-95 duration-300">
         <div className="p-5 flex items-center justify-between border-b" style={{ borderColor: 'var(--app-row-border)' }}>
           <h2 className="text-[15px] font-black text-[var(--app-heading)] tracking-tight">Configure Columns</h2>
-          <button onClick={onClose} className="p-1 text-[var(--app-muted)] hover:text-slate-655 transition-colors"><X size={20} /></button>
+          <button onClick={onClose} className="p-1 text-[var(--app-muted)] hover:text-[var(--app-text)] transition-colors"><X size={20} /></button>
         </div>
         <div className="p-6 space-y-3">
           {['Date', 'Description', 'Amount', 'Type', 'Party Ledger', 'Status'].map(col => (

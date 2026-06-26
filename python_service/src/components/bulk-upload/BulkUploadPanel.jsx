@@ -828,7 +828,7 @@ export default function BulkUploadPanel() {
             defaultValue={value}
             onBlur={(e) => handleBlur(e.target.value)}
             onKeyDown={(e) => handleKeyDown(e, e.target.value)}
-            className="w-full h-7 bg-[var(--app-panel-bg)] text-[11px] p-0.5 border border-[var(--app-accent)] outline-none rounded font-semibold text-slate-850"
+            className="w-full h-7 bg-[var(--app-panel-bg)] text-[11px] p-0.5 border border-[var(--app-accent)] outline-none rounded font-semibold text-[var(--app-heading)]"
           >
             {tabCategories.slice(1).map(cat => (
               <option key={cat} value={cat}>{cat}</option>
@@ -856,7 +856,7 @@ export default function BulkUploadPanel() {
               setEditingCell(null);
             }
           }}
-          className="w-full h-7 bg-[var(--app-panel-bg)] text-[11px] p-1 border border-[var(--app-accent)] outline-none rounded font-semibold text-slate-850"
+          className="w-full h-7 bg-[var(--app-panel-bg)] text-[11px] p-1 border border-[var(--app-accent)] outline-none rounded font-semibold text-[var(--app-heading)]"
         />
       );
     }
@@ -999,9 +999,9 @@ export default function BulkUploadPanel() {
         {/* KPI Stats Cards Row */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 shrink-0">
           {/* Card 1 */}
-          <div className="p-2 border rounded-lg bg-[var(--app-accent-soft)] border-[var(--app-border)] dark:bg-[var(--app-accent-soft)] dark:border-[var(--app-border)] shadow-3xs flex items-center justify-between h-[58px] transition-all">
+          <div className="p-2 border rounded-lg bg-[var(--app-accent-soft)] border-[var(--app-border)] dark:bg-[var(--app-accent-soft)] dark:border-[var(--app-border)] shadow-sm flex items-center justify-between h-[58px] transition-all">
             <div className="min-w-0 flex-1">
-              <span className="text-[9px] font-bold text-slate-455 uppercase tracking-wide leading-none block truncate">
+              <span className="text-[9px] font-bold text-[var(--app-muted)] uppercase tracking-wide leading-none block truncate">
                 {selectedBatchId ? 'Total Batch Records' : 'Total Batches'}
               </span>
               <div className="flex items-baseline gap-1 mt-0.5">
@@ -1019,9 +1019,9 @@ export default function BulkUploadPanel() {
           </div>
 
           {/* Card 2 */}
-          <div className="p-2 border rounded-lg bg-emerald-50/55 border-emerald-100/70 dark:bg-emerald-950/15 dark:border-emerald-900/35 shadow-3xs flex items-center justify-between h-[58px] transition-all">
+          <div className="p-2 border rounded-lg bg-emerald-50/55 border-emerald-100/70 dark:bg-emerald-950/15 dark:border-emerald-900/35 shadow-sm flex items-center justify-between h-[58px] transition-all">
             <div className="min-w-0 flex-1">
-              <span className="text-[9px] font-bold text-slate-455 uppercase tracking-wide leading-none block truncate">
+              <span className="text-[9px] font-bold text-[var(--app-muted)] uppercase tracking-wide leading-none block truncate">
                 {selectedBatchId ? 'Valid Records' : 'Total Records'}
               </span>
               <div className="flex items-baseline gap-1 mt-0.5">
@@ -1039,9 +1039,9 @@ export default function BulkUploadPanel() {
           </div>
 
           {/* Card 3 */}
-          <div className="p-2 border rounded-lg bg-amber-50/55 border-amber-100/70 dark:bg-amber-950/15 dark:border-amber-900/35 shadow-3xs flex items-center justify-between h-[58px] transition-all">
+          <div className="p-2 border rounded-lg bg-amber-50/55 border-amber-100/70 dark:bg-amber-950/15 dark:border-amber-900/35 shadow-sm flex items-center justify-between h-[58px] transition-all">
             <div className="min-w-0 flex-1">
-              <span className="text-[9px] font-bold text-slate-455 uppercase tracking-wide leading-none block truncate">
+              <span className="text-[9px] font-bold text-[var(--app-muted)] uppercase tracking-wide leading-none block truncate">
                 {selectedBatchId ? 'Validation Warnings' : 'Pending Approval'}
               </span>
               <div className="flex items-baseline gap-1 mt-0.5">
@@ -1059,9 +1059,9 @@ export default function BulkUploadPanel() {
           </div>
 
           {/* Card 4 */}
-          <div className="p-2 border rounded-lg bg-red-50/55 border-red-100/70 dark:bg-red-950/15 dark:border-red-900/35 shadow-3xs flex items-center justify-between h-[58px] transition-all">
+          <div className="p-2 border rounded-lg bg-red-50/55 border-red-100/70 dark:bg-red-950/15 dark:border-red-900/35 shadow-sm flex items-center justify-between h-[58px] transition-all">
             <div className="min-w-0 flex-1">
-              <span className="text-[9px] font-bold text-slate-455 uppercase tracking-wide leading-none block truncate">
+              <span className="text-[9px] font-bold text-[var(--app-muted)] uppercase tracking-wide leading-none block truncate">
                 {selectedBatchId ? 'Validation Errors' : 'Approved Batches'}
               </span>
               <div className="flex items-baseline gap-1 mt-0.5">
@@ -1079,9 +1079,9 @@ export default function BulkUploadPanel() {
           </div>
 
           {/* Card 5 */}
-          <div className="p-2 border rounded-lg bg-[var(--app-accent-soft)] border-[var(--app-border)] dark:bg-[var(--app-accent-soft)] dark:border-[var(--app-border)] shadow-3xs flex items-center justify-between h-[58px] transition-all">
+          <div className="p-2 border rounded-lg bg-[var(--app-accent-soft)] border-[var(--app-border)] dark:bg-[var(--app-accent-soft)] dark:border-[var(--app-border)] shadow-sm flex items-center justify-between h-[58px] transition-all">
             <div className="min-w-0 flex-1">
-              <span className="text-[9px] font-bold text-slate-455 uppercase tracking-wide leading-none block truncate">
+              <span className="text-[9px] font-bold text-[var(--app-muted)] uppercase tracking-wide leading-none block truncate">
                 {selectedBatchId ? 'Voucher Types' : 'Posted Batches'}
               </span>
               <div className="flex items-baseline gap-1 mt-0.5">
@@ -1099,9 +1099,9 @@ export default function BulkUploadPanel() {
           </div>
 
           {/* Card 6 */}
-          <div className="p-2 border rounded-lg bg-[var(--app-content-bg)] border-[var(--app-border)] shadow-3xs flex items-center justify-between h-[58px] transition-all">
+          <div className="p-2 border rounded-lg bg-[var(--app-content-bg)] border-[var(--app-border)] shadow-sm flex items-center justify-between h-[58px] transition-all">
             <div className="min-w-0 flex-1">
-              <span className="text-[9px] font-bold text-slate-455 uppercase tracking-wide leading-none block truncate">
+              <span className="text-[9px] font-bold text-[var(--app-muted)] uppercase tracking-wide leading-none block truncate">
                 {selectedBatchId ? 'Total Batch Value' : 'Failed / Rejected'}
               </span>
               <div className="flex items-baseline gap-1 mt-0.5">
@@ -1123,7 +1123,7 @@ export default function BulkUploadPanel() {
         </div>
 
         {/* Filters row */}
-        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-2 bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-lg px-3 py-1.5 shadow-3xs shrink-0">
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-2 bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-lg px-3 py-1.5 shadow-sm shrink-0">
           {/* Search documents */}
           <div className="relative max-w-xs flex-1 group">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--app-muted)]" size={12} />
@@ -1230,7 +1230,7 @@ export default function BulkUploadPanel() {
         </div>
 
         {/* --- MAIN INTERACTIVE VIEW AREA (Table Container) --- */}
-        <div className="border rounded-lg flex-1 overflow-hidden flex flex-col bg-[var(--app-panel-bg)] border-[var(--app-border)] shadow-3xs min-h-[300px]">
+        <div className="border rounded-lg flex-1 overflow-hidden flex flex-col bg-[var(--app-panel-bg)] border-[var(--app-border)] shadow-sm min-h-[300px]">
 
           {!selectedBatchId ? (
             /* --- batches List View --- */
@@ -1360,7 +1360,7 @@ export default function BulkUploadPanel() {
                     <col className="w-[60px]" />
                   </colgroup>
                   <thead>
-                    <tr className="bg-[var(--app-table-head-bg)] text-slate-650 border-b border-slate-250 font-bold uppercase tracking-wider text-[10px] select-none text-center">
+                    <tr className="bg-[var(--app-table-head-bg)] text-[var(--app-text)] border-b border-[var(--app-border)] font-bold uppercase tracking-wider text-[10px] select-none text-center">
                       <th className="border-r border-[var(--app-border)] p-1 w-9 text-center bg-[var(--app-content-bg)] text-[var(--app-muted)]">
                         {/* Empty cell for spreadsheet corner */}
                       </th>

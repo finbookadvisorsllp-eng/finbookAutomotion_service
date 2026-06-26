@@ -1018,7 +1018,7 @@ export default function ApprovalCenter() {
               <span className={`px-1.5 py-0.25 rounded border text-[9px] font-semibold ${statusTextColors[batchEntry.statusText] || 'bg-slate-55 border-[var(--app-border)] text-[var(--app-heading)]'}`}>{batchEntry.statusText}</span>
             </div>
             <p className="text-[10px] text-[var(--app-muted)]">
-              Filename: <span className="font-semibold text-slate-750">{batch.filename}</span> | Upload Date: <span className="font-semibold text-slate-750">{batch.uploadDate}</span>
+              Filename: <span className="font-semibold text-[var(--app-text)]">{batch.filename}</span> | Upload Date: <span className="font-semibold text-[var(--app-text)]">{batch.uploadDate}</span>
             </p>
           </div>
           
@@ -1100,10 +1100,10 @@ export default function ApprovalCenter() {
             <div className="flex items-center gap-1.5">
               <h2 className="text-md font-extrabold text-[var(--app-heading)] dark:text-white leading-none tracking-tight">{docEntry.voucherNumber}</h2>
               <span className="px-1.5 py-0.25 rounded border border-[var(--app-border)] text-[var(--app-accent)] bg-[var(--app-accent-soft)] dark:bg-[var(--app-accent-soft)] dark:text-[var(--app-accent)] dark:border-[var(--app-border)] text-[9px] font-semibold">{docEntry.type}</span>
-              <span className={`px-1.5 py-0.25 rounded border text-[9px] font-semibold ${statusTextColors[docEntry.statusText] || 'bg-slate-55 border-[var(--app-border)] text-slate-750'}`}>{docEntry.statusText}</span>
+              <span className={`px-1.5 py-0.25 rounded border text-[9px] font-semibold ${statusTextColors[docEntry.statusText] || 'bg-slate-55 border-[var(--app-border)] text-[var(--app-text)]'}`}>{docEntry.statusText}</span>
             </div>
             <p className="text-[10px] text-[var(--app-muted)]">
-              OCR Processed Document | Confidence: <span className="text-emerald-500 font-extrabold">{docEntry.confidence}%</span> | Upload Date: <span className="font-semibold text-slate-750">{docEntry.date}</span>
+              OCR Processed Document | Confidence: <span className="text-emerald-500 font-extrabold">{docEntry.confidence}%</span> | Upload Date: <span className="font-semibold text-[var(--app-text)]">{docEntry.date}</span>
             </p>
           </div>
           
@@ -1186,7 +1186,7 @@ export default function ApprovalCenter() {
                       <span className="text-[var(--app-muted)]">IGST (18%)</span>
                       <span>₹{(doc.taxAmount || 0).toLocaleString('en-IN')}</span>
                     </div>
-                    <div className="flex justify-between pl-24 pt-0.5 border-t border-slate-150 text-[10px] font-extrabold text-[var(--app-heading)] dark:text-white">
+                    <div className="flex justify-between pl-24 pt-0.5 border-t border-[var(--app-border)] text-[10px] font-extrabold text-[var(--app-heading)] dark:text-white">
                       <span>GRAND TOTAL</span>
                       <span className="text-[var(--app-accent)] dark:text-[var(--app-accent)] font-black">₹{(doc.amount || 0).toLocaleString('en-IN')}</span>
                     </div>
@@ -1216,7 +1216,7 @@ export default function ApprovalCenter() {
                       type="text" 
                       value={ocrForm.vendor}
                       onChange={(e) => setOcrForm({...ocrForm, vendor: e.target.value})}
-                      className="w-full px-2 py-1 border rounded-lg outline-none bg-[var(--app-content-bg)] text-slate-850 border-[var(--app-border)] focus:border-[var(--app-accent)] transition-all font-bold text-[11px]"
+                      className="w-full px-2 py-1 border rounded-lg outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)] transition-all font-bold text-[11px]"
                     />
                   </div>
 
@@ -1226,7 +1226,7 @@ export default function ApprovalCenter() {
                       type="text" 
                       value={ocrForm.docNo}
                       onChange={(e) => setOcrForm({...ocrForm, docNo: e.target.value})}
-                      className="w-full px-2 py-1 border rounded-lg outline-none bg-[var(--app-content-bg)] text-slate-850 border-[var(--app-border)] focus:border-[var(--app-accent)] transition-all font-mono font-bold text-[11px]"
+                      className="w-full px-2 py-1 border rounded-lg outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)] transition-all font-mono font-bold text-[11px]"
                     />
                   </div>
 
@@ -1236,7 +1236,7 @@ export default function ApprovalCenter() {
                       type="text" 
                       value={ocrForm.docDate}
                       onChange={(e) => setOcrForm({...ocrForm, docDate: e.target.value})}
-                      className="w-full px-2 py-1 border rounded-lg outline-none bg-[var(--app-content-bg)] text-slate-850 border-[var(--app-border)] focus:border-[var(--app-accent)] transition-all font-bold text-[11px]"
+                      className="w-full px-2 py-1 border rounded-lg outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)] transition-all font-bold text-[11px]"
                     />
                   </div>
 
@@ -1246,7 +1246,7 @@ export default function ApprovalCenter() {
                       type="text" 
                       value={ocrForm.gstin}
                       onChange={(e) => setOcrForm({...ocrForm, gstin: e.target.value})}
-                      className="w-full px-2 py-1 border rounded-lg outline-none bg-[var(--app-content-bg)] text-slate-850 border-[var(--app-border)] focus:border-[var(--app-accent)] transition-all font-mono font-bold text-[11px]"
+                      className="w-full px-2 py-1 border rounded-lg outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)] transition-all font-mono font-bold text-[11px]"
                     />
                   </div>
 
@@ -1256,7 +1256,7 @@ export default function ApprovalCenter() {
                       type="number" 
                       value={ocrForm.amount}
                       onChange={(e) => setOcrForm({...ocrForm, amount: e.target.value})}
-                      className="w-full px-2 py-1 border rounded-lg outline-none bg-[var(--app-content-bg)] text-slate-850 border-[var(--app-border)] focus:border-[var(--app-accent)] transition-all font-bold text-emerald-500 text-[11px]"
+                      className="w-full px-2 py-1 border rounded-lg outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)] transition-all font-bold text-emerald-500 text-[11px]"
                     />
                   </div>
 
@@ -1266,7 +1266,7 @@ export default function ApprovalCenter() {
                       type="text" 
                       value={ocrForm.partyLedger}
                       onChange={(e) => setOcrForm({...ocrForm, partyLedger: e.target.value})}
-                      className="w-full px-2 py-1 border rounded-lg outline-none bg-[var(--app-content-bg)] text-slate-850 border-[var(--app-border)] focus:border-[var(--app-accent)] transition-all font-bold text-[var(--app-accent)] text-[11px]"
+                      className="w-full px-2 py-1 border rounded-lg outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)] transition-all font-bold text-[var(--app-accent)] text-[11px]"
                     />
                   </div>
 
@@ -1275,7 +1275,7 @@ export default function ApprovalCenter() {
                     <textarea 
                       value={ocrForm.narration}
                       onChange={(e) => setOcrForm({...ocrForm, narration: e.target.value})}
-                      className="w-full h-12 px-2 py-1 border rounded-lg outline-none bg-[var(--app-content-bg)] text-slate-850 border-[var(--app-border)] focus:border-[var(--app-accent)] transition-all font-bold text-[11px]"
+                      className="w-full h-12 px-2 py-1 border rounded-lg outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)] transition-all font-bold text-[11px]"
                     />
                   </div>
                 </div>
