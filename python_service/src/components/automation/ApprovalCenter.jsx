@@ -1350,7 +1350,7 @@ export default function ApprovalCenter() {
       </div>
     ) : null;
     const Act = ({ icon: Icon, onClick, title, cls }) => (
-      <button onClick={onClick} title={title} className={`p-1 rounded-lg transition-all hover:scale-110 active:scale-95 text-[var(--app-muted)] hover:bg-[var(--app-control-hover)] ${cls}`}><Icon size={13} /></button>
+      <button onClick={onClick} title={title} aria-label={title || Icon?.displayName} className={`p-1 rounded-lg transition-all hover:scale-110 active:scale-95 text-[var(--app-muted)] hover:bg-[var(--app-control-hover)] ${cls}`}><Icon size={13} /></button>
     );
     const columns = [
       { key: 'voucherNumber', header: activeSourceTab === 'Bulk Upload' ? 'Batch ID' : 'Voucher No', sortable: true, render: (e) => <span className="font-black" style={{ color: 'var(--app-heading)' }}>{e.voucherNumber}</span> },

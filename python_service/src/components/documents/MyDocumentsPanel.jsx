@@ -9,7 +9,7 @@ const MyDocumentsPanel = ({ isDark }) => {
 
   const tabs = ['Purchase/Expense', 'Sales', 'Bank', 'Petty Cash'];
 
-  const IconButton = ({ icon: Icon, color, onClick, shadow, border }) => {
+  const IconButton = ({ icon: Icon, color, onClick, shadow, border, label }) => {
     const getColor = () => {
       switch (color) {
         case 'purple': return '#8b5cf6';
@@ -22,6 +22,8 @@ const MyDocumentsPanel = ({ isDark }) => {
     return (
       <button
         onClick={onClick}
+        title={label || Icon?.displayName}
+        aria-label={label || Icon?.displayName}
         className={`w-8 h-8 rounded-full border flex items-center justify-center transition-all hover:scale-110 active:scale-95 ${shadow ? 'shadow-md' : 'shadow-sm'}`}
         style={{
           borderColor: border ? activeColor + '40' : activeColor + '20',

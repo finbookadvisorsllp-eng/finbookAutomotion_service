@@ -256,6 +256,8 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
     return (
       <button
         onClick={onClick}
+        title={Icon?.displayName}
+        aria-label={Icon?.displayName}
         className="h-8 w-8 rounded border flex items-center justify-center transition-all active:scale-90 hover:bg-[var(--app-control-hover)] shadow-sm"
         style={{
           borderColor: border ? tone + '40' : 'var(--app-border)',

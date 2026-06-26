@@ -34,6 +34,8 @@ export default function Button({
   }
 
   const shape = iconOnly ? s.sq : `${s.h} ${s.px} ${s.gap}`
+  // Icon-only buttons have no text node → give screen readers a name.
+  const a11yLabel = iconOnly ? (props['aria-label'] ?? props.title ?? Icon?.displayName) : props['aria-label']
 
   return (
     <motion.button
@@ -42,6 +44,7 @@ export default function Button({
       className={`${base} ${shape} ${s.text} ${className}`}
       style={variants[variant] || variants.subtle}
       {...props}
+      aria-label={a11yLabel}
     >
       {Icon && <Icon size={isq} strokeWidth={2.2} />}
       {!iconOnly && children}

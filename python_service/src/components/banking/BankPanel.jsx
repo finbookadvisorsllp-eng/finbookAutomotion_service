@@ -122,7 +122,7 @@ const BankPanel = ({ mode: propMode, isDark }) => {
     }
   }, [propMode]);
 
-  const IconButton = ({ icon: Icon, color, onClick }) => {
+  const IconButton = ({ icon: Icon, color, onClick, label }) => {
     const toneMap = {
       red: '#EF4444', purple: '#8B5CF6', blue: '#3B82F6',
       emerald: '#10B981', indigo: '#6366F1', 'light-blue': '#0EA5E9',
@@ -134,6 +134,8 @@ const BankPanel = ({ mode: propMode, isDark }) => {
         whileTap={{ scale: 0.94 }}
         whileHover={{ y: -1 }}
         onClick={onClick}
+        title={label || Icon?.displayName}
+        aria-label={label || Icon?.displayName}
         className="h-8 w-8 rounded-lg border flex items-center justify-center transition-colors focus-ring hover:bg-[var(--app-control-hover)]"
         style={{ borderColor: 'var(--app-border)', color: tone, backgroundColor: 'var(--app-control-bg)' }}
       >
@@ -185,8 +187,8 @@ const BankPanel = ({ mode: propMode, isDark }) => {
   };
 
   // ── DataTable migration: one config per bank segment ──────────────────
-  const RowAct = ({ icon: Icon, onClick, tone = 'hover:text-[var(--app-accent)]' }) => (
-    <button onClick={onClick} className={`p-1 rounded-lg transition-all hover:scale-110 active:scale-95 text-[var(--app-muted)] hover:bg-[var(--app-control-hover)] ${tone}`}>
+  const RowAct = ({ icon: Icon, onClick, title, tone = 'hover:text-[var(--app-accent)]' }) => (
+    <button onClick={onClick} title={title || Icon?.displayName} aria-label={title || Icon?.displayName} className={`p-1 rounded-lg transition-all hover:scale-110 active:scale-95 text-[var(--app-muted)] hover:bg-[var(--app-control-hover)] ${tone}`}>
       <Icon size={13} strokeWidth={2.2} />
     </button>
   );

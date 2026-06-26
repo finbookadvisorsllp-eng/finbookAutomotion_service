@@ -433,7 +433,7 @@ const ManualEntryPanel = ({ isDark }) => {
       : null;
 
   const RowAction = ({ icon: Icon, onClick, title, cls }) => (
-    <button onClick={onClick} title={title} className={`p-1 rounded-lg transition-all hover:scale-110 active:scale-95 text-[var(--app-muted)] hover:bg-[var(--app-control-hover)] ${cls}`}>
+    <button onClick={onClick} title={title} aria-label={title || Icon?.displayName} className={`p-1 rounded-lg transition-all hover:scale-110 active:scale-95 text-[var(--app-muted)] hover:bg-[var(--app-control-hover)] ${cls}`}>
       <Icon size={13} strokeWidth={2.4} />
     </button>
   );
