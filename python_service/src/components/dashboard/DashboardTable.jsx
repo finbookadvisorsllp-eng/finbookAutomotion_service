@@ -124,7 +124,7 @@ export default function DashboardTable() {
 
   // Time-aware greeting — the workspace reacts to the moment, not a static title.
   const hr = new Date().getHours()
-  const tod = (hr >= 18 || hr < 5) ? 'night' : 'day'
+  const tod = hr < 12 ? 'morning' : hr < 17 ? 'afternoon' : hr < 21 ? 'evening' : 'night'
   const greetText = hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening'
   const today = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })
 
