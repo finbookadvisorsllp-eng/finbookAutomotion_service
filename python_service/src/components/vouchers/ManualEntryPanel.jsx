@@ -1,12 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
-  X, Plus, RefreshCw, Edit3, Trash2, Send, CheckCircle2,
-  ChevronLeft, ChevronRight, Loader2, ArrowUpDown, FileText,
-  BookText, ArrowLeftRight, Layout, Settings, AlertCircle, Eye, Copy, ArrowRightLeft,
-  ChevronDown
+  Plus, RefreshCw, Edit3, Trash2, Send, CheckCircle2,
+  FileText, BookText, ArrowLeftRight, AlertCircle, Copy, ChevronDown,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { motion, AnimatePresence } from 'motion/react';
 
 import useSalesStore from '../../stores/useSalesStore';
 import usePurchaseStore from '../../stores/usePurchaseStore';
@@ -16,13 +15,17 @@ import CreateSales from '../sales/CreateSales';
 import CreatePurchase from '../purchase/CreatePurchase';
 import CreateFundFlow from './CreateFundFlow';
 import { useConfirm } from '../ui/ConfirmDialog';
+import DataTable from '../ui/DataTable';
+import Button from '../ui/Button';
+import Select from '../ui/Select';
+import Badge, { statusTone } from '../ui/Badge';
 
 const VOUCHER_TABS = [
   { id: 'sales_invoice', label: 'Sales Voucher', section: 'SALES', icon: FileText },
   { id: 'purchase_invoice', label: 'Purchase Voucher', section: 'PURCHASE', icon: BookText },
   { id: 'cash_payment', label: 'Payments', section: 'PAYMENTS', icon: ArrowLeftRight },
   { id: 'bank_payment', label: 'Receipts', section: 'RECEIPTS', icon: CheckCircle2 },
-  { id: 'contra', label: 'Contra', section: 'CONTRA', icon: RefreshCw }
+  { id: 'contra', label: 'Contra', section: 'CONTRA', icon: RefreshCw },
 ];
 
 const checkIsFormDirty = (type, formState) => {
@@ -102,11 +105,11 @@ const ManualEntryPanel = ({ isDark }) => {
   const fundFlowStore = useFundFlowStore();
 
   // Component UI State
-  const [activeTab, setActiveTab] = useState('sales_invoice'); // active tab category
-  const [viewMode, setViewMode] = useState('list'); // 'list' or 'form'
-  const [activeFormType, setActiveFormType] = useState('sales_invoice'); // active form type
-  const [isEditing, setIsEditing] = useState(false);
-  const [editingId, setEditingId] = useState(null);
+  const [activeTab, setActiveTab] = useState('sales_invoice');
+  const [viewMode, setViewMode] = useState('list');
+  const [activeFormType, setActiveFormType] = useState('sales_invoice');
+  const [, setIsEditing] = useState(false);
+  const [, setEditingId] = useState(null);
 
   // Unsaved Warning State
   const [showUnsavedWarning, setShowUnsavedWarning] = useState(false);
@@ -117,19 +120,15 @@ const ManualEntryPanel = ({ isDark }) => {
   const [showSavePopup, setShowSavePopup] = useState(false);
   const [savedVoucherId, setSavedVoucherId] = useState(null);
 
-  // Search Filter State (Local list view search)
+  // Search + filter
   const [searchQuery, setSearchQuery] = useState('');
   const [voucherTypeFilter, setVoucherTypeFilter] = useState('all');
 
-  // Reset filter when tab changes
-  useEffect(() => {
-    setVoucherTypeFilter('all');
-  }, [activeTab]);
+  useEffect(() => { setVoucherTypeFilter('all'); }, [activeTab]);
 
   const [showCreateDropdown, setShowCreateDropdown] = useState(false);
   const createDropdownRef = useRef(null);
 
-  // Close dropdown on click outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (createDropdownRef.current && !createDropdownRef.current.contains(event.target)) {
@@ -160,10 +159,17 @@ const ManualEntryPanel = ({ isDark }) => {
   };
 
   useEffect(() => {
-    if (viewMode === 'list') {
-      fetchList();
-    }
+    if (viewMode === 'list') fetchList();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, viewMode, voucherTypeFilter]);
+
+  // Debounced search
+  useEffect(() => {
+    if (viewMode !== 'list') return;
+    const id = setTimeout(() => fetchList(), 350);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery]);
 
   useEffect(() => {
     if (location.state && location.state.voucherType) {
@@ -180,7 +186,6 @@ const ManualEntryPanel = ({ isDark }) => {
         setIsEditing(true);
         setEditingId(editId);
         setViewMode('form');
-        
         if (type.startsWith('sales_') || type === 'credit_note') {
           salesStore.fetchById(editId);
         } else if (type.startsWith('purchase_') || type === 'debit_note') {
@@ -192,7 +197,6 @@ const ManualEntryPanel = ({ isDark }) => {
         setIsEditing(false);
         setEditingId(null);
         setViewMode('form');
-
         if (type.startsWith('sales_') || type === 'credit_note') {
           salesStore.fetchNextInvoiceNumber(type);
         } else if (type.startsWith('purchase_') || type === 'debit_note') {
@@ -201,20 +205,11 @@ const ManualEntryPanel = ({ isDark }) => {
           fundFlowStore.fetchNextVoucherNumber(type);
         }
       }
-
-      // Clear location state
       navigate(location.pathname, { replace: true, state: {} });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.state]);
 
-  // Handle Search Input Submission/Enter
-  const handleSearch = (e) => {
-    if (e.key === 'Enter') {
-      fetchList();
-    }
-  };
-
-  // Helper to check if current form is dirty
   const isCurrentFormDirty = () => {
     if (activeFormType.startsWith('sales_') || activeFormType === 'credit_note') {
       return checkIsFormDirty('sales_invoice', salesStore.form);
@@ -225,7 +220,6 @@ const ManualEntryPanel = ({ isDark }) => {
     return checkIsFormDirty(activeFormType, fundFlowStore.form);
   };
 
-  // Handle Tab click
   const handleTabClick = (tabId) => {
     if (viewMode === 'form') {
       if (tabId === activeFormType) return;
@@ -241,19 +235,14 @@ const ManualEntryPanel = ({ isDark }) => {
     }
   };
 
-  // Force Tab Switch (discard changes)
   const performTabSwitch = (tabId) => {
-    // Reset stores
     salesStore.resetForm();
     purchaseStore.resetForm('purchase_invoice');
     fundFlowStore.resetForm(tabId);
-
     setActiveFormType(tabId);
     setActiveTab(tabId);
     setIsEditing(false);
     setEditingId(null);
-
-    // Fetch next number
     if (tabId.startsWith('sales_') || tabId === 'credit_note') {
       salesStore.fetchNextInvoiceNumber(tabId);
     } else if (tabId.startsWith('purchase_') || tabId === 'debit_note') {
@@ -263,7 +252,6 @@ const ManualEntryPanel = ({ isDark }) => {
     }
   };
 
-  // Handle Close (X) Click beside Create Voucher Heading
   const handleCloseForm = () => {
     if (isCurrentFormDirty()) {
       setPendingCloseSwitch(true);
@@ -280,7 +268,6 @@ const ManualEntryPanel = ({ isDark }) => {
     fetchList();
   };
 
-  // Warning Modal Actions
   const handleConfirmDiscard = () => {
     setShowUnsavedWarning(false);
     if (pendingCloseSwitch) {
@@ -299,18 +286,14 @@ const ManualEntryPanel = ({ isDark }) => {
     setPendingCloseSwitch(false);
   };
 
-  // Create Voucher Trigger
   const handleCreateVoucherWithType = (type) => {
     salesStore.resetForm();
     purchaseStore.resetForm('purchase_invoice');
     fundFlowStore.resetForm(type);
-
     setActiveFormType(type);
     setIsEditing(false);
     setEditingId(null);
     setViewMode('form');
-
-    // Fetch next number
     if (type.startsWith('sales_') || type === 'credit_note') {
       salesStore.fetchNextInvoiceNumber(type);
     } else if (type.startsWith('purchase_') || type === 'debit_note') {
@@ -320,16 +303,12 @@ const ManualEntryPanel = ({ isDark }) => {
     }
   };
 
-  const handleCreateVoucher = () => {
-    handleCreateVoucherWithType(activeTab);
-  };
+  const handleCreateVoucher = () => handleCreateVoucherWithType(activeTab);
 
-  // Row Edit Trigger
   const handleEditRow = async (id, type) => {
     setEditingId(id);
     setIsEditing(true);
     let targetType = type;
-
     if (activeTab === 'sales_invoice') {
       const data = await salesStore.fetchById(id);
       targetType = data?.voucherType || 'sales_invoice';
@@ -340,13 +319,11 @@ const ManualEntryPanel = ({ isDark }) => {
       await fundFlowStore.fetchTransaction(id);
       targetType = activeTab;
     }
-
     setActiveFormType(targetType);
     setViewMode('form');
   };
 
-  // Row Clone Trigger
-  const handleCloneRow = async (id, type) => {
+  const handleCloneRow = async (id) => {
     toast.info('Cloning voucher...');
     if (activeTab === 'sales_invoice') {
       const data = await salesStore.fetchById(id);
@@ -361,72 +338,44 @@ const ManualEntryPanel = ({ isDark }) => {
       await purchaseStore.fetchNextInvoiceNumber(data.voucherType || 'purchase_invoice');
       setActiveFormType(data.voucherType || 'purchase_invoice');
     } else {
-      const data = await fundFlowStore.fetchTransaction(id);
+      await fundFlowStore.fetchTransaction(id);
       fundFlowStore.setFormValue('_id', undefined);
       await fundFlowStore.fetchNextVoucherNumber(activeTab);
       setActiveFormType(activeTab);
     }
-
     setIsEditing(false);
     setEditingId(null);
     setViewMode('form');
     toast.success('Voucher details cloned successfully. Ready to edit and save.');
   };
 
-  // Row Delete Trigger
   const handleDeleteRow = async (id) => {
     if (await confirm({ title: 'Delete this voucher?', message: 'This action cannot be undone.', confirmText: 'Delete' })) {
       let res;
-      if (activeTab === 'sales_invoice') {
-        res = await salesStore.deleteTransaction(id);
-      } else if (activeTab === 'purchase_invoice') {
-        res = await purchaseStore.deleteTransaction(id);
-      } else {
-        res = await fundFlowStore.deleteTransaction(id);
-      }
-
-      if (res?.success) {
-        toast.success('Voucher deleted successfully');
-        fetchList();
-      } else {
-        toast.error(res?.message || 'Delete failed');
-      }
+      if (activeTab === 'sales_invoice') res = await salesStore.deleteTransaction(id);
+      else if (activeTab === 'purchase_invoice') res = await purchaseStore.deleteTransaction(id);
+      else res = await fundFlowStore.deleteTransaction(id);
+      if (res?.success) { toast.success('Voucher deleted successfully'); fetchList(); }
+      else toast.error(res?.message || 'Delete failed');
     }
   };
 
-  // Push to Tally Trigger
   const handlePushToTallyRow = async (id) => {
     toast.info('Pushing voucher to Tally database...');
     let res;
-    if (activeTab === 'sales_invoice') {
-      res = await salesStore.approveTransaction(id, 'Pushed from manual entry');
-    } else if (activeTab === 'purchase_invoice') {
-      res = await purchaseStore.approveTransaction(id, 'Pushed from manual entry');
-    } else {
-      res = await fundFlowStore.updateStatus(id, 'approved');
-    }
-
-    if (res?.success) {
-      toast.success('Successfully posted voucher to Tally database!');
-      fetchList();
-    } else {
-      toast.error(res?.message || 'Push to Tally failed');
-    }
+    if (activeTab === 'sales_invoice') res = await salesStore.approveTransaction(id, 'Pushed from manual entry');
+    else if (activeTab === 'purchase_invoice') res = await purchaseStore.approveTransaction(id, 'Pushed from manual entry');
+    else res = await fundFlowStore.updateStatus(id, 'approved');
+    if (res?.success) { toast.success('Successfully posted voucher to Tally database!'); fetchList(); }
+    else toast.error(res?.message || 'Push to Tally failed');
   };
 
-  // Handle successful save
-  const handleSaveSuccess = (id) => {
-    setSavedVoucherId(id);
-    setShowSavePopup(true);
-  };
+  const handleSaveSuccess = (id) => { setSavedVoucherId(id); setShowSavePopup(true); };
 
-  // Save Popup Actions
   const handleContinueEditing = async () => {
     setShowSavePopup(false);
     setIsEditing(true);
     setEditingId(savedVoucherId);
-
-    // Reload document
     if (activeFormType.startsWith('sales_') || activeFormType === 'credit_note') {
       await salesStore.fetchById(savedVoucherId);
     } else if (activeFormType.startsWith('purchase_') || activeFormType === 'debit_note') {
@@ -440,8 +389,6 @@ const ManualEntryPanel = ({ isDark }) => {
     setShowSavePopup(false);
     setIsEditing(false);
     setEditingId(null);
-
-    // Reset current form type
     if (activeFormType.startsWith('sales_') || activeFormType === 'credit_note') {
       salesStore.resetForm();
       salesStore.fetchNextInvoiceNumber(activeFormType);
@@ -454,461 +401,184 @@ const ManualEntryPanel = ({ isDark }) => {
     }
   };
 
-  const handleBackToListSuccess = () => {
-    setShowSavePopup(false);
-    performCloseForm();
-  };
+  const handleBackToListSuccess = () => { setShowSavePopup(false); performCloseForm(); };
 
-  // Extract table rows/loading/count based on active store
-  let transactions = [];
-  let totalCount = 0;
-  let currentPage = 1;
-  let listLoading = false;
-  let setPage = () => {};
-
+  // Active store → list data
+  let transactions = [], totalCount = 0, currentPage = 1, listLoading = false, setPage = () => {};
   if (activeTab === 'sales_invoice') {
-    transactions = salesStore.transactions || [];
-    totalCount = salesStore.totalCount || 0;
-    currentPage = salesStore.currentPage || 1;
-    listLoading = salesStore.loading?.list;
-    setPage = salesStore.setPage;
+    transactions = salesStore.transactions || []; totalCount = salesStore.totalCount || 0;
+    currentPage = salesStore.currentPage || 1; listLoading = salesStore.loading?.list; setPage = salesStore.setPage;
   } else if (activeTab === 'purchase_invoice') {
-    transactions = purchaseStore.transactions || [];
-    totalCount = purchaseStore.totalCount || 0;
-    currentPage = purchaseStore.currentPage || 1;
-    listLoading = purchaseStore.loading?.list;
-    setPage = purchaseStore.setPage;
+    transactions = purchaseStore.transactions || []; totalCount = purchaseStore.totalCount || 0;
+    currentPage = purchaseStore.currentPage || 1; listLoading = purchaseStore.loading?.list; setPage = purchaseStore.setPage;
   } else {
-    transactions = fundFlowStore.transactions || [];
-    totalCount = fundFlowStore.totalCount || 0;
-    currentPage = fundFlowStore.currentPage || 1;
-    listLoading = fundFlowStore.loading?.list;
-    setPage = fundFlowStore.setPage;
+    transactions = fundFlowStore.transactions || []; totalCount = fundFlowStore.totalCount || 0;
+    currentPage = fundFlowStore.currentPage || 1; listLoading = fundFlowStore.loading?.list; setPage = fundFlowStore.setPage;
   }
-
   const unifiedList = transactions.map(t => getUnifiedTx(t, activeTab)).filter(Boolean);
 
-  const theme = {
-    bg: 'var(--app-content-bg)',
-    panel: 'var(--app-panel-bg)',
-    border: 'var(--app-border)',
-    headerBg: 'var(--app-table-head-bg)',
-    text: 'var(--app-heading)',
-    mutedText: 'var(--app-muted)',
-    inputBg: 'var(--app-control-bg)',
-    accent: '#4f46e5',
-  };
+  const PAGE_SIZE = 20;
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+
+  const createOptions = activeTab === 'sales_invoice'
+    ? [['sales_order', 'Sales Order'], ['sales_invoice', 'Sales Invoice'], ['credit_note', 'Credit Note']]
+    : activeTab === 'purchase_invoice'
+      ? [['purchase_order', 'Purchase Order'], ['purchase_invoice', 'Purchase Invoice'], ['debit_note', 'Debit Note']]
+      : null;
+
+  const typeFilterOptions = activeTab === 'sales_invoice'
+    ? [{ value: 'all', label: 'All Sales Types' }, { value: 'sales_invoice', label: 'Sales Invoice' }, { value: 'sales_order', label: 'Sales Order' }, { value: 'credit_note', label: 'Credit Note' }]
+    : activeTab === 'purchase_invoice'
+      ? [{ value: 'all', label: 'All Purchase Types' }, { value: 'purchase_invoice', label: 'Purchase Invoice' }, { value: 'purchase_order', label: 'Purchase Order' }, { value: 'debit_note', label: 'Debit Note' }]
+      : null;
+
+  const RowAction = ({ icon: Icon, onClick, title, cls }) => (
+    <button onClick={onClick} title={title} className={`p-1 rounded-lg transition-all hover:scale-110 active:scale-95 text-[var(--app-muted)] hover:bg-[var(--app-control-hover)] ${cls}`}>
+      <Icon size={13} strokeWidth={2.4} />
+    </button>
+  );
+
+  const columns = [
+    { key: 'voucherNo', header: 'Voucher No', sortable: true, render: (tx) => <span className="font-black" style={{ color: 'var(--app-heading)' }}>{tx.voucherNo}</span> },
+    { key: 'date', header: 'Date', sortable: true, sortValue: (tx) => tx.date, render: (tx) => <span className="font-semibold">{tx.date ? new Date(tx.date).toLocaleDateString('en-IN') : '—'}</span> },
+    { key: 'type', header: 'Type', sortable: true, render: (tx) => <span className="font-bold" style={{ color: 'var(--app-accent)' }}>{tx.type}</span> },
+    { key: 'party', header: 'Party / Ledger', sortable: true, render: (tx) => <span className="font-semibold truncate block max-w-[200px]">{tx.party}</span> },
+    { key: 'amount', header: 'Amount', align: 'right', sortable: true, sortValue: (tx) => tx.amount, render: (tx) => <span className="font-bold" style={{ color: 'var(--app-accent)' }}>₹ {tx.amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span> },
+    { key: 'status', header: 'Status', align: 'center', render: (tx) => <Badge tone={statusTone(tx.status)}>{tx.status.replace('_', ' ')}</Badge> },
+    { key: 'createdBy', header: 'Created By', align: 'center', render: (tx) => <span style={{ color: 'var(--app-muted)' }}>{tx.createdBy}</span> },
+    { key: 'sync', header: 'Sync', align: 'center', render: (tx) => <Badge tone={tx.syncStatus === 'Synced' ? 'accent' : 'neutral'}>{tx.syncStatus}</Badge> },
+    {
+      key: 'actions', header: 'Actions', align: 'center', width: '150px', render: (tx) => (
+        <div className="flex items-center justify-center gap-1">
+          <RowAction icon={Edit3} title="Edit" cls="hover:text-[var(--app-accent)]" onClick={() => handleEditRow(tx._id, tx.rawType)} />
+          <RowAction icon={Copy} title="Clone" cls="hover:text-teal-500" onClick={() => handleCloneRow(tx._id)} />
+          <RowAction icon={Trash2} title="Delete" cls="hover:text-rose-500" onClick={() => handleDeleteRow(tx._id)} />
+          {tx.status !== 'approved' && <RowAction icon={Send} title="Push to Tally" cls="hover:text-emerald-500" onClick={() => handlePushToTallyRow(tx._id)} />}
+        </div>
+      ),
+    },
+  ];
+
+  const listActions = (
+    <>
+      <Button icon={RefreshCw} iconOnly onClick={fetchList} />
+      <div className="relative" ref={createDropdownRef}>
+        <Button variant="primary" icon={Plus} onClick={() => (createOptions ? setShowCreateDropdown((p) => !p) : handleCreateVoucher())}>
+          Create Voucher {createOptions && <ChevronDown size={12} />}
+        </Button>
+        <AnimatePresence>
+          {createOptions && showCreateDropdown && (
+            <motion.div initial={{ opacity: 0, y: -6, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -6, scale: 0.98 }} transition={{ duration: 0.15 }}
+              className="absolute right-0 mt-1.5 w-48 rounded-xl border p-1 shadow-2xl z-50 glass-surface" style={{ borderColor: 'var(--app-border)' }}>
+              {createOptions.map(([type, label]) => (
+                <button key={type} onClick={() => { setShowCreateDropdown(false); handleCreateVoucherWithType(type); }}
+                  className="w-full text-left rounded-lg px-2.5 py-2 text-[11.5px] font-semibold transition-colors hover:bg-[var(--app-control-hover)]" style={{ color: 'var(--app-heading)' }}>
+                  {label}
+                </button>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </>
+  );
 
   return (
-    <div className="flex flex-col h-full w-full overflow-hidden relative bg-slate-50 dark:bg-[#0b0c10]" style={{ backgroundColor: theme.bg }}>
-       {/* ─── TABS HEADER ROW (STAYS ALWAYS VISIBLE) ─── */}
-      <div className="flex items-center justify-between border-b bg-white dark:bg-[#0d0f12] px-4 py-2 shrink-0 select-none shadow-sm z-10" style={{ borderColor: theme.border }}>
-        <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
-          {VOUCHER_TABS.map(tab => {
-            const isSelected = viewMode === 'form' ? activeFormType === tab.id : activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => handleTabClick(tab.id)}
-                className={`flex items-center gap-2.5 px-3.5 py-1.5 rounded-xl border text-left min-w-[135px] shrink-0 transition-all duration-200 ${
-                  isSelected
-                    ? 'bg-emerald-500/10 dark:bg-emerald-500/5 border-emerald-500/50 text-emerald-700 dark:text-emerald-400 shadow-sm font-extrabold scale-[1.01]'
-                    : 'bg-slate-50/50 hover:bg-slate-100/70 dark:bg-[#12161a] dark:hover:bg-[#171d22] border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white shadow-sm font-semibold'
-                }`}
-              >
-                <div className={`p-1.5 rounded-lg ${isSelected ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' : 'bg-slate-200/50 dark:bg-[#1b2026] text-slate-400'}`}>
-                  <tab.icon size={13} />
-                </div>
-                <div className="space-y-0.5">
-                  <span className="text-[8px] block font-extrabold tracking-wider opacity-70 uppercase leading-none">{tab.section}</span>
-                  <span className="text-[11.5px] block font-extrabold leading-none">{tab.label}</span>
-                </div>
-              </button>
-            );
-          })}
-        </div>
+    <div className="flex flex-col h-full w-full overflow-hidden">
+      {/* Voucher type tabs */}
+      <div className="flex items-center gap-1.5 overflow-x-auto themed-scrollbar pb-2 mb-2.5 shrink-0">
+        {VOUCHER_TABS.map((tab) => {
+          const sel = viewMode === 'form' ? activeFormType === tab.id : activeTab === tab.id;
+          return (
+            <motion.button key={tab.id} onClick={() => handleTabClick(tab.id)} whileTap={{ scale: 0.98 }}
+              className="relative flex items-center gap-2 px-3 py-2 rounded-xl border shrink-0 transition-colors"
+              style={{ borderColor: sel ? 'var(--app-accent)' : 'var(--app-border)', backgroundColor: sel ? 'var(--app-accent-soft)' : 'var(--app-control-bg)', color: sel ? 'var(--app-accent)' : 'var(--app-text)' }}>
+              <span className="h-6 w-6 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: sel ? 'var(--app-accent)' : 'var(--app-control-hover)', color: sel ? '#fff' : 'var(--app-muted)' }}>
+                <tab.icon size={12} strokeWidth={2.4} />
+              </span>
+              <span className="text-left leading-tight">
+                <span className="block text-[7.5px] font-extrabold uppercase tracking-wider opacity-70">{tab.section}</span>
+                <span className="block text-[11.5px] font-bold">{tab.label}</span>
+              </span>
+            </motion.button>
+          );
+        })}
       </div>
 
-      {/* ─── MAIN WORK AREA ─── */}
-      <div className={`flex-1 overflow-hidden relative flex flex-col ${viewMode === 'form' ? 'p-1.5 gap-1.5' : 'p-3 gap-3'}`}>
-        
-        {/* LIST VIEW */}
-        {viewMode === 'list' && (
-          <div className="flex-1 flex flex-col gap-3 overflow-hidden">
-            {/* List Controls */}
-            <div className="flex items-center justify-between gap-4 bg-white dark:bg-[#0d0f12] p-3 rounded-xl border border-slate-200 dark:border-slate-800 shrink-0 shadow-sm">
-              <div className="flex items-center gap-2 max-w-lg w-full">
-                <div className="relative flex-1">
-                  <input
-                    type="text"
-                    placeholder="Search and press Enter..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    onKeyDown={handleSearch}
-                    className="w-full h-8 pl-8 pr-3 text-[11px] font-bold border rounded-lg outline-none bg-slate-50 dark:bg-[#12161a] focus:border-[var(--app-accent)] transition-all"
-                    style={{ borderColor: theme.border, color: theme.text }}
-                  />
-                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-xs">🔍</span>
-                </div>
-                {(activeTab === 'sales_invoice' || activeTab === 'purchase_invoice') && (
-                  <select
-                    value={voucherTypeFilter}
-                    onChange={(e) => setVoucherTypeFilter(e.target.value)}
-                    className="h-8 px-2 text-[11px] font-bold border rounded-lg outline-none bg-slate-50 dark:bg-[#12161a] cursor-pointer focus:border-[var(--app-accent)] transition-all"
-                    style={{ borderColor: theme.border, color: theme.text }}
-                  >
-                    {activeTab === 'sales_invoice' ? (
-                      <>
-                        <option value="all">All Sales Types</option>
-                        <option value="sales_invoice">Sales Invoice</option>
-                        <option value="sales_order">Sales Order</option>
-                        <option value="credit_note">Credit Note</option>
-                      </>
-                    ) : (
-                      <>
-                        <option value="all">All Purchase Types</option>
-                        <option value="purchase_invoice">Purchase Invoice</option>
-                        <option value="purchase_order">Purchase Order</option>
-                        <option value="debit_note">Debit Note</option>
-                      </>
-                    )}
-                  </select>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2 relative" ref={createDropdownRef}>
-                <button
-                  onClick={fetchList}
-                  className="p-1.5 border hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500 rounded-lg transition-colors"
-                  style={{ borderColor: theme.border }}
-                >
-                  <RefreshCw size={13} className={listLoading ? 'animate-spin' : ''} />
-                </button>
-                {['sales_invoice', 'purchase_invoice'].includes(activeTab) ? (
-                  <div className="relative">
-                    <button
-                      onClick={() => setShowCreateDropdown(!showCreateDropdown)}
-                      className="px-4 py-1.5 bg-[#4f46e5] hover:opacity-90 text-white font-black text-[10.5px] uppercase tracking-wider rounded-lg shadow-sm flex items-center gap-1.5 transition-all cursor-pointer"
-                    >
-                      <Plus size={13} strokeWidth={3} />
-                      Create Voucher
-                      <ChevronDown size={12} />
-                    </button>
-                    {showCreateDropdown && (
-                      <div className="absolute right-0 mt-1.5 w-44 bg-white dark:bg-[#0d0f12] border border-slate-200 dark:border-slate-800 rounded-lg shadow-xl z-50 overflow-hidden py-1 animate-in fade-in slide-in-from-top-1 duration-150">
-                        {activeTab === 'sales_invoice' ? (
-                          <>
-                            <button
-                              onClick={() => {
-                                setShowCreateDropdown(false);
-                                handleCreateVoucherWithType('sales_order');
-                              }}
-                              className="w-full px-4 py-2 text-left text-[11.5px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors uppercase"
-                            >
-                              Sales Order
-                            </button>
-                            <button
-                              onClick={() => {
-                                setShowCreateDropdown(false);
-                                handleCreateVoucherWithType('sales_invoice');
-                              }}
-                              className="w-full px-4 py-2 text-left text-[11.5px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors uppercase"
-                            >
-                              Sales Invoice
-                            </button>
-                            <button
-                              onClick={() => {
-                                setShowCreateDropdown(false);
-                                handleCreateVoucherWithType('credit_note');
-                              }}
-                              className="w-full px-4 py-2 text-left text-[11.5px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors uppercase"
-                            >
-                              Credit Note
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <button
-                              onClick={() => {
-                                setShowCreateDropdown(false);
-                                handleCreateVoucherWithType('purchase_order');
-                              }}
-                              className="w-full px-4 py-2 text-left text-[11.5px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors uppercase"
-                            >
-                              Purchase Order
-                            </button>
-                            <button
-                              onClick={() => {
-                                setShowCreateDropdown(false);
-                                handleCreateVoucherWithType('purchase_invoice');
-                              }}
-                              className="w-full px-4 py-2 text-left text-[11.5px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors uppercase"
-                            >
-                              Purchase Invoice
-                            </button>
-                            <button
-                              onClick={() => {
-                                setShowCreateDropdown(false);
-                                handleCreateVoucherWithType('debit_note');
-                              }}
-                              className="w-full px-4 py-2 text-left text-[11.5px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors uppercase"
-                            >
-                              Debit Note
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <button
-                    onClick={handleCreateVoucher}
-                    className="px-4 py-1.5 bg-[#4f46e5] hover:opacity-90 text-white font-black text-[10.5px] uppercase tracking-wider rounded-lg shadow-sm flex items-center gap-1.5 transition-all"
-                  >
-                    <Plus size={13} strokeWidth={3} />
-                    Create Voucher
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* List Table container */}
-            <div className="flex-1 border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0d0f12] overflow-hidden flex flex-col relative rounded-xl shadow-sm">
-              {listLoading && (
-                <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/60 dark:bg-black/60 backdrop-blur-sm">
-                  <div className="flex items-center gap-2 px-4 py-2 border rounded-xl bg-white dark:bg-[#12161a]" style={{ borderColor: theme.border }}>
-                    <Loader2 size={16} className="animate-spin text-[var(--app-accent)]" />
-                    <span className="text-[10px] font-black uppercase text-slate-600 dark:text-slate-300">Loading list data...</span>
-                  </div>
-                </div>
-              )}
-
-              <div className="flex-1 overflow-auto custom-scrollbar">
-                <table className="w-full text-left border-collapse min-w-[900px] text-[10.5px]">
-                  <thead className="sticky top-0 z-10 select-none bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
-                    <tr>
-                      <th className="p-2.5 font-black uppercase tracking-wider text-slate-500 border-r" style={{ borderColor: theme.border }}>Voucher No</th>
-                      <th className="p-2.5 font-black uppercase tracking-wider text-slate-500 border-r" style={{ borderColor: theme.border }}>Voucher Date</th>
-                      <th className="p-2.5 font-black uppercase tracking-wider text-slate-500 border-r" style={{ borderColor: theme.border }}>Voucher Type</th>
-                      <th className="p-2.5 font-black uppercase tracking-wider text-slate-500 border-r" style={{ borderColor: theme.border }}>Party / Ledger</th>
-                      <th className="p-2.5 font-black uppercase tracking-wider text-slate-500 border-r text-right" style={{ borderColor: theme.border }}>Amount</th>
-                      <th className="p-2.5 font-black uppercase tracking-wider text-slate-500 border-r text-center" style={{ borderColor: theme.border }}>Status</th>
-                      <th className="p-2.5 font-black uppercase tracking-wider text-slate-500 border-r text-center" style={{ borderColor: theme.border }}>Created By</th>
-                      <th className="p-2.5 font-black uppercase tracking-wider text-slate-500 border-r text-center" style={{ borderColor: theme.border }}>Sync Status</th>
-                      <th className="p-2.5 font-black uppercase tracking-wider text-slate-505 text-center w-[160px]">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {unifiedList.length > 0 ? (
-                      unifiedList.map((tx, idx) => (
-                        <tr
-                          key={tx._id || idx}
-                          className="border-b hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors font-bold text-slate-700 dark:text-slate-300"
-                          style={{ borderColor: theme.border }}
-                        >
-                          <td className="p-2.5 border-r font-black" style={{ borderColor: theme.border }}>{tx.voucherNo}</td>
-                          <td className="p-2.5 border-r text-slate-505" style={{ borderColor: theme.border }}>
-                            {tx.date ? new Date(tx.date).toLocaleDateString('en-IN') : '—'}
-                          </td>
-                          <td className="p-2.5 border-r font-black text-[var(--app-accent)] dark:text-[var(--app-accent)]" style={{ borderColor: theme.border }}>
-                            {tx.type}
-                          </td>
-                          <td className="p-2.5 border-r truncate max-w-[200px]" style={{ borderColor: theme.border }}>{tx.party}</td>
-                          <td className="p-2.5 border-r text-right font-black text-emerald-600 dark:text-emerald-400" style={{ borderColor: theme.border }}>
-                            ₹ {tx.amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </td>
-                          <td className="p-2.5 border-r text-center uppercase text-[9px]" style={{ borderColor: theme.border }}>
-                            <span className={`px-2.5 py-0.5 rounded-full font-black ${
-                              tx.status === 'approved' ? 'bg-emerald-105 text-emerald-700' :
-                              tx.status === 'pending_review' ? 'bg-amber-105 text-amber-700' :
-                              tx.status === 'rejected' ? 'bg-rose-105 text-rose-700' : 'bg-slate-105 text-slate-700'
-                            }`}>
-                              {tx.status.replace('_', ' ')}
-                            </span>
-                          </td>
-                          <td className="p-2.5 border-r text-center text-slate-505" style={{ borderColor: theme.border }}>{tx.createdBy}</td>
-                          <td className="p-2.5 border-r text-center" style={{ borderColor: theme.border }}>
-                            <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black ${
-                              tx.syncStatus === 'Synced' ? 'bg-blue-105 text-[var(--app-accent)]' : 'bg-slate-105 text-slate-500'
-                            }`}>
-                              {tx.syncStatus}
-                            </span>
-                          </td>
-                          <td className="p-2.5 text-center">
-                            <div className="flex items-center justify-center gap-1">
-                              <button
-                                onClick={() => handleEditRow(tx._id, tx.rawType)}
-                                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 text-[var(--app-accent)] rounded-lg transition-all"
-                                title="Edit"
-                              >
-                                <Edit3 size={12.5} />
-                              </button>
-                              <button
-                                onClick={() => handleCloneRow(tx._id, tx.rawType)}
-                                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 text-teal-650 rounded-lg transition-all"
-                                title="Clone"
-                              >
-                                <Copy size={12.5} />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteRow(tx._id)}
-                                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 text-rose-650 rounded-lg transition-all"
-                                title="Delete"
-                              >
-                                <Trash2 size={12.5} />
-                              </button>
-                              {tx.status !== 'approved' && (
-                                <button
-                                  onClick={() => handlePushToTallyRow(tx._id)}
-                                  className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 text-emerald-650 rounded-lg transition-all"
-                                  title="Push to Tally"
-                                >
-                                  <Send size={12.5} />
-                                </button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan="9" className="p-12 text-center text-slate-400 font-bold">
-                          No saved vouchers found for this type. Click "+ Create Voucher" to add one.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Pagination Row */}
-              {totalCount > 20 && (
-                <div className="flex items-center justify-between px-6 py-2 border-t bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-[10px] font-black uppercase text-slate-500">
-                  <span>Total {totalCount} records</span>
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      onClick={() => setPage(Math.max(currentPage - 1, 1))}
-                      disabled={currentPage === 1}
-                      className="p-1 border rounded-lg bg-white disabled:opacity-40 disabled:hover:bg-white hover:bg-slate-100"
-                    >
-                      <ChevronLeft size={12} />
-                    </button>
-                    <span>Page {currentPage} of {Math.ceil(totalCount / 20)}</span>
-                    <button
-                      onClick={() => setPage(Math.min(currentPage + 1, Math.ceil(totalCount / 20)))}
-                      disabled={currentPage >= Math.ceil(totalCount / 20)}
-                      className="p-1 border rounded-lg bg-white disabled:opacity-40 disabled:hover:bg-white hover:bg-slate-100"
-                    >
-                      <ChevronRight size={12} />
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* FORM VIEW */}
-        {viewMode === 'form' && (
-          <div className="flex-1 flex flex-col gap-0 overflow-hidden bg-white dark:bg-[#0d0f12] border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm p-0">
-            {/* Dynamic Form wrapper */}
-            <div className="flex-1 overflow-hidden relative">
-              {activeFormType.startsWith('sales_') || activeFormType === 'credit_note' ? (
-                <CreateSales
-                  isDark={isDark}
-                  voucherType={activeFormType}
-                  onBack={handleCloseForm}
-                  onVoucherTypeChange={setActiveFormType}
-                  onSaveSuccess={handleSaveSuccess}
-                />
-              ) : activeFormType.startsWith('purchase_') || activeFormType === 'debit_note' ? (
-                <CreatePurchase
-                  isDark={isDark}
-                  voucherType={activeFormType}
-                  onBack={handleCloseForm}
-                  onVoucherTypeChange={setActiveFormType}
-                  onSaveSuccess={handleSaveSuccess}
-                />
-              ) : (
-                <CreateFundFlow
-                  isDark={isDark}
-                  voucherType={activeFormType}
-                  onBack={handleCloseForm}
-                  onSaveSuccess={handleSaveSuccess}
-                />
-              )}
-            </div>
+      {/* Work area */}
+      <div className="flex-1 overflow-hidden">
+        {viewMode === 'list' ? (
+          <DataTable
+            columns={columns}
+            data={unifiedList}
+            rowKey={(tx) => tx._id}
+            loading={listLoading}
+            emptyText="No saved vouchers yet — create your first one."
+            minWidth="980px"
+            search={{ value: searchQuery, onChange: setSearchQuery, placeholder: 'Search vouchers…' }}
+            filters={typeFilterOptions ? <Select value={voucherTypeFilter} options={typeFilterOptions} onChange={setVoucherTypeFilter} align="right" minWidth={150} /> : null}
+            actions={listActions}
+            pagination={{ page: currentPage, total: totalCount, label: `${totalCount} voucher${totalCount === 1 ? '' : 's'}`, onPrev: () => setPage(Math.max(currentPage - 1, 1)), onNext: () => setPage(Math.min(currentPage + 1, totalPages)), disableNext: currentPage >= totalPages }}
+          />
+        ) : (
+          <div className="h-full rounded-xl border overflow-hidden" style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-panel-bg)' }}>
+            {activeFormType.startsWith('sales_') || activeFormType === 'credit_note' ? (
+              <CreateSales isDark={isDark} voucherType={activeFormType} onBack={handleCloseForm} onVoucherTypeChange={setActiveFormType} onSaveSuccess={handleSaveSuccess} />
+            ) : activeFormType.startsWith('purchase_') || activeFormType === 'debit_note' ? (
+              <CreatePurchase isDark={isDark} voucherType={activeFormType} onBack={handleCloseForm} onVoucherTypeChange={setActiveFormType} onSaveSuccess={handleSaveSuccess} />
+            ) : (
+              <CreateFundFlow isDark={isDark} voucherType={activeFormType} onBack={handleCloseForm} onSaveSuccess={handleSaveSuccess} />
+            )}
           </div>
         )}
       </div>
 
-      {/* ─── UNSAVED CHANGES WARNING POPUP ─── */}
-      {showUnsavedWarning && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-[2px] animate-in fade-in duration-300">
-          <div className="bg-white dark:bg-[#0d0f12] border border-slate-200 dark:border-slate-800 shadow-2xl p-6 w-[400px] rounded-2xl animate-in zoom-in-95 duration-200">
-            <div className="flex items-center gap-3 text-amber-500 mb-4">
-              <AlertCircle size={24} />
-              <h3 className="text-[13px] font-black uppercase tracking-wide">Unsaved Changes</h3>
-            </div>
-            <p className="text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-6 leading-relaxed">
-              You have unsaved changes on this form. Are you sure you want to discard them and continue?
-            </p>
-            <div className="flex justify-end gap-2 text-[10px] font-black uppercase tracking-wider">
-              <button
-                onClick={handleCancelDiscard}
-                className="px-4 py-2 border rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-                style={{ borderColor: theme.border, color: theme.text }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleConfirmDiscard}
-                className="px-4 py-2 bg-red-800 hover:bg-red-950 text-white rounded-xl shadow-sm transition-all"
-              >
-                Discard & Continue
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Unsaved changes modal */}
+      <AnimatePresence>
+        {showUnsavedWarning && (
+          <motion.div className="fixed inset-0 z-[100] flex items-center justify-center p-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={handleCancelDiscard} />
+            <motion.div initial={{ opacity: 0, y: 12, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 8, scale: 0.98 }}
+              className="relative w-full max-w-sm rounded-2xl border p-5 glass-surface" style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-panel-bg)', boxShadow: 'var(--app-shadow-lg)' }}>
+              <div className="flex items-start gap-3">
+                <span className="h-9 w-9 rounded-xl flex items-center justify-center shrink-0 bg-amber-500/12 text-amber-500"><AlertCircle size={18} /></span>
+                <div>
+                  <h3 className="text-[14px] font-bold" style={{ color: 'var(--app-heading)' }}>Unsaved changes</h3>
+                  <p className="text-[12px] mt-1 leading-relaxed" style={{ color: 'var(--app-muted)' }}>You have unsaved changes on this form. Discard them and continue?</p>
+                </div>
+              </div>
+              <div className="flex items-center justify-end gap-2 mt-5">
+                <Button variant="subtle" size="md" onClick={handleCancelDiscard}>Cancel</Button>
+                <Button variant="danger" size="md" onClick={handleConfirmDiscard}>Discard &amp; Continue</Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {/* ─── SAVE SUCCESS POPUP ─── */}
-      {showSavePopup && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-[2px] animate-in fade-in duration-300">
-          <div className="bg-white dark:bg-[#0d0f12] border border-slate-200 dark:border-slate-800 shadow-2xl p-6 w-[420px] rounded-2xl animate-in zoom-in-95 duration-200">
-            <div className="flex items-center gap-3 text-emerald-500 mb-4">
-              <CheckCircle2 size={24} />
-              <h3 className="text-[13px] font-black uppercase tracking-wide">Voucher Saved</h3>
-            </div>
-            <p className="text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-6 leading-relaxed">
-              The voucher has been saved to your draft database. Please select your next step.
-            </p>
-            <div className="flex flex-col gap-2 text-[10px] font-black uppercase tracking-wider">
-              <button
-                onClick={handleContinueEditing}
-                className="w-full py-2.5 border rounded-xl text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-                style={{ borderColor: theme.border }}
-              >
-                Continue Editing
-              </button>
-              <button
-                onClick={handleCreateNewSuccess}
-                className="w-full py-2.5 bg-[var(--app-accent)] hover:opacity-90 text-white rounded-xl shadow-sm transition-all"
-              >
-                Create New Voucher
-              </button>
-              <button
-                onClick={handleBackToListSuccess}
-                className="w-full py-2.5 border rounded-xl text-slate-500 hover:bg-slate-50 transition-colors"
-                style={{ borderColor: theme.border }}
-              >
-                Back to Voucher List
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
+      {/* Save success modal */}
+      <AnimatePresence>
+        {showSavePopup && (
+          <motion.div className="fixed inset-0 z-[100] flex items-center justify-center p-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0, y: 12, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 8, scale: 0.98 }}
+              className="relative w-full max-w-sm rounded-2xl border p-5 glass-surface" style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-panel-bg)', boxShadow: 'var(--app-shadow-lg)' }}>
+              <div className="flex items-start gap-3">
+                <span className="h-9 w-9 rounded-xl flex items-center justify-center shrink-0 bg-emerald-500/12 text-emerald-500"><CheckCircle2 size={18} /></span>
+                <div>
+                  <h3 className="text-[14px] font-bold" style={{ color: 'var(--app-heading)' }}>Voucher saved</h3>
+                  <p className="text-[12px] mt-1 leading-relaxed" style={{ color: 'var(--app-muted)' }}>Saved to your draft database. What next?</p>
+                </div>
+              </div>
+              <div className="flex flex-col gap-2 mt-5">
+                <Button variant="primary" size="md" className="w-full" onClick={handleCreateNewSuccess}>Create new voucher</Button>
+                <Button variant="subtle" size="md" className="w-full" onClick={handleContinueEditing}>Continue editing</Button>
+                <Button variant="ghost" size="md" className="w-full" onClick={handleBackToListSuccess}>Back to voucher list</Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

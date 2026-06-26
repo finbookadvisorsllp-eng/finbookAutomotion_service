@@ -1,6 +1,8 @@
 import { motion } from 'motion/react'
-import { ArrowRight, PieChart, Workflow, Sparkles, Activity } from 'lucide-react'
+import { ArrowRight, PieChart, Workflow, Sparkles, Activity, FileText, Clock, Eye, CheckCircle2, Upload } from 'lucide-react'
 import Card from '../ui/Card'
+import OpenDoodle from '../ui/OpenDoodle'
+import useCountUp from '../ui/useCountUp'
 
 // ── Shared widget shell ────────────────────────────────────────────────
 export function Widget({ icon: Icon, title, action, children, className = '', bodyClass = '' }) {
@@ -130,25 +132,50 @@ export function AiInsightsCard({ onMore }) {
 
 // ── Approval workflow ──────────────────────────────────────────────────
 const STAGES = [
-  { label: 'Draft', val: 12, tone: 'var(--app-muted)' },
-  { label: 'Pending', val: 8, tone: '#F59E0B' },
-  { label: 'Review', val: 5, tone: 'var(--app-accent)' },
-  { label: 'Approved', val: 18, tone: '#10B981' },
-  { label: 'Exported', val: 96, tone: '#10B981' },
+  { label: 'Draft', val: 12, tone: 'var(--app-muted)', icon: FileText },
+  { label: 'Pending', val: 8, tone: '#F59E0B', icon: Clock },
+  { label: 'Review', val: 5, tone: 'var(--app-accent)', icon: Eye },
+  { label: 'Approved', val: 18, tone: '#10B981', icon: CheckCircle2 },
+  { label: 'Exported', val: 96, tone: '#10B981', icon: Upload },
 ]
+
+function StageNode({ s, i }) {
+  const n = useCountUp(String(s.val), 1100)
+  return (
+    <div className="relative z-10 flex flex-col items-center flex-1">
+      <motion.div
+        initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.15 + i * 0.12, type: 'spring', stiffness: 360, damping: 22 }}
+        whileHover={{ scale: 1.1, y: -2 }}
+        className="h-11 w-11 rounded-2xl flex items-center justify-center border-2"
+        style={{ borderColor: s.tone, color: s.tone, backgroundColor: 'var(--app-panel-bg)', boxShadow: 'var(--app-shadow)' }}
+      >
+        <s.icon size={16} strokeWidth={2.3} />
+      </motion.div>
+      <span className="mt-2 text-[19px] font-extrabold tabular-nums leading-none" style={{ color: 'var(--app-heading)' }}>{n}</span>
+      <span className="mt-1 text-[9px] font-bold uppercase tracking-wide" style={{ color: 'var(--app-muted)' }}>{s.label}</span>
+    </div>
+  )
+}
 
 export function ApprovalWorkflowCard({ onMore }) {
   return (
     <Widget icon={Activity} title="Approval Workflow" action={<MoreLink onClick={onMore} />}>
-      <div className="flex items-center justify-between gap-1">
-        {STAGES.map((s, i) => (
-          <div key={s.label} className="flex-1 flex flex-col items-center text-center">
-            <span className="text-[18px] font-extrabold tabular-nums leading-none" style={{ color: 'var(--app-heading)' }}>{s.val}</span>
-            <span className="mt-1 h-1.5 w-1.5 rounded-full" style={{ backgroundColor: s.tone }} />
-            <span className="mt-1 text-[9px] font-bold uppercase tracking-wide" style={{ color: 'var(--app-muted)' }}>{s.label}</span>
-            {i < STAGES.length - 1 && <span className="sr-only">→</span>}
-          </div>
-        ))}
+      <div className="relative flex items-start justify-between gap-1 pt-1">
+        {/* track */}
+        <div className="absolute left-[10%] right-[10%] top-[22px] h-[3px] rounded-full" style={{ backgroundColor: 'var(--app-row-border)' }} />
+        <motion.div className="absolute left-[10%] top-[22px] h-[3px] rounded-full" style={{ background: 'var(--app-accent-gradient)' }} initial={{ width: 0 }} animate={{ width: '80%' }} transition={{ duration: 1.3, ease: [0.22, 1, 0.36, 1] }} />
+        {/* traveling pulse */}
+        <motion.div className="absolute top-[19px] h-2 w-2 rounded-full" style={{ backgroundColor: 'var(--app-accent)', boxShadow: '0 0 10px var(--app-accent)' }}
+          animate={{ left: ['10%', '90%'], opacity: [0, 1, 1, 0] }} transition={{ duration: 3.2, repeat: Infinity, ease: 'easeInOut' }} />
+        {STAGES.map((s, i) => <StageNode key={s.label} s={s} i={i} />)}
+      </div>
+
+      {/* summary footer */}
+      <div className="flex items-center gap-2 mt-3 pt-2.5 border-t" style={{ borderColor: 'var(--app-border)' }}>
+        <OpenDoodle name="meditating" className="w-9 h-7 shrink-0" tint="var(--app-accent)" />
+        <p className="text-[11px] font-medium" style={{ color: 'var(--app-muted)' }}>
+          On track — <b style={{ color: 'var(--app-heading)' }}>18 approved</b> & <b style={{ color: 'var(--app-heading)' }}>96 exported</b> today.
+        </p>
       </div>
     </Widget>
   )
