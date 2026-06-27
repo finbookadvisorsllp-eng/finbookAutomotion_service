@@ -1,6 +1,71 @@
 @import "tailwindcss";
 @variant dark (&:where(.dark, .dark *));
 
+/* ──────────────────────────────────────────────────────────────
+   Design tokens — single source of truth.
+   Unified royal-blue accent. Light = warm neutrals, Dark = deep slate.
+   Every component reads these via var(--app-*).
+   .dark may be applied to <body> OR any subtree root (the dashboard
+   shell + Login both toggle it), so tokens cascade either way.
+   ────────────────────────────────────────────────────────────── */
+:root {
+  --app-bg: #F5F6F8;
+  --app-panel-bg: #FFFFFF;
+  --app-content-bg: #F0F2F5;
+  --app-sidebar-bg: #FFFFFF;
+  --app-border: #E2E5EB;
+  --app-heading: #0F1117;
+  --app-text: #51596B;
+  --app-muted: #858C9A;
+  --app-accent: #2563EB;
+  --app-accent-strong: #1D4ED8;
+  --app-accent-soft: rgba(37, 99, 235, 0.09);
+  --app-accent-gradient: linear-gradient(135deg, #1D4ED8 0%, #2563EB 100%);
+  --app-table-head-bg: #F4F6F9;
+  --app-row-border: #EDEFF3;
+  --app-row-hover: #F4F6F9;
+  --app-control-bg: #FFFFFF;
+  --app-control-hover: #F1F3F6;
+  --app-success: #059669;
+  --app-warning: #D97706;
+  --app-danger-bg: #FEF2F2;
+  --app-danger-border: #FECACA;
+  --app-danger-text: #B91C1C;
+  /* Tiles need to read as distinct surfaces — visible but soft elevation. */
+  --app-shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 2px 8px -2px rgba(16, 24, 40, 0.08);
+  --app-shadow-lg: 0 12px 32px -10px rgba(16, 24, 40, 0.18), 0 2px 6px -2px rgba(16, 24, 40, 0.06);
+}
+
+.dark {
+  /* Neutral-slate SaaS dark. Single cool-neutral hue, controlled elevation
+     ramp (page < sidebar < content < panel < control/head), subtle borders,
+     desaturated accent. No blue cast, no neon, no pure black. */
+  --app-bg: #0C0D10;
+  --app-panel-bg: #17191F;
+  --app-content-bg: #101115;
+  --app-sidebar-bg: #0E0F13;
+  --app-border: #25272E;
+  --app-heading: #ECEEF1;
+  --app-text: #A8ADB7;
+  --app-muted: #6A6F79;
+  --app-accent: #5E9BF0;
+  --app-accent-strong: #3B82F6;
+  --app-accent-soft: rgba(94, 155, 240, 0.12);
+  --app-accent-gradient: linear-gradient(135deg, #3B82F6 0%, #5E9BF0 100%);
+  --app-table-head-bg: #1C1E25;
+  --app-row-border: #21232A;
+  --app-row-hover: #1B1D23;
+  --app-control-bg: #1C1E25;
+  --app-control-hover: #24262E;
+  --app-success: #34D399;
+  --app-warning: #FBBF24;
+  --app-danger-bg: rgba(239, 68, 68, 0.13);
+  --app-danger-border: rgba(239, 68, 68, 0.30);
+  --app-danger-text: #FCA5A5;
+  --app-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 8px -2px rgba(0, 0, 0, 0.5);
+  --app-shadow-lg: 0 16px 40px -16px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
 @layer base {
   * {
     @apply box-border;
@@ -16,8 +81,8 @@
     @apply m-0 antialiased;
     font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     font-feature-settings: 'cv11', 'ss01', 'ss03';
-    background-color: #FAFAFB;
-    color: #0B0B12;
+    background-color: var(--app-bg);
+    color: var(--app-heading);
     letter-spacing: -0.005em;
   }
 

@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { Search, Plus, X, Trash2, Pencil, CheckCircle, Shield, Users, Building, Calendar, Mail, Key, User, ChevronDown } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { Plus, X, Trash2, Pencil, CheckCircle, Shield, Users, Mail, Key, User, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
+import DataTable from '../ui/DataTable';
+import StatCard from '../ui/StatCard';
+import Badge from '../ui/Badge';
 
 export default function RolePanel({ mode: propMode, isDark }) {
   const [activeTab, setActiveTab] = useState(propMode || 'Manage Users');
@@ -86,64 +88,74 @@ export default function RolePanel({ mode: propMode, isDark }) {
     toast.success('User access profile removed');
   };
 
-  // Spec Summary Cards: Total Users, Active Users, Roles, Pending Invites
   const stats = [
-    { label: 'Total Users', count: users.length, color: 'text-blue-800 dark:text-blue-300', countColor: 'text-blue-950 dark:text-blue-50', cardBg: 'bg-blue-50/80 border-blue-200/80 dark:bg-blue-950/20 dark:border-blue-900/30' },
-    { label: 'Active Users', count: users.filter(u => u.status === 'Active').length, color: 'text-emerald-800 dark:text-emerald-300', countColor: 'text-emerald-950 dark:text-emerald-50', cardBg: 'bg-emerald-50/80 border-emerald-200/80 dark:bg-emerald-950/20 dark:border-emerald-900/30' },
-    { label: 'Roles', count: '4 roles', color: 'text-purple-800 dark:text-purple-300', countColor: 'text-purple-950 dark:text-purple-50', cardBg: 'bg-purple-50/80 border-purple-200/80 dark:bg-purple-950/20 dark:border-purple-900/30' },
-    { label: 'Pending Invites', count: '1 invite', color: 'text-amber-800 dark:text-amber-300', countColor: 'text-amber-950 dark:text-amber-50', cardBg: 'bg-amber-50/80 border-amber-200/80 dark:bg-amber-950/20 dark:border-amber-900/30' }
+    { label: 'Total Users', value: users.length, icon: Users },
+    { label: 'Active Users', value: users.filter(u => u.status === 'Active').length, icon: CheckCircle },
+    { label: 'Roles', value: 4, icon: Shield },
+    { label: 'Pending Invites', value: 1, icon: Mail },
   ];
 
-  const filteredUsers = users.filter(u => 
-    u.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+  const filteredUsers = users.filter(u =>
+    u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
     u.company.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const userColumns = [
+    { key: 'sr', header: 'Sr', width: '46px', align: 'center', render: (_u, i) => <span style={{ color: 'var(--app-muted)' }}>{i + 1}</span> },
+    { key: 'name', header: 'Name', sortable: true, render: (u) => <span className="font-semibold" style={{ color: 'var(--app-heading)' }}>{u.name}</span> },
+    { key: 'email', header: 'Email', sortable: true, render: (u) => <span style={{ color: 'var(--app-muted)' }}>{u.email}</span> },
+    { key: 'role', header: 'Role', sortable: true, render: (u) => <span className="font-semibold" style={{ color: 'var(--app-accent)' }}>{u.role}</span> },
+    { key: 'company', header: 'Company', render: (u) => <span style={{ color: 'var(--app-text)' }}>{u.company}</span> },
+    { key: 'status', header: 'Status', align: 'center', sortable: true, sortValue: (u) => u.status, render: (u) => <Badge tone={u.status === 'Active' ? 'success' : 'neutral'}>{u.status}</Badge> },
+    { key: 'lastLogin', header: 'Last Login', align: 'center', render: (u) => <span className="font-mono text-[11px]" style={{ color: 'var(--app-muted)' }}>{u.lastLogin}</span> },
+    { key: 'act', header: '', align: 'center', width: '70px', render: (u) => (
+      <div className="flex items-center justify-center gap-1.5">
+        <button title="Edit" aria-label="Edit" className="hover:text-[var(--app-accent)]" style={{ color: 'var(--app-muted)' }}><Pencil size={12} /></button>
+        {u.name !== 'Admin User' && <button onClick={() => handleDeleteUser(u.id)} title="Delete" aria-label="Delete" className="hover:text-rose-500" style={{ color: 'var(--app-muted)' }}><Trash2 size={12} /></button>}
+      </div>
+    ) },
+  ];
+
   return (
-    <div className="flex flex-col gap-2.5 h-full overflow-y-auto pr-1 text-[13px] text-slate-700 dark:text-slate-200">
-      
-      {/* Title Header */}
-      <div className="rounded-xl border px-3 py-2 flex items-center justify-between shrink-0 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm">
-        <div>
-          <h1 className="text-[18px] md:text-[20px] font-extrabold tracking-tight text-slate-900 dark:text-[var(--app-heading)]">User & Role Management</h1>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-            Configure system user credentials, security policies, and custom access permission matrix grids.
-          </p>
+    <div className="flex flex-col gap-2.5 h-full overflow-hidden p-1 text-[13px] text-[var(--app-text)]">
+
+      {/* Header */}
+      <div className="rounded-xl border px-3 py-2.5 flex items-center justify-between gap-3 shrink-0 bg-[var(--app-panel-bg)] border-[var(--app-border)] shadow-sm">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="h-9 w-9 rounded-xl flex items-center justify-center text-white shrink-0" style={{ background: 'var(--app-accent-gradient)', boxShadow: 'var(--app-shadow)' }}>
+            <Shield size={17} strokeWidth={2.2} />
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-[17px] font-extrabold tracking-tight text-[var(--app-heading)] leading-none">User &amp; Role Management</h1>
+            <p className="text-[10px] text-[var(--app-muted)] mt-1 truncate">Configure user credentials, security policies and the access permission matrix.</p>
+          </div>
         </div>
-        <button
-          onClick={() => setShowCreateForm(p => !p)}
-          className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10.5px] rounded-lg flex items-center gap-1 transition-all uppercase shrink-0 shadow-sm"
-        >
-          {showCreateForm ? <X size={12} /> : <Plus size={12} />}
-          {showCreateForm ? 'Close Form' : 'Create User'}
+        <button onClick={() => setShowCreateForm(p => !p)} className="h-8 px-3 bg-[var(--app-accent)] hover:opacity-90 text-white font-bold text-[11px] rounded-lg flex items-center gap-1.5 transition-all shrink-0 shadow-xs">
+          {showCreateForm ? <X size={13} /> : <Plus size={13} />}
+          {showCreateForm ? 'Close' : 'Create User'}
         </button>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5 shrink-0">
-        {stats.map((s, idx) => (
-          <div key={idx} className={`p-2 border rounded-xl flex flex-col justify-between transition-all ${s.cardBg}`}>
-            <span className={`text-[10px] uppercase font-bold tracking-wider leading-none block ${s.color}`}>{s.label}</span>
-            <span className={`text-[15px] font-extrabold mt-1 block leading-none ${s.countColor}`}>{s.count}</span>
-          </div>
-        ))}
+      {/* KPI cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 shrink-0">
+        {stats.map((s, i) => <StatCard key={s.label} index={i} label={s.label} value={s.value} icon={s.icon} />)}
       </div>
 
       {/* Create User Pop-up Modal */}
       {showCreateForm && (
         <div className="fixed inset-0 z-50 flex items-start md:items-center justify-center bg-black/50 backdrop-blur-[2px] p-0 md:p-4 overflow-y-auto select-none">
-          <div className="bg-white dark:bg-slate-900 border-0 md:border border-slate-200 dark:border-slate-800 rounded-none md:rounded-xl shadow-2xl max-w-5xl w-full h-full md:h-auto md:max-h-[95vh] flex flex-col my-0 md:my-4 overflow-hidden">
+          <div className="bg-[var(--app-panel-bg)] border-0 md:border border-[var(--app-border)] rounded-none md:rounded-xl shadow-2xl max-w-5xl w-full h-full md:h-auto md:max-h-[95vh] flex flex-col my-0 md:my-4 overflow-hidden">
             {/* Header */}
-            <div className="px-4 py-2.5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center shrink-0 bg-white dark:bg-slate-900 rounded-t-none md:rounded-t-xl">
+            <div className="px-4 py-2.5 border-b border-[var(--app-border)] flex justify-between items-center shrink-0 bg-[var(--app-panel-bg)] rounded-t-none md:rounded-t-xl">
               <div>
                 <h2 className="text-base md:text-lg font-bold text-slate-900 dark:text-white">Create System User</h2>
-                <p className="text-[10px] md:text-xs text-slate-500 dark:text-slate-400 mt-0.5">Register a new system user profile in one view</p>
+                <p className="text-[10px] md:text-xs text-[var(--app-muted)] mt-0.5">Register a new system user profile in one view</p>
               </div>
               <button
                 type="button"
                 onClick={() => setShowCreateForm(false)}
-                className="text-slate-400 hover:text-slate-650 dark:hover:text-slate-250 transition-colors p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
+                className="text-[var(--app-muted)] hover:text-[var(--app-text)] dark:hover:text-[var(--app-muted)] transition-colors p-1 hover:bg-[var(--app-control-hover)] rounded-lg"
               >
                 <X size={16} />
               </button>
@@ -157,44 +169,44 @@ export default function RolePanel({ mode: propMode, isDark }) {
                   
                   {/* Column 1: Profile Info */}
                   <div className="space-y-3">
-                    <div className="space-y-2 border rounded-xl p-3 bg-slate-50/40 dark:bg-slate-950/20 border-slate-200 dark:border-slate-800">
-                      <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 font-bold border-b border-slate-200 dark:border-slate-800 pb-1 mb-2">
+                    <div className="space-y-2 border rounded-xl p-3 bg-[var(--app-content-bg)] border-[var(--app-border)]">
+                      <div className="flex items-center gap-1.5 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold border-b border-[var(--app-border)] pb-1 mb-2">
                         <User size={13} />
                         <span className="text-[11px] uppercase tracking-wider font-black">1. User Info</span>
                       </div>
 
                       <div>
-                        <label className="text-[9px] font-bold text-slate-500 mb-0.5 block uppercase tracking-wide">User Name *</label>
+                        <label className="text-[9px] font-bold text-[var(--app-muted)] mb-0.5 block uppercase tracking-wide">User Name *</label>
                         <input
                           type="text"
                           required
                           value={userForm.name}
                           onChange={(e) => setUserForm(prev => ({ ...prev, name: e.target.value }))}
                           placeholder="e.g. Rahul Sharma"
-                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                         />
                       </div>
 
                       <div>
-                        <label className="text-[9px] font-bold text-slate-500 mb-0.5 block uppercase tracking-wide">Email Address *</label>
+                        <label className="text-[9px] font-bold text-[var(--app-muted)] mb-0.5 block uppercase tracking-wide">Email Address *</label>
                         <input
                           type="email"
                           required
                           value={userForm.email}
                           onChange={(e) => setUserForm(prev => ({ ...prev, email: e.target.value }))}
                           placeholder="e.g. rahul@company.com"
-                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                         />
                       </div>
 
                       <div>
-                        <label className="text-[9px] font-bold text-slate-500 mb-0.5 block uppercase tracking-wide">Phone Number</label>
+                        <label className="text-[9px] font-bold text-[var(--app-muted)] mb-0.5 block uppercase tracking-wide">Phone Number</label>
                         <input
                           type="text"
                           value={userForm.phone}
                           onChange={(e) => setUserForm(prev => ({ ...prev, phone: e.target.value }))}
                           placeholder="e.g. +91 98765 43210"
-                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                         />
                       </div>
                     </div>
@@ -202,42 +214,42 @@ export default function RolePanel({ mode: propMode, isDark }) {
 
                   {/* Column 2: Organization details */}
                   <div className="space-y-3">
-                    <div className="space-y-2 border rounded-xl p-3 bg-slate-50/40 dark:bg-slate-950/20 border-slate-200 dark:border-slate-800">
-                      <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 font-bold border-b border-slate-200 dark:border-slate-800 pb-1 mb-2">
+                    <div className="space-y-2 border rounded-xl p-3 bg-[var(--app-content-bg)] border-[var(--app-border)]">
+                      <div className="flex items-center gap-1.5 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold border-b border-[var(--app-border)] pb-1 mb-2">
                         <Users size={13} />
                         <span className="text-[11px] uppercase tracking-wider font-black">2. Organization</span>
                       </div>
 
                       <div>
-                        <label className="text-[9px] font-bold text-slate-500 mb-0.5 block uppercase tracking-wide">Assigned Role</label>
+                        <label className="text-[9px] font-bold text-[var(--app-muted)] mb-0.5 block uppercase tracking-wide">Assigned Role</label>
                         <div className="relative">
                           <select
                             value={userForm.role}
                             onChange={(e) => setUserForm(prev => ({ ...prev, role: e.target.value }))}
-                            className="w-full appearance-none h-8 rounded-lg border px-2.5 pr-8 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                            className="w-full appearance-none h-8 rounded-lg border px-2.5 pr-8 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                           >
                             <option value="Super Admin">Super Admin</option>
                             <option value="Accountant">Accountant</option>
                             <option value="Data Operator">Data Operator</option>
                             <option value="Auditor">Auditor</option>
                           </select>
-                          <ChevronDown size={13} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                          <ChevronDown size={13} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--app-muted)]" />
                         </div>
                       </div>
 
                       <div>
-                        <label className="text-[9px] font-bold text-slate-500 mb-0.5 block uppercase tracking-wide">Assigned Company</label>
+                        <label className="text-[9px] font-bold text-[var(--app-muted)] mb-0.5 block uppercase tracking-wide">Assigned Company</label>
                         <div className="relative">
                           <select
                             value={userForm.company}
                             onChange={(e) => setUserForm(prev => ({ ...prev, company: e.target.value }))}
-                            className="w-full appearance-none h-8 rounded-lg border px-2.5 pr-8 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                            className="w-full appearance-none h-8 rounded-lg border px-2.5 pr-8 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                           >
                             <option value="Finbook Advisors LLP">Finbook Advisors LLP</option>
                             <option value="Greenline Ventures">Greenline Ventures</option>
                             <option value="Apex Holdings">Apex Holdings</option>
                           </select>
-                          <ChevronDown size={13} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                          <ChevronDown size={13} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--app-muted)]" />
                         </div>
                       </div>
                     </div>
@@ -245,33 +257,33 @@ export default function RolePanel({ mode: propMode, isDark }) {
 
                   {/* Column 3: Security */}
                   <div className="space-y-3">
-                    <div className="space-y-2 border rounded-xl p-3 bg-slate-50/40 dark:bg-slate-950/20 border-slate-200 dark:border-slate-800">
-                      <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 font-bold border-b border-slate-200 dark:border-slate-800 pb-1 mb-2">
+                    <div className="space-y-2 border rounded-xl p-3 bg-[var(--app-content-bg)] border-[var(--app-border)]">
+                      <div className="flex items-center gap-1.5 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold border-b border-[var(--app-border)] pb-1 mb-2">
                         <Key size={13} />
                         <span className="text-[11px] uppercase tracking-wider font-black">3. Security Settings</span>
                       </div>
 
                       <div>
-                        <label className="text-[9px] font-bold text-slate-500 mb-0.5 block uppercase tracking-wide">Password *</label>
+                        <label className="text-[9px] font-bold text-[var(--app-muted)] mb-0.5 block uppercase tracking-wide">Password *</label>
                         <input
                           type="password"
                           required
                           value={userForm.password}
                           onChange={(e) => setUserForm(prev => ({ ...prev, password: e.target.value }))}
                           placeholder="••••••••"
-                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                         />
                       </div>
 
                       <div>
-                        <label className="text-[9px] font-bold text-slate-500 mb-0.5 block uppercase tracking-wide">Confirm Password *</label>
+                        <label className="text-[9px] font-bold text-[var(--app-muted)] mb-0.5 block uppercase tracking-wide">Confirm Password *</label>
                         <input
                           type="password"
                           required
                           value={userForm.confirmPassword}
                           onChange={(e) => setUserForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
                           placeholder="••••••••"
-                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                         />
                       </div>
                     </div>
@@ -281,18 +293,18 @@ export default function RolePanel({ mode: propMode, isDark }) {
               </div>
 
               {/* Modal Footer Buttons */}
-              <div className="flex justify-end gap-2 p-3 md:p-4 border-t border-slate-100 dark:border-slate-800 text-[10px] font-bold uppercase tracking-wider shrink-0 bg-white dark:bg-slate-900 rounded-b-none md:rounded-b-xl">
+              <div className="flex justify-end gap-2 p-3 md:p-4 border-t border-[var(--app-border)] text-[10px] font-bold uppercase tracking-wider shrink-0 bg-[var(--app-panel-bg)] rounded-b-none md:rounded-b-xl">
                 <button
                   type="button"
                   onClick={() => setShowCreateForm(false)}
-                  className="px-4 py-1.5 border rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 transition-colors"
+                  className="px-4 py-1.5 border rounded-lg hover:bg-[var(--app-control-hover)] text-[var(--app-text)] transition-colors"
                   style={{ borderColor: 'var(--app-border)' }}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition-all font-bold"
+                  className="px-5 py-1.5 bg-[var(--app-accent)] hover:opacity-90 text-white rounded-lg shadow-sm transition-all font-bold"
                 >
                   Save User
                 </button>
@@ -306,96 +318,46 @@ export default function RolePanel({ mode: propMode, isDark }) {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 flex-1 overflow-hidden">
         
         {/* Left/User Table */}
-        <div className="lg:col-span-7 flex flex-col border rounded-xl overflow-hidden bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm">
-          <div className="p-2 border-b flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/10 border-slate-200 dark:border-slate-800 shrink-0" style={{ backgroundColor: 'var(--app-table-head-bg)' }}>
-            <div className="relative w-64">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
-              <input
-                type="text"
-                placeholder="Search registered accounts..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full h-7 pl-7 pr-2 rounded border text-[11px] outline-none bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
-              />
-            </div>
-          </div>
-
-          <div className="overflow-auto themed-scrollbar flex-1">
-            <table className="w-full text-left border-collapse min-w-[500px] text-[13px]">
-              <thead>
-                <tr className="bg-slate-50 dark:bg-slate-900/60 border-b text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-800" style={{ backgroundColor: 'var(--app-table-head-bg)' }}>
-                  <th className="p-2 w-12 text-center" style={{ color: 'var(--app-muted)' }}>Sr.</th>
-                  <th className="p-2 border-r border-slate-200 dark:border-slate-800" style={{ color: 'var(--app-muted)' }}>Name</th>
-                  <th className="p-2 border-r border-slate-200 dark:border-slate-800" style={{ color: 'var(--app-muted)' }}>Email</th>
-                  <th className="p-2 border-r border-slate-200 dark:border-slate-800" style={{ color: 'var(--app-muted)' }}>Role</th>
-                  <th className="p-2 border-r border-slate-200 dark:border-slate-800" style={{ color: 'var(--app-muted)' }}>Company</th>
-                  <th className="p-2 border-r border-slate-200 dark:border-slate-800 text-center" style={{ color: 'var(--app-muted)' }}>Status</th>
-                  <th className="p-2 border-r border-slate-200 dark:border-slate-800 text-center" style={{ color: 'var(--app-muted)' }}>Last Login</th>
-                  <th className="p-2 text-center w-16" style={{ color: 'var(--app-muted)' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredUsers.map((user, idx) => (
-                  <tr key={user.id} className="border-b hover:bg-slate-50/50 dark:hover:bg-slate-900/10 font-medium text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800">
-                    <td className="p-2 text-center text-slate-500">{idx + 1}</td>
-                    <td className="p-2 border-r font-semibold text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800">{user.name}</td>
-                    <td className="p-2 border-r border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400">{user.email}</td>
-                    <td className="p-2 border-r border-slate-200 dark:border-slate-800 text-indigo-500 dark:text-indigo-400 font-semibold">{user.role}</td>
-                    <td className="p-2 border-r border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400">{user.company}</td>
-                    
-                    <td className="p-2 border-r border-slate-200 dark:border-slate-800 text-center">
-                      <span className={`px-1.5 py-0.5 rounded border text-[10.5px] font-bold ${
-                        user.status === 'Active' 
-                          ? 'bg-emerald-50 text-emerald-700 border-emerald-250 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30' 
-                          : 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800/40 dark:text-slate-400 dark:border-slate-700/50'
-                      }`}>
-                        {user.status}
-                      </span>
-                    </td>
-
-                    <td className="p-2 border-r border-slate-200 dark:border-slate-800 text-center text-slate-500 font-mono text-[11px]">{user.lastLogin}</td>
-                    <td className="p-2 text-center">
-                      <div className="flex items-center justify-center gap-1.5">
-                        <button className="hover:text-blue-500"><Pencil size={12} /></button>
-                        {user.name !== 'Admin User' && (
-                          <button className="hover:text-rose-500" onClick={() => handleDeleteUser(user.id)}><Trash2 size={12} /></button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        <div className="lg:col-span-7 min-h-0 flex flex-col">
+          <DataTable
+            title="System Users"
+            icon={Users}
+            minWidth="560px"
+            data={filteredUsers}
+            rowKey={(u) => u.id}
+            emptyText="No users found."
+            columns={userColumns}
+            search={{ value: searchQuery, onChange: setSearchQuery, placeholder: 'Search accounts…' }}
+          />
         </div>
 
         {/* Right/Checkbox Permission Matrix */}
-        <div className="lg:col-span-5 flex flex-col border rounded-xl overflow-hidden bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm">
-          <h3 className="text-[14px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-300 border-b p-2.5 border-slate-200 dark:border-slate-800 flex items-center gap-1.5 shrink-0" style={{ backgroundColor: 'var(--app-table-head-bg)' }}>
-            <Shield size={13} className="text-purple-500" /> Role Permission Matrix Grid
+        <div className="lg:col-span-5 flex flex-col border rounded-xl overflow-hidden bg-[var(--app-panel-bg)] border-[var(--app-border)] shadow-sm">
+          <h3 className="text-[14px] font-bold uppercase tracking-wider text-[var(--app-heading)] border-b p-2.5 border-[var(--app-border)] flex items-center gap-1.5 shrink-0" style={{ backgroundColor: 'var(--app-table-head-bg)' }}>
+            <Shield size={13} className="text-[var(--app-accent)]" /> Role Permission Matrix Grid
           </h3>
 
           <div className="overflow-auto themed-scrollbar flex-1">
             <table className="w-full text-left border-collapse text-[12px]">
               <thead>
-                <tr className="bg-slate-50 dark:bg-slate-900/60 border-b text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-800" style={{ backgroundColor: 'var(--app-table-head-bg)' }}>
-                  <th className="p-2 border-r border-slate-200 dark:border-slate-800 font-semibold w-24" style={{ color: 'var(--app-muted)' }}>Module</th>
+                <tr className="bg-[var(--app-content-bg)] border-b text-[var(--app-muted)] border-[var(--app-border)]" style={{ backgroundColor: 'var(--app-table-head-bg)' }}>
+                  <th className="p-2 border-r border-[var(--app-border)] font-semibold w-24" style={{ color: 'var(--app-muted)' }}>Module</th>
                   {permissionActions.map(action => (
-                    <th key={action} className="p-2 text-center border-r border-slate-200 dark:border-slate-800 w-16" style={{ color: 'var(--app-muted)' }}>{action}</th>
+                    <th key={action} className="p-2 text-center border-r border-[var(--app-border)] w-16" style={{ color: 'var(--app-muted)' }}>{action}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {modulesList.map(mod => (
-                  <tr key={mod} className="border-b hover:bg-slate-50/30 dark:hover:bg-slate-900/5 border-slate-200 dark:border-slate-800">
-                    <td className="p-2 border-r font-semibold text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800">{mod}</td>
+                  <tr key={mod} className="border-b hover:bg-[var(--app-row-hover)] border-[var(--app-border)]">
+                    <td className="p-2 border-r font-semibold text-[var(--app-heading)] border-[var(--app-border)]">{mod}</td>
                     {permissionActions.map(action => (
-                      <td key={action} className="p-2 text-center border-r border-slate-200 dark:border-slate-800">
+                      <td key={action} className="p-2 text-center border-r border-[var(--app-border)]">
                         <input
                           type="checkbox"
                           checked={matrixState[mod]?.[action] || false}
                           onChange={() => handleCheckboxChange(mod, action)}
-                          className="w-3.5 h-3.5 accent-blue-600 rounded cursor-pointer"
+                          className="w-3.5 h-3.5 accent-[var(--app-accent)] rounded cursor-pointer"
                         />
                       </td>
                     ))}
@@ -405,10 +367,10 @@ export default function RolePanel({ mode: propMode, isDark }) {
             </table>
           </div>
 
-          <div className="p-2.5 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/10 flex justify-end shrink-0">
+          <div className="p-2.5 border-t border-[var(--app-border)] bg-[var(--app-content-bg)] flex justify-end shrink-0">
             <button
               onClick={() => toast.success('Role permissions matrix saved successfully!')}
-              className="px-4 py-1 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] uppercase shadow rounded transition-colors"
+              className="px-4 py-1 bg-[var(--app-accent)] hover:opacity-90 text-white font-bold text-[11px] uppercase shadow rounded transition-colors"
             >
               Save Permission Matrix
             </button>

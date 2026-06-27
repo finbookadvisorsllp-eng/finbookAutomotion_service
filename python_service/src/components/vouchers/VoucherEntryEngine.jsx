@@ -27,14 +27,14 @@ const VoucherEntryEngine = ({ isDark, defaultMode = 'manual', voucherType = 'sal
     bg: 'var(--app-content-bg)', panel: 'var(--app-panel-bg)',
     border: 'var(--app-border)', headerBg: 'var(--app-table-head-bg)',
     text: 'var(--app-heading)', mutedText: 'var(--app-muted)',
-    inputBg: 'var(--app-control-bg)', accent: '#4f46e5',
+    inputBg: 'var(--app-control-bg)', accent: 'var(--app-accent)',
   };
 
   const NavButton = ({ mode, icon: Icon, label }) => {
     const isActive = activeMode === mode;
     return (
       <button onClick={() => setActiveMode(mode)}
-        className={`flex items-center gap-1.5 py-1 px-2.5 rounded-lg font-black text-[9.5px] uppercase tracking-widest transition-all ${isActive ? 'bg-indigo-600 text-white shadow-md' : 'hover:bg-slate-100/50'}`}
+        className={`flex items-center gap-1.5 py-1 px-2.5 rounded-lg font-black text-[9.5px] uppercase tracking-widest transition-all ${isActive ? 'bg-[var(--app-accent)] text-white shadow-md' : 'hover:bg-[var(--app-table-head-bg)]/50'}`}
         style={{ backgroundColor: isActive ? theme.accent : 'transparent', color: isActive ? '#fff' : theme.mutedText }}>
         <Icon size={11.5} strokeWidth={isActive ? 3 : 2.5} />{label}
       </button>
@@ -49,11 +49,11 @@ const VoucherEntryEngine = ({ isDark, defaultMode = 'manual', voucherType = 'sal
       {activeMode !== 'manual' && (
         <div className="shrink-0 rounded-2xl border shadow-sm p-2 relative overflow-hidden"
           style={{ backgroundColor: isDark ? 'rgba(30,41,59,0.9)' : '#ffffff', borderColor: theme.border }}>
-          <div className="absolute -right-20 -top-20 w-40 h-40 bg-indigo-500/10 rounded-full blur-[30px]" />
+          <div className="absolute -right-20 -top-20 w-40 h-40 bg-[var(--app-accent-soft)] rounded-full blur-[30px]" />
           <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 w-full relative z-10">
             <div className="flex items-center gap-2">
               {onBack && (
-                <button onClick={() => handleBack(activeVoucherType)} className="p-1 rounded-md border hover:bg-slate-100 transition-colors"
+                <button onClick={() => handleBack(activeVoucherType)} className="p-1 rounded-md border hover:bg-[var(--app-table-head-bg)] transition-colors"
                   style={{ color: theme.text, borderColor: theme.border, backgroundColor: theme.panel }}>
                   <X size={11.5} strokeWidth={3} />
                 </button>
@@ -118,10 +118,10 @@ const OcrPanel = ({ isDark, theme, voucherType, isSales, onSwitchToManual }) => 
   return (
     <div className="rounded-2xl border shadow-sm overflow-auto h-full" style={{ backgroundColor: theme.panel, borderColor: theme.border }}>
       <div className="px-6 py-4 border-b flex items-center gap-3 relative overflow-hidden" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>
-        <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ background: 'linear-gradient(90deg,transparent,#8b5cf6,transparent)', animation: 'shimmer 2s infinite' }} />
-        <div className="w-8 h-8 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center relative z-10"><Bot size={16} /></div>
+        <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ background: 'linear-gradient(90deg,transparent,var(--app-accent),transparent)', animation: 'shimmer 2s infinite' }} />
+        <div className="w-8 h-8 rounded-lg bg-[var(--app-accent-soft)] text-[var(--app-accent)] flex items-center justify-center relative z-10"><Bot size={16} /></div>
         <h3 className="font-bold text-lg relative z-10" style={{ color: theme.text }}>AI Smart Scanning</h3>
-        {ocr.file && <button onClick={clearOcr} className="ml-auto text-slate-400 hover:text-red-500 transition-colors z-10"><X size={16} /></button>}
+        {ocr.file && <button onClick={clearOcr} className="ml-auto text-[var(--app-muted)] hover:text-red-500 transition-colors z-10"><X size={16} /></button>}
       </div>
 
       <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -132,17 +132,17 @@ const OcrPanel = ({ isDark, theme, voucherType, isSales, onSwitchToManual }) => 
               onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
               onDragLeave={() => setDragOver(false)}
               onDrop={handleDrop}
-              className={`border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center text-center min-h-[300px] transition-all cursor-pointer ${dragOver ? 'border-purple-500 bg-purple-50/20' : 'hover:border-purple-400'}`}
-              style={{ borderColor: dragOver ? '#8b5cf6' : theme.border }}
+              className={`border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center text-center min-h-[300px] transition-all cursor-pointer ${dragOver ? 'border-[var(--app-accent)] bg-[var(--app-accent-soft)]' : 'hover:border-[var(--app-accent)]'}`}
+              style={{ borderColor: dragOver ? 'var(--app-accent)' : theme.border }}
             >
               <label className="cursor-pointer flex flex-col items-center gap-3">
-                <div className="w-16 h-16 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 relative overflow-hidden">
+                <div className="w-16 h-16 rounded-full bg-[var(--app-accent-soft)] flex items-center justify-center text-[var(--app-accent)] relative overflow-hidden">
                   <Camera size={32} />
-                  <div className="absolute inset-0 bg-purple-400/20" style={{ animation: 'scan 2s ease-in-out infinite' }} />
+                  <div className="absolute inset-0 bg-[var(--app-accent-soft)]" style={{ animation: 'scan 2s ease-in-out infinite' }} />
                 </div>
                 <h4 className="text-base font-bold" style={{ color: theme.text }}>Upload Invoice / PDF</h4>
                 <p className="text-sm" style={{ color: theme.mutedText }}>Drag & drop or click. PDF, JPEG, PNG up to 20MB</p>
-                <span className="px-6 py-2.5 rounded-lg font-bold text-sm bg-purple-600 hover:bg-purple-700 text-white shadow-md flex items-center gap-2">
+                <span className="px-6 py-2.5 rounded-lg font-bold text-sm bg-[var(--app-accent)] hover:opacity-90 text-white shadow-md flex items-center gap-2">
                   <ScanLine size={16} /> Browse Files
                 </span>
                 <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png,.webp,.tiff" onChange={handleInput} />
@@ -153,14 +153,14 @@ const OcrPanel = ({ isDark, theme, voucherType, isSales, onSwitchToManual }) => 
               {/* Document Preview */}
               <div className="rounded-xl border overflow-hidden flex-1 min-h-[300px] relative" style={{ borderColor: theme.border }}>
                 <div className="px-3 py-2 border-b flex items-center gap-2" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>
-                  <Eye size={14} className="text-purple-500" />
+                  <Eye size={14} className="text-[var(--app-accent)]" />
                   <span className="text-[11px] font-bold" style={{ color: theme.text }}>{ocr.file.name}</span>
-                  <span className="ml-auto text-[10px] text-slate-400">{(ocr.file.size / 1024).toFixed(0)} KB</span>
+                  <span className="ml-auto text-[10px] text-[var(--app-muted)]">{(ocr.file.size / 1024).toFixed(0)} KB</span>
                 </div>
                 {ocr.file.type === 'application/pdf' ? (
                   <iframe src={ocr.previewUrl} className="w-full h-[340px] border-0" title="PDF Preview" />
                 ) : (
-                  <img src={ocr.previewUrl} alt="Invoice Preview" className="w-full h-[340px] object-contain bg-slate-50" />
+                  <img src={ocr.previewUrl} alt="Invoice Preview" className="w-full h-[340px] object-contain bg-[var(--app-content-bg)]" />
                 )}
               </div>
 
@@ -170,14 +170,14 @@ const OcrPanel = ({ isDark, theme, voucherType, isSales, onSwitchToManual }) => 
                   <div className="flex justify-between text-[10px] font-bold" style={{ color: theme.mutedText }}>
                     <span>Extracting data…</span><span>{ocr.uploadProgress}%</span>
                   </div>
-                  <div className="h-1.5 bg-purple-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-purple-500 rounded-full transition-all" style={{ width: `${ocr.uploadProgress}%` }} />
+                  <div className="h-1.5 bg-[var(--app-accent-soft)] rounded-full overflow-hidden">
+                    <div className="h-full bg-[var(--app-accent)] rounded-full transition-all" style={{ width: `${ocr.uploadProgress}%` }} />
                   </div>
                 </div>
               )}
 
               {ocr.error && (
-                <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 border border-red-200 text-red-600 text-[11px] font-bold">
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 border border-red-200 text-red-500 text-[11px] font-bold">
                   <AlertCircle size={14} />{ocr.error}
                 </div>
               )}
@@ -185,7 +185,7 @@ const OcrPanel = ({ isDark, theme, voucherType, isSales, onSwitchToManual }) => 
               <button
                 onClick={handleExtract}
                 disabled={ocr.isExtracting}
-                className="w-full py-2.5 rounded-xl font-bold text-sm bg-purple-600 hover:bg-purple-700 text-white shadow-md flex items-center justify-center gap-2 transition-all disabled:opacity-60"
+                className="w-full py-2.5 rounded-xl font-bold text-sm bg-[var(--app-accent)] hover:opacity-90 text-white shadow-md flex items-center justify-center gap-2 transition-all disabled:opacity-60"
               >
                 {ocr.isExtracting ? <><Loader2 size={16} className="animate-spin" /> Scanning…</> : <><ScanLine size={16} /> Extract & Autofill</>}
               </button>
@@ -198,7 +198,7 @@ const OcrPanel = ({ isDark, theme, voucherType, isSales, onSwitchToManual }) => 
           <div className="px-4 py-3 border-b flex justify-between items-center" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>
             <span className="text-sm font-bold" style={{ color: theme.text }}>Extracted Preview</span>
             {ocr.result && (
-              <span className="text-[10px] font-bold uppercase tracking-widest text-purple-600 bg-purple-100 px-2 py-0.5 rounded">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--app-accent)] bg-[var(--app-accent-soft)] px-2 py-0.5 rounded">
                 {ocr.result.confidence}% Confidence
               </span>
             )}
@@ -222,7 +222,7 @@ const OcrPanel = ({ isDark, theme, voucherType, isSales, onSwitchToManual }) => 
                   ].map(({ label, val }) => (
                     <div key={label}>
                       <div className="text-[10px] font-semibold mb-1" style={{ color: theme.mutedText }}>{label}</div>
-                      <div className="text-sm font-bold px-2 py-1.5 rounded border border-purple-200/50 truncate" style={{ color: theme.text, backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#fff' }}>
+                      <div className="text-sm font-bold px-2 py-1.5 rounded border border-[var(--app-border)] truncate" style={{ color: theme.text, backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#fff' }}>
                         {val || '—'}
                       </div>
                     </div>
@@ -235,7 +235,7 @@ const OcrPanel = ({ isDark, theme, voucherType, isSales, onSwitchToManual }) => 
                   </div>
                   <div className="text-right">
                     <div className="text-[10px] font-semibold mb-1" style={{ color: theme.mutedText }}>Grand Total</div>
-                    <div className="text-2xl font-black text-purple-600">₹{ocr.result.formFields?.grandTotal?.toLocaleString('en-IN') || '0.00'}</div>
+                    <div className="text-2xl font-black text-[var(--app-accent)]">₹{ocr.result.formFields?.grandTotal?.toLocaleString('en-IN') || '0.00'}</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 p-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-[11px] font-bold">
@@ -277,10 +277,10 @@ const CsvUploadPanel = ({ isDark, theme, voucherType, isSales }) => {
   return (
     <div className="rounded-2xl border shadow-sm overflow-auto h-full" style={{ backgroundColor: theme.panel, borderColor: theme.border }}>
       <div className="px-6 py-4 border-b flex items-center gap-3" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>
-        <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center"><FileSpreadsheet size={16} /></div>
+        <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center"><FileSpreadsheet size={16} /></div>
         <h3 className="font-bold text-lg" style={{ color: theme.text }}>Bulk CSV Upload</h3>
         <button onClick={() => downloadSampleCsv(voucherType)}
-          className="ml-auto flex items-center gap-2 px-3 py-1.5 rounded-md border text-xs font-bold hover:bg-emerald-50 text-emerald-600 transition-colors"
+          className="ml-auto flex items-center gap-2 px-3 py-1.5 rounded-md border text-xs font-bold hover:bg-emerald-50 text-emerald-500 transition-colors"
           style={{ borderColor: theme.border }}>
           <Download size={14} /> Sample CSV
         </button>
@@ -294,7 +294,7 @@ const CsvUploadPanel = ({ isDark, theme, voucherType, isSales }) => {
             className={`border-2 border-dashed rounded-xl p-10 flex flex-col items-center justify-center text-center transition-all ${dragOver ? 'border-emerald-500 bg-emerald-50/10' : 'hover:border-emerald-400'}`}
             style={{ borderColor: dragOver ? '#10b981' : theme.border }}>
             <label className="cursor-pointer flex flex-col items-center gap-4">
-              <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600"><UploadCloud size={32} /></div>
+              <div className="w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500"><UploadCloud size={32} /></div>
               <h4 className="text-base font-bold" style={{ color: theme.text }}>Drag & Drop your CSV file</h4>
               <p className="text-sm" style={{ color: theme.mutedText }}>Supports .csv, .xlsx up to 10MB</p>
               <span className="px-6 py-2.5 rounded-lg font-bold text-sm bg-emerald-600 hover:bg-emerald-700 text-white shadow-md">Browse Files</span>
@@ -303,12 +303,12 @@ const CsvUploadPanel = ({ isDark, theme, voucherType, isSales }) => {
           </div>
         ) : (
           <div className="flex items-center gap-3 p-4 rounded-xl border" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>
-            <FileText size={20} className="text-emerald-600 shrink-0" />
+            <FileText size={20} className="text-emerald-500 shrink-0" />
             <div className="flex-1 min-w-0">
               <p className="font-bold text-sm truncate" style={{ color: theme.text }}>{csv.file.name}</p>
               <p className="text-[11px]" style={{ color: theme.mutedText }}>{(csv.file.size / 1024).toFixed(1)} KB</p>
             </div>
-            <button onClick={clearCsv} className="text-slate-400 hover:text-red-500 transition-colors shrink-0"><X size={16} /></button>
+            <button onClick={clearCsv} className="text-[var(--app-muted)] hover:text-red-500 transition-colors shrink-0"><X size={16} /></button>
           </div>
         )}
 
@@ -318,8 +318,8 @@ const CsvUploadPanel = ({ isDark, theme, voucherType, isSales }) => {
             <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>
               <div className="flex items-center gap-3">
                 <span className="text-sm font-bold" style={{ color: theme.text }}>Preview</span>
-                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded">{csv.preview.validCount} valid</span>
-                {csv.preview.failedCount > 0 && <span className="text-[10px] font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded">{csv.preview.failedCount} errors</span>}
+                <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded">{csv.preview.validCount} valid</span>
+                {csv.preview.failedCount > 0 && <span className="text-[10px] font-bold text-red-500 bg-red-500/10 px-2 py-0.5 rounded">{csv.preview.failedCount} errors</span>}
               </div>
               <span className="text-[11px]" style={{ color: theme.mutedText }}>{csv.preview.totalRows} total rows</span>
             </div>
@@ -338,7 +338,7 @@ const CsvUploadPanel = ({ isDark, theme, voucherType, isSales }) => {
                       <td className="p-3 text-[12px]" style={{ color: theme.text }}>{row.invoiceDate ? new Date(row.invoiceDate).toLocaleDateString('en-IN') : '—'}</td>
                       <td className="p-3 text-[12px] text-right font-bold" style={{ color: theme.text }}>₹{row.baseTotal?.toLocaleString('en-IN')}</td>
                       <td className="p-3 text-[12px] text-center" style={{ color: theme.text }}>{row.salesLines?.[0]?.gstRate || 0}%</td>
-                      <td className="p-3 text-[12px] text-right font-black text-indigo-600">₹{row.grandTotal?.toLocaleString('en-IN')}</td>
+                      <td className="p-3 text-[12px] text-right font-black text-[var(--app-accent)]">₹{row.grandTotal?.toLocaleString('en-IN')}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -346,7 +346,7 @@ const CsvUploadPanel = ({ isDark, theme, voucherType, isSales }) => {
             </div>
             {csv.preview.errors?.length > 0 && (
               <div className="p-4 border-t bg-red-50" style={{ borderColor: theme.border }}>
-                <p className="text-[11px] font-black text-red-600 mb-2">Row Errors:</p>
+                <p className="text-[11px] font-black text-red-500 mb-2">Row Errors:</p>
                 {csv.preview.errors.slice(0, 5).map((e, i) => (
                   <p key={i} className="text-[11px] text-red-500">Row {e.row}: {e.message}</p>
                 ))}
@@ -356,7 +356,7 @@ const CsvUploadPanel = ({ isDark, theme, voucherType, isSales }) => {
         )}
 
         {csv.error && (
-          <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 border border-red-200 text-red-600 text-[11px] font-bold">
+          <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 border border-red-200 text-red-500 text-[11px] font-bold">
             <AlertCircle size={14} />{csv.error}
           </div>
         )}
@@ -370,12 +370,12 @@ const CsvUploadPanel = ({ isDark, theme, voucherType, isSales }) => {
 
       {/* Footer Actions */}
       <div className="px-6 py-4 border-t flex items-center justify-end gap-3 sticky bottom-0" style={{ borderColor: theme.border, backgroundColor: theme.headerBg }}>
-        <button onClick={clearCsv} className="px-5 py-2 rounded-lg font-bold text-sm border hover:bg-slate-50 transition-colors" style={{ borderColor: theme.border, color: theme.text }}>
+        <button onClick={clearCsv} className="px-5 py-2 rounded-lg font-bold text-sm border hover:bg-[var(--app-content-bg)] transition-colors" style={{ borderColor: theme.border, color: theme.text }}>
           Cancel
         </button>
         {csv.file && !csv.preview && (
           <button onClick={handlePreview} disabled={csv.isPreviewLoading}
-            className="px-6 py-2 rounded-lg font-bold text-sm bg-indigo-600 hover:bg-indigo-700 text-white shadow-md flex items-center gap-2 transition-colors disabled:opacity-60">
+            className="px-6 py-2 rounded-lg font-bold text-sm bg-[var(--app-accent)] hover:opacity-90 text-white shadow-md flex items-center gap-2 transition-colors disabled:opacity-60">
             {csv.isPreviewLoading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />} Preview CSV
           </button>
         )}

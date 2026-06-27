@@ -9,7 +9,7 @@ const MyDocumentsPanel = ({ isDark }) => {
 
   const tabs = ['Purchase/Expense', 'Sales', 'Bank', 'Petty Cash'];
 
-  const IconButton = ({ icon: Icon, color, onClick, shadow, border }) => {
+  const IconButton = ({ icon: Icon, color, onClick, shadow, border, label }) => {
     const getColor = () => {
       switch (color) {
         case 'purple': return '#8b5cf6';
@@ -22,6 +22,8 @@ const MyDocumentsPanel = ({ isDark }) => {
     return (
       <button
         onClick={onClick}
+        title={label || Icon?.displayName}
+        aria-label={label || Icon?.displayName}
         className={`w-8 h-8 rounded-full border flex items-center justify-center transition-all hover:scale-110 active:scale-95 ${shadow ? 'shadow-md' : 'shadow-sm'}`}
         style={{
           borderColor: border ? activeColor + '40' : activeColor + '20',
@@ -43,25 +45,25 @@ const MyDocumentsPanel = ({ isDark }) => {
   return (
     <div className="flex flex-col gap-2 h-full animate-in fade-in duration-500 overflow-hidden relative">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2.5 shrink-0 border-b bg-white dark:bg-[var(--app-panel-bg)] backdrop-blur-sm shadow-sm rounded-t-xl" style={{ borderColor: 'var(--app-border)' }}>
-        <h1 className="text-[15px] font-black tracking-tight text-blue-600 dark:text-blue-400">
+      <div className="flex items-center justify-between px-4 py-2.5 shrink-0 border-b bg-[var(--app-panel-bg)] backdrop-blur-sm shadow-sm rounded-t-xl" style={{ borderColor: 'var(--app-border)' }}>
+        <h1 className="text-[15px] font-black tracking-tight text-[var(--app-accent)] dark:text-[var(--app-accent)]">
           My Documents
         </h1>
 
         <div className="flex items-center gap-6 absolute left-1/2 -translate-x-1/2">
           <label className="flex items-center gap-2 cursor-pointer group">
-            <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${viewMode === 'Month-wise' ? 'border-blue-600' : 'border-slate-350 dark:border-slate-700 group-hover:border-blue-300'}`}>
-              {viewMode === 'Month-wise' && <div className="w-2 h-2 rounded-full bg-blue-600" />}
+            <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${viewMode === 'Month-wise' ? 'border-[var(--app-accent)]' : 'border-[var(--app-border)] group-hover:border-[var(--app-accent)]'}`}>
+              {viewMode === 'Month-wise' && <div className="w-2 h-2 rounded-full bg-[var(--app-accent)]" />}
             </div>
             <input type="radio" className="hidden" checked={viewMode === 'Month-wise'} onChange={() => setViewMode('Month-wise')} />
-            <span className="text-[12px] font-bold text-slate-500 dark:text-slate-400 group-hover:text-slate-750 dark:group-hover:text-slate-200 transition-colors">Month-wise</span>
+            <span className="text-[12px] font-bold text-[var(--app-muted)] group-hover:text-[var(--app-text)] dark:group-hover:text-slate-200 transition-colors">Month-wise</span>
           </label>
           <label className="flex items-center gap-2 cursor-pointer group">
-            <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${viewMode === 'Party-wise' ? 'border-blue-600' : 'border-slate-350 dark:border-slate-700 group-hover:border-blue-300'}`}>
-              {viewMode === 'Party-wise' && <div className="w-2 h-2 rounded-full bg-blue-600" />}
+            <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${viewMode === 'Party-wise' ? 'border-[var(--app-accent)]' : 'border-[var(--app-border)] group-hover:border-[var(--app-accent)]'}`}>
+              {viewMode === 'Party-wise' && <div className="w-2 h-2 rounded-full bg-[var(--app-accent)]" />}
             </div>
             <input type="radio" className="hidden" checked={viewMode === 'Party-wise'} onChange={() => setViewMode('Party-wise')} />
-            <span className="text-[12px] font-bold text-slate-500 dark:text-slate-400 group-hover:text-slate-750 dark:group-hover:text-slate-200 transition-colors">Party-wise</span>
+            <span className="text-[12px] font-bold text-[var(--app-muted)] group-hover:text-[var(--app-text)] dark:group-hover:text-slate-200 transition-colors">Party-wise</span>
           </label>
         </div>
 
@@ -71,7 +73,7 @@ const MyDocumentsPanel = ({ isDark }) => {
       </div>
 
       {/* Main Panel Content */}
-      <div className="flex-1 overflow-hidden rounded-xl border shadow-sm flex flex-col mt-1 bg-white dark:bg-[var(--app-panel-bg)]" style={{ borderColor: 'var(--app-border)' }}>
+      <div className="flex-1 overflow-hidden rounded-xl border shadow-sm flex flex-col mt-1 bg-[var(--app-panel-bg)]" style={{ borderColor: 'var(--app-border)' }}>
         
         {/* Tabs */}
         <div className="flex px-4 pt-4 border-b shrink-0" style={{ borderColor: 'var(--app-border)' }}>
@@ -79,29 +81,29 @@ const MyDocumentsPanel = ({ isDark }) => {
             <button
               key={tab}
               onClick={() => { setActiveTab(tab); setSelectedFolder(null); }}
-              className={`flex-1 pb-3 text-[13px] font-black transition-all relative ${activeTab === tab ? 'text-blue-605 dark:text-blue-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-750 dark:hover:text-slate-200'}`}
+              className={`flex-1 pb-3 text-[13px] font-black transition-all relative ${activeTab === tab ? 'text-[var(--app-accent)] dark:text-[var(--app-accent)]' : 'text-[var(--app-muted)] hover:text-[var(--app-text)] dark:hover:text-slate-200'}`}
             >
               {tab}
               {activeTab === tab && (
-                <div className="absolute bottom-0 left-0 right-0 h-1 bg-blue-600 dark:bg-blue-500 rounded-t-full" />
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-[var(--app-accent)] dark:bg-[var(--app-accent)] rounded-t-full" />
               )}
             </button>
           ))}
         </div>
 
         {/* Content Area */}
-        <div className="flex-1 flex flex-col overflow-hidden bg-slate-50/30 dark:bg-slate-950/10">
+        <div className="flex-1 flex flex-col overflow-hidden bg-[var(--app-content-bg)]">
           {!selectedFolder ? (
             /* Folders Grid */
             <div className="flex-1 p-6 overflow-y-auto">
               <div className="flex gap-6 flex-wrap">
                 {/* Folder Card */}
-                <div onClick={() => setSelectedFolder('January 2026')} className="w-[200px] bg-white dark:bg-slate-900 border rounded-xl p-4 flex flex-col items-center gap-3 relative cursor-pointer hover:shadow-md transition-all group" style={{ borderColor: 'var(--app-border)' }}>
-                  <div className="absolute top-2 right-2 bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[10px] font-black px-1.5 py-0.5 rounded shadow-sm border border-slate-100 dark:border-slate-700">
+                <div onClick={() => setSelectedFolder('January 2026')} className="w-[200px] bg-[var(--app-panel-bg)] border rounded-xl p-4 flex flex-col items-center gap-3 relative cursor-pointer hover:shadow-md transition-all group" style={{ borderColor: 'var(--app-border)' }}>
+                  <div className="absolute top-2 right-2 bg-slate-50 dark:bg-slate-800 text-[var(--app-muted)] text-[10px] font-black px-1.5 py-0.5 rounded shadow-sm border border-[var(--app-border)]">
                     1
                   </div>
-                  <Folder size={40} className="text-purple-500 fill-purple-500/20 group-hover:scale-110 transition-transform duration-300" strokeWidth={1.5} />
-                  <span className="text-[13px] font-bold text-slate-700 dark:text-slate-300">January 2026</span>
+                  <Folder size={40} className="text-[var(--app-accent)] fill-purple-500/20 group-hover:scale-110 transition-transform duration-300" strokeWidth={1.5} />
+                  <span className="text-[13px] font-bold text-[var(--app-text)]">January 2026</span>
                 </div>
               </div>
             </div>
@@ -109,13 +111,13 @@ const MyDocumentsPanel = ({ isDark }) => {
             /* Detailed Table View */
             <div className="flex-1 flex flex-col animate-in fade-in duration-300 p-4 pb-2 overflow-hidden gap-3">
               {/* Toolbar */}
-              <div className="flex items-center justify-between border rounded-xl p-2 bg-white dark:bg-slate-900" style={{ borderColor: 'var(--app-border)' }}>
+              <div className="flex items-center justify-between border rounded-xl p-2 bg-[var(--app-panel-bg)]" style={{ borderColor: 'var(--app-border)' }}>
                 <div className="flex items-center gap-2">
                   <IconButton icon={ArrowLeft} onClick={() => setSelectedFolder(null)} border />
                   <IconButton icon={Download} color="purple" border />
                 </div>
                 
-                <div className="text-[11px] font-bold text-slate-600 dark:text-slate-350">
+                <div className="text-[11px] font-bold text-[var(--app-text)]">
                   Total: 1 Documents
                 </div>
                 
@@ -129,7 +131,7 @@ const MyDocumentsPanel = ({ isDark }) => {
                 <table className="w-full text-left border-collapse min-w-[1000px]">
                   <thead>
                     <tr style={{ backgroundColor: 'var(--app-table-head-bg)' }}>
-                      <th className="p-3 border-b border-r w-10 text-center" style={{ borderColor: 'var(--app-row-border)' }}><input type="checkbox" className="w-3.5 h-3.5 rounded border-gray-300 accent-blue-600 shadow-sm" /></th>
+                      <th className="p-3 border-b border-r w-10 text-center" style={{ borderColor: 'var(--app-row-border)' }}><input type="checkbox" className="w-3.5 h-3.5 rounded border-gray-300 accent-[var(--app-accent)] shadow-sm" /></th>
                       <TableHead label="Sr No." borderRight width="70px" center />
                       <TableHead label="Filename" borderRight />
                       <TableHead label="Invoice No" borderRight />
@@ -142,17 +144,17 @@ const MyDocumentsPanel = ({ isDark }) => {
                     </tr>
                   </thead>
                   <tbody>
-                    <tr className="hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors border-b bg-blue-50/20 dark:bg-blue-950/20" style={{ borderColor: 'var(--app-row-border)' }}>
-                      <td className="p-3 border-r text-center" style={{ borderColor: 'var(--app-row-border)' }}><input type="checkbox" className="w-3.5 h-3.5 rounded border-gray-300 accent-blue-600" /></td>
-                      <td className="p-3 border-r text-[11px] font-bold text-slate-600 dark:text-slate-300 text-center" style={{ borderColor: 'var(--app-row-border)' }}>1</td>
-                      <td className="p-3 border-r text-[11px] font-bold text-blue-550 dark:text-blue-400 cursor-pointer hover:underline" style={{ borderColor: 'var(--app-row-border)' }}>Sales_AT_25-26_3.pdf</td>
-                      <td className="p-3 border-r text-[11px] font-bold text-slate-600 dark:text-slate-300" style={{ borderColor: 'var(--app-row-border)' }}>AT/25-26/3</td>
-                      <td className="p-3 border-r text-[11px] font-bold text-slate-600 dark:text-slate-300" style={{ borderColor: 'var(--app-row-border)' }}>30-01-2026</td>
-                      <td className="p-3 border-r text-[11px] font-bold text-slate-600 dark:text-slate-300 text-center" style={{ borderColor: 'var(--app-row-border)' }}>1,12,700.00</td>
-                      <td className="p-3 border-r text-[11px] font-bold text-slate-600 dark:text-slate-300 text-center" style={{ borderColor: 'var(--app-row-border)' }}>1,12,700.00</td>
-                      <td className="p-3 border-r text-[11px] font-bold text-slate-600 dark:text-slate-300 text-center" style={{ borderColor: 'var(--app-row-border)' }}>1,26,224.00</td>
-                      <td className="p-3 border-r text-[11px] font-bold text-slate-600 dark:text-slate-300 text-center" style={{ borderColor: 'var(--app-row-border)' }}>13,524.00</td>
-                      <td className="p-3 text-[11px] font-bold text-slate-600 dark:text-slate-300">29-04-2026</td>
+                    <tr className="hover:bg-[var(--app-accent-soft)] dark:hover:bg-[var(--app-accent-soft)] transition-colors border-b bg-[var(--app-accent-soft)] dark:bg-[var(--app-accent-soft)]" style={{ borderColor: 'var(--app-row-border)' }}>
+                      <td className="p-3 border-r text-center" style={{ borderColor: 'var(--app-row-border)' }}><input type="checkbox" className="w-3.5 h-3.5 rounded border-gray-300 accent-[var(--app-accent)]" /></td>
+                      <td className="p-3 border-r text-[11px] font-bold text-[var(--app-text)] text-center" style={{ borderColor: 'var(--app-row-border)' }}>1</td>
+                      <td className="p-3 border-r text-[11px] font-bold text-[var(--app-accent)] dark:text-[var(--app-accent)] cursor-pointer hover:underline" style={{ borderColor: 'var(--app-row-border)' }}>Sales_AT_25-26_3.pdf</td>
+                      <td className="p-3 border-r text-[11px] font-bold text-[var(--app-text)]" style={{ borderColor: 'var(--app-row-border)' }}>AT/25-26/3</td>
+                      <td className="p-3 border-r text-[11px] font-bold text-[var(--app-text)]" style={{ borderColor: 'var(--app-row-border)' }}>30-01-2026</td>
+                      <td className="p-3 border-r text-[11px] font-bold text-[var(--app-text)] text-center" style={{ borderColor: 'var(--app-row-border)' }}>1,12,700.00</td>
+                      <td className="p-3 border-r text-[11px] font-bold text-[var(--app-text)] text-center" style={{ borderColor: 'var(--app-row-border)' }}>1,12,700.00</td>
+                      <td className="p-3 border-r text-[11px] font-bold text-[var(--app-text)] text-center" style={{ borderColor: 'var(--app-row-border)' }}>1,26,224.00</td>
+                      <td className="p-3 border-r text-[11px] font-bold text-[var(--app-text)] text-center" style={{ borderColor: 'var(--app-row-border)' }}>13,524.00</td>
+                      <td className="p-3 text-[11px] font-bold text-[var(--app-text)]">29-04-2026</td>
                     </tr>
                   </tbody>
                 </table>
@@ -160,13 +162,13 @@ const MyDocumentsPanel = ({ isDark }) => {
 
               {/* Pagination */}
               <div className="flex items-center justify-center gap-4 py-1 shrink-0">
-                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">1 - 1 of 1</span>
+                <span className="text-[11px] font-bold text-[var(--app-muted)]">1 - 1 of 1</span>
                 <div className="flex items-center gap-1">
                   <button className="text-slate-300 hover:text-slate-500 transition-colors p-1"><ChevronLeft size={14} /></button>
                   <button className="text-slate-300 hover:text-slate-500 transition-colors p-1"><ChevronRight size={14} /></button>
                 </div>
-                <div className="relative border rounded-md px-2 py-1 flex items-center gap-2 bg-white dark:bg-slate-900" style={{ borderColor: 'var(--app-border)' }}>
-                  <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">10</span>
+                <div className="relative border rounded-md px-2 py-1 flex items-center gap-2 bg-[var(--app-panel-bg)]" style={{ borderColor: 'var(--app-border)' }}>
+                  <span className="text-[11px] font-bold text-[var(--app-text)]">10</span>
                   <ChevronDown size={12} className="text-slate-400" />
                 </div>
               </div>
@@ -187,10 +189,10 @@ const FilterModal = ({ onClose }) => {
       <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-[1px]" onClick={onClose} />
       
       {/* Drawer Container (right side) */}
-      <div className="absolute right-4 top-16 bottom-16 w-[360px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+      <div className="absolute right-4 top-16 bottom-16 w-[360px] bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-2xl shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
         <div className="px-5 py-4 flex items-center justify-between border-b" style={{ borderColor: 'var(--app-row-border)' }}>
-          <h2 className="text-[15px] font-black text-blue-650 tracking-tight">Filter</h2>
-          <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-655 hover:bg-slate-50 dark:hover:bg-slate-850 rounded-lg transition-colors"><X size={16} /></button>
+          <h2 className="text-[15px] font-black text-[var(--app-accent)] tracking-tight">Filter</h2>
+          <button onClick={onClose} className="p-1 text-slate-400 hover:text-[var(--app-text)] hover:bg-slate-50 dark:hover:bg-[var(--app-control-hover)] rounded-lg transition-colors"><X size={16} /></button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-5">
@@ -199,14 +201,14 @@ const FilterModal = ({ onClose }) => {
             <input
               type="text"
               placeholder="File Name"
-              className="w-full h-9 border rounded-md px-3 text-[12px] font-bold outline-none focus:border-blue-400 transition-colors shadow-sm bg-slate-50/40 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100"
+              className="w-full h-9 border rounded-md px-3 text-[12px] font-bold outline-none focus:border-[var(--app-accent)] transition-colors shadow-sm bg-[var(--app-content-bg)] text-[var(--app-heading)]"
               style={{ borderColor: 'var(--app-border)' }}
             />
             
             <input
               type="text"
               placeholder="Invoice Number"
-              className="w-full h-9 border rounded-md px-3 text-[12px] font-bold outline-none focus:border-blue-400 transition-colors shadow-sm bg-slate-50/40 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100"
+              className="w-full h-9 border rounded-md px-3 text-[12px] font-bold outline-none focus:border-[var(--app-accent)] transition-colors shadow-sm bg-[var(--app-content-bg)] text-[var(--app-heading)]"
               style={{ borderColor: 'var(--app-border)' }}
             />
 
@@ -215,19 +217,19 @@ const FilterModal = ({ onClose }) => {
                 <input
                   type="text"
                   placeholder="Invoice Date (From)"
-                  className="w-full h-9 border rounded-md pl-3 pr-8 text-[12px] font-bold outline-none focus:border-blue-400 transition-colors shadow-sm bg-slate-50/40 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100"
+                  className="w-full h-9 border rounded-md pl-3 pr-8 text-[12px] font-bold outline-none focus:border-[var(--app-accent)] transition-colors shadow-sm bg-[var(--app-content-bg)] text-[var(--app-heading)]"
                   style={{ borderColor: 'var(--app-border)' }}
                 />
-                <Calendar className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-300 dark:text-slate-500" size={13} strokeWidth={2.5} />
+                <Calendar className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--app-muted)]" size={13} strokeWidth={2.5} />
               </div>
               <div className="relative">
                 <input
                   type="text"
                   placeholder="Invoice Date (To)"
-                  className="w-full h-9 border rounded-md pl-3 pr-8 text-[12px] font-bold outline-none focus:border-blue-400 transition-colors shadow-sm bg-slate-50/40 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100"
+                  className="w-full h-9 border rounded-md pl-3 pr-8 text-[12px] font-bold outline-none focus:border-[var(--app-accent)] transition-colors shadow-sm bg-[var(--app-content-bg)] text-[var(--app-heading)]"
                   style={{ borderColor: 'var(--app-border)' }}
                 />
-                <Calendar className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-300 dark:text-slate-500" size={13} strokeWidth={2.5} />
+                <Calendar className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--app-muted)]" size={13} strokeWidth={2.5} />
               </div>
             </div>
 
@@ -235,13 +237,13 @@ const FilterModal = ({ onClose }) => {
               <input
                 type="text"
                 placeholder="Base Total (From)"
-                className="w-full h-9 border rounded-md px-3 text-[12px] font-bold outline-none focus:border-blue-400 transition-colors shadow-sm bg-slate-50/40 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100"
+                className="w-full h-9 border rounded-md px-3 text-[12px] font-bold outline-none focus:border-[var(--app-accent)] transition-colors shadow-sm bg-[var(--app-content-bg)] text-[var(--app-heading)]"
                 style={{ borderColor: 'var(--app-border)' }}
               />
               <input
                 type="text"
                 placeholder="Base Total (To)"
-                className="w-full h-9 border rounded-md px-3 text-[12px] font-bold outline-none focus:border-blue-400 transition-colors shadow-sm bg-slate-50/40 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100"
+                className="w-full h-9 border rounded-md px-3 text-[12px] font-bold outline-none focus:border-[var(--app-accent)] transition-colors shadow-sm bg-[var(--app-content-bg)] text-[var(--app-heading)]"
                 style={{ borderColor: 'var(--app-border)' }}
               />
             </div>
@@ -250,13 +252,13 @@ const FilterModal = ({ onClose }) => {
               <input
                 type="text"
                 placeholder="Sub Total (From)"
-                className="w-full h-9 border rounded-md px-3 text-[12px] font-bold outline-none focus:border-blue-400 transition-colors shadow-sm bg-slate-50/40 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100"
+                className="w-full h-9 border rounded-md px-3 text-[12px] font-bold outline-none focus:border-[var(--app-accent)] transition-colors shadow-sm bg-[var(--app-content-bg)] text-[var(--app-heading)]"
                 style={{ borderColor: 'var(--app-border)' }}
               />
               <input
                 type="text"
                 placeholder="Sub Total (To)"
-                className="w-full h-9 border rounded-md px-3 text-[12px] font-bold outline-none focus:border-blue-400 transition-colors shadow-sm bg-slate-50/40 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100"
+                className="w-full h-9 border rounded-md px-3 text-[12px] font-bold outline-none focus:border-[var(--app-accent)] transition-colors shadow-sm bg-[var(--app-content-bg)] text-[var(--app-heading)]"
                 style={{ borderColor: 'var(--app-border)' }}
               />
             </div>
@@ -265,13 +267,13 @@ const FilterModal = ({ onClose }) => {
               <input
                 type="text"
                 placeholder="Grand Total (From)"
-                className="w-full h-9 border rounded-md px-3 text-[12px] font-bold outline-none focus:border-blue-400 transition-colors shadow-sm bg-slate-50/40 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100"
+                className="w-full h-9 border rounded-md px-3 text-[12px] font-bold outline-none focus:border-[var(--app-accent)] transition-colors shadow-sm bg-[var(--app-content-bg)] text-[var(--app-heading)]"
                 style={{ borderColor: 'var(--app-border)' }}
               />
               <input
                 type="text"
                 placeholder="Grand Total (To)"
-                className="w-full h-9 border rounded-md px-3 text-[12px] font-bold outline-none focus:border-blue-400 transition-colors shadow-sm bg-slate-50/40 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100"
+                className="w-full h-9 border rounded-md px-3 text-[12px] font-bold outline-none focus:border-[var(--app-accent)] transition-colors shadow-sm bg-[var(--app-content-bg)] text-[var(--app-heading)]"
                 style={{ borderColor: 'var(--app-border)' }}
               />
             </div>
@@ -280,13 +282,13 @@ const FilterModal = ({ onClose }) => {
               <input
                 type="text"
                 placeholder="GST Total (From)"
-                className="w-full h-9 border rounded-md px-3 text-[12px] font-bold outline-none focus:border-blue-400 transition-colors shadow-sm bg-slate-50/40 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100"
+                className="w-full h-9 border rounded-md px-3 text-[12px] font-bold outline-none focus:border-[var(--app-accent)] transition-colors shadow-sm bg-[var(--app-content-bg)] text-[var(--app-heading)]"
                 style={{ borderColor: 'var(--app-border)' }}
               />
               <input
                 type="text"
                 placeholder="GST Total (To)"
-                className="w-full h-9 border rounded-md px-3 text-[12px] font-bold outline-none focus:border-blue-400 transition-colors shadow-sm bg-slate-50/40 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100"
+                className="w-full h-9 border rounded-md px-3 text-[12px] font-bold outline-none focus:border-[var(--app-accent)] transition-colors shadow-sm bg-[var(--app-content-bg)] text-[var(--app-heading)]"
                 style={{ borderColor: 'var(--app-border)' }}
               />
             </div>
@@ -300,7 +302,7 @@ const FilterModal = ({ onClose }) => {
             <span className="text-[12px] font-bold">Clear</span>
           </button>
           
-          <button onClick={onClose} className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-750 text-white transition-colors shadow-sm">
+          <button onClick={onClose} className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-[var(--app-accent)] hover:opacity-90 text-white transition-colors shadow-sm">
             <Check size={14} strokeWidth={3} />
             <span className="text-[12px] font-bold">Apply</span>
           </button>

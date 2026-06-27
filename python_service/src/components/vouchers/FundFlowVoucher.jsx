@@ -75,7 +75,7 @@ const FundFlowVoucher = ({ isDark, defaultType = 'Payment', onBack }) => {
           placeholder={placeholder}
           className={`w-full h-8 rounded-lg border text-[11px] font-bold outline-none transition-all shadow-sm
             ${Icon ? 'pl-8' : 'pl-3'} pr-3
-            ${readOnly ? 'opacity-60 cursor-not-allowed bg-slate-50 dark:bg-slate-900/50' : 'focus:ring-4 hover:border-indigo-300 dark:hover:border-cyan-800'}`}
+            ${readOnly ? 'opacity-60 cursor-not-allowed bg-[var(--app-content-bg)]' : 'focus:ring-4 hover:border-[var(--app-accent)] dark:hover:border-cyan-800'}`}
           style={{ 
             backgroundColor: readOnly ? undefined : theme.inputBg, 
             borderColor: theme.border, 
@@ -99,7 +99,7 @@ const FundFlowVoucher = ({ isDark, defaultType = 'Payment', onBack }) => {
           onChange={(e) => onChange && onChange(e.target.value)}
           className={`w-full h-8 rounded-lg border text-[11px] font-bold outline-none transition-all shadow-sm appearance-none
             ${Icon ? 'pl-8' : 'pl-3'} pr-8
-            focus:ring-4 hover:border-indigo-300 dark:hover:border-cyan-800`}
+            focus:ring-4 hover:border-[var(--app-accent)] dark:hover:border-cyan-800`}
           style={{ 
             backgroundColor: theme.inputBg, 
             borderColor: theme.border, 
@@ -151,8 +151,8 @@ const FundFlowVoucher = ({ isDark, defaultType = 'Payment', onBack }) => {
       {isDark && (
         <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
           <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full blur-[100px] opacity-20" style={{ backgroundColor: '#005ED9' }}></div>
-          <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full blur-[120px] opacity-10" style={{ backgroundColor: '#09B6B9' }}></div>
-          <div className="absolute top-[40%] right-[20%] w-[20%] h-[20%] rounded-full blur-[80px] opacity-15" style={{ backgroundColor: '#8b5cf6' }}></div>
+          <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full blur-[120px] opacity-10" style={{ backgroundColor: 'var(--app-accent)' }}></div>
+          <div className="absolute top-[40%] right-[20%] w-[20%] h-[20%] rounded-full blur-[80px] opacity-15" style={{ backgroundColor: 'var(--app-accent)' }}></div>
           <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.03]"></div>
         </div>
       )}
@@ -193,11 +193,11 @@ const FundFlowVoucher = ({ isDark, defaultType = 'Payment', onBack }) => {
             </button>
             <button onClick={() => setShowPreview(true)} className="flex items-center gap-2 px-4 py-2 rounded-xl border transition-all hover:scale-[1.02] active:scale-95 shadow-sm font-bold text-[11px]"
                     style={{ borderColor: theme.border, color: theme.text, backgroundColor: theme.inputBg }}>
-              <Eye size={13} className="text-purple-500" />
+              <Eye size={13} className="text-[var(--app-accent)]" />
               Preview XML
             </button>
             <button className="flex items-center gap-2 px-5 py-2 rounded-xl transition-all hover:scale-[1.02] active:scale-95 shadow-md font-bold text-[11px] text-white"
-                    style={{ backgroundImage: 'linear-gradient(to right, #4f46e5, #6366f1)' }}>
+                    style={{ backgroundImage: 'var(--app-accent-gradient)' }}>
               <Save size={13} />
               Save Draft
             </button>
@@ -215,7 +215,7 @@ const FundFlowVoucher = ({ isDark, defaultType = 'Payment', onBack }) => {
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1 rounded-xl border shadow-sm backdrop-blur-md p-3 flex items-center justify-between" style={{ background: theme.cardGradient, borderColor: theme.border }}>
                <div className="flex items-center gap-3">
-                 <div className="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-500 flex items-center justify-center">
+                 <div className="w-8 h-8 rounded-lg bg-[var(--app-accent-soft)] text-[var(--app-accent)] flex items-center justify-center">
                    <FileText size={15} />
                  </div>
                  <div>
@@ -316,7 +316,7 @@ const FundFlowVoucher = ({ isDark, defaultType = 'Payment', onBack }) => {
                style={{ background: theme.cardGradient, borderColor: theme.border }}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center shadow-sm bg-purple-500/10 text-purple-500">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center shadow-sm bg-[var(--app-accent-soft)] text-[var(--app-accent)]">
                   <Building2 size={16} strokeWidth={2.5} />
                 </div>
                 <h2 className="text-[13px] font-black uppercase tracking-widest" style={{ color: theme.text }}>Cost Center Allocation</h2>
@@ -326,7 +326,7 @@ const FundFlowVoucher = ({ isDark, defaultType = 'Payment', onBack }) => {
                   type="checkbox" 
                   checked={enableCostCenter}
                   onChange={(e) => setEnableCostCenter(e.target.checked)}
-                  className="w-4 h-4 rounded accent-purple-500 cursor-pointer shadow-sm" 
+                  className="w-4 h-4 rounded accent-[var(--app-accent)] cursor-pointer shadow-sm" 
                   style={{ borderColor: theme.border }} 
                 />
                 <span className="text-[11px] font-bold uppercase tracking-widest" style={{ color: theme.mutedText }}>Enable Cost Center</span>
@@ -347,7 +347,7 @@ const FundFlowVoucher = ({ isDark, defaultType = 'Payment', onBack }) => {
              <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-8">
                <div className="flex flex-col gap-4">
                   <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" className="w-4 h-4 rounded accent-indigo-500 cursor-pointer shadow-sm" />
+                    <input type="checkbox" className="w-4 h-4 rounded accent-[var(--app-accent)] cursor-pointer shadow-sm" />
                     <span className="text-[11px] font-bold uppercase tracking-widest" style={{ color: theme.text }}>GST Applicable</span>
                   </label>
                   <SelectField label="GST Ledger" options={['CGST @ 9%', 'SGST @ 9%', 'IGST @ 18%']} />
@@ -355,7 +355,7 @@ const FundFlowVoucher = ({ isDark, defaultType = 'Payment', onBack }) => {
                </div>
                <div className="flex flex-col gap-4">
                   <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" className="w-4 h-4 rounded accent-indigo-500 cursor-pointer shadow-sm" />
+                    <input type="checkbox" className="w-4 h-4 rounded accent-[var(--app-accent)] cursor-pointer shadow-sm" />
                     <span className="text-[11px] font-bold uppercase tracking-widest" style={{ color: theme.text }}>TDS Applicable</span>
                   </label>
                   <SelectField label="TDS Ledger" options={['TDS on Professional Fees', 'TDS on Rent']} />
@@ -372,7 +372,7 @@ const FundFlowVoucher = ({ isDark, defaultType = 'Payment', onBack }) => {
                  Voucher Narration
                </label>
                <textarea 
-                  className="w-full flex-1 rounded-xl border p-4 text-[12px] font-bold outline-none transition-all focus:border-indigo-400 resize-none shadow-sm placeholder:text-slate-400"
+                  className="w-full flex-1 rounded-xl border p-4 text-[12px] font-bold outline-none transition-all focus:border-[var(--app-accent)] resize-none shadow-sm placeholder:text-slate-400"
                   placeholder="Enter detailed narration here..."
                   value={formData.narration}
                   onChange={e => handleInputChange('narration', e.target.value)}
@@ -383,12 +383,12 @@ const FundFlowVoucher = ({ isDark, defaultType = 'Payment', onBack }) => {
             <div className="rounded-2xl border shadow-sm backdrop-blur-md overflow-hidden p-5 flex flex-col gap-4"
                  style={{ background: theme.cardGradient, borderColor: theme.border }}>
                <h2 className="text-[13px] font-black uppercase tracking-widest flex items-center gap-2" style={{ color: theme.text }}>
-                 <FileUp size={16} className="text-indigo-500" />
+                 <FileUp size={16} className="text-[var(--app-accent)]" />
                  Attachments
                </h2>
-               <div className="flex-1 border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-2 p-6 transition-colors hover:bg-indigo-50 dark:hover:bg-indigo-900/10 cursor-pointer"
+               <div className="flex-1 border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-2 p-6 transition-colors hover:bg-[var(--app-accent-soft)] dark:hover:bg-[var(--app-accent-soft)] cursor-pointer"
                     style={{ borderColor: theme.border }}>
-                  <FileUp size={24} className="text-indigo-400" />
+                  <FileUp size={24} className="text-[var(--app-accent)]" />
                   <div className="text-center">
                     <div className="text-[11px] font-bold" style={{ color: theme.primary }}>Click to upload</div>
                     <div className="text-[9px] font-bold mt-1" style={{ color: theme.mutedText }}>Invoice or Receipt (Max 5MB)</div>
@@ -407,9 +407,9 @@ const FundFlowVoucher = ({ isDark, defaultType = 'Payment', onBack }) => {
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-300">
           <div className="w-full max-w-3xl rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-300"
                style={{ backgroundColor: theme.panelBg, borderColor: theme.border, borderStyle: 'solid', borderWidth: 1 }}>
-            <div className="px-6 py-4 border-b flex items-center justify-between bg-white/50 dark:bg-slate-900/50" style={{ borderColor: theme.border }}>
+            <div className="px-6 py-4 border-b flex items-center justify-between bg-[var(--app-panel-bg)]/50" style={{ borderColor: theme.border }}>
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-500 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-lg bg-[var(--app-accent-soft)] text-[var(--app-accent)] flex items-center justify-center">
                   <FileCode2 size={16} />
                 </div>
                 <div>
@@ -470,7 +470,7 @@ const FundFlowVoucher = ({ isDark, defaultType = 'Payment', onBack }) => {
   </BODY>
 </ENVELOPE>`}
             </div>
-            <div className="p-4 border-t flex justify-end gap-3 bg-white/50 dark:bg-slate-900/50" style={{ borderColor: theme.border }}>
+            <div className="p-4 border-t flex justify-end gap-3 bg-[var(--app-panel-bg)]/50" style={{ borderColor: theme.border }}>
               <button onClick={() => setShowPreview(false)} className="px-5 py-2 rounded-lg font-bold text-[12px] border transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
                       style={{ borderColor: theme.border, color: theme.text }}>
                 Close Preview

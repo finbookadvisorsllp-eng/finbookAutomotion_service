@@ -1,153 +1,307 @@
+import { useEffect, useRef, useState } from 'react'
 import {
-  LayoutDashboard,
-  FileText,
-  Upload,
-  BookOpen,
-  Package,
-  Brain,
-  CheckCircle2,
-  Plug,
-  Archive,
-  Building,
-  Users,
-  UserCheck,
-  Settings,
-  ChevronsLeft,
-  ChevronsRight
+  LayoutDashboard, FileText, TrendingUp, ShoppingCart, ArrowLeftRight,
+  Landmark, BookOpen, Plug, Settings, ChevronDown, ChevronsLeft, ChevronsRight,
+  Search, Pin, X,
 } from 'lucide-react'
-import { motion } from 'motion/react'
+import { motion, AnimatePresence } from 'motion/react'
 
-const menuItems = [
-  { key: 'Dashboard', icon: LayoutDashboard },
-  { key: 'Manual Voucher Entry', icon: FileText },
-  { key: 'Bulk Upload', icon: Upload },
-  { key: 'OCR Upload', icon: Brain },
-  { key: 'Approval Center', icon: CheckCircle2 },
-  { key: 'Ledger Master', icon: BookOpen },
-  { key: 'Item Master', icon: Package },
-  { key: 'Tally Connector', icon: Plug },
-  { key: 'Document Archive', icon: Archive },
-  { key: 'Companies', icon: Building },
-  { key: 'Clients', icon: Users },
-  { key: 'User & Role Management', icon: UserCheck },
-  { key: 'Configuration', icon: Settings }
+// Nav structure. Leaf `label`s MUST match keys in routePaths LABEL_TO_PATH so
+// click->navigate and active highlighting keep working for free. Groups just
+// organise the routes that already existed but had no nav entry.
+const NAV = [
+  { label: 'Dashboard', icon: LayoutDashboard },
+  {
+    label: 'Voucher Entry', icon: FileText, children: [
+      'Manual Voucher Entry', 'Bulk Upload', 'OCR Upload', 'Approval Center',
+    ],
+  },
+  {
+    label: 'Sales', icon: TrendingUp, children: [
+      'Sales Inbox', 'Sales Review', 'Sales Archive', 'Sales Order', 'Sales Invoice', 'Credit Note (Sales Return)',
+    ],
+  },
+  {
+    label: 'Purchase', icon: ShoppingCart, children: [
+      'Purchase Inbox', 'Purchase Review', 'Purchase Archive', 'Purchase Order', 'Purchase Invoice', 'Debit Note (Purchase Return)',
+    ],
+  },
+  {
+    label: 'Fund Flow', icon: ArrowLeftRight, children: [
+      'Payment', 'Receipt', 'Contra', 'Fund Flow Review', 'Fund Flow Archive',
+    ],
+  },
+  {
+    label: 'Bank', icon: Landmark, children: [
+      'Manage Bank', 'Manage Rule', 'Inbox', 'Bank Review', 'Bank Archive',
+    ],
+  },
+  { label: 'Masters', icon: BookOpen, children: ['Ledger Master', 'Item Master'] },
+  { label: 'Integrations', icon: Plug, children: ['Tally Connector', 'Document Archive'] },
+  { label: 'Administration', icon: Settings, children: ['Companies', 'Clients', 'User & Role Management', 'Configuration'] },
 ]
 
-function SidebarItem({ item, activeItem, onItemClick, collapsed }) {
-  const { key, icon: Icon } = item
-  const isActive = activeItem === key
+const groupOf = (item) => NAV.find((g) => g.children?.includes(item))?.label
+// Flat index for search: every leaf with its parent group label.
+const ALL_LEAVES = NAV.flatMap((g) => g.children ? g.children.map((c) => ({ label: c, group: g.label })) : [{ label: g.label, group: null }])
 
+function Leaf({ label, sub, active, onClick, indent, pinned, onTogglePin }) {
   return (
-    <div className="relative">
+    <div className="group/leaf relative">
       <motion.button
-        whileTap={{ scale: 0.98 }}
         type="button"
-        onClick={() => onItemClick(key)}
-        className="group relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-[var(--app-control-hover)]"
-        style={{
-          color: isActive ? 'var(--app-accent)' : 'var(--app-text)',
-          backgroundColor: isActive ? 'var(--app-accent-soft)' : 'transparent',
-          fontWeight: isActive ? 600 : 500,
-        }}
+        onClick={onClick}
+        whileHover={{ x: indent ? 4 : 2 }}
+        whileTap={{ scale: 0.98 }}
+        transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+        className={`flex w-full items-center gap-2.5 rounded-lg py-1.5 text-left transition-colors ${active ? 'bg-[var(--app-accent-soft)]' : 'hover:bg-[var(--app-control-hover)]'} ${indent ? 'pl-7 pr-7' : 'px-3 pr-7'}`}
+        style={{ color: active ? 'var(--app-accent)' : 'var(--app-text)', fontWeight: active ? 600 : 500 }}
       >
-        <span
-          className="flex h-5 w-5 items-center justify-center shrink-0"
-          style={{
-            color: isActive ? 'var(--app-accent)' : 'var(--app-muted)',
-          }}
-        >
-          <Icon size={16} strokeWidth={isActive ? 2.2 : 1.8} />
-        </span>
-
-        {!collapsed && (
-          <span className="truncate flex-1 text-[13px] tracking-wide transition-colors">
-            {key}
-          </span>
+        {active && <motion.span layoutId="sidebar-active-bar" className="absolute left-0 top-1 bottom-1 w-[3px] rounded-r-full" style={{ backgroundColor: 'var(--app-accent)' }} transition={{ type: 'spring', stiffness: 500, damping: 38 }} />}
+        {indent && (
+          <span
+            className={`rounded-full shrink-0 transition-all duration-200 ${active ? 'h-2 w-2' : 'h-1.5 w-1.5 group-hover/leaf:h-2 group-hover/leaf:w-2'}`}
+            style={{ backgroundColor: active ? 'var(--app-accent)' : 'var(--app-muted)', boxShadow: active ? '0 0 0 3px var(--app-accent-soft)' : 'none' }}
+          />
         )}
+        <span className={`truncate flex-1 text-[12px] tracking-wide leading-tight transition-colors ${active ? '' : 'group-hover/leaf:text-[var(--app-heading)]'}`}>
+          {label}
+          {sub && <span className="block text-[9.5px] font-semibold uppercase tracking-wider mt-0.5" style={{ color: 'var(--app-muted)' }}>{sub}</span>}
+        </span>
       </motion.button>
+      {onTogglePin && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onTogglePin(label) }}
+          title={pinned ? 'Unpin' : 'Pin'}
+          className={`absolute right-1.5 top-1/2 -translate-y-1/2 p-1 rounded-md transition-opacity ${pinned ? 'opacity-100' : 'opacity-0 group-hover/leaf:opacity-100'}`}
+          style={{ color: pinned ? 'var(--app-accent)' : 'var(--app-muted)' }}
+        >
+          <Pin size={11} fill={pinned ? 'currentColor' : 'none'} strokeWidth={2} />
+        </button>
+      )}
     </div>
   )
 }
 
+function NavGroup({ group, activeItem, onItemClick, open, onToggleGroup, pins, onTogglePin }) {
+  const Icon = group.icon
+  const hasActive = group.children.some((c) => c === activeItem)
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => onToggleGroup(group.label)}
+        className="group relative flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors hover:bg-[var(--app-control-hover)]"
+        style={{ color: hasActive ? 'var(--app-accent)' : 'var(--app-text)', fontWeight: hasActive ? 600 : 500 }}
+      >
+        <span className="flex h-5 w-5 items-center justify-center shrink-0 transition-transform group-hover:scale-110" style={{ color: hasActive ? 'var(--app-accent)' : 'var(--app-muted)' }}>
+          <Icon size={15} strokeWidth={hasActive ? 2.2 : 1.8} />
+        </span>
+        <span className="truncate flex-1 text-[12.5px] tracking-wide">{group.label}</span>
+        <ChevronDown size={13} className="shrink-0 transition-transform" style={{ color: 'var(--app-muted)', transform: open ? 'rotate(180deg)' : 'none' }} />
+      </button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+            className="overflow-hidden"
+          >
+            <div className="space-y-px pt-0.5">
+              {group.children.map((child) => (
+                <Leaf key={child} label={child} indent active={activeItem === child} onClick={() => onItemClick(child)} pinned={pins.includes(child)} onTogglePin={onTogglePin} />
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+function SectionLabel({ children }) {
+  return <div className="px-3 pt-3 pb-1 text-[9.5px] font-bold uppercase tracking-wider" style={{ color: 'var(--app-muted)' }}>{children}</div>
+}
+
 function Sidebar({ activeItem, onItemClick, collapsed, onToggle }) {
+  const [openGroups, setOpenGroups] = useState(() => {
+    const g = groupOf(activeItem)
+    return g ? { [g]: true } : {}
+  })
+  const [query, setQuery] = useState('')
+  const [pins, setPins] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('sidebar_pins') || '[]') } catch { return [] }
+  })
+  const searchRef = useRef(null)
+
+  // Keep the active item's group open as the user navigates.
+  useEffect(() => {
+    const g = groupOf(activeItem)
+    if (g) setOpenGroups((prev) => (prev[g] ? prev : { ...prev, [g]: true }))
+  }, [activeItem])
+
+  // ⌘K / Ctrl+K focuses the nav search (command palette feel).
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        if (collapsed) onToggle()
+        searchRef.current?.focus()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [collapsed, onToggle])
+
+  const toggleGroup = (label) => setOpenGroups((prev) => ({ ...prev, [label]: !prev[label] }))
+  const togglePin = (label) => setPins((prev) => {
+    const next = prev.includes(label) ? prev.filter((x) => x !== label) : [...prev, label]
+    localStorage.setItem('sidebar_pins', JSON.stringify(next))
+    return next
+  })
+
+  const q = query.trim().toLowerCase()
+  const results = q ? ALL_LEAVES.filter((l) => l.label.toLowerCase().includes(q)) : null
+
   return (
     <motion.aside
-      animate={{ width: collapsed ? 70 : 240 }}
+      animate={{ width: collapsed ? 70 : 248 }}
       transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
       className="flex flex-col h-full shrink-0 relative overflow-hidden border-r shadow-sm select-none"
-      style={{
-        borderColor: 'var(--app-border)',
-        backgroundColor: 'var(--app-sidebar-bg)',
-      }}
+      style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-sidebar-bg)' }}
     >
       <style>{`
-        .sidebar-nav-container::-webkit-scrollbar {
-          display: none;
-        }
-        .sidebar-nav-container {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
+        .sidebar-nav-container::-webkit-scrollbar { display: none; }
+        .sidebar-nav-container { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
 
-      {/* Logo Area */}
-      <div
-        className="flex items-center justify-between px-4 py-3.5 border-b shrink-0"
-        style={{ borderColor: 'var(--app-border)' }}
-      >
+      {/* Logo */}
+      <div className="flex items-center justify-between px-4 py-3.5 shrink-0">
         <div className="flex items-center gap-2.5">
-          {/* Stylized Hexagon/Diamond Icon */}
-          <div className="relative h-7 w-7 flex items-center justify-center shrink-0">
-            {/* Hexagon SVG shape from mockup */}
-            <svg viewBox="0 0 100 100" className="h-full w-full text-blue-600 fill-blue-600">
+          <div className="h-8 w-8 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'var(--app-accent-gradient)', boxShadow: 'var(--app-shadow)' }}>
+            <svg viewBox="0 0 100 100" className="h-4 w-4" style={{ fill: '#fff' }}>
               <polygon points="50,5 95,27.5 95,72.5 50,95 5,72.5 5,27.5" />
             </svg>
-            {/* Inner logo symbol (like a white hollow diamond/shield shape) */}
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="h-2.5 w-2.5 border-2 border-white rotate-45 transform"></div>
-            </div>
           </div>
-          {!collapsed && (
-            <span className="text-[16px] font-extrabold tracking-tight leading-tight truncate" style={{ color: 'var(--app-heading)' }}>
-              TallyHub
-            </span>
-          )}
+          {!collapsed && <span className="text-[16px] font-extrabold tracking-tight leading-tight truncate" style={{ color: 'var(--app-heading)' }}>TallyHub</span>}
         </div>
       </div>
 
-      {/* Scrollable nav */}
-      <nav className="sidebar-nav-container flex-1 overflow-y-auto px-2 py-3 space-y-1">
-        {menuItems.map((item) => (
-          <SidebarItem
-            key={item.key}
-            item={item}
-            activeItem={activeItem}
-            onItemClick={onItemClick}
-            collapsed={collapsed}
-          />
-        ))}
+      {/* Command search (header) */}
+      {!collapsed && (
+        <div className="px-3 pb-2 shrink-0">
+          <div className="relative">
+            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--app-muted)' }} />
+            <input
+              ref={searchRef}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search…"
+              className="w-full h-8 rounded-lg border pl-8 pr-12 text-[12px] outline-none transition-all focus:border-[var(--app-accent)]"
+              style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-control-bg)', color: 'var(--app-heading)' }}
+            />
+            {query ? (
+              <button type="button" onClick={() => setQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2" style={{ color: 'var(--app-muted)' }}><X size={13} /></button>
+            ) : (
+              <kbd className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] font-bold px-1 py-0.5 rounded border" style={{ color: 'var(--app-muted)', borderColor: 'var(--app-border)' }}>⌘K</kbd>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Nav */}
+      <nav className="sidebar-nav-container flex-1 overflow-y-auto px-2 pb-3 space-y-px">
+        {!collapsed && results ? (
+          results.length > 0 ? (
+            results.map((r) => (
+              <Leaf key={r.label} label={r.label} sub={r.group} active={activeItem === r.label} onClick={() => { onItemClick(r.label); setQuery('') }} pinned={pins.includes(r.label)} onTogglePin={togglePin} />
+            ))
+          ) : (
+            <div className="px-3 py-6 text-center text-[11px] font-medium" style={{ color: 'var(--app-muted)' }}>No matches for “{query}”.</div>
+          )
+        ) : (
+          <>
+            {!collapsed && pins.length > 0 && (
+              <>
+                <SectionLabel>Pinned</SectionLabel>
+                {pins.map((label) => (
+                  <Leaf key={`pin-${label}`} label={label} active={activeItem === label} onClick={() => onItemClick(label)} pinned onTogglePin={togglePin} />
+                ))}
+                <div className="mx-3 my-2 border-t" style={{ borderColor: 'var(--app-border)' }} />
+              </>
+            )}
+
+            {NAV.map((entry) =>
+              entry.children ? (
+                collapsed ? (
+                  <button
+                    key={entry.label}
+                    type="button"
+                    onClick={() => { onToggle(); setOpenGroups((p) => ({ ...p, [entry.label]: true })) }}
+                    title={entry.label}
+                    className="group relative flex w-full items-center justify-center rounded-lg px-3 py-2.5 transition-colors hover:bg-[var(--app-control-hover)]"
+                    style={{ color: entry.children.includes(activeItem) ? 'var(--app-accent)' : 'var(--app-muted)' }}
+                  >
+                    <entry.icon size={16} strokeWidth={entry.children.includes(activeItem) ? 2.2 : 1.8} />
+                  </button>
+                ) : (
+                  <NavGroup
+                    key={entry.label}
+                    group={entry}
+                    activeItem={activeItem}
+                    onItemClick={onItemClick}
+                    open={!!openGroups[entry.label]}
+                    onToggleGroup={toggleGroup}
+                    pins={pins}
+                    onTogglePin={togglePin}
+                  />
+                )
+              ) : collapsed ? (
+                <button
+                  key={entry.label}
+                  type="button"
+                  onClick={() => onItemClick(entry.label)}
+                  title={entry.label}
+                  className="group relative flex w-full items-center justify-center rounded-lg px-3 py-2.5 transition-colors hover:bg-[var(--app-control-hover)]"
+                  style={{ color: activeItem === entry.label ? 'var(--app-accent)' : 'var(--app-muted)' }}
+                >
+                  <entry.icon size={16} strokeWidth={activeItem === entry.label ? 2.2 : 1.8} />
+                </button>
+              ) : (
+                <motion.button
+                  key={entry.label}
+                  type="button"
+                  onClick={() => onItemClick(entry.label)}
+                  whileHover={{ x: 2 }}
+                  whileTap={{ scale: 0.98 }}
+                  transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                  className={`group/leaf relative flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors ${activeItem === entry.label ? 'bg-[var(--app-accent-soft)]' : 'hover:bg-[var(--app-control-hover)]'}`}
+                  style={{ color: activeItem === entry.label ? 'var(--app-accent)' : 'var(--app-text)', fontWeight: activeItem === entry.label ? 600 : 500 }}
+                >
+                  {activeItem === entry.label && <motion.span layoutId="sidebar-active-bar" className="absolute left-0 top-1 bottom-1 w-[3px] rounded-r-full" style={{ backgroundColor: 'var(--app-accent)' }} transition={{ type: 'spring', stiffness: 500, damping: 38 }} />}
+                  <span className="flex h-5 w-5 items-center justify-center shrink-0 transition-transform group-hover/leaf:scale-110" style={{ color: activeItem === entry.label ? 'var(--app-accent)' : 'var(--app-muted)' }}>
+                    <entry.icon size={15} strokeWidth={activeItem === entry.label ? 2.2 : 1.8} />
+                  </span>
+                  <span className="truncate flex-1 text-[12.5px] tracking-wide">{entry.label}</span>
+                </motion.button>
+              )
+            )}
+          </>
+        )}
       </nav>
 
-      {/* Collapse button at the bottom */}
+      {/* Collapse toggle */}
       <div className="p-3 shrink-0">
         <button
           type="button"
           onClick={onToggle}
           className="w-full h-9 px-3 rounded-lg flex items-center justify-center gap-2 font-semibold text-[12px] transition-colors"
-          style={{
-            color: 'var(--app-accent)',
-            backgroundColor: 'var(--app-accent-soft)',
-            border: 'none'
-          }}
+          style={{ color: 'var(--app-accent)', backgroundColor: 'var(--app-accent-soft)', border: 'none' }}
         >
-          {collapsed ? (
-            <ChevronsRight size={14} className="shrink-0 text-[var(--app-accent)]" />
-          ) : (
-            <>
-              <ChevronsLeft size={14} className="shrink-0 text-[var(--app-accent)]" />
-              <span className="truncate">Collapse</span>
-            </>
-          )}
+          {collapsed ? <ChevronsRight size={14} className="shrink-0" /> : (<><ChevronsLeft size={14} className="shrink-0" /><span className="truncate">Collapse</span></>)}
         </button>
       </div>
     </motion.aside>

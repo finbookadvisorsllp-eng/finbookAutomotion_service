@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import Navbar from '../layout/Navbar'
@@ -6,55 +6,12 @@ import Sidebar from '../layout/Sidebar'
 import { LABEL_TO_PATH, PATH_TO_LABEL } from '../../routes/routePaths'
 import { useAppStore } from '../../stores/useAppStore'
 import { fetchCompanies } from '../companies/api'
+import CompanionBar from '../ui/CompanionBar'
+import SearchOverlay from '../ui/SearchOverlay'
 
 
-// Modern SaaS design tokens — Linear / Vercel inspired.
-// Light mode: warm neutrals, indigo→violet brand. Dark mode: deep cool slate.
-const brandTheme = {
-  light: {
-    appBg: '#FAFAFB',
-    panelBg: '#FFFFFF',
-    contentBg: '#F6F7F9',
-    sidebarBg: '#FFFFFF',
-    border: '#ECEEF2',
-    heading: '#0B0B12',
-    text: '#5B6478',
-    muted: '#8A93A6',
-    tableHeadBg: '#F6F7F9',
-    rowBorder: '#F1F2F5',
-    rowHover: '#F6F7F9',
-    accent: '#2563EB',
-    accentSoft: 'rgba(37, 99, 235, 0.08)',
-    accentGradient: 'linear-gradient(135deg, #1D4ED8 0%, #2563EB 50%, #38BDF8 100%)',
-    controlBg: '#FFFFFF',
-    controlHover: '#F6F7F9',
-    dangerBg: '#FEF2F2',
-    dangerBorder: '#FECACA',
-    dangerText: '#B91C1C',
-  },
-  dark: {
-    appBg: '#07070A',
-    panelBg: 'rgba(15, 16, 22, 0.72)',
-    contentBg: '#0A0A0F',
-    sidebarBg: 'rgba(13, 14, 20, 0.72)',
-    border: 'rgba(255, 255, 255, 0.08)',
-    heading: '#76acedff',
-    text: '#ffffffff',
-    muted: '#cfcfd5ff',
-    tableHeadBg: 'rgba(255, 255, 255, 0.03)',
-    rowBorder: 'rgba(255, 255, 255, 0.06)',
-    rowHover: 'rgba(255, 255, 255, 0.04)',
-    accent: '#60A5FA',
-    accentSoft: 'rgba(96, 165, 250, 0.14)',
-    accentGradient: 'linear-gradient(135deg, #3B82F6 0%, #60A5FA 50%, #7DD3FC 100%)',
-    controlBg: 'rgba(255, 255, 255, 0.03)',
-    controlHover: 'rgba(255, 255, 255, 0.06)',
-    dangerBg: 'rgba(239, 68, 68, 0.12)',
-    dangerBorder: 'rgba(239, 68, 68, 0.30)',
-    dangerText: '#FCA5A5',
-  },
-}
-
+// Design tokens now live in src/styles/index.css (:root / .dark) so every
+// component shares one source of truth. This shell only toggles the .dark class.
 function Dashboard() {
   const location = useLocation()
   const navigate = useNavigate()
@@ -103,9 +60,9 @@ function Dashboard() {
   }, [setCompanies, setSelectedCompany, selectedCompany])
 
 
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const sidebarCollapsed = useAppStore((s) => s.sidebarCollapsed)
+  const toggleSidebar = useAppStore((s) => s.toggleSidebar)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
-  const theme = brandTheme[mode]
   const isDark = mode === 'dark'
 
   // Close mobile drawer when navigating
@@ -122,58 +79,41 @@ function Dashboard() {
     }
   }, [mobileNavOpen])
 
+  // Cursor-follow ambient glow — DOM-only (no re-render per move).
+  const glowRef = useRef(null)
+  const glowRaf = useRef(0)
+
   return (
     <div
       className={`h-screen overflow-hidden relative ${isDark ? 'dark' : ''}`}
-      style={{
-        backgroundColor: theme.appBg,
-        color: theme.heading,
-        '--app-panel-bg': theme.panelBg,
-        '--app-content-bg': theme.contentBg,
-        '--app-sidebar-bg': theme.sidebarBg,
-        '--app-border': theme.border,
-        '--app-heading': theme.heading,
-        '--app-text': theme.text,
-        '--app-muted': theme.muted,
-        '--app-accent': theme.accent,
-        '--app-accent-soft': theme.accentSoft,
-        '--app-accent-gradient': theme.accentGradient,
-        '--app-table-head-bg': theme.tableHeadBg,
-        '--app-row-border': theme.rowBorder,
-        '--app-row-hover': theme.rowHover,
-        '--app-control-bg': theme.controlBg,
-        '--app-control-hover': theme.controlHover,
-        '--app-danger-bg': theme.dangerBg,
-        '--app-danger-border': theme.dangerBorder,
-        '--app-danger-text': theme.dangerText,
+      style={{ backgroundColor: 'var(--app-bg)', color: 'var(--app-heading)' }}
+      onMouseMove={(e) => {
+        const x = e.clientX, y = e.clientY
+        cancelAnimationFrame(glowRaf.current)
+        glowRaf.current = requestAnimationFrame(() => {
+          if (glowRef.current) glowRef.current.style.transform = `translate3d(${x - 300}px, ${y - 300}px, 0)`
+        })
       }}
     >
-      {/* Ambient background — subtle grid + soft brand orbs */}
+      {/* Ambient background — faint grid + soft brand glow + cursor-follow light. */}
       <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
-        <div className="absolute inset-0 app-grid-bg opacity-60" />
+        <div className="absolute inset-0 app-grid-bg opacity-50" />
         <div
-          className="absolute -top-32 -left-24 h-[520px] w-[520px] rounded-full blur-[120px]"
+          className="absolute -top-40 -left-32 h-[480px] w-[480px] rounded-full blur-[130px]"
           style={{
-            background: 'radial-gradient(circle, rgba(37,99,235,0.18) 0%, transparent 70%)',
-            animation: 'softPulse 14s ease-in-out infinite',
+            background: isDark
+              ? 'radial-gradient(circle, rgba(96,165,250,0.12) 0%, transparent 70%)'
+              : 'radial-gradient(circle, rgba(37,99,235,0.10) 0%, transparent 70%)',
+            animation: 'softPulse 18s ease-in-out infinite',
           }}
         />
         <div
-          className="absolute top-[10%] right-[-8%] h-[480px] w-[480px] rounded-full blur-[120px]"
+          ref={glowRef}
+          className="absolute top-0 left-0 h-[600px] w-[600px] rounded-full blur-[140px] will-change-transform hidden md:block"
           style={{
             background: isDark
-              ? 'radial-gradient(circle, rgba(56,189,248,0.18) 0%, transparent 70%)'
-              : 'radial-gradient(circle, rgba(56,189,248,0.14) 0%, transparent 70%)',
-            animation: 'softPulse 18s ease-in-out infinite reverse',
-          }}
-        />
-        <div
-          className="absolute bottom-[-15%] left-[20%] h-[420px] w-[420px] rounded-full blur-[120px]"
-          style={{
-            background: isDark
-              ? 'radial-gradient(circle, rgba(96,165,250,0.16) 0%, transparent 70%)'
-              : 'radial-gradient(circle, rgba(29,78,216,0.10) 0%, transparent 70%)',
-            animation: 'softPulse 16s ease-in-out infinite',
+              ? 'radial-gradient(circle, rgba(94,155,240,0.10) 0%, transparent 65%)'
+              : 'radial-gradient(circle, rgba(37,99,235,0.07) 0%, transparent 65%)',
           }}
         />
       </div>
@@ -183,12 +123,7 @@ function Dashboard() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
         className="overflow-hidden h-full flex flex-row border relative z-10 glass-surface"
-        style={{
-          borderColor: theme.border,
-          boxShadow: isDark
-            ? '0 30px 80px -20px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.04)'
-            : '0 24px 60px -24px rgba(15,23,42,0.18), 0 1px 0 rgba(15,23,42,0.02)',
-        }}
+        style={{ borderColor: 'var(--app-border)', boxShadow: 'var(--app-shadow-lg)' }}
       >
         {/* Desktop sidebar (full height, on the left) */}
         <div className="hidden md:flex h-full">
@@ -196,7 +131,7 @@ function Dashboard() {
             activeItem={activeItem}
             onItemClick={handleItemClick}
             collapsed={sidebarCollapsed}
-            onToggle={() => setSidebarCollapsed((prev) => !prev)}
+            onToggle={toggleSidebar}
             isDark={isDark}
           />
         </div>
@@ -226,7 +161,7 @@ function Dashboard() {
                 transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
                 className="h-full flex flex-col"
               >
-                <Suspense fallback={<div className="h-full flex items-center justify-center text-xs font-semibold uppercase tracking-widest" style={{ color: theme.muted }}>Loading…</div>}>
+                <Suspense fallback={<div className="h-full flex items-center justify-center text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--app-muted)' }}>Loading…</div>}>
                   <Outlet context={{ isDark }} />
                 </Suspense>
               </motion.div>
@@ -267,6 +202,10 @@ function Dashboard() {
           )}
         </AnimatePresence>
       </motion.div>
+
+      {/* Ambient AI companion + ⌘K search overlay */}
+      <CompanionBar />
+      <SearchOverlay />
     </div>
   )
 }

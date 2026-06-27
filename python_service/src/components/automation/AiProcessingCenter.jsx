@@ -5,9 +5,12 @@ import {
   FileSpreadsheet, Image, ChevronRight, ChevronLeft, RefreshCw, Check,
   Search, Filter, Info, Eye, Edit2, MoreVertical, Plus, X, FolderOpen, Scan,
   SlidersHorizontal, Download, LayoutList, Grid, Database, Calendar, ArrowLeft,
-  Settings, CheckCircle, ShieldAlert, Brain, ZoomIn, ZoomOut, Maximize2, Minimize2,
-  ChevronDown, ChevronUp, ArrowUpDown, CheckSquare, Square, Trash, ListFilter, PlayCircle
+  Settings, CheckCircle, ShieldAlert, ZoomIn, ZoomOut, Maximize2, Minimize2,
+  ChevronDown, ChevronUp, CheckSquare, Square, Trash, ListFilter, PlayCircle
 } from 'lucide-react';
+import ObjectDoodle from '../ui/ObjectDoodle';
+import DataTable from '../ui/DataTable';
+import StatCard from '../ui/StatCard';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 
@@ -21,7 +24,7 @@ function SimulatedInvoicePage({ doc, pageNum, viewType, zoom, pageRef }) {
       return (
         <div
           ref={pageRef}
-          className="bg-white border border-slate-200 rounded-lg shadow-md shrink-0 flex items-center justify-center overflow-hidden"
+          className="bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-lg shadow-md shrink-0 flex items-center justify-center overflow-hidden"
           style={{
             width: '210mm',
             minHeight: '297mm',
@@ -43,7 +46,7 @@ function SimulatedInvoicePage({ doc, pageNum, viewType, zoom, pageRef }) {
       return (
         <div
           ref={pageRef}
-          className="bg-white border border-slate-200 rounded-lg shadow-md shrink-0 flex items-center justify-center overflow-hidden p-2"
+          className="bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-lg shadow-md shrink-0 flex items-center justify-center overflow-hidden p-2"
           style={{
             width: '210mm',
             minHeight: '297mm',
@@ -65,7 +68,7 @@ function SimulatedInvoicePage({ doc, pageNum, viewType, zoom, pageRef }) {
     return (
       <div
         ref={pageRef}
-        className={`bg-white text-slate-800 p-10 border shadow-md font-mono relative shrink-0 transition-transform ${isImage ? 'filter grayscale contrast-125 rotate-[0.1deg] border-slate-350 bg-slate-50' : 'border-slate-200'}`}
+        className={`bg-[var(--app-panel-bg)] text-[var(--app-heading)] p-10 border shadow-md font-mono relative shrink-0 transition-transform ${isImage ? 'filter grayscale contrast-125 rotate-[0.1deg] border-[var(--app-border)] bg-[var(--app-content-bg)]' : 'border-[var(--app-border)]'}`}
         style={{
           width: '210mm',
           minHeight: '297mm',
@@ -73,31 +76,31 @@ function SimulatedInvoicePage({ doc, pageNum, viewType, zoom, pageRef }) {
           transformOrigin: 'top center'
         }}
       >
-        <div className="flex justify-between items-start border-b-2 border-slate-800 pb-4 mb-6">
+        <div className="flex justify-between items-start border-b-2 border-[var(--app-border)] pb-4 mb-6">
           <div>
-            <h1 className="text-lg font-bold tracking-tight text-slate-900">METROPOLITAN CHARTERED BANK</h1>
-            <p className="text-[10px] text-slate-500 font-sans">Corporate Banking Division, Connaught Place, New Delhi</p>
-            <p className="text-[9px] text-slate-400 font-sans mt-0.5">IFSC: METR0000827 | MICR: 110240002</p>
+            <h1 className="text-lg font-bold tracking-tight text-[var(--app-heading)]">METROPOLITAN CHARTERED BANK</h1>
+            <p className="text-[10px] text-[var(--app-muted)] font-sans">Corporate Banking Division, Connaught Place, New Delhi</p>
+            <p className="text-[9px] text-[var(--app-muted)] font-sans mt-0.5">IFSC: METR0000827 | MICR: 110240002</p>
           </div>
           <div className="text-right">
-            <h2 className="text-base font-extrabold text-slate-800 font-sans">ACCOUNT STATEMENT</h2>
-            <p className="text-[10px] font-sans text-slate-600 mt-1">Period: 01-06-2026 to 19-06-2026</p>
-            <p className="text-[9px] text-slate-400 font-sans mt-0.5">Page {pageNum} of {doc.pages || 1}</p>
+            <h2 className="text-base font-extrabold text-[var(--app-heading)] font-sans">ACCOUNT STATEMENT</h2>
+            <p className="text-[10px] font-sans text-[var(--app-heading)] mt-1">Period: 01-06-2026 to 19-06-2026</p>
+            <p className="text-[9px] text-[var(--app-muted)] font-sans mt-0.5">Page {pageNum} of {doc.pages || 1}</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 text-[11px] mb-6 border border-slate-200 p-3 bg-slate-50">
+        <div className="grid grid-cols-2 gap-4 text-[11px] mb-6 border border-[var(--app-border)] p-3 bg-[var(--app-content-bg)]">
           <div>
-            <p className="text-slate-400 font-sans uppercase text-[8px] font-bold">Account Holder:</p>
-            <p className="font-bold text-slate-900">FINBOOK ADVISORS LLP</p>
-            <p className="text-slate-600 font-sans">405, Premium Tower, Vijay Nagar</p>
-            <p className="text-slate-600 font-sans">Indore, MP - 452010</p>
+            <p className="text-[var(--app-muted)] font-sans uppercase text-[8px] font-bold">Account Holder:</p>
+            <p className="font-bold text-[var(--app-heading)]">FINBOOK ADVISORS LLP</p>
+            <p className="text-[var(--app-heading)] font-sans">405, Premium Tower, Vijay Nagar</p>
+            <p className="text-[var(--app-heading)] font-sans">Indore, MP - 452010</p>
           </div>
           <div className="text-right font-sans">
-            <p className="text-slate-400 uppercase text-[8px] font-bold">Account Summary:</p>
-            <p><span className="text-slate-500">Account No:</span> <span className="font-bold font-mono">100928374829</span></p>
-            <p><span className="text-slate-500">Account Type:</span> <span className="font-bold font-mono">Current Account</span></p>
-            <p><span className="text-slate-500">Currency:</span> <span className="font-bold">INR</span></p>
+            <p className="text-[var(--app-muted)] uppercase text-[8px] font-bold">Account Summary:</p>
+            <p><span className="text-[var(--app-muted)]">Account No:</span> <span className="font-bold font-mono">100928374829</span></p>
+            <p><span className="text-[var(--app-muted)]">Account Type:</span> <span className="font-bold font-mono">Current Account</span></p>
+            <p><span className="text-[var(--app-muted)]">Currency:</span> <span className="font-bold">INR</span></p>
           </div>
         </div>
 
@@ -105,7 +108,7 @@ function SimulatedInvoicePage({ doc, pageNum, viewType, zoom, pageRef }) {
           <div>
             <table className="w-full text-left text-[11px] border-collapse font-mono">
               <thead>
-                <tr className="border-b border-slate-800 text-slate-600 font-sans uppercase text-[8.5px] font-bold bg-slate-100">
+                <tr className="border-b border-[var(--app-border)] text-[var(--app-heading)] font-sans uppercase text-[8.5px] font-bold bg-[var(--app-table-head-bg)]">
                   <th className="py-2 px-1">Date</th>
                   <th className="py-2 px-1">Particulars / Narration</th>
                   <th className="py-2 px-1 text-center">Chq/Ref</th>
@@ -114,14 +117,14 @@ function SimulatedInvoicePage({ doc, pageNum, viewType, zoom, pageRef }) {
                   <th className="py-2 px-1 text-right pr-2">Balance</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200">
+              <tbody className="divide-y divide-[var(--app-border)]">
                 {doc.items && doc.items.map((item, index) => (
-                  <tr key={index} className="hover:bg-slate-50">
+                  <tr key={index} className="hover:bg-[var(--app-content-bg)]">
                     <td className="py-2 px-1 font-sans">{item.date}</td>
-                    <td className="py-2 px-1 text-slate-900 font-sans font-medium text-[10.5px] max-w-[200px] truncate" title={item.particulars}>{item.particulars}</td>
-                    <td className="py-2 px-1 text-center text-slate-500">{item.chqNo || '—'}</td>
-                    <td className="py-2 px-1 text-right font-semibold text-rose-600 font-sans">{item.debit > 0 ? `₹${item.debit.toLocaleString('en-IN')}` : '—'}</td>
-                    <td className="py-2 px-1 text-right font-semibold text-emerald-600 font-sans">{item.credit > 0 ? `₹${item.credit.toLocaleString('en-IN')}` : '—'}</td>
+                    <td className="py-2 px-1 text-[var(--app-heading)] font-sans font-medium text-[10.5px] max-w-[200px] truncate" title={item.particulars}>{item.particulars}</td>
+                    <td className="py-2 px-1 text-center text-[var(--app-muted)]">{item.chqNo || '—'}</td>
+                    <td className="py-2 px-1 text-right font-semibold text-rose-500 font-sans">{item.debit > 0 ? `₹${item.debit.toLocaleString('en-IN')}` : '—'}</td>
+                    <td className="py-2 px-1 text-right font-semibold text-emerald-500 font-sans">{item.credit > 0 ? `₹${item.credit.toLocaleString('en-IN')}` : '—'}</td>
                     <td className="py-2 px-1 text-right font-bold pr-2 font-sans">₹{(item.balance || 0).toLocaleString('en-IN')}</td>
                   </tr>
                 ))}
@@ -129,32 +132,32 @@ function SimulatedInvoicePage({ doc, pageNum, viewType, zoom, pageRef }) {
             </table>
           </div>
         ) : (
-          <div className="space-y-4 font-sans text-slate-600 text-[11px]">
-            <h3 className="font-bold text-slate-800 text-xs font-mono border-b pb-1">RECONCILIATION & STATUTORY NOTICES (Page {pageNum})</h3>
+          <div className="space-y-4 font-sans text-[var(--app-heading)] text-[11px]">
+            <h3 className="font-bold text-[var(--app-heading)] text-xs font-mono border-b pb-1">RECONCILIATION & STATUTORY NOTICES (Page {pageNum})</h3>
             <p>
               Please examine this statement immediately. Any discrepancy or error should be reported to the bank within 15 days of receipt of statement, failing which it will be assumed that the transactions recorded in the statement are correct.
             </p>
             <p>
               All deposits made via cheque are subject to realization. Service charges have been debited as per standard bank tariff rules. Interest calculations on average daily balance have been credited where applicable.
             </p>
-            <div className="border border-slate-200 p-3 rounded-lg bg-slate-50 mt-10">
-              <h4 className="font-bold text-slate-700 font-mono text-[9px] mb-2 uppercase">Key Transaction Metrics:</h4>
+            <div className="border border-[var(--app-border)] p-3 rounded-lg bg-[var(--app-content-bg)] mt-10">
+              <h4 className="font-bold text-[var(--app-heading)] font-mono text-[9px] mb-2 uppercase">Key Transaction Metrics:</h4>
               <div className="grid grid-cols-3 gap-2 font-mono text-center">
-                <div className="border-r border-slate-200">
-                  <p className="text-[8.5px] text-slate-400">Total Dr Count</p>
-                  <p className="text-base font-bold text-rose-600">14</p>
+                <div className="border-r border-[var(--app-border)]">
+                  <p className="text-[8.5px] text-[var(--app-muted)]">Total Dr Count</p>
+                  <p className="text-base font-bold text-rose-500">14</p>
                 </div>
-                <div className="border-r border-slate-200">
-                  <p className="text-[8.5px] text-slate-400">Total Cr Count</p>
-                  <p className="text-base font-bold text-emerald-600">22</p>
+                <div className="border-r border-[var(--app-border)]">
+                  <p className="text-[8.5px] text-[var(--app-muted)]">Total Cr Count</p>
+                  <p className="text-base font-bold text-emerald-500">22</p>
                 </div>
                 <div>
-                  <p className="text-[8.5px] text-slate-400">Uncleared Funds</p>
-                  <p className="text-base font-bold text-slate-800">₹0.00</p>
+                  <p className="text-[8.5px] text-[var(--app-muted)]">Uncleared Funds</p>
+                  <p className="text-base font-bold text-[var(--app-heading)]">₹0.00</p>
                 </div>
               </div>
             </div>
-            <div className="mt-24 border-t border-slate-200 pt-10 text-center text-[9px] text-slate-400 font-mono uppercase">
+            <div className="mt-24 border-t border-[var(--app-border)] pt-10 text-center text-[9px] text-[var(--app-muted)] font-mono uppercase">
               * This is a computer generated statement and does not require a physical signature. *
             </div>
           </div>
@@ -168,7 +171,7 @@ function SimulatedInvoicePage({ doc, pageNum, viewType, zoom, pageRef }) {
     return (
       <div
         ref={pageRef}
-        className={`bg-white text-slate-800 p-10 border shadow-md font-mono relative shrink-0 transition-transform ${isImage ? 'filter grayscale contrast-125 rotate-[-0.1deg] border-slate-350 bg-slate-50' : 'border-slate-200'}`}
+        className={`bg-[var(--app-panel-bg)] text-[var(--app-heading)] p-10 border shadow-md font-mono relative shrink-0 transition-transform ${isImage ? 'filter grayscale contrast-125 rotate-[-0.1deg] border-[var(--app-border)] bg-[var(--app-content-bg)]' : 'border-[var(--app-border)]'}`}
         style={{
           width: '210mm',
           minHeight: '297mm',
@@ -178,11 +181,11 @@ function SimulatedInvoicePage({ doc, pageNum, viewType, zoom, pageRef }) {
       >
         <div className="flex justify-between items-center border-b-2 border-slate-900 pb-4 mb-6">
           <div>
-            <h1 className="text-base font-bold text-slate-900 font-sans">FINBOOK ADVISORS LLP</h1>
-            <p className="text-[10px] text-slate-500 font-sans">405, Premium Tower, Vijay Nagar, Indore, MP</p>
-            <p className="text-[10px] text-slate-500 font-sans">GSTIN: 23AAFFB1293K1Z4</p>
+            <h1 className="text-base font-bold text-[var(--app-heading)] font-sans">FINBOOK ADVISORS LLP</h1>
+            <p className="text-[10px] text-[var(--app-muted)] font-sans">405, Premium Tower, Vijay Nagar, Indore, MP</p>
+            <p className="text-[10px] text-[var(--app-muted)] font-sans">GSTIN: 23AAFFB1293K1Z4</p>
           </div>
-          <div className="text-right border-2 border-slate-900 p-2 bg-slate-50">
+          <div className="text-right border-2 border-slate-900 p-2 bg-[var(--app-content-bg)]">
             <h2 className="text-sm font-extrabold tracking-widest font-sans">{isPayment ? 'PAYMENT VOUCHER' : 'RECEIPT VOUCHER'}</h2>
             <p className="text-[10px] font-sans mt-0.5">Voucher No: <span className="font-bold">{doc.docNo || 'PAY-001'}</span></p>
           </div>
@@ -190,38 +193,38 @@ function SimulatedInvoicePage({ doc, pageNum, viewType, zoom, pageRef }) {
 
         <div className="grid grid-cols-2 gap-4 text-[11px] mb-8">
           <div>
-            <p className="mb-1"><span className="text-slate-500">Date:</span> <span className="font-bold">{doc.docDate || '19-06-2026'}</span></p>
-            <p><span className="text-slate-500">{isPayment ? 'Paid To:' : 'Received From:'}</span> <span className="font-bold text-slate-900">{doc.partyLedger || 'ABC Traders'}</span></p>
+            <p className="mb-1"><span className="text-[var(--app-muted)]">Date:</span> <span className="font-bold">{doc.docDate || '19-06-2026'}</span></p>
+            <p><span className="text-[var(--app-muted)]">{isPayment ? 'Paid To:' : 'Received From:'}</span> <span className="font-bold text-[var(--app-heading)]">{doc.partyLedger || 'ABC Traders'}</span></p>
           </div>
           <div className="text-right">
-            <p className="mb-1"><span className="text-slate-500">Bank/Cash A/c:</span> <span className="font-bold">{doc.bankLedger || 'HDFC Bank A/c'}</span></p>
-            {doc.refNo && <p><span className="text-slate-500">Cheque/Ref No:</span> <span className="font-bold">{doc.refNo}</span></p>}
+            <p className="mb-1"><span className="text-[var(--app-muted)]">Bank/Cash A/c:</span> <span className="font-bold">{doc.bankLedger || 'HDFC Bank A/c'}</span></p>
+            {doc.refNo && <p><span className="text-[var(--app-muted)]">Cheque/Ref No:</span> <span className="font-bold">{doc.refNo}</span></p>}
           </div>
         </div>
 
         {pageNum === 1 ? (
           <div className="space-y-6">
-            <div className="border border-slate-800 p-4 bg-slate-50">
+            <div className="border border-[var(--app-border)] p-4 bg-[var(--app-content-bg)]">
               <table className="w-full text-[11px]">
                 <thead>
-                  <tr className="border-b border-slate-800 text-slate-600 font-bold uppercase text-[8.5px] pb-2">
+                  <tr className="border-b border-[var(--app-border)] text-[var(--app-heading)] font-bold uppercase text-[8.5px] pb-2">
                     <th className="text-left">Particulars</th>
                     <th className="text-right">Amount (INR)</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr className="border-b border-slate-200">
+                  <tr className="border-b border-[var(--app-border)]">
                     <td className="py-4">
-                      <p className="font-bold text-slate-900">{isPayment ? 'Payment Account Debit:' : 'Receipt Account Credit:'}</p>
-                      <p className="text-slate-500 italic mt-1 font-sans text-[10.5px]">{doc.narration || 'Being amount paid against invoice'}</p>
+                      <p className="font-bold text-[var(--app-heading)]">{isPayment ? 'Payment Account Debit:' : 'Receipt Account Credit:'}</p>
+                      <p className="text-[var(--app-muted)] italic mt-1 font-sans text-[10.5px]">{doc.narration || 'Being amount paid against invoice'}</p>
                     </td>
-                    <td className="py-4 text-right font-black text-xs text-slate-900 font-sans">
+                    <td className="py-4 text-right font-black text-xs text-[var(--app-heading)] font-sans">
                       ₹ {(doc.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </td>
                   </tr>
                   <tr>
                     <td className="py-2 font-bold text-right text-[8.5px] uppercase">TOTAL VALUE</td>
-                    <td className="py-2 text-right font-black text-slate-900 font-sans">
+                    <td className="py-2 text-right font-black text-[var(--app-heading)] font-sans">
                       ₹ {(doc.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </td>
                   </tr>
@@ -230,34 +233,34 @@ function SimulatedInvoicePage({ doc, pageNum, viewType, zoom, pageRef }) {
             </div>
 
             <div className="text-[11px] font-sans">
-              <span className="text-slate-400 uppercase text-[8px] font-bold block mb-1">Amount in Words:</span>
-              <span className="font-bold text-slate-800 capitalize italic text-[11px]">
+              <span className="text-[var(--app-muted)] uppercase text-[8px] font-bold block mb-1">Amount in Words:</span>
+              <span className="font-bold text-[var(--app-heading)] capitalize italic text-[11px]">
                 Indian Rupees {(doc.amount || 0).toLocaleString('en-IN')} Only
               </span>
             </div>
 
             <div className="grid grid-cols-2 gap-4 pt-20 font-sans">
               <div>
-                <div className="border-b border-slate-400 w-48 h-8" />
-                <p className="text-[9px] text-slate-500 mt-1 uppercase font-bold">Receiver's Signature</p>
+                <div className="border-b border-[var(--app-border)] w-48 h-8" />
+                <p className="text-[9px] text-[var(--app-muted)] mt-1 uppercase font-bold">Receiver's Signature</p>
               </div>
               <div className="text-right flex flex-col items-end">
-                <div className="border-b border-slate-400 w-48 h-8" />
-                <p className="text-[9px] text-slate-500 mt-1 uppercase font-bold">Authorized Signatory</p>
+                <div className="border-b border-[var(--app-border)] w-48 h-8" />
+                <p className="text-[9px] text-[var(--app-muted)] mt-1 uppercase font-bold">Authorized Signatory</p>
               </div>
             </div>
           </div>
         ) : (
-          <div className="space-y-4 font-sans text-slate-600 text-[11px]">
-            <h3 className="font-bold text-slate-800 text-xs font-mono border-b pb-1">VOUCHER AUDIT LOGS & SUGGESTIONS (Page {pageNum})</h3>
+          <div className="space-y-4 font-sans text-[var(--app-heading)] text-[11px]">
+            <h3 className="font-bold text-[var(--app-heading)] text-xs font-mono border-b pb-1">VOUCHER AUDIT LOGS & SUGGESTIONS (Page {pageNum})</h3>
             <p>
               This voucher has been verified against transaction history. Ledger allocations are auto-suggested based on compliance rules.
             </p>
-            <div className="border border-slate-200 p-4 rounded-lg bg-slate-50 mt-6 font-mono text-[9.5px] space-y-1">
+            <div className="border border-[var(--app-border)] p-4 rounded-lg bg-[var(--app-content-bg)] mt-6 font-mono text-[9.5px] space-y-1">
               <p className="font-bold mb-2">Internal Verification Details:</p>
-              <p><span className="text-slate-400">Created By:</span> Admin User</p>
-              <p><span className="text-slate-400">Extracted Status:</span> Matches Bank Feed</p>
-              <p><span className="text-slate-400">Audit Status:</span> Compliant with Section 194C</p>
+              <p><span className="text-[var(--app-muted)]">Created By:</span> Admin User</p>
+              <p><span className="text-[var(--app-muted)]">Extracted Status:</span> Matches Bank Feed</p>
+              <p><span className="text-[var(--app-muted)]">Audit Status:</span> Compliant with Section 194C</p>
             </div>
           </div>
         )}
@@ -269,7 +272,7 @@ function SimulatedInvoicePage({ doc, pageNum, viewType, zoom, pageRef }) {
     return (
       <div
         ref={pageRef}
-        className={`bg-white text-slate-800 p-10 border shadow-md font-mono relative shrink-0 transition-transform ${isImage ? 'filter grayscale contrast-125 rotate-[0.2deg] border-slate-350 bg-slate-50' : 'border-slate-200'}`}
+        className={`bg-[var(--app-panel-bg)] text-[var(--app-heading)] p-10 border shadow-md font-mono relative shrink-0 transition-transform ${isImage ? 'filter grayscale contrast-125 rotate-[0.2deg] border-[var(--app-border)] bg-[var(--app-content-bg)]' : 'border-[var(--app-border)]'}`}
         style={{
           width: '210mm',
           minHeight: '297mm',
@@ -279,10 +282,10 @@ function SimulatedInvoicePage({ doc, pageNum, viewType, zoom, pageRef }) {
       >
         <div className="flex justify-between items-center border-b-2 border-slate-900 pb-4 mb-6">
           <div>
-            <h1 className="text-base font-bold text-slate-900 font-sans">FINBOOK ADVISORS LLP</h1>
-            <p className="text-[10px] text-slate-500 font-sans">Indore, MP, India</p>
+            <h1 className="text-base font-bold text-[var(--app-heading)] font-sans">FINBOOK ADVISORS LLP</h1>
+            <p className="text-[10px] text-[var(--app-muted)] font-sans">Indore, MP, India</p>
           </div>
-          <div className="text-right border-2 border-slate-900 p-2 bg-slate-50">
+          <div className="text-right border-2 border-slate-900 p-2 bg-[var(--app-content-bg)]">
             <h2 className="text-sm font-extrabold tracking-widest font-sans">CONTRA VOUCHER</h2>
             <p className="text-[10px] font-sans mt-0.5">Voucher No: <span className="font-bold">{doc.docNo || 'CON-001'}</span></p>
           </div>
@@ -290,37 +293,37 @@ function SimulatedInvoicePage({ doc, pageNum, viewType, zoom, pageRef }) {
 
         <div className="grid grid-cols-2 gap-4 text-[11px] mb-8">
           <div>
-            <p className="mb-1"><span className="text-slate-500">Date:</span> <span className="font-bold">{doc.docDate || '19-06-2026'}</span></p>
-            <p><span className="text-slate-500">Source (From):</span> <span className="font-bold text-rose-600">{doc.fromLedger || 'Cash A/c'}</span></p>
+            <p className="mb-1"><span className="text-[var(--app-muted)]">Date:</span> <span className="font-bold">{doc.docDate || '19-06-2026'}</span></p>
+            <p><span className="text-[var(--app-muted)]">Source (From):</span> <span className="font-bold text-rose-500">{doc.fromLedger || 'Cash A/c'}</span></p>
           </div>
           <div className="text-right">
-            <p className="mb-1"><span className="text-slate-500">Destination (To):</span> <span className="font-bold text-emerald-600">{doc.toLedger || 'State Bank of India'}</span></p>
-            <p><span className="text-slate-500">Currency:</span> <span className="font-bold">{doc.currency || 'INR'}</span></p>
+            <p className="mb-1"><span className="text-[var(--app-muted)]">Destination (To):</span> <span className="font-bold text-emerald-500">{doc.toLedger || 'State Bank of India'}</span></p>
+            <p><span className="text-[var(--app-muted)]">Currency:</span> <span className="font-bold">{doc.currency || 'INR'}</span></p>
           </div>
         </div>
 
         <div className="space-y-6">
-          <div className="border border-slate-800 p-4 bg-slate-50">
+          <div className="border border-[var(--app-border)] p-4 bg-[var(--app-content-bg)]">
             <table className="w-full text-[11px]">
               <thead>
-                <tr className="border-b border-slate-800 text-slate-600 font-bold uppercase text-[8.5px] pb-2">
+                <tr className="border-b border-[var(--app-border)] text-[var(--app-heading)] font-bold uppercase text-[8.5px] pb-2">
                   <th className="text-left">Particulars</th>
                   <th className="text-right">Debit / Credit Value</th>
                 </tr>
               </thead>
               <tbody>
-                <tr className="border-b border-slate-200">
+                <tr className="border-b border-[var(--app-border)]">
                   <td className="py-4">
-                    <p className="font-bold text-slate-900">Transfer from {doc.fromLedger} to {doc.toLedger}</p>
-                    <p className="text-slate-400 italic mt-1 font-sans text-[10.5px]">{doc.narration || 'Cash deposit/withdrawal bank entry'}</p>
+                    <p className="font-bold text-[var(--app-heading)]">Transfer from {doc.fromLedger} to {doc.toLedger}</p>
+                    <p className="text-[var(--app-muted)] italic mt-1 font-sans text-[10.5px]">{doc.narration || 'Cash deposit/withdrawal bank entry'}</p>
                   </td>
-                  <td className="py-4 text-right font-black text-xs text-slate-900 font-sans">
+                  <td className="py-4 text-right font-black text-xs text-[var(--app-heading)] font-sans">
                     ₹ {(doc.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </td>
                 </tr>
                 <tr>
                   <td className="py-2 font-bold text-right text-[8.5px] uppercase">TOTAL VALUE</td>
-                  <td className="py-2 text-right font-black text-slate-900 font-sans">
+                  <td className="py-2 text-right font-black text-[var(--app-heading)] font-sans">
                     ₹ {(doc.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </td>
                 </tr>
@@ -329,20 +332,20 @@ function SimulatedInvoicePage({ doc, pageNum, viewType, zoom, pageRef }) {
           </div>
 
           <div className="text-[11px] font-sans">
-            <span className="text-slate-400 uppercase text-[8px] font-bold block mb-1">Amount in Words:</span>
-            <span className="font-bold text-slate-800 capitalize italic text-[11px]">
+            <span className="text-[var(--app-muted)] uppercase text-[8px] font-bold block mb-1">Amount in Words:</span>
+            <span className="font-bold text-[var(--app-heading)] capitalize italic text-[11px]">
               Rupees {(doc.amount || 0).toLocaleString('en-IN')} Only
             </span>
           </div>
 
           <div className="grid grid-cols-2 gap-4 pt-20 font-sans">
             <div>
-              <div className="border-b border-slate-400 w-48 h-8" />
-              <p className="text-[9px] text-slate-500 mt-1 uppercase font-bold">Prepared By</p>
+              <div className="border-b border-[var(--app-border)] w-48 h-8" />
+              <p className="text-[9px] text-[var(--app-muted)] mt-1 uppercase font-bold">Prepared By</p>
             </div>
             <div className="text-right flex flex-col items-end">
-              <div className="border-b border-slate-400 w-48 h-8" />
-              <p className="text-[9px] text-slate-500 mt-1 uppercase font-bold">Manager Approval</p>
+              <div className="border-b border-[var(--app-border)] w-48 h-8" />
+              <p className="text-[9px] text-[var(--app-muted)] mt-1 uppercase font-bold">Manager Approval</p>
             </div>
           </div>
         </div>
@@ -360,7 +363,7 @@ function SimulatedInvoicePage({ doc, pageNum, viewType, zoom, pageRef }) {
   return (
     <div
       ref={pageRef}
-      className={`bg-white text-slate-800 p-10 border shadow-md font-mono relative shrink-0 transition-transform ${isImage ? 'filter grayscale contrast-125 rotate-[0.15deg] border-slate-350 bg-slate-50 shadow-inner' : 'border-slate-200'}`}
+      className={`bg-[var(--app-panel-bg)] text-[var(--app-heading)] p-10 border shadow-md font-mono relative shrink-0 transition-transform ${isImage ? 'filter grayscale contrast-125 rotate-[0.15deg] border-[var(--app-border)] bg-[var(--app-content-bg)] shadow-inner' : 'border-[var(--app-border)]'}`}
       style={{
         width: '210mm',
         minHeight: '297mm',
@@ -371,51 +374,51 @@ function SimulatedInvoicePage({ doc, pageNum, viewType, zoom, pageRef }) {
       {pageNum === 1 ? (
         <div className="flex flex-col justify-between h-full min-h-[265mm]">
           <div>
-            <div className="flex justify-between items-start border-b border-slate-300 pb-6 mb-6">
+            <div className="flex justify-between items-start border-b border-[var(--app-border)] pb-6 mb-6">
               <div>
                 <div className="inline-flex items-center justify-center h-10 w-10 bg-slate-900 text-white font-bold rounded-lg mb-2 text-base font-sans">
                   {doc.vendor ? doc.vendor.charAt(0) : 'V'}
                 </div>
-                <h1 className="text-sm font-black tracking-tight text-slate-900 uppercase font-sans">{doc.vendor || 'Supplier Company'}</h1>
-                <p className="text-[10px] text-slate-500 font-sans mt-0.5 font-sans">102 Business Plaza, Sector 4, Noida, UP - 201301</p>
-                <p className="text-[10px] text-slate-500 font-sans">GSTIN: <span className="font-bold font-mono">{doc.gstin || '09AAAAA1111A1Z5'}</span></p>
+                <h1 className="text-sm font-black tracking-tight text-[var(--app-heading)] uppercase font-sans">{doc.vendor || 'Supplier Company'}</h1>
+                <p className="text-[10px] text-[var(--app-muted)] font-sans mt-0.5 font-sans">102 Business Plaza, Sector 4, Noida, UP - 201301</p>
+                <p className="text-[10px] text-[var(--app-muted)] font-sans">GSTIN: <span className="font-bold font-mono">{doc.gstin || '09AAAAA1111A1Z5'}</span></p>
               </div>
 
               <div className="text-right">
-                <h2 className="text-lg font-black text-slate-900 tracking-wide uppercase font-sans">{doc.category || 'TAX INVOICE'}</h2>
+                <h2 className="text-lg font-black text-[var(--app-heading)] tracking-wide uppercase font-sans">{doc.category || 'TAX INVOICE'}</h2>
                 <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[10px] mt-4 text-left font-sans">
-                  <span className="text-slate-400">Invoice No:</span>
+                  <span className="text-[var(--app-muted)]">Invoice No:</span>
                   <span className="font-bold font-mono text-right">{doc.docNo || 'INV-2026-001'}</span>
-                  <span className="text-slate-400">Date:</span>
+                  <span className="text-[var(--app-muted)]">Date:</span>
                   <span className="font-bold font-mono text-right">{doc.docDate || '19-06-2026'}</span>
                   {doc.refNo && (
                     <>
-                      <span className="text-slate-400">Ref PO No:</span>
+                      <span className="text-[var(--app-muted)]">Ref PO No:</span>
                       <span className="font-bold font-mono text-right">{doc.refNo}</span>
                     </>
                   )}
                   {doc.dueDate && (
                     <>
-                      <span className="text-slate-400">Due Date:</span>
+                      <span className="text-[var(--app-muted)]">Due Date:</span>
                       <span className="font-bold font-mono text-right">{doc.dueDate}</span>
                     </>
                   )}
-                  <span className="text-slate-400">Place of Supply:</span>
+                  <span className="text-[var(--app-muted)]">Place of Supply:</span>
                   <span className="font-bold font-mono text-right">{doc.placeOfSupply || 'Uttar Pradesh (09)'}</span>
                 </div>
               </div>
             </div>
 
-            <div className="border border-slate-200 p-3 mb-6 bg-slate-50">
-              <h3 className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1 font-sans">Billed To (Recipient):</h3>
-              <p className="font-black text-slate-900 text-xs font-sans">FINBOOK ADVISORS LLP</p>
-              <p className="text-[10px] text-slate-500 font-sans mt-0.5">405, Premium Tower, Vijay Nagar, Indore, Madhya Pradesh - 452010</p>
-              <p className="text-[10px] text-slate-600 font-sans">GSTIN: <span className="font-bold font-mono">23AAFFB1293K1Z4</span></p>
+            <div className="border border-[var(--app-border)] p-3 mb-6 bg-[var(--app-content-bg)]">
+              <h3 className="text-[9px] font-bold text-[var(--app-muted)] uppercase tracking-widest mb-1 font-sans">Billed To (Recipient):</h3>
+              <p className="font-black text-[var(--app-heading)] text-xs font-sans">FINBOOK ADVISORS LLP</p>
+              <p className="text-[10px] text-[var(--app-muted)] font-sans mt-0.5">405, Premium Tower, Vijay Nagar, Indore, Madhya Pradesh - 452010</p>
+              <p className="text-[10px] text-[var(--app-heading)] font-sans">GSTIN: <span className="font-bold font-mono">23AAFFB1293K1Z4</span></p>
             </div>
 
             <table className="w-full text-left text-[11px] border-collapse font-mono mb-6">
               <thead>
-                <tr className="border-b border-slate-800 text-slate-600 font-bold uppercase text-[8.5px] bg-slate-100">
+                <tr className="border-b border-[var(--app-border)] text-[var(--app-heading)] font-bold uppercase text-[8.5px] bg-[var(--app-table-head-bg)]">
                   <th className="py-2 px-1 w-8 text-center">#</th>
                   <th className="py-2 px-2">Item Description</th>
                   <th className="py-2 px-1 text-center">HSN</th>
@@ -425,14 +428,14 @@ function SimulatedInvoicePage({ doc, pageNum, viewType, zoom, pageRef }) {
                   <th className="py-2 px-2 text-right w-24 pr-2">Amount</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200">
+              <tbody className="divide-y divide-[var(--app-border)]">
                 {doc.items && doc.items.map((item, idx) => {
                   const itemAmt = (item.qty || 0) * (item.rate || 0);
                   return (
-                    <tr key={idx} className="hover:bg-slate-50">
-                      <td className="py-2 text-center text-slate-400 font-bold">{idx + 1}</td>
-                      <td className="py-2 px-2 text-slate-900 font-semibold font-sans">{item.name || 'Financial Items'}</td>
-                      <td className="py-2 text-center text-slate-500">{item.hsn || '8471'}</td>
+                    <tr key={idx} className="hover:bg-[var(--app-content-bg)]">
+                      <td className="py-2 text-center text-[var(--app-muted)] font-bold">{idx + 1}</td>
+                      <td className="py-2 px-2 text-[var(--app-heading)] font-semibold font-sans">{item.name || 'Financial Items'}</td>
+                      <td className="py-2 text-center text-[var(--app-muted)]">{item.hsn || '8471'}</td>
                       <td className="py-2 text-center">{item.qty !== undefined ? item.qty : 1}</td>
                       <td className="py-2 px-2 text-right font-sans font-sans">₹{(item.rate || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
                       <td className="py-2 text-center">{item.taxRate !== undefined ? `${item.taxRate}%` : '18%'}</td>
@@ -443,70 +446,70 @@ function SimulatedInvoicePage({ doc, pageNum, viewType, zoom, pageRef }) {
               </tbody>
             </table>
 
-            <div className="flex justify-between items-start pt-4 border-t border-slate-350">
-              <div className="text-[9.5px] text-slate-400 max-w-xs font-sans space-y-1">
-                <p className="font-bold uppercase text-[8.5px] font-mono text-slate-500">Declaration & Terms:</p>
+            <div className="flex justify-between items-start pt-4 border-t border-[var(--app-border)]">
+              <div className="text-[9.5px] text-[var(--app-muted)] max-w-xs font-sans space-y-1">
+                <p className="font-bold uppercase text-[8.5px] font-mono text-[var(--app-muted)]">Declaration & Terms:</p>
                 <p>We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.</p>
               </div>
 
-              <div className="w-80 font-sans text-[11px] space-y-1 text-right font-medium text-slate-600">
+              <div className="w-80 font-sans text-[11px] space-y-1 text-right font-medium text-[var(--app-heading)]">
                 <div className="flex justify-between">
                   <span>Taxable Value (Before Tax)</span>
-                  <span className="font-mono font-bold text-slate-800">₹{taxable.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  <span className="font-mono font-bold text-[var(--app-heading)]">₹{taxable.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                 </div>
                 {!isInterState ? (
                   <>
                     <div className="flex justify-between">
                       <span>Central GST (CGST @ 9%)</span>
-                      <span className="font-mono font-bold text-slate-800">₹{cgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                      <span className="font-mono font-bold text-[var(--app-heading)]">₹{cgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>State GST (SGST @ 9%)</span>
-                      <span className="font-mono font-bold text-slate-800">₹{sgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                      <span className="font-mono font-bold text-[var(--app-heading)]">₹{sgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                     </div>
                   </>
                 ) : (
                   <div className="flex justify-between">
                     <span>Integrated GST (IGST @ 18%)</span>
-                    <span className="font-mono font-bold text-slate-800">₹{igst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                    <span className="font-mono font-bold text-[var(--app-heading)]">₹{igst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                   </div>
                 )}
                 {doc.roundOff !== 0 && (
                   <div className="flex justify-between">
                     <span>Round Off</span>
-                    <span className="font-mono font-bold text-slate-800">₹{(doc.roundOff || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                    <span className="font-mono font-bold text-[var(--app-heading)]">₹{(doc.roundOff || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                   </div>
                 )}
-                <div className="flex justify-between text-xs font-black border-t pt-2 border-slate-800 text-slate-900">
+                <div className="flex justify-between text-xs font-black border-t pt-2 border-[var(--app-border)] text-[var(--app-heading)]">
                   <span>GRAND TOTAL</span>
-                  <span className="font-mono text-blue-700 font-black text-sm">₹{(doc.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  <span className="font-mono text-[var(--app-accent)] font-black text-sm">₹{(doc.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="flex justify-between items-end border-t border-slate-200 pt-8 font-sans">
+          <div className="flex justify-between items-end border-t border-[var(--app-border)] pt-8 font-sans">
             <div>
-              <p className="text-[9.5px] text-slate-400">Total in Words:</p>
-              <p className="text-[10px] font-bold italic text-slate-800 mt-1 capitalize font-sans">
+              <p className="text-[9.5px] text-[var(--app-muted)]">Total in Words:</p>
+              <p className="text-[10px] font-bold italic text-[var(--app-heading)] mt-1 capitalize font-sans">
                 Indian Rupees {doc.amount ? (doc.amount).toLocaleString('en-IN') : 'Zero'} Only
               </p>
             </div>
             <div className="text-right">
-              <p className="text-[8.5px] text-slate-400 uppercase font-bold font-sans">For {doc.vendor || 'Supplier Co'}</p>
-              <div className="h-8 w-32 border-b border-slate-300 ml-auto my-1.5" />
-              <p className="text-[8.5px] text-slate-500 font-bold uppercase font-sans">Authorized Signatory</p>
+              <p className="text-[8.5px] text-[var(--app-muted)] uppercase font-bold font-sans">For {doc.vendor || 'Supplier Co'}</p>
+              <div className="h-8 w-32 border-b border-[var(--app-border)] ml-auto my-1.5" />
+              <p className="text-[8.5px] text-[var(--app-muted)] font-bold uppercase font-sans">Authorized Signatory</p>
             </div>
           </div>
         </div>
       ) : (
-        <div className="space-y-6 font-sans text-[11px] text-slate-600">
-          <h2 className="text-xs font-bold text-slate-800 border-b pb-1 font-mono uppercase">INVOICE ANNEXURE & REMARKS (Page {pageNum} of {doc.pages})</h2>
+        <div className="space-y-6 font-sans text-[11px] text-[var(--app-heading)]">
+          <h2 className="text-xs font-bold text-[var(--app-heading)] border-b pb-1 font-mono uppercase">INVOICE ANNEXURE & REMARKS (Page {pageNum} of {doc.pages})</h2>
 
           <div className="space-y-4">
             <div>
-              <h3 className="font-bold text-slate-700">1. Standard Terms & Conditions:</h3>
-              <ul className="list-disc pl-5 mt-1 space-y-1 text-slate-500 text-[10px]">
+              <h3 className="font-bold text-[var(--app-heading)]">1. Standard Terms & Conditions:</h3>
+              <ul className="list-disc pl-5 mt-1 space-y-1 text-[var(--app-muted)] text-[10px]">
                 <li>Payment is due within 30 days of invoice date. Delayed payments accrue interest at 18% per annum.</li>
                 <li>Any disputes regarding quantities or rate discrepancy must be notified in writing within 7 business days of delivery.</li>
                 <li>All shipments are FOB Origin unless otherwise specified. Title passes to the buyer upon handoff to the common carrier.</li>
@@ -515,31 +518,31 @@ function SimulatedInvoicePage({ doc, pageNum, viewType, zoom, pageRef }) {
             </div>
 
             <div>
-              <h3 className="font-bold text-slate-700">2. Wire Transfer Instructions:</h3>
-              <p className="text-slate-500 mt-1 text-[10px]">Please direct electronic payments to the following bank account. Mention Invoice number <b>{doc.docNo}</b> in payment remarks:</p>
-              <table className="mt-2 text-[10.5px] font-mono border border-slate-200 p-2 bg-slate-50 rounded">
+              <h3 className="font-bold text-[var(--app-heading)]">2. Wire Transfer Instructions:</h3>
+              <p className="text-[var(--app-muted)] mt-1 text-[10px]">Please direct electronic payments to the following bank account. Mention Invoice number <b>{doc.docNo}</b> in payment remarks:</p>
+              <table className="mt-2 text-[10.5px] font-mono border border-[var(--app-border)] p-2 bg-[var(--app-content-bg)] rounded">
                 <tbody>
                   <tr>
-                    <td className="pr-4 text-slate-400">Bank Name:</td>
-                    <td className="font-bold text-slate-800">State Bank of India</td>
+                    <td className="pr-4 text-[var(--app-muted)]">Bank Name:</td>
+                    <td className="font-bold text-[var(--app-heading)]">State Bank of India</td>
                   </tr>
                   <tr>
-                    <td className="pr-4 text-slate-400">Account Name:</td>
-                    <td className="font-bold text-slate-800">{doc.vendor || 'Supplier Company'}</td>
+                    <td className="pr-4 text-[var(--app-muted)]">Account Name:</td>
+                    <td className="font-bold text-[var(--app-heading)]">{doc.vendor || 'Supplier Company'}</td>
                   </tr>
                   <tr>
-                    <td className="pr-4 text-slate-400">Account No:</td>
-                    <td className="font-bold text-slate-800">30948291024</td>
+                    <td className="pr-4 text-[var(--app-muted)]">Account No:</td>
+                    <td className="font-bold text-[var(--app-heading)]">30948291024</td>
                   </tr>
                   <tr>
-                    <td className="pr-4 text-slate-400">IFSC Code:</td>
-                    <td className="font-bold text-slate-800 font-mono">SBIN0001827</td>
+                    <td className="pr-4 text-[var(--app-muted)]">IFSC Code:</td>
+                    <td className="font-bold text-[var(--app-heading)] font-mono">SBIN0001827</td>
                   </tr>
                 </tbody>
               </table>
             </div>
 
-            <div className="pt-28 border-t border-slate-200 flex justify-between items-center text-[9px] text-slate-400 font-mono">
+            <div className="pt-28 border-t border-[var(--app-border)] flex justify-between items-center text-[9px] text-[var(--app-muted)] font-mono">
               <p>Invoice Annexure Ref: ANN-INV-{doc.docNo || '001'}</p>
               <p>Generated: 19-06-2026 10:30 AM</p>
             </div>
@@ -938,8 +941,6 @@ export default function AiProcessingCenter() {
   const [sortDirection, setSortDirection] = useState('desc');
 
   // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
 
   // Document Viewer specific states
   const [viewerMode, setViewerMode] = useState('pdf'); // 'pdf' or 'image'
@@ -1210,30 +1211,15 @@ export default function AiProcessingCenter() {
     return result;
   }, [documents, searchQuery, activeCategory, statusFilter, sortColumn, sortDirection]);
 
-  // Paginated docs for table
-  const paginatedDocs = useMemo(() => {
-    const startIndex = (currentPage - 1) * pageSize;
-    return filteredAndSortedDocs.slice(startIndex, startIndex + pageSize);
-  }, [filteredAndSortedDocs, currentPage, pageSize]);
-
-  const totalPagesCount = Math.ceil(filteredAndSortedDocs.length / pageSize) || 1;
-
-  // Reset page if filters shrink the count
-  useEffect(() => {
-    if (currentPage > totalPagesCount) {
-      setCurrentPage(1);
-    }
-  }, [totalPagesCount, currentPage]);
-
   // Icon mapping helper
   const getDocIcon = (fileType) => {
     if (fileType === 'excel' || fileType === 'csv') {
       return <FileSpreadsheet className="text-emerald-500 shrink-0" size={13} />;
     }
     if (fileType === 'image') {
-      return <Image className="text-blue-500 shrink-0" size={13} />;
+      return <Image className="text-[var(--app-accent)] shrink-0" size={13} />;
     }
-    return <FileText className="text-blue-500 shrink-0" size={13} />;
+    return <FileText className="text-[var(--app-accent)] shrink-0" size={13} />;
   };
 
   // Field change updates inside forms (persists to localStorage)
@@ -1300,27 +1286,27 @@ export default function AiProcessingCenter() {
   };
 
   // --- Bulk selectors ---
-  const handleWorkspaceSelectAll = (e) => {
-    if (e.target.checked) {
-      setCheckedWorkspaceIds(paginatedDocs.map(d => d.id));
-    } else {
-      setCheckedWorkspaceIds([]);
-    }
-  };
-
   const handleWorkspaceSelectRow = (id) => {
     setCheckedWorkspaceIds(prev =>
       prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
     );
   };
 
-  const handleSort = (column) => {
-    if (sortColumn === column) {
-      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortColumn(column);
-      setSortDirection('asc');
-    }
+  const openReview = (id) => {
+    setActiveWorkspaceDocId(id);
+    setViewMode('review');
+  };
+
+  const bulkSetStatus = (status, verb) => {
+    syncDocuments(documents.map(d => checkedWorkspaceIds.includes(d.id) ? { ...d, status } : d));
+    setCheckedWorkspaceIds([]);
+    (status === 'Rejected' ? toast.error : toast.success)(`${verb} ${checkedWorkspaceIds.length} document(s)`);
+  };
+
+  const bulkDelete = () => {
+    syncDocuments(documents.filter(d => !checkedWorkspaceIds.includes(d.id)));
+    setCheckedWorkspaceIds([]);
+    toast.success('Deleted selected documents');
   };
 
   // Page Scroll Snapping inside viewer
@@ -1433,21 +1419,21 @@ export default function AiProcessingCenter() {
   const getCategoryStyles = (cat) => {
     const stylesMap = {
       'Sales Invoice': 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/15 dark:text-emerald-400 dark:border-emerald-800',
-      'Purchase Invoice': 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/15 dark:text-blue-400 dark:border-blue-800',
+      'Purchase Invoice': 'bg-[var(--app-accent-soft)] text-[var(--app-accent)] border-[var(--app-border)] dark:bg-[var(--app-accent-soft)] dark:text-[var(--app-accent)] dark:border-[var(--app-border)]',
       'Payment': 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/15 dark:text-amber-400 dark:border-amber-800',
       'Receipt': 'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950/15 dark:text-teal-400 dark:border-teal-800',
-      'Contra': 'bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-900/40 dark:text-slate-300 dark:border-slate-800',
-      'Credit Note': 'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/15 dark:text-sky-400 dark:border-sky-800',
+      'Contra': 'bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)]',
+      'Credit Note': 'bg-[var(--app-accent-soft)] text-[var(--app-accent)] border-[var(--app-border)] dark:bg-[var(--app-accent-soft)] dark:text-[var(--app-accent)] dark:border-[var(--app-border)]',
       'Debit Note': 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/15 dark:text-red-400 dark:border-red-800',
-      'Bank Statement': 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/15 dark:text-indigo-400 dark:border-indigo-800'
+      'Bank Statement': 'bg-[var(--app-accent-soft)] text-[var(--app-accent)] border-[var(--app-border)] dark:bg-[var(--app-accent-soft)] dark:text-[var(--app-accent)] dark:border-[var(--app-border)]'
     };
-    return stylesMap[cat] || 'bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:border-slate-800';
+    return stylesMap[cat] || 'bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)]';
   };
 
   return (
     <div
       ref={containerRef}
-      className={`flex flex-col h-full overflow-hidden text-[11px] text-slate-700 dark:text-slate-200 bg-slate-50/50 dark:bg-slate-950/10 ${viewMode === 'queue' ? 'gap-2' : 'gap-0'}`}
+      className={`flex flex-col h-full overflow-hidden text-[11px] text-[var(--app-heading)] bg-[var(--app-content-bg)]/50 ${viewMode === 'queue' ? 'gap-2' : 'gap-0'}`}
     >
       {viewMode === 'queue' ? (
         // ==========================================
@@ -1456,42 +1442,51 @@ export default function AiProcessingCenter() {
         <div className="flex flex-col gap-3 flex-grow p-4 overflow-hidden">
 
           {/* Title Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-2 border-slate-200 dark:border-slate-800">
-            <div>
-              <h2 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-                <Brain className="text-blue-500" size={16} />
-                <span>OCR Upload</span>
-                <span className="px-2 py-0.5 bg-blue-50 text-blue-700 dark:bg-blue-950/20 dark:text-blue-400 border border-blue-200 dark:border-blue-800/60 rounded text-[9.5px] font-extrabold uppercase">
-                  Document Queue
-                </span>
-              </h2>
-              <p className="text-slate-400 dark:text-slate-500 text-[10px] mt-0.5 font-medium">Verify and approve automatically extracted accounting documents.</p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-2 border-[var(--app-border)]">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="h-9 w-9 rounded-xl flex items-center justify-center text-white shrink-0" style={{ background: 'var(--app-accent-gradient)', boxShadow: 'var(--app-shadow)' }}>
+                <Scan size={17} strokeWidth={2.2} />
+              </div>
+              <div className="min-w-0">
+                <h2 className="text-base font-extrabold text-[var(--app-heading)] dark:text-white flex items-center gap-2">
+                  <span>OCR Upload</span>
+                  <span className="px-2 py-0.5 bg-[var(--app-accent-soft)] text-[var(--app-accent)] border border-[var(--app-border)] rounded text-[9.5px] font-extrabold uppercase">
+                    Document Queue
+                  </span>
+                </h2>
+                <p className="text-[var(--app-muted)] text-[10px] mt-0.5 font-medium truncate">Verify and approve automatically extracted accounting documents.</p>
+              </div>
             </div>
 
             <button
               onClick={() => setIsUploadModalOpen(true)}
-              className="h-8 px-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition flex items-center justify-center gap-1.5 font-bold shadow-xs text-[11px] cursor-pointer"
+              className="h-8 px-3 bg-[var(--app-accent)] hover:opacity-90 text-white rounded-lg transition flex items-center justify-center gap-1.5 font-bold shadow-xs text-[11px] cursor-pointer shrink-0"
             >
               <UploadCloud size={13} />
               <span>Upload Documents</span>
             </button>
           </div>
 
+          {/* KPI cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 shrink-0">
+            <StatCard index={0} label="Total Documents" value={documents.length} icon={FileText} />
+            <StatCard index={1} label="Processing" value={documents.filter(d => d.status === 'Processing').length} icon={PlayCircle} />
+            <StatCard index={2} label="Pending Approval" value={documents.filter(d => d.status === 'Pending Approval').length} icon={AlertCircle} />
+            <StatCard index={3} label="Approved" value={documents.filter(d => d.status === 'Approved').length} icon={CheckCircle2} />
+          </div>
+
           {/* --- TOP TABS CATEGORIES NAVIGATION BAR --- */}
-          <div className="flex items-center gap-4.5 border-b border-slate-200 dark:border-slate-800 overflow-x-auto shrink-0 pb-1.5 pt-0.5">
+          <div className="flex items-center gap-4.5 border-b border-[var(--app-border)] overflow-x-auto shrink-0 pb-1.5 pt-0.5 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             {tabCategories.map((catName) => {
               const isActive = activeCategory === catName;
               return (
                 <button
                   key={catName}
-                  onClick={() => {
-                    setActiveCategory(catName);
-                    setCurrentPage(1);
-                  }}
+                  onClick={() => setActiveCategory(catName)}
                   className={`pb-1 text-[11px] font-bold tracking-wide whitespace-nowrap transition-all uppercase border-b-2 -mb-2 flex items-center gap-1.5 ${
                     isActive
-                      ? 'border-blue-600 text-blue-600 dark:border-blue-500 dark:text-blue-400 font-bold'
-                      : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+                      ? 'border-[var(--app-accent)] text-[var(--app-accent)] font-bold'
+                      : 'border-transparent text-[var(--app-muted)] hover:text-[var(--app-heading)]'
                   }`}
                 >
                   <span>{catName}</span>
@@ -1500,35 +1495,24 @@ export default function AiProcessingCenter() {
             })}
           </div>
 
-          {/* Table Toolbar controls */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 shadow-3xs shrink-0">
-            {/* Search and Filters */}
-            <div className="flex items-center gap-3 w-full sm:w-auto">
-              <div className="relative w-full sm:w-64">
-                <input
-                  type="text"
-                  placeholder="Search document, party, invoice no..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full h-8 rounded-lg border pl-8 pr-8 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500 font-medium"
-                />
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery('')}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                  >
-                    <X size={12} />
-                  </button>
-                )}
-              </div>
-
+          {/* Document queue */}
+          <DataTable
+            minWidth="1040px"
+            data={filteredAndSortedDocs}
+            rowKey={(d) => d.id}
+            emptyText="No documents match the filter criteria."
+            selectable
+            selectedKeys={checkedWorkspaceIds}
+            onToggleRow={handleWorkspaceSelectRow}
+            onToggleAll={(c) => setCheckedWorkspaceIds(c ? filteredAndSortedDocs.map(d => d.id) : [])}
+            search={{ value: searchQuery, onChange: setSearchQuery, placeholder: 'Search document, party, invoice no…' }}
+            filters={
               <div className="flex items-center gap-1.5 shrink-0">
-                <ListFilter size={13} className="text-slate-400" />
+                <ListFilter size={13} className="text-[var(--app-muted)]" />
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500 font-bold"
+                  className="h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)] font-bold"
                 >
                   <option value="All">All Statuses</option>
                   <option value="Processing">Processing</option>
@@ -1537,264 +1521,44 @@ export default function AiProcessingCenter() {
                   <option value="Rejected">Rejected</option>
                 </select>
               </div>
-            </div>
-
-            {/* Selection Info and Bulk Actions */}
-            <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
-              <span className="text-[10px] font-bold text-slate-400 uppercase">
-                {filteredAndSortedDocs.length} Total Documents
-              </span>
-
-              {checkedWorkspaceIds.length > 0 && (
-                <div className="flex items-center gap-2 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 px-2 py-1 rounded-lg">
-                  <span className="text-[10px] font-bold text-blue-700 dark:text-blue-400 mr-2">{checkedWorkspaceIds.length} Selected</span>
-
-                  <button
-                    onClick={() => {
-                      const updated = documents.map(d => checkedWorkspaceIds.includes(d.id) ? { ...d, status: 'Approved' } : d);
-                      syncDocuments(updated);
-                      setCheckedWorkspaceIds([]);
-                      toast.success(`Approved ${checkedWorkspaceIds.length} vouchers successfully`);
-                    }}
-                    className="h-6 px-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[10px] font-bold flex items-center gap-1"
-                  >
-                    <Check size={10} />
-                    <span>Approve</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      const updated = documents.map(d => checkedWorkspaceIds.includes(d.id) ? { ...d, status: 'Rejected' } : d);
-                      syncDocuments(updated);
-                      setCheckedWorkspaceIds([]);
-                      toast.error(`Rejected ${checkedWorkspaceIds.length} vouchers`);
-                    }}
-                    className="h-6 px-2 bg-rose-600 hover:bg-rose-700 text-white rounded text-[10px] font-bold flex items-center gap-1"
-                  >
-                    <X size={10} />
-                    <span>Reject</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      const updated = documents.filter(d => !checkedWorkspaceIds.includes(d.id));
-                      syncDocuments(updated);
-                      setCheckedWorkspaceIds([]);
-                      toast.success(`Deleted selected documents`);
-                    }}
-                    className="h-6 px-2 bg-slate-600 hover:bg-slate-700 text-white rounded text-[10px] font-bold flex items-center gap-1"
-                  >
-                    <Trash size={10} />
-                    <span>Delete</span>
-                  </button>
-
-                  <button
-                    onClick={() => setCheckedWorkspaceIds([])}
-                    className="text-slate-400 hover:text-slate-600 text-[10px] font-bold ml-1"
-                  >
-                    Clear
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Table Container */}
-          <div className="flex-grow border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-xl overflow-hidden shadow-3xs flex flex-col">
-            <div className="flex-grow overflow-auto">
-              <table className="w-full text-left border-collapse text-[11px] min-w-[900px]">
-                <thead>
-                  <tr className="bg-slate-50/80 dark:bg-slate-950/60 border-b text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-800 font-bold uppercase select-none sticky top-0 z-10">
-                    <th className="py-2.5 px-3 w-10 text-center">
-                      <input
-                        type="checkbox"
-                        className="rounded border-slate-350 dark:border-slate-750 text-blue-600 cursor-pointer h-3.5 w-3.5"
-                        checked={paginatedDocs.length > 0 && paginatedDocs.every(d => checkedWorkspaceIds.includes(d.id))}
-                        onChange={handleWorkspaceSelectAll}
-                      />
-                    </th>
-                    <th className="py-2.5 px-3 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => handleSort('filename')}>
-                      <div className="flex items-center gap-1">
-                        <span>Document Name</span>
-                        <ArrowUpDown size={10} />
-                      </div>
-                    </th>
-                    <th className="py-2.5 px-3 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => handleSort('category')}>
-                      <div className="flex items-center gap-1">
-                        <span>Document Type</span>
-                        <ArrowUpDown size={10} />
-                      </div>
-                    </th>
-                    <th className="py-2.5 px-3 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 text-center" onClick={() => handleSort('pages')}>
-                      <div className="flex items-center gap-1 justify-center">
-                        <span>Pages</span>
-                        <ArrowUpDown size={10} />
-                      </div>
-                    </th>
-                    <th className="py-2.5 px-3 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => handleSort('uploadDate')}>
-                      <div className="flex items-center gap-1">
-                        <span>Upload Date</span>
-                        <ArrowUpDown size={10} />
-                      </div>
-                    </th>
-                    <th className="py-2.5 px-3 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => handleSort('vendor')}>
-                      <div className="flex items-center gap-1">
-                        <span>Party Name</span>
-                        <ArrowUpDown size={10} />
-                      </div>
-                    </th>
-                    <th className="py-2.5 px-3 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => handleSort('docNo')}>
-                      <div className="flex items-center gap-1">
-                        <span>Invoice Number</span>
-                        <ArrowUpDown size={10} />
-                      </div>
-                    </th>
-                    <th className="py-2.5 px-3 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 text-right" onClick={() => handleSort('amount')}>
-                      <div className="flex items-center gap-1 justify-end">
-                        <span>Amount</span>
-                        <ArrowUpDown size={10} />
-                      </div>
-                    </th>
-                    <th className="py-2.5 px-3 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 text-center" onClick={() => handleSort('status')}>
-                      <div className="flex items-center gap-1 justify-center">
-                        <span>Status</span>
-                        <ArrowUpDown size={10} />
-                      </div>
-                    </th>
-                    <th className="py-2.5 px-3 w-16 text-center">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-150 dark:divide-slate-800/80">
-                  {paginatedDocs.length > 0 ? (
-                    paginatedDocs.map((doc) => {
-                      const isChecked = checkedWorkspaceIds.includes(doc.id);
-                      return (
-                        <tr
-                          key={doc.id}
-                          onClick={() => {
-                            setActiveWorkspaceDocId(doc.id);
-                            setViewMode('review');
-                          }}
-                          className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 cursor-pointer transition-colors"
-                        >
-                          <td className="py-3 px-3 text-center" onClick={(e) => e.stopPropagation()}>
-                            <input
-                              type="checkbox"
-                              className="rounded border-slate-350 dark:border-slate-750 text-blue-600 cursor-pointer h-3.5 w-3.5"
-                              checked={isChecked}
-                              onChange={() => handleWorkspaceSelectRow(doc.id)}
-                            />
-                          </td>
-                          <td className="py-3 px-3 font-bold text-slate-900 dark:text-slate-150">
-                            <div className="flex items-center gap-2">
-                              {getDocIcon(doc.fileType)}
-                              <span title={doc.filename}>{doc.filename}</span>
-                            </div>
-                          </td>
-                          <td className="py-3 px-3">
-                            <span className={`px-2 py-0.5 rounded text-[9.5px] font-extrabold uppercase border ${getCategoryStyles(doc.category)}`}>
-                              {doc.category}
-                            </span>
-                          </td>
-                          <td className="py-3 px-3 text-center font-bold">{doc.pages || 1} {doc.pages === 1 ? 'Page' : 'Pages'}</td>
-                          <td className="py-3 px-3 font-semibold text-slate-400 dark:text-slate-500">{doc.uploadDate}</td>
-                          <td className="py-3 px-3 font-bold text-slate-800 dark:text-slate-200 truncate max-w-[150px]" title={doc.vendor}>
-                            {doc.vendor || '—'}
-                          </td>
-                          <td className="py-3 px-3 font-mono font-bold">{doc.docNo || '—'}</td>
-                          <td className="py-3 px-3 text-right font-bold text-slate-900 dark:text-slate-100">
-                            ₹ {(doc.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                          </td>
-                          <td className="py-3 px-3 text-center">
-                            <span className={`px-2 py-0.5 rounded-full text-[9px] font-black border uppercase tracking-wider ${
-                              doc.status === 'Approved' ? 'bg-green-50/70 border-green-200 text-green-700 dark:bg-green-950/20 dark:border-green-900 dark:text-green-400' :
-                              doc.status === 'Rejected' ? 'bg-red-50/70 border-red-200 text-red-700 dark:bg-red-950/20 dark:border-red-900 dark:text-red-400' :
-                              doc.status === 'Processing' ? 'bg-amber-50/70 border-amber-200 text-amber-700 dark:bg-amber-950/20 dark:border-amber-900 dark:text-amber-400 animate-pulse' :
-                              'bg-blue-50/70 border-blue-200 text-blue-700 dark:bg-blue-950/20 dark:border-blue-900 dark:text-blue-400'
-                            }`}>
-                              {doc.status}
-                            </span>
-                          </td>
-                          <td className="py-3 px-3 text-center" onClick={(e) => e.stopPropagation()}>
-                            <button
-                              onClick={() => {
-                                setActiveWorkspaceDocId(doc.id);
-                                setViewMode('review');
-                              }}
-                              className="p-1 border border-slate-200 dark:border-slate-750 bg-white dark:bg-slate-850 hover:bg-slate-50 dark:hover:bg-slate-800 rounded text-blue-600 dark:text-blue-400 transition"
-                              title="Review Document"
-                            >
-                              <Eye size={12} />
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  ) : (
-                    <tr>
-                      <td colSpan={10} className="py-12 text-center text-slate-400 dark:text-slate-500 font-semibold">
-                        No documents match the filter criteria.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Pagination Footer */}
-            <div className="border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 p-3 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0 select-none">
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold text-slate-400 uppercase">Show</span>
-                <select
-                  value={pageSize}
-                  onChange={(e) => {
-                    setPageSize(Number(e.target.value));
-                    setCurrentPage(1);
-                  }}
-                  className="h-7 border rounded px-2 outline-none text-[10.5px] bg-white dark:bg-slate-850 text-slate-800 dark:text-slate-100 border-slate-200 dark:border-slate-850 font-bold"
-                >
-                  <option value={5}>5 Rows</option>
-                  <option value={10}>10 Rows</option>
-                  <option value={25}>25 Rows</option>
-                  <option value={50}>50 Rows</option>
-                </select>
-              </div>
-
-              <div className="text-[10.5px] font-bold text-slate-500 dark:text-slate-400 font-mono">
-                Showing {filteredAndSortedDocs.length === 0 ? 0 : (currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, filteredAndSortedDocs.length)} of {filteredAndSortedDocs.length} documents
-              </div>
-
-              <div className="flex items-center gap-1.5">
-                <button
-                  disabled={currentPage === 1}
-                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                  className="h-7 w-7 border rounded flex items-center justify-center bg-white dark:bg-slate-850 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 disabled:opacity-50 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
-                >
-                  <ChevronLeft size={13} />
+            }
+            actions={checkedWorkspaceIds.length > 0 ? (
+              <>
+                <span className="text-[10px] font-bold text-[var(--app-accent)] px-1.5">{checkedWorkspaceIds.length} selected</span>
+                <button onClick={() => bulkSetStatus('Approved', 'Approved')} className="h-7 px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-bold flex items-center gap-1"><Check size={11} />Approve</button>
+                <button onClick={() => bulkSetStatus('Rejected', 'Rejected')} className="h-7 px-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-bold flex items-center gap-1"><X size={11} />Reject</button>
+                <button onClick={bulkDelete} className="h-7 px-2.5 border border-[var(--app-border)] bg-[var(--app-panel-bg)] hover:bg-[var(--app-content-bg)] text-[var(--app-heading)] rounded-lg text-[10px] font-bold flex items-center gap-1"><Trash size={11} />Delete</button>
+                <button onClick={() => setCheckedWorkspaceIds([])} className="text-[var(--app-muted)] hover:text-[var(--app-heading)] text-[10px] font-bold ml-1">Clear</button>
+              </>
+            ) : null}
+            columns={[
+              { key: 'filename', header: 'Document Name', sortable: true, render: (d) => (
+                <button onClick={() => openReview(d.id)} className="flex items-center gap-2 font-bold text-left hover:text-[var(--app-accent)] transition-colors" style={{ color: 'var(--app-heading)' }}>
+                  {getDocIcon(d.fileType)}
+                  <span className="truncate max-w-[210px]" title={d.filename}>{d.filename}</span>
                 </button>
-                {Array.from({ length: totalPagesCount }, (_, i) => i + 1).map(pageNum => (
-                  <button
-                    key={pageNum}
-                    onClick={() => setCurrentPage(pageNum)}
-                    className={`h-7 w-7 rounded flex items-center justify-center font-bold text-[10.5px] border transition ${
-                      currentPage === pageNum
-                        ? 'bg-blue-600 border-blue-600 text-white shadow-3xs'
-                        : 'bg-white dark:bg-slate-850 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50'
-                    }`}
-                  >
-                    {pageNum}
-                  </button>
-                ))}
-                <button
-                  disabled={currentPage === totalPagesCount}
-                  onClick={() => setCurrentPage(prev => Math.min(totalPagesCount, prev + 1))}
-                  className="h-7 w-7 border rounded flex items-center justify-center bg-white dark:bg-slate-850 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 disabled:opacity-50 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
-                >
-                  <ChevronRight size={13} />
-                </button>
-              </div>
-            </div>
-          </div>
+              ) },
+              { key: 'category', header: 'Type', render: (d) => (
+                <span className={`px-2 py-0.5 rounded text-[9.5px] font-extrabold uppercase border ${getCategoryStyles(d.category)}`}>{d.category}</span>
+              ) },
+              { key: 'pages', header: 'Pages', align: 'center', sortable: true, sortValue: (d) => parseInt(d.pages || 1), render: (d) => <span className="font-bold">{d.pages || 1}</span> },
+              { key: 'uploadDate', header: 'Upload Date', sortable: true, render: (d) => <span className="font-semibold" style={{ color: 'var(--app-muted)' }}>{d.uploadDate}</span> },
+              { key: 'vendor', header: 'Party Name', sortable: true, render: (d) => <span className="font-bold truncate block max-w-[150px]" title={d.vendor} style={{ color: 'var(--app-heading)' }}>{d.vendor || '—'}</span> },
+              { key: 'docNo', header: 'Invoice No', sortable: true, render: (d) => <span className="font-mono font-bold">{d.docNo || '—'}</span> },
+              { key: 'amount', header: 'Amount', align: 'right', sortable: true, sortValue: (d) => parseFloat(d.amount || 0), render: (d) => <span className="font-bold tabular-nums" style={{ color: 'var(--app-heading)' }}>₹ {(d.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span> },
+              { key: 'status', header: 'Status', align: 'center', sortable: true, render: (d) => (
+                <span className={`px-2 py-0.5 rounded-full text-[9px] font-black border uppercase tracking-wider ${
+                  d.status === 'Approved' ? 'bg-green-50/70 border-green-200 text-green-700 dark:bg-green-950/20 dark:border-green-900 dark:text-green-400' :
+                  d.status === 'Rejected' ? 'bg-red-50/70 border-red-200 text-red-700 dark:bg-red-950/20 dark:border-red-900 dark:text-red-400' :
+                  d.status === 'Processing' ? 'bg-amber-50/70 border-amber-200 text-amber-700 dark:bg-amber-950/20 dark:border-amber-900 dark:text-amber-400 animate-pulse' :
+                  'bg-[var(--app-accent-soft)] border-[var(--app-border)] text-[var(--app-accent)]'
+                }`}>{d.status}</span>
+              ) },
+              { key: 'act', header: '', align: 'center', width: '56px', render: (d) => (
+                <button onClick={() => openReview(d.id)} title="Review Document" className="p-1 border border-[var(--app-border)] bg-[var(--app-panel-bg)] hover:bg-[var(--app-content-bg)] rounded-md text-[var(--app-accent)] transition"><Eye size={12} /></button>
+              ) },
+            ]}
+          />
         </div>
       ) : (
         // ==========================================
@@ -1804,32 +1568,32 @@ export default function AiProcessingCenter() {
           <div className="flex flex-col flex-grow overflow-hidden select-none">
 
             {/* Top Review Header Toolbar */}
-            <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-850 px-4 py-2 flex items-center justify-between gap-3 shrink-0 sticky top-0 z-20">
+            <div className="bg-[var(--app-panel-bg)] border-b border-[var(--app-border)] px-4 py-2 flex items-center justify-between gap-3 shrink-0 sticky top-0 z-20">
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setViewMode('queue')}
-                  className="h-8.5 px-3 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition flex items-center justify-center bg-white dark:bg-slate-900 font-bold gap-1 text-[11px]"
+                  className="h-8.5 px-3 border border-[var(--app-border)] rounded-lg text-[var(--app-heading)] hover:bg-[var(--app-content-bg)] transition flex items-center justify-center bg-[var(--app-panel-bg)] font-bold gap-1 text-[11px]"
                   title="Back to Document Listing"
                 >
                   <ArrowLeft size={13} />
                   <span>Back to Queue</span>
                 </button>
-                <div className="h-6 w-px bg-slate-200 dark:bg-slate-800 hidden sm:block" />
+                <div className="h-6 w-px bg-[var(--app-border)] hidden sm:block" />
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="font-extrabold text-[12px] text-slate-900 dark:text-white truncate max-w-[200px]" title={activeDoc.filename}>
+                    <h3 className="font-extrabold text-[12px] text-[var(--app-heading)] dark:text-white truncate max-w-[200px]" title={activeDoc.filename}>
                       {activeDoc.filename}
                     </h3>
                     <span className={`px-2 py-0.2 rounded-full text-[8.5px] font-black border uppercase tracking-wider ${
                       activeDoc.status === 'Approved' ? 'bg-green-50/70 border-green-200 text-green-700 dark:bg-green-950/20 dark:border-green-900 dark:text-green-400' :
                       activeDoc.status === 'Rejected' ? 'bg-red-50/70 border-red-200 text-red-700 dark:bg-red-950/20 dark:border-red-900 dark:text-red-400' :
                       activeDoc.status === 'Processing' ? 'bg-amber-50/70 border-amber-200 text-amber-700 dark:bg-amber-950/20 dark:border-amber-900 dark:text-amber-400 animate-pulse' :
-                      'bg-blue-50/70 border-blue-200 text-blue-700 dark:bg-blue-950/20 dark:border-blue-900 dark:text-blue-400'
+                      'bg-[var(--app-accent-soft)] border-[var(--app-border)] text-[var(--app-accent)] dark:bg-[var(--app-accent-soft)] dark:border-[var(--app-border)] dark:text-[var(--app-accent)]'
                     }`}>
                       {activeDoc.status}
                     </span>
                   </div>
-                  <div className="text-[9.5px] text-slate-400 font-bold mt-0.5 flex items-center gap-1.5 font-sans">
+                  <div className="text-[9.5px] text-[var(--app-muted)] font-bold mt-0.5 flex items-center gap-1.5 font-sans">
                     <span>{activeDoc.category}</span>
                     <span>•</span>
                     <span>{activeDoc.pages || 1} {activeDoc.pages === 1 ? 'Page' : 'Pages'}</span>
@@ -1842,45 +1606,45 @@ export default function AiProcessingCenter() {
               {/* Actions Header Bar */}
               <div className="flex items-center gap-2">
                 {/* Carousel controls */}
-                <div className="flex items-center gap-1 border border-slate-200 dark:border-slate-800 rounded-lg p-0.5 mr-1.5">
+                <div className="flex items-center gap-1 border border-[var(--app-border)] rounded-lg p-0.5 mr-1.5">
                   <button
                     onClick={handlePrevDoc}
-                    className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-500 dark:text-slate-400 transition"
+                    className="p-1 hover:bg-[var(--app-table-head-bg)] rounded text-[var(--app-muted)] transition"
                     title="Previous Document"
                   >
                     <ChevronLeft size={13} />
                   </button>
-                  <span className="text-[9px] font-bold text-slate-400 px-1 font-mono">
+                  <span className="text-[9px] font-bold text-[var(--app-muted)] px-1 font-mono">
                     {filteredAndSortedDocs.findIndex(d => d.id === activeDoc.id) + 1} / {filteredAndSortedDocs.length}
                   </span>
                   <button
                     onClick={handleNextDoc}
-                    className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-500 dark:text-slate-400 transition"
+                    className="p-1 hover:bg-[var(--app-table-head-bg)] rounded text-[var(--app-muted)] transition"
                     title="Next Document"
                   >
                     <ChevronRight size={13} />
                   </button>
                 </div>
 
-                <div className="h-6 w-px bg-slate-200 dark:bg-slate-800" />
+                <div className="h-6 w-px bg-[var(--app-border)]" />
 
                 <button
                   onClick={handleActionSaveDraft}
-                  className="h-8.5 px-3 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition font-bold shadow-3xs text-[11px]"
+                  className="h-8.5 px-3 border border-[var(--app-border)] text-[var(--app-heading)] bg-[var(--app-panel-bg)] hover:bg-[var(--app-content-bg)] rounded-lg transition font-bold shadow-sm text-[11px]"
                 >
                   Save Draft
                 </button>
 
                 <button
                   onClick={() => toast.loading('Re-extracting details with AI OCR engines...')}
-                  className="h-8.5 px-3 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition font-bold shadow-3xs text-[11px]"
+                  className="h-8.5 px-3 border border-[var(--app-border)] text-[var(--app-heading)] bg-[var(--app-panel-bg)] hover:bg-[var(--app-content-bg)] rounded-lg transition font-bold shadow-sm text-[11px]"
                 >
                   Reprocess OCR
                 </button>
 
                 <button
                   onClick={handleActionReject}
-                  className="h-8.5 px-3 border border-rose-200 hover:bg-rose-50 hover:text-rose-700 bg-white text-rose-600 dark:bg-slate-900 dark:border-rose-900/60 dark:hover:bg-rose-950/20 dark:text-rose-400 rounded-lg transition font-bold shadow-3xs text-[11px]"
+                  className="h-8.5 px-3 border border-rose-200 hover:bg-rose-50 hover:text-rose-700 bg-[var(--app-panel-bg)] text-rose-500 dark:border-rose-900/60 dark:hover:bg-rose-950/20 dark:text-rose-400 rounded-lg transition font-bold shadow-sm text-[11px]"
                 >
                   Reject Voucher
                 </button>
@@ -1895,7 +1659,7 @@ export default function AiProcessingCenter() {
 
                 <button
                   onClick={handleActionPushToTally}
-                  className="h-8.5 px-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition flex items-center gap-1.5 font-bold shadow-xs text-[11px]"
+                  className="h-8.5 px-3.5 bg-[var(--app-accent)] hover:opacity-90 text-white rounded-lg transition flex items-center gap-1.5 font-bold shadow-xs text-[11px]"
                 >
                   <Send size={13} />
                   <span>Push to Tally</span>
@@ -1904,13 +1668,13 @@ export default function AiProcessingCenter() {
             </div>
 
             {/* Mobile Workspace Toggle Tabs */}
-            <div className="flex md:hidden border-b border-slate-200 bg-slate-100 dark:bg-slate-900 dark:border-slate-800 p-1 shrink-0">
+            <div className="flex md:hidden border-b border-[var(--app-border)] bg-[var(--app-table-head-bg)] p-1 shrink-0">
               <button
                 onClick={() => setActiveMobileTab('viewer')}
                 className={`flex-1 py-1.5 text-center font-bold rounded-lg text-xs transition ${
                   activeMobileTab === 'viewer'
-                    ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-3xs'
-                    : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                    ? 'bg-[var(--app-panel-bg)] text-[var(--app-accent)] dark:text-[var(--app-accent)] shadow-sm'
+                    : 'text-[var(--app-muted)] hover:text-[var(--app-heading)]'
                 }`}
               >
                 Document Viewer
@@ -1919,8 +1683,8 @@ export default function AiProcessingCenter() {
                 onClick={() => setActiveMobileTab('form')}
                 className={`flex-1 py-1.5 text-center font-bold rounded-lg text-xs transition ${
                   activeMobileTab === 'form'
-                    ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-3xs'
-                    : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                    ? 'bg-[var(--app-panel-bg)] text-[var(--app-accent)] dark:text-[var(--app-accent)] shadow-sm'
+                    : 'text-[var(--app-muted)] hover:text-[var(--app-heading)]'
                 }`}
               >
                 Accounting Form
@@ -1932,22 +1696,22 @@ export default function AiProcessingCenter() {
 
               {/* --- LEFT SIDE: Document Viewer --- */}
               <div
-                className="flex flex-col bg-slate-100 dark:bg-slate-950 overflow-hidden"
+                className="flex flex-col bg-[var(--app-table-head-bg)] overflow-hidden"
                 style={{
                   width: isMobile ? '100%' : `${leftWidth}%`,
                   display: isMobile ? (activeMobileTab === 'viewer' ? 'flex' : 'none') : 'flex',
                 }}
               >
                 {/* Document Viewer Toolbar */}
-                <div className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-850 px-3 py-1.5 flex items-center justify-between gap-3 shrink-0 text-[10px] font-sans">
+                <div className="bg-[var(--app-content-bg)] border-b border-[var(--app-border)] px-3 py-1.5 flex items-center justify-between gap-3 shrink-0 text-[10px] font-sans">
                   {/* PDF/Image toggles */}
-                  <div className="flex bg-slate-200 dark:bg-slate-850 p-0.5 rounded-lg border border-slate-300 dark:border-slate-800">
+                  <div className="flex bg-[var(--app-border)] p-0.5 rounded-lg border border-[var(--app-border)]">
                     <button
                       onClick={() => setViewerMode('pdf')}
                       className={`px-2.5 py-1 rounded font-extrabold transition-all uppercase tracking-wider ${
                         viewerMode === 'pdf'
-                          ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 shadow-3xs'
-                          : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+                          ? 'bg-[var(--app-panel-bg)] text-[var(--app-heading)] shadow-sm'
+                          : 'text-[var(--app-muted)] hover:text-[var(--app-heading)]'
                       }`}
                     >
                       PDF View
@@ -1956,8 +1720,8 @@ export default function AiProcessingCenter() {
                       onClick={() => setViewerMode('image')}
                       className={`px-2.5 py-1 rounded font-extrabold transition-all uppercase tracking-wider ${
                         viewerMode === 'image'
-                          ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 shadow-3xs'
-                          : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+                          ? 'bg-[var(--app-panel-bg)] text-[var(--app-heading)] shadow-sm'
+                          : 'text-[var(--app-muted)] hover:text-[var(--app-heading)]'
                       }`}
                     >
                       Image View
@@ -1968,24 +1732,24 @@ export default function AiProcessingCenter() {
                   <div className="flex items-center gap-1">
                     <button
                       onClick={handleZoomOut}
-                      className="h-6 w-6 border border-slate-200 dark:border-slate-850 rounded bg-white dark:bg-slate-850 text-slate-600 dark:text-slate-300 hover:bg-slate-50 flex items-center justify-center font-bold"
+                      className="h-6 w-6 border border-[var(--app-border)] rounded bg-[var(--app-panel-bg)] text-[var(--app-heading)] hover:bg-[var(--app-content-bg)] flex items-center justify-center font-bold"
                       title="Zoom Out"
                     >
                       <ZoomOut size={11} />
                     </button>
-                    <span className="w-12 text-center font-mono font-bold text-slate-600 dark:text-slate-300">
+                    <span className="w-12 text-center font-mono font-bold text-[var(--app-heading)]">
                       {zoom}%
                     </span>
                     <button
                       onClick={handleZoomIn}
-                      className="h-6 w-6 border border-slate-200 dark:border-slate-850 rounded bg-white dark:bg-slate-850 text-slate-600 dark:text-slate-300 hover:bg-slate-50 flex items-center justify-center font-bold"
+                      className="h-6 w-6 border border-[var(--app-border)] rounded bg-[var(--app-panel-bg)] text-[var(--app-heading)] hover:bg-[var(--app-content-bg)] flex items-center justify-center font-bold"
                       title="Zoom In"
                     >
                       <ZoomIn size={11} />
                     </button>
                     <button
                       onClick={handleFitWidth}
-                      className="h-6 px-2 border border-slate-200 dark:border-slate-850 rounded bg-white dark:bg-slate-850 text-slate-600 dark:text-slate-300 hover:bg-slate-50 flex items-center justify-center font-bold"
+                      className="h-6 px-2 border border-[var(--app-border)] rounded bg-[var(--app-panel-bg)] text-[var(--app-heading)] hover:bg-[var(--app-content-bg)] flex items-center justify-center font-bold"
                       title="Fit Width"
                     >
                       Fit Width
@@ -1997,28 +1761,28 @@ export default function AiProcessingCenter() {
                     <button
                       disabled={currentViewerPage === 1}
                       onClick={handlePrevPage}
-                      className="h-6 w-6 border border-slate-200 dark:border-slate-850 rounded bg-white dark:bg-slate-850 text-slate-600 dark:text-slate-300 hover:bg-slate-50 disabled:opacity-40 flex items-center justify-center"
+                      className="h-6 w-6 border border-[var(--app-border)] rounded bg-[var(--app-panel-bg)] text-[var(--app-heading)] hover:bg-[var(--app-content-bg)] disabled:opacity-40 flex items-center justify-center"
                       title="Previous Page"
                     >
                       <ChevronLeft size={12} />
                     </button>
-                    <span className="font-bold text-slate-600 dark:text-slate-300 font-mono">
+                    <span className="font-bold text-[var(--app-heading)] font-mono">
                       Page {currentViewerPage} of {activeDoc.pages || 1}
                     </span>
                     <button
                       disabled={currentViewerPage === (activeDoc.pages || 1)}
                       onClick={handleNextPage}
-                      className="h-6 w-6 border border-slate-200 dark:border-slate-850 rounded bg-white dark:bg-slate-850 text-slate-600 dark:text-slate-300 hover:bg-slate-50 disabled:opacity-40 flex items-center justify-center"
+                      className="h-6 w-6 border border-[var(--app-border)] rounded bg-[var(--app-panel-bg)] text-[var(--app-heading)] hover:bg-[var(--app-content-bg)] disabled:opacity-40 flex items-center justify-center"
                       title="Next Page"
                     >
                       <ChevronRight size={12} />
                     </button>
 
-                    <div className="w-px h-4 bg-slate-200 dark:bg-slate-800 mx-1" />
+                    <div className="w-px h-4 bg-[var(--app-border)] mx-1" />
 
                     <button
                       onClick={() => setIsFullScreen(true)}
-                      className="h-6 w-6 border border-slate-200 dark:border-slate-850 rounded bg-white dark:bg-slate-850 text-slate-600 dark:text-slate-300 hover:bg-slate-50 flex items-center justify-center"
+                      className="h-6 w-6 border border-[var(--app-border)] rounded bg-[var(--app-panel-bg)] text-[var(--app-heading)] hover:bg-[var(--app-content-bg)] flex items-center justify-center"
                       title="Full Screen Mode"
                     >
                       <Maximize2 size={11} />
@@ -2029,7 +1793,7 @@ export default function AiProcessingCenter() {
                 {/* Simulated Paper Canvas */}
                 <div
                   ref={viewerContainerRef}
-                  className="flex-grow overflow-auto p-4 md:p-6 flex flex-col items-center gap-4 scroll-smooth select-none bg-slate-200/60 dark:bg-slate-900/40 relative themed-scrollbar"
+                  className="flex-grow overflow-auto p-4 md:p-6 flex flex-col items-center gap-4 scroll-smooth select-none bg-[var(--app-border)]/60 relative themed-scrollbar"
                   onScroll={(e) => {
                     // Update active page based on scroll position of pages
                     const scrollTop = e.currentTarget.scrollTop;
@@ -2057,17 +1821,17 @@ export default function AiProcessingCenter() {
               {/* --- RESIZABLE DRAG SPLITTER (Tablet Resizing) --- */}
               <div
                 onMouseDown={handleMouseDown}
-                className="hidden md:block w-1.5 shrink-0 bg-slate-200 dark:bg-slate-800 hover:bg-blue-500 dark:hover:bg-blue-600 cursor-col-resize select-none transition-colors duration-150 h-full relative z-30"
+                className="hidden md:block w-1.5 shrink-0 bg-[var(--app-border)] hover:bg-[var(--app-accent)] dark:hover:opacity-90 cursor-col-resize select-none transition-colors duration-150 h-full relative z-30"
               />
               <div
-                className="flex flex-col bg-white dark:bg-slate-900 p-4 flex-grow overflow-hidden relative z-10"
+                className="flex flex-col bg-[var(--app-panel-bg)] p-4 flex-grow overflow-hidden relative z-10"
                 style={{
                   width: isMobile ? '100%' : `${100 - leftWidth}%`,
                   display: isMobile ? (activeMobileTab === 'form' ? 'flex' : 'none') : 'flex',
                 }}
               >
-                <div className="flex items-center justify-between border-b pb-2 mb-3 border-slate-100 dark:border-slate-800 shrink-0">
-                  <h3 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                <div className="flex items-center justify-between border-b pb-2 mb-3 border-[var(--app-border)] shrink-0">
+                  <h3 className="text-sm font-semibold text-[var(--app-heading)] dark:text-white flex items-center gap-2">
                     <span>{activeDoc.category} Entry Form</span>
                     <span className="px-2 py-0.5 bg-green-50 text-green-700 border border-green-200 dark:bg-green-950/20 dark:text-green-400 dark:border-green-800 rounded text-[9.5px] font-extrabold uppercase">
                       AI Extracted
@@ -2088,83 +1852,83 @@ export default function AiProcessingCenter() {
                       <div className="space-y-3 text-xs">
                         <div className="grid grid-cols-2 gap-3.5">
                           <div>
-                            <label className="text-[10px] font-bold text-slate-500 mb-1 block uppercase">Invoice No. *</label>
+                            <label className="text-[10px] font-bold text-[var(--app-muted)] mb-1 block uppercase">Invoice No. *</label>
                             <input
                               type="text"
                               value={activeDoc.docNo || ''}
                               onChange={(e) => handleFieldChange('docNo', e.target.value)}
-                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500 font-bold"
+                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)] font-bold"
                             />
                           </div>
                           <div>
-                            <label className="text-[10px] font-bold text-slate-500 mb-1 block uppercase">Reference No.</label>
+                            <label className="text-[10px] font-bold text-[var(--app-muted)] mb-1 block uppercase">Reference No.</label>
                             <input
                               type="text"
                               value={activeDoc.refNo || ''}
                               onChange={(e) => handleFieldChange('refNo', e.target.value)}
-                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                             />
                           </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-3.5">
                           <div>
-                            <label className="text-[10px] font-bold text-slate-500 mb-1 block uppercase">Invoice Date *</label>
+                            <label className="text-[10px] font-bold text-[var(--app-muted)] mb-1 block uppercase">Invoice Date *</label>
                             <div className="relative">
                               <input
                                 type="text"
                                 value={activeDoc.docDate || ''}
                                 onChange={(e) => handleFieldChange('docDate', e.target.value)}
-                                className="w-full h-8 rounded-lg border px-3 pr-8 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                                className="w-full h-8 rounded-lg border px-3 pr-8 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                               />
-                              <Calendar className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
+                              <Calendar className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--app-muted)]" size={13} />
                             </div>
                           </div>
                           <div>
-                            <label className="text-[10px] font-bold text-slate-500 mb-1 block uppercase">Due Date</label>
+                            <label className="text-[10px] font-bold text-[var(--app-muted)] mb-1 block uppercase">Due Date</label>
                             <div className="relative">
                               <input
                                 type="text"
                                 value={activeDoc.dueDate || ''}
                                 onChange={(e) => handleFieldChange('dueDate', e.target.value)}
-                                className="w-full h-8 rounded-lg border px-3 pr-8 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                                className="w-full h-8 rounded-lg border px-3 pr-8 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                               />
-                              <Calendar className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
+                              <Calendar className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--app-muted)]" size={13} />
                             </div>
                           </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-3.5">
                           <div>
-                            <label className="text-[10px] font-bold text-slate-500 mb-1 block uppercase">Party Ledger *</label>
+                            <label className="text-[10px] font-bold text-[var(--app-muted)] mb-1 block uppercase">Party Ledger *</label>
                             <div className="flex items-center gap-1">
                               <select
                                 value={activeDoc.partyLedger || ''}
                                 onChange={(e) => handleFieldChange('partyLedger', e.target.value)}
-                                className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500 font-bold"
+                                className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)] font-bold"
                               >
                                 <option value="ABC Traders (Sundry Debtors)">ABC Traders (Sundry Debtors)</option>
                                 <option value="XYZ Enterprises (Sundry Debtors)">XYZ Enterprises (Sundry Debtors)</option>
                                 <option value="LMN Industries (Sundry Debtors)">LMN Industries (Sundry Debtors)</option>
                               </select>
-                              <button type="button" onClick={() => toast.info('Add new Ledger account')} className="h-8 w-8 shrink-0 flex items-center justify-center border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition">
+                              <button type="button" onClick={() => toast.info('Add new Ledger account')} className="h-8 w-8 shrink-0 flex items-center justify-center border border-[var(--app-border)] rounded-lg hover:bg-[var(--app-content-bg)] transition">
                                 <Plus size={13} />
                               </button>
                             </div>
                           </div>
                           <div>
-                            <label className="text-[10px] font-bold text-slate-500 mb-1 block uppercase">Sales Ledger *</label>
+                            <label className="text-[10px] font-bold text-[var(--app-muted)] mb-1 block uppercase">Sales Ledger *</label>
                             <div className="flex items-center gap-1">
                               <select
                                 value={activeDoc.salesLedger || ''}
                                 onChange={(e) => handleFieldChange('salesLedger', e.target.value)}
-                                className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500 font-bold"
+                                className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)] font-bold"
                               >
                                 <option value="Sales (18%)">Sales (18%)</option>
                                 <option value="Sales Return">Sales Return</option>
                                 <option value="General Income">General Income</option>
                               </select>
-                              <button type="button" onClick={() => toast.info('Add new Ledger account')} className="h-8 w-8 shrink-0 flex items-center justify-center border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition">
+                              <button type="button" onClick={() => toast.info('Add new Ledger account')} className="h-8 w-8 shrink-0 flex items-center justify-center border border-[var(--app-border)] rounded-lg hover:bg-[var(--app-content-bg)] transition">
                                 <Plus size={13} />
                               </button>
                             </div>
@@ -2173,37 +1937,37 @@ export default function AiProcessingCenter() {
 
                         <div className="grid grid-cols-2 gap-3.5">
                           <div>
-                            <label className="text-[10px] font-bold text-slate-500 mb-1 block uppercase">GSTIN</label>
+                            <label className="text-[10px] font-bold text-[var(--app-muted)] mb-1 block uppercase">GSTIN</label>
                             <div className="relative">
                               <input
                                 type="text"
                                 value={activeDoc.gstin || ''}
                                 onChange={(e) => handleFieldChange('gstin', e.target.value)}
-                                className="w-full h-8 rounded-lg border pl-3 pr-14 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500 font-mono font-bold"
+                                className="w-full h-8 rounded-lg border pl-3 pr-14 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)] font-mono font-bold"
                               />
-                              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 px-1.5 py-0.2 rounded border border-emerald-100/50">
+                              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] font-bold text-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 px-1.5 py-0.2 rounded border border-emerald-100/50">
                                 ✓ Valid
                               </span>
                             </div>
                           </div>
                           <div>
-                            <label className="text-[10px] font-bold text-slate-500 mb-1 block uppercase">Currency</label>
+                            <label className="text-[10px] font-bold text-[var(--app-muted)] mb-1 block uppercase">Currency</label>
                             <input
                               type="text"
                               value={activeDoc.currency || 'INR'}
                               onChange={(e) => handleFieldChange('currency', e.target.value)}
-                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                             />
                           </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-3.5">
                           <div>
-                            <label className="text-[10px] font-bold text-slate-500 mb-1 block uppercase">Place of Supply</label>
+                            <label className="text-[10px] font-bold text-[var(--app-muted)] mb-1 block uppercase">Place of Supply</label>
                             <select
                               value={activeDoc.placeOfSupply || ''}
                               onChange={(e) => handleFieldChange('placeOfSupply', e.target.value)}
-                              className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                              className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                             >
                               <option value="Madhya Pradesh (23)">Madhya Pradesh (23)</option>
                               <option value="Maharashtra (27)">Maharashtra (27)</option>
@@ -2211,12 +1975,12 @@ export default function AiProcessingCenter() {
                             </select>
                           </div>
                           <div>
-                            <label className="text-[10px] font-bold text-slate-500 mb-1 block uppercase">Narration</label>
+                            <label className="text-[10px] font-bold text-[var(--app-muted)] mb-1 block uppercase">Narration</label>
                             <input
                               type="text"
                               value={activeDoc.narration || ''}
                               onChange={(e) => handleFieldChange('narration', e.target.value)}
-                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                             />
                           </div>
                         </div>
@@ -2228,83 +1992,83 @@ export default function AiProcessingCenter() {
                       <div className="space-y-3 text-xs">
                         <div className="grid grid-cols-2 gap-3.5">
                           <div>
-                            <label className="text-[10px] font-bold text-slate-500 mb-1 block uppercase">Purchase Invoice No. *</label>
+                            <label className="text-[10px] font-bold text-[var(--app-muted)] mb-1 block uppercase">Purchase Invoice No. *</label>
                             <input
                               type="text"
                               value={activeDoc.docNo || ''}
                               onChange={(e) => handleFieldChange('docNo', e.target.value)}
-                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500 font-bold"
+                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)] font-bold"
                             />
                           </div>
                           <div>
-                            <label className="text-[10px] font-bold text-slate-500 mb-1 block uppercase">Reference No.</label>
+                            <label className="text-[10px] font-bold text-[var(--app-muted)] mb-1 block uppercase">Reference No.</label>
                             <input
                               type="text"
                               value={activeDoc.refNo || ''}
                               onChange={(e) => handleFieldChange('refNo', e.target.value)}
-                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                             />
                           </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-3.5">
                           <div>
-                            <label className="text-[10px] font-bold text-slate-500 mb-1 block uppercase">Purchase Date *</label>
+                            <label className="text-[10px] font-bold text-[var(--app-muted)] mb-1 block uppercase">Purchase Date *</label>
                             <div className="relative">
                               <input
                                 type="text"
                                 value={activeDoc.docDate || ''}
                                 onChange={(e) => handleFieldChange('docDate', e.target.value)}
-                                className="w-full h-8 rounded-lg border px-3 pr-8 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                                className="w-full h-8 rounded-lg border px-3 pr-8 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                               />
-                              <Calendar className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
+                              <Calendar className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--app-muted)]" size={13} />
                             </div>
                           </div>
                           <div>
-                            <label className="text-[10px] font-bold text-slate-500 mb-1 block uppercase">Due Date</label>
+                            <label className="text-[10px] font-bold text-[var(--app-muted)] mb-1 block uppercase">Due Date</label>
                             <div className="relative">
                               <input
                                 type="text"
                                 value={activeDoc.dueDate || ''}
                                 onChange={(e) => handleFieldChange('dueDate', e.target.value)}
-                                className="w-full h-8 rounded-lg border px-3 pr-8 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                                className="w-full h-8 rounded-lg border px-3 pr-8 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                               />
-                              <Calendar className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
+                              <Calendar className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--app-muted)]" size={13} />
                             </div>
                           </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-3.5">
                           <div>
-                            <label className="text-[10px] font-bold text-slate-500 mb-1 block uppercase">Party Ledger (Supplier) *</label>
+                            <label className="text-[10px] font-bold text-[var(--app-muted)] mb-1 block uppercase">Party Ledger (Supplier) *</label>
                             <div className="flex items-center gap-1">
                               <select
                                 value={activeDoc.partyLedger || ''}
                                 onChange={(e) => handleFieldChange('partyLedger', e.target.value)}
-                                className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500 font-bold"
+                                className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)] font-bold"
                               >
                                 <option value="PQR Solutions (Sundry Creditors)">PQR Solutions (Sundry Creditors)</option>
                                 <option value="ABC Traders (Sundry Creditors)">ABC Traders (Sundry Creditors)</option>
                                 <option value="XYZ Enterprises (Sundry Creditors)">XYZ Enterprises (Sundry Creditors)</option>
                               </select>
-                              <button type="button" onClick={() => toast.info('Add new Ledger account')} className="h-8 w-8 shrink-0 flex items-center justify-center border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition">
+                              <button type="button" onClick={() => toast.info('Add new Ledger account')} className="h-8 w-8 shrink-0 flex items-center justify-center border border-[var(--app-border)] rounded-lg hover:bg-[var(--app-content-bg)] transition">
                                 <Plus size={13} />
                               </button>
                             </div>
                           </div>
                           <div>
-                            <label className="text-[10px] font-bold text-slate-500 mb-1 block uppercase">Purchase Ledger *</label>
+                            <label className="text-[10px] font-bold text-[var(--app-muted)] mb-1 block uppercase">Purchase Ledger *</label>
                             <div className="flex items-center gap-1">
                               <select
                                 value={activeDoc.purchaseLedger || ''}
                                 onChange={(e) => handleFieldChange('purchaseLedger', e.target.value)}
-                                className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500 font-bold"
+                                className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)] font-bold"
                               >
                                 <option value="Purchase (18%)">Purchase (18%)</option>
                                 <option value="Purchase Return">Purchase Return</option>
                                 <option value="General Expenses">General Expenses</option>
                               </select>
-                              <button type="button" onClick={() => toast.info('Add new Ledger account')} className="h-8 w-8 shrink-0 flex items-center justify-center border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition">
+                              <button type="button" onClick={() => toast.info('Add new Ledger account')} className="h-8 w-8 shrink-0 flex items-center justify-center border border-[var(--app-border)] rounded-lg hover:bg-[var(--app-content-bg)] transition">
                                 <Plus size={13} />
                               </button>
                             </div>
@@ -2313,32 +2077,32 @@ export default function AiProcessingCenter() {
 
                         <div className="grid grid-cols-2 gap-3.5">
                           <div>
-                            <label className="text-[10px] font-bold text-slate-500 mb-1 block uppercase">Supplier GSTIN</label>
+                            <label className="text-[10px] font-bold text-[var(--app-muted)] mb-1 block uppercase">Supplier GSTIN</label>
                             <input
                               type="text"
                               value={activeDoc.gstin || ''}
                               onChange={(e) => handleFieldChange('gstin', e.target.value)}
-                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500 font-mono font-bold"
+                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)] font-mono font-bold"
                             />
                           </div>
                           <div>
-                            <label className="text-[10px] font-bold text-slate-500 mb-1 block uppercase">Currency</label>
+                            <label className="text-[10px] font-bold text-[var(--app-muted)] mb-1 block uppercase">Currency</label>
                             <input
                               type="text"
                               value={activeDoc.currency || 'INR'}
                               onChange={(e) => handleFieldChange('currency', e.target.value)}
-                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                             />
                           </div>
                         </div>
 
                         <div>
-                          <label className="text-[10px] font-bold text-slate-500 mb-1 block uppercase">Narration</label>
+                          <label className="text-[10px] font-bold text-[var(--app-muted)] mb-1 block uppercase">Narration</label>
                           <input
                             type="text"
                             value={activeDoc.narration || ''}
                             onChange={(e) => handleFieldChange('narration', e.target.value)}
-                            className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                            className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                           />
                         </div>
                       </div>
@@ -2349,56 +2113,56 @@ export default function AiProcessingCenter() {
                       <div className="space-y-3 text-xs">
                         <div className="grid grid-cols-2 gap-3.5">
                           <div>
-                            <label className="text-[10px] font-bold text-slate-500 mb-1 block uppercase">Voucher No. *</label>
+                            <label className="text-[10px] font-bold text-[var(--app-muted)] mb-1 block uppercase">Voucher No. *</label>
                             <input
                               type="text"
                               value={activeDoc.docNo || ''}
                               onChange={(e) => handleFieldChange('docNo', e.target.value)}
-                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500 font-bold"
+                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)] font-bold"
                             />
                           </div>
                           <div>
-                            <label className="text-[10px] font-bold text-slate-500 mb-1 block uppercase">Ref/Txn No.</label>
+                            <label className="text-[10px] font-bold text-[var(--app-muted)] mb-1 block uppercase">Ref/Txn No.</label>
                             <input
                               type="text"
                               value={activeDoc.refNo || ''}
                               onChange={(e) => handleFieldChange('refNo', e.target.value)}
-                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500 font-mono"
+                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)] font-mono"
                             />
                           </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-3.5">
                           <div>
-                            <label className="text-[10px] font-bold text-slate-500 mb-1 block uppercase">Voucher Date *</label>
+                            <label className="text-[10px] font-bold text-[var(--app-muted)] mb-1 block uppercase">Voucher Date *</label>
                             <div className="relative">
                               <input
                                 type="text"
                                 value={activeDoc.docDate || ''}
                                 onChange={(e) => handleFieldChange('docDate', e.target.value)}
-                                className="w-full h-8 rounded-lg border px-3 pr-8 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                                className="w-full h-8 rounded-lg border px-3 pr-8 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                               />
-                              <Calendar className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
+                              <Calendar className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--app-muted)]" size={13} />
                             </div>
                           </div>
                           <div>
-                            <label className="text-[10px] font-bold text-slate-500 mb-1 block uppercase">Currency</label>
+                            <label className="text-[10px] font-bold text-[var(--app-muted)] mb-1 block uppercase">Currency</label>
                             <input
                               type="text"
                               value={activeDoc.currency || 'INR'}
                               onChange={(e) => handleFieldChange('currency', e.target.value)}
-                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                             />
                           </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-3.5">
                           <div>
-                            <label className="text-[10px] font-bold text-slate-500 mb-1 block uppercase">Party Ledger *</label>
+                            <label className="text-[10px] font-bold text-[var(--app-muted)] mb-1 block uppercase">Party Ledger *</label>
                             <select
                               value={activeDoc.partyLedger || ''}
                               onChange={(e) => handleFieldChange('partyLedger', e.target.value)}
-                              className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500 font-bold"
+                              className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)] font-bold"
                             >
                               <option value="ABC Traders (Sundry Creditors)">ABC Traders (Sundry Creditors)</option>
                               <option value="LMN Industries (Sundry Debtors)">LMN Industries (Sundry Debtors)</option>
@@ -2406,11 +2170,11 @@ export default function AiProcessingCenter() {
                             </select>
                           </div>
                           <div>
-                            <label className="text-[10px] font-bold text-slate-500 mb-1 block uppercase">Bank / Cash Ledger *</label>
+                            <label className="text-[10px] font-bold text-[var(--app-muted)] mb-1 block uppercase">Bank / Cash Ledger *</label>
                             <select
                               value={activeDoc.bankLedger || ''}
                               onChange={(e) => handleFieldChange('bankLedger', e.target.value)}
-                              className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500 font-bold"
+                              className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)] font-bold"
                             >
                               <option value="HDFC Bank A/c">HDFC Bank A/c</option>
                               <option value="SBI Bank A/c">SBI Bank A/c</option>
@@ -2421,21 +2185,21 @@ export default function AiProcessingCenter() {
 
                         <div className="grid grid-cols-2 gap-3.5">
                           <div>
-                            <label className="text-[10px] font-bold text-slate-500 mb-1 block uppercase">Amount (₹) *</label>
+                            <label className="text-[10px] font-bold text-[var(--app-muted)] mb-1 block uppercase">Amount (₹) *</label>
                             <input
                               type="number"
                               value={activeDoc.amount || 0}
                               onChange={(e) => handleFieldChange('amount', parseFloat(e.target.value) || 0)}
-                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500 font-bold"
+                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)] font-bold"
                             />
                           </div>
                           <div>
-                            <label className="text-[10px] font-bold text-slate-500 mb-1 block uppercase">Narration</label>
+                            <label className="text-[10px] font-bold text-[var(--app-muted)] mb-1 block uppercase">Narration</label>
                             <input
                               type="text"
                               value={activeDoc.narration || ''}
                               onChange={(e) => handleFieldChange('narration', e.target.value)}
-                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                             />
                           </div>
                         </div>
@@ -2447,35 +2211,35 @@ export default function AiProcessingCenter() {
                       <div className="space-y-3 text-xs">
                         <div className="grid grid-cols-2 gap-3.5">
                           <div>
-                            <label className="text-[10px] font-bold text-slate-500 mb-1 block uppercase">Contra Voucher No. *</label>
+                            <label className="text-[10px] font-bold text-[var(--app-muted)] mb-1 block uppercase">Contra Voucher No. *</label>
                             <input
                               type="text"
                               value={activeDoc.docNo || ''}
                               onChange={(e) => handleFieldChange('docNo', e.target.value)}
-                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500 font-bold"
+                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)] font-bold"
                             />
                           </div>
                           <div>
-                            <label className="text-[10px] font-bold text-slate-500 mb-1 block uppercase">Voucher Date</label>
+                            <label className="text-[10px] font-bold text-[var(--app-muted)] mb-1 block uppercase">Voucher Date</label>
                             <div className="relative">
                               <input
                                 type="text"
                                 value={activeDoc.docDate || ''}
                                 onChange={(e) => handleFieldChange('docDate', e.target.value)}
-                                className="w-full h-8 rounded-lg border px-3 pr-8 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                                className="w-full h-8 rounded-lg border px-3 pr-8 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                               />
-                              <Calendar className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
+                              <Calendar className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--app-muted)]" size={13} />
                             </div>
                           </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-3.5">
                           <div>
-                            <label className="text-[10px] font-bold text-slate-500 mb-1 block uppercase">From Account (Source) *</label>
+                            <label className="text-[10px] font-bold text-[var(--app-muted)] mb-1 block uppercase">From Account (Source) *</label>
                             <select
                               value={activeDoc.fromLedger || ''}
                               onChange={(e) => handleFieldChange('fromLedger', e.target.value)}
-                              className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500 font-bold"
+                              className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)] font-bold"
                             >
                               <option value="Cash A/c">Cash A/c</option>
                               <option value="State Bank of India">State Bank of India</option>
@@ -2483,11 +2247,11 @@ export default function AiProcessingCenter() {
                             </select>
                           </div>
                           <div>
-                            <label className="text-[10px] font-bold text-slate-500 mb-1 block uppercase">To Account (Destination) *</label>
+                            <label className="text-[10px] font-bold text-[var(--app-muted)] mb-1 block uppercase">To Account (Destination) *</label>
                             <select
                               value={activeDoc.toLedger || ''}
                               onChange={(e) => handleFieldChange('toLedger', e.target.value)}
-                              className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500 font-bold"
+                              className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)] font-bold"
                             >
                               <option value="State Bank of India">State Bank of India</option>
                               <option value="Cash A/c">Cash A/c</option>
@@ -2498,21 +2262,21 @@ export default function AiProcessingCenter() {
 
                         <div className="grid grid-cols-2 gap-3.5">
                           <div>
-                            <label className="text-[10px] font-bold text-slate-500 mb-1 block uppercase">Amount (₹) *</label>
+                            <label className="text-[10px] font-bold text-[var(--app-muted)] mb-1 block uppercase">Amount (₹) *</label>
                             <input
                               type="number"
                               value={activeDoc.amount || 0}
                               onChange={(e) => handleFieldChange('amount', parseFloat(e.target.value) || 0)}
-                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500 font-bold"
+                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)] font-bold"
                             />
                           </div>
                           <div>
-                            <label className="text-[10px] font-bold text-slate-500 mb-1 block uppercase">Narration</label>
+                            <label className="text-[10px] font-bold text-[var(--app-muted)] mb-1 block uppercase">Narration</label>
                             <input
                               type="text"
                               value={activeDoc.narration || ''}
                               onChange={(e) => handleFieldChange('narration', e.target.value)}
-                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                             />
                           </div>
                         </div>
@@ -2524,35 +2288,35 @@ export default function AiProcessingCenter() {
                       <div className="space-y-3 text-xs">
                         <div className="grid grid-cols-2 gap-3.5">
                           <div>
-                            <label className="text-[10px] font-bold text-slate-500 mb-1 block uppercase">Statement Bank *</label>
+                            <label className="text-[10px] font-bold text-[var(--app-muted)] mb-1 block uppercase">Statement Bank *</label>
                             <input
                               type="text"
                               value={activeDoc.vendor || ''}
                               onChange={(e) => handleFieldChange('vendor', e.target.value)}
-                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/45 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                              className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                             />
                           </div>
                           <div>
-                            <label className="text-[10px] font-bold text-slate-500 mb-1 block uppercase">Reconciliation Date</label>
+                            <label className="text-[10px] font-bold text-[var(--app-muted)] mb-1 block uppercase">Reconciliation Date</label>
                             <div className="relative">
                               <input
                                 type="text"
                                 value={activeDoc.docDate || ''}
                                 onChange={(e) => handleFieldChange('docDate', e.target.value)}
-                                className="w-full h-8 rounded-lg border px-3 pr-8 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                                className="w-full h-8 rounded-lg border px-3 pr-8 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                               />
-                              <Calendar className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
+                              <Calendar className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--app-muted)]" size={13} />
                             </div>
                           </div>
                         </div>
 
                         <div>
-                          <label className="text-[10px] font-bold text-slate-500 mb-1 block uppercase">Banking Narration</label>
+                          <label className="text-[10px] font-bold text-[var(--app-muted)] mb-1 block uppercase">Banking Narration</label>
                           <input
                             type="text"
                             value={activeDoc.narration || ''}
                             onChange={(e) => handleFieldChange('narration', e.target.value)}
-                            className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950/40 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500"
+                            className="w-full h-8 rounded-lg border px-3 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
                           />
                         </div>
                       </div>
@@ -2560,15 +2324,15 @@ export default function AiProcessingCenter() {
 
                     {/* --- ITEM DETAILS TABLE (Only for Invoices & Statements) --- */}
                     {activeDoc.items && activeDoc.items.length > 0 && (
-                      <div className="mt-4.5 pt-4 border-t border-slate-100 dark:border-slate-800/80">
-                        <h4 className="text-[11px] font-bold text-slate-800 dark:text-slate-200 mb-2 uppercase tracking-wide">
+                      <div className="mt-4.5 pt-4 border-t border-[var(--app-border)]">
+                        <h4 className="text-[11px] font-bold text-[var(--app-heading)] mb-2 uppercase tracking-wide">
                           Items / Particulars Breakdown
                         </h4>
 
-                        <div className="border border-slate-150 dark:border-slate-800 rounded-lg overflow-hidden">
+                        <div className="border border-[var(--app-border)] rounded-lg overflow-hidden">
                           <table className="w-full text-left border-collapse text-[10px]">
                             <thead>
-                              <tr className="bg-slate-50/70 dark:bg-slate-950/40 border-b text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-800 font-bold uppercase">
+                              <tr className="bg-[var(--app-content-bg)]/70 border-b text-[var(--app-muted)] border-[var(--app-border)] font-bold uppercase">
                                 <th className="py-1.5 px-2 w-8 text-center">#</th>
                                 <th className="py-1.5 px-2">Item Name / Particulars</th>
                                 {activeDoc.category === 'Bank Statement' ? (
@@ -2590,20 +2354,20 @@ export default function AiProcessingCenter() {
                                 <th className="py-1.5 px-2 w-8 text-center"></th>
                               </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/85">
+                            <tbody className="divide-y divide-[var(--app-border)] dark:divide-slate-800/85">
                               {activeDoc.items.map((item, idx) => {
                                 const amount = (item.qty || 0) * (item.rate || 0);
                                 const taxAmt = amount * ((item.taxRate || 0) / 100);
                                 return (
-                                  <tr key={item.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20">
-                                    <td className="py-1.5 px-2 text-center text-slate-400 font-bold">{idx + 1}</td>
+                                  <tr key={item.id} className="hover:bg-[var(--app-content-bg)]/50">
+                                    <td className="py-1.5 px-2 text-center text-[var(--app-muted)] font-bold">{idx + 1}</td>
 
                                     <td className="py-1 px-2">
                                       <input
                                         type="text"
                                         value={item.name || item.particulars || ''}
                                         onChange={(e) => handleItemPropertyChange(item.id, item.particulars ? 'particulars' : 'name', e.target.value)}
-                                        className="w-full h-7 border rounded px-1.5 text-[10px] outline-none bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800"
+                                        className="w-full h-7 border rounded px-1.5 text-[10px] outline-none bg-[var(--app-panel-bg)] text-[var(--app-heading)] border-[var(--app-border)]"
                                       />
                                     </td>
 
@@ -2614,7 +2378,7 @@ export default function AiProcessingCenter() {
                                             type="number"
                                             value={item.debit || 0}
                                             onChange={(e) => handleItemPropertyChange(item.id, 'debit', parseFloat(e.target.value) || 0)}
-                                            className="w-full h-7 border rounded px-1.5 text-right text-[10px] outline-none bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 font-bold text-rose-600"
+                                            className="w-full h-7 border rounded px-1.5 text-right text-[10px] outline-none bg-[var(--app-panel-bg)] text-[var(--app-heading)] border-[var(--app-border)] font-bold text-rose-500"
                                           />
                                         </td>
                                         <td className="py-1 px-2">
@@ -2622,10 +2386,10 @@ export default function AiProcessingCenter() {
                                             type="number"
                                             value={item.credit || 0}
                                             onChange={(e) => handleItemPropertyChange(item.id, 'credit', parseFloat(e.target.value) || 0)}
-                                            className="w-full h-7 border rounded px-1.5 text-right text-[10px] outline-none bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 font-bold text-emerald-600"
+                                            className="w-full h-7 border rounded px-1.5 text-right text-[10px] outline-none bg-[var(--app-panel-bg)] text-[var(--app-heading)] border-[var(--app-border)] font-bold text-emerald-500"
                                           />
                                         </td>
-                                        <td className="py-1 px-2 text-right font-bold text-slate-900 dark:text-slate-200 pr-3">
+                                        <td className="py-1 px-2 text-right font-bold text-[var(--app-heading)] pr-3">
                                           ₹ {(item.balance || 0).toLocaleString()}
                                         </td>
                                       </>
@@ -2636,7 +2400,7 @@ export default function AiProcessingCenter() {
                                             type="text"
                                             value={item.hsn || ''}
                                             onChange={(e) => handleItemPropertyChange(item.id, 'hsn', e.target.value)}
-                                            className="w-full h-7 border rounded px-1.5 text-[10px] outline-none bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 font-mono"
+                                            className="w-full h-7 border rounded px-1.5 text-[10px] outline-none bg-[var(--app-panel-bg)] text-[var(--app-heading)] border-[var(--app-border)] font-mono"
                                           />
                                         </td>
                                         <td className="py-1 px-1.5">
@@ -2644,7 +2408,7 @@ export default function AiProcessingCenter() {
                                             type="number"
                                             value={item.qty || 0}
                                             onChange={(e) => handleItemPropertyChange(item.id, 'qty', parseInt(e.target.value) || 0)}
-                                            className="w-full h-7 border rounded px-1 text-center text-[10px] outline-none bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800"
+                                            className="w-full h-7 border rounded px-1 text-center text-[10px] outline-none bg-[var(--app-panel-bg)] text-[var(--app-heading)] border-[var(--app-border)]"
                                           />
                                         </td>
                                         <td className="py-1 px-1.5">
@@ -2652,14 +2416,14 @@ export default function AiProcessingCenter() {
                                             type="number"
                                             value={item.rate || 0}
                                             onChange={(e) => handleItemPropertyChange(item.id, 'rate', parseFloat(e.target.value) || 0)}
-                                            className="w-full h-7 border rounded px-1 text-right text-[10px] outline-none bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800"
+                                            className="w-full h-7 border rounded px-1 text-right text-[10px] outline-none bg-[var(--app-panel-bg)] text-[var(--app-heading)] border-[var(--app-border)]"
                                           />
                                         </td>
                                         <td className="py-1 px-1.5">
                                           <select
                                             value={item.taxRate || 0}
                                             onChange={(e) => handleItemPropertyChange(item.id, 'taxRate', parseInt(e.target.value) || 0)}
-                                            className="w-full h-7 border rounded text-center text-[10px] outline-none bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 font-bold"
+                                            className="w-full h-7 border rounded text-center text-[10px] outline-none bg-[var(--app-panel-bg)] text-[var(--app-heading)] border-[var(--app-border)] font-bold"
                                           >
                                             <option value="0">0%</option>
                                             <option value="5">5%</option>
@@ -2668,10 +2432,10 @@ export default function AiProcessingCenter() {
                                             <option value="28">28%</option>
                                           </select>
                                         </td>
-                                        <td className="py-1 px-2 text-right font-semibold text-slate-500 dark:text-slate-400">
+                                        <td className="py-1 px-2 text-right font-semibold text-[var(--app-muted)]">
                                           ₹ {taxAmt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                         </td>
-                                        <td className="py-1 px-2 text-right font-bold text-slate-900 dark:text-slate-100 pr-3">
+                                        <td className="py-1 px-2 text-right font-bold text-[var(--app-heading)] pr-3">
                                           ₹ {(amount + taxAmt).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                         </td>
                                       </>
@@ -2681,7 +2445,7 @@ export default function AiProcessingCenter() {
                                       <button
                                         type="button"
                                         onClick={() => handleDeleteItem(item.id)}
-                                        className="p-1 hover:text-rose-500 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 transition"
+                                        className="p-1 hover:text-rose-500 rounded hover:bg-[var(--app-table-head-bg)] text-[var(--app-muted)] transition"
                                         title="Delete Item"
                                       >
                                         <Trash2 size={12} />
@@ -2698,7 +2462,7 @@ export default function AiProcessingCenter() {
                           <button
                             type="button"
                             onClick={activeDoc.category === 'Bank Statement' ? handleAddBankTransaction : handleAddItem}
-                            className="px-2.5 py-1 border border-slate-200 dark:border-slate-850 text-[10px] font-bold text-blue-600 hover:bg-slate-50 dark:hover:bg-slate-800 rounded flex items-center gap-1 shadow-3xs bg-white dark:bg-slate-900"
+                            className="px-2.5 py-1 border border-[var(--app-border)] text-[10px] font-bold text-[var(--app-accent)] hover:bg-[var(--app-content-bg)] rounded flex items-center gap-1 shadow-sm bg-[var(--app-panel-bg)]"
                           >
                             <Plus size={11} />
                             <span>Add Row</span>
@@ -2708,7 +2472,7 @@ export default function AiProcessingCenter() {
                             <button
                               type="button"
                               onClick={() => toast.info('Discount ledger field added')}
-                              className="px-2.5 py-1 border border-slate-200 dark:border-slate-850 text-[10px] font-bold text-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800 rounded flex items-center gap-1 shadow-3xs bg-white dark:bg-slate-900"
+                              className="px-2.5 py-1 border border-[var(--app-border)] text-[10px] font-bold text-[var(--app-heading)] hover:bg-[var(--app-content-bg)] rounded flex items-center gap-1 shadow-sm bg-[var(--app-panel-bg)]"
                             >
                               <Plus size={11} />
                               <span>Add Discount</span>
@@ -2720,33 +2484,33 @@ export default function AiProcessingCenter() {
 
                     {/* --- BILL SUMMARY BLOCK --- */}
                     {activeDoc.category !== 'Bank Statement' && (
-                      <div className="border-t border-slate-100 dark:border-slate-800 pt-3 mt-4 flex justify-between items-start text-xs">
-                        <div className="text-[10px] text-slate-400">
+                      <div className="border-t border-[var(--app-border)] pt-3 mt-4 flex justify-between items-start text-xs">
+                        <div className="text-[10px] text-[var(--app-muted)]">
                           * All values auto-recalculate based on item values.
                         </div>
 
                         <div className="w-64 space-y-1.5 text-right font-medium">
-                          <div className="flex justify-between items-center text-slate-500">
+                          <div className="flex justify-between items-center text-[var(--app-muted)]">
                             <span>Total Amount (Before Tax)</span>
-                            <span className="font-bold text-slate-800 dark:text-slate-200 font-mono">
+                            <span className="font-bold text-[var(--app-heading)] font-mono">
                               ₹ {(activeDoc.taxableAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                             </span>
                           </div>
-                          <div className="flex justify-between items-center text-slate-500">
+                          <div className="flex justify-between items-center text-[var(--app-muted)]">
                             <span>Total Tax Amount</span>
-                            <span className="font-bold text-slate-800 dark:text-slate-200 font-mono">
+                            <span className="font-bold text-[var(--app-heading)] font-mono">
                               ₹ {(activeDoc.taxAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                             </span>
                           </div>
-                          <div className="flex justify-between items-center text-slate-500">
+                          <div className="flex justify-between items-center text-[var(--app-muted)]">
                             <span>Round Off</span>
-                            <span className="font-bold text-slate-800 dark:text-slate-200 font-mono">
+                            <span className="font-bold text-[var(--app-heading)] font-mono">
                               ₹ {(activeDoc.roundOff || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                             </span>
                           </div>
-                          <div className="flex justify-between items-center text-sm font-bold border-t pt-1.5 border-slate-800 text-slate-950 dark:text-white">
+                          <div className="flex justify-between items-center text-sm font-bold border-t pt-1.5 border-[var(--app-border)] text-slate-950 dark:text-white">
                             <span>Grand Total</span>
-                            <span className="text-blue-600 dark:text-blue-400 font-black font-mono">
+                            <span className="text-[var(--app-accent)] dark:text-[var(--app-accent)] font-black font-mono">
                               ₹ {(activeDoc.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                             </span>
                           </div>
@@ -2765,11 +2529,11 @@ export default function AiProcessingCenter() {
             {/* --- FULLSCREEN PORTAL MODE OVERLAY --- */}
             {isFullScreen && (
               <div className="fixed inset-0 z-50 bg-slate-900/90 flex flex-col p-4 backdrop-blur-xs">
-                <div className="flex justify-between items-center bg-slate-800 text-white p-3 rounded-t-xl border-b border-slate-700 select-none">
+                <div className="flex justify-between items-center bg-slate-800 text-white p-3 rounded-t-xl border-b border-[var(--app-border)] select-none">
                   <div className="flex items-center gap-3 font-sans text-xs">
                     <FileText size={16} />
                     <span className="font-bold">{activeDoc.filename}</span>
-                    <span className="text-[10px] text-slate-400">({currentViewerPage} of {activeDoc.pages || 1} Pages)</span>
+                    <span className="text-[10px] text-[var(--app-muted)]">({currentViewerPage} of {activeDoc.pages || 1} Pages)</span>
                   </div>
                   <button
                     onClick={() => setIsFullScreen(false)}
@@ -2779,7 +2543,7 @@ export default function AiProcessingCenter() {
                     <span>Exit Full Screen</span>
                   </button>
                 </div>
-                <div className="flex-1 bg-slate-100 dark:bg-slate-950 overflow-auto p-8 flex flex-col items-center gap-6 rounded-b-xl scroll-smooth">
+                <div className="flex-1 bg-[var(--app-table-head-bg)] overflow-auto p-8 flex flex-col items-center gap-6 rounded-b-xl scroll-smooth">
                   {Array.from({ length: activeDoc.pages || 1 }, (_, i) => i + 1).map((pageNum) => (
                     <SimulatedInvoicePage
                       key={pageNum}
@@ -2798,14 +2562,14 @@ export default function AiProcessingCenter() {
         ) : (
           <div className="flex-grow flex items-center justify-center p-12">
             <div className="text-center max-w-sm font-sans">
-              <Info size={32} className="mx-auto text-slate-350 dark:text-slate-600 mb-3" />
-              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">No documents found</h3>
-              <p className="text-slate-400 dark:text-slate-500 mt-1 text-[11px]">
+              <ObjectDoodle name="scan" className="w-28 h-20 mx-auto mb-2" />
+              <h3 className="text-sm font-bold text-[var(--app-heading)]">No documents found</h3>
+              <p className="text-[var(--app-muted)] mt-1 text-[11px]">
                 No documents are currently queueing for AI processing. Go to the Bulk Upload tab to upload files.
               </p>
               <button
                 onClick={() => setIsUploadModalOpen(true)}
-                className="mt-4 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-xs cursor-pointer"
+                className="mt-4 px-3 py-1.5 bg-[var(--app-accent)] hover:opacity-90 text-white font-bold rounded-lg text-xs cursor-pointer"
               >
                 Upload Documents
               </button>
@@ -2836,12 +2600,12 @@ export default function AiProcessingCenter() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 15 }}
               transition={{ duration: 0.2 }}
-              className="relative w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl overflow-hidden flex flex-col font-sans text-slate-800 dark:text-slate-100 z-10"
+              className="relative w-full max-w-md bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-xl shadow-xl overflow-hidden flex flex-col font-sans text-[var(--app-heading)] z-10"
             >
               {/* Header */}
-              <div className="px-4 py-3 border-b border-slate-150 dark:border-slate-850 flex items-center justify-between">
+              <div className="px-4 py-3 border-b border-[var(--app-border)] flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <UploadCloud size={16} className="text-blue-500" />
+                  <UploadCloud size={16} className="text-[var(--app-accent)]" />
                   <h3 className="text-xs font-bold uppercase tracking-wider">Upload Documents for AI OCR</h3>
                 </div>
                 <button
@@ -2849,7 +2613,7 @@ export default function AiProcessingCenter() {
                     setIsUploadModalOpen(false);
                     setUploadFiles([]);
                   }}
-                  className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-600 transition"
+                  className="p-1 hover:bg-[var(--app-table-head-bg)] rounded-lg text-[var(--app-muted)] hover:text-[var(--app-heading)] transition"
                 >
                   <X size={14} />
                 </button>
@@ -2859,11 +2623,11 @@ export default function AiProcessingCenter() {
               <div className="p-4 space-y-4">
                 {/* Voucher Category Selector */}
                 <div>
-                  <label className="text-[10px] font-bold text-slate-500 mb-1.5 block uppercase">Voucher / Category Type</label>
+                  <label className="text-[10px] font-bold text-[var(--app-muted)] mb-1.5 block uppercase">Voucher / Category Type</label>
                   <select
                     value={uploadCategory}
                     onChange={(e) => setUploadCategory(e.target.value)}
-                    className="w-full h-8 rounded-lg border border-slate-200 dark:border-slate-800 px-3 text-xs outline-none bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-bold focus:border-blue-500"
+                    className="w-full h-8 rounded-lg border border-[var(--app-border)] px-3 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] font-bold focus:border-[var(--app-accent)]"
                   >
                     <option value="Sales Invoice">Sales Invoice</option>
                     <option value="Purchase Invoice">Purchase Invoice</option>
@@ -2877,14 +2641,14 @@ export default function AiProcessingCenter() {
 
                 {/* Drag and Drop Zone */}
                 <div>
-                  <label className="text-[10px] font-bold text-slate-500 mb-1.5 block uppercase">Select Files</label>
+                  <label className="text-[10px] font-bold text-[var(--app-muted)] mb-1.5 block uppercase">Select Files</label>
                   <div
                     onClick={() => document.getElementById('popup-file-input').click()}
-                    className="border-2 border-dashed border-slate-200 dark:border-slate-800 hover:border-blue-500 dark:hover:border-blue-600 rounded-xl p-6 flex flex-col items-center justify-center gap-2 bg-slate-50/50 dark:bg-slate-950/20 cursor-pointer transition"
+                    className="border-2 border-dashed border-[var(--app-border)] hover:border-[var(--app-accent)] dark:hover:border-[var(--app-accent)] rounded-xl p-6 flex flex-col items-center justify-center gap-2 bg-[var(--app-content-bg)]/50 cursor-pointer transition"
                   >
-                    <UploadCloud size={24} className="text-slate-400 dark:text-slate-600" />
-                    <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400">Drag & Drop files here, or <span className="text-blue-500">Browse</span></span>
-                    <span className="text-[9px] text-slate-400">Supports PDF, PNG, JPG, JPEG (Max 25MB)</span>
+                    <UploadCloud size={24} className="text-[var(--app-muted)]" />
+                    <span className="text-[11px] font-bold text-[var(--app-heading)]">Drag & Drop files here, or <span className="text-[var(--app-accent)]">Browse</span></span>
+                    <span className="text-[9px] text-[var(--app-muted)]">Supports PDF, PNG, JPG, JPEG (Max 25MB)</span>
                     <input
                       id="popup-file-input"
                       type="file"
@@ -2903,14 +2667,14 @@ export default function AiProcessingCenter() {
                 {/* File List */}
                 {uploadFiles.length > 0 && (
                   <div className="space-y-1.5 max-h-32 overflow-y-auto pr-1">
-                    <label className="text-[9px] font-bold text-slate-400 uppercase">Selected Files ({uploadFiles.length})</label>
+                    <label className="text-[9px] font-bold text-[var(--app-muted)] uppercase">Selected Files ({uploadFiles.length})</label>
                     {uploadFiles.map((file, i) => (
-                      <div key={i} className="flex items-center justify-between bg-slate-50 dark:bg-slate-955/40 p-2 rounded-lg border border-slate-200/50 dark:border-slate-850">
+                      <div key={i} className="flex items-center justify-between bg-[var(--app-content-bg)] p-2 rounded-lg border border-[var(--app-border)]/50">
                         <div className="flex items-center gap-2 min-w-0">
-                          <FileText size={13} className="text-blue-500 shrink-0" />
-                          <span className="text-[10.5px] font-bold truncate text-slate-700 dark:text-slate-300">{file.name}</span>
+                          <FileText size={13} className="text-[var(--app-accent)] shrink-0" />
+                          <span className="text-[10.5px] font-bold truncate text-[var(--app-heading)]">{file.name}</span>
                         </div>
-                        <span className="text-[9px] font-mono text-slate-400">{(file.size / 1024).toFixed(0)} KB</span>
+                        <span className="text-[9px] font-mono text-[var(--app-muted)]">{(file.size / 1024).toFixed(0)} KB</span>
                       </div>
                     ))}
                   </div>
@@ -2918,20 +2682,20 @@ export default function AiProcessingCenter() {
               </div>
 
               {/* Footer */}
-              <div className="px-4 py-3 border-t border-slate-150 dark:border-slate-850 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-end gap-2 shrink-0">
+              <div className="px-4 py-3 border-t border-[var(--app-border)] bg-[var(--app-content-bg)]/50 flex items-center justify-end gap-2 shrink-0">
                 <button
                   onClick={() => {
                     setIsUploadModalOpen(false);
                     setUploadFiles([]);
                   }}
-                  className="h-8 px-3 border border-slate-200 dark:border-slate-850 text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg text-xs font-bold transition cursor-pointer"
+                  className="h-8 px-3 border border-[var(--app-border)] text-[var(--app-heading)] bg-[var(--app-panel-bg)] hover:bg-[var(--app-content-bg)] rounded-lg text-xs font-bold transition cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   disabled={uploadFiles.length === 0}
                   onClick={handleUploadAndProcess}
-                  className="h-8 px-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+                  className="h-8 px-3.5 bg-[var(--app-accent)] hover:opacity-90 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
                 >
                   <PlayCircle size={13} />
                   <span>Start AI Processing</span>

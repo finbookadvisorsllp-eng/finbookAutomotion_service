@@ -4,6 +4,9 @@ import {
   Download, ArrowLeft, Sparkles, Pencil, ChevronDown, Trash2, ZoomIn, ZoomOut, Maximize2, Check, ChevronRight, 
   MessageSquare, ExternalLink, Calendar, MoreVertical, UploadCloud
 } from 'lucide-react';
+import ObjectDoodle from '../ui/ObjectDoodle';
+import DataTable from '../ui/DataTable';
+import Badge, { statusTone } from '../ui/Badge';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 import { useAppStore } from '../../stores/useAppStore';
@@ -21,7 +24,7 @@ const statusTextColors = {
   'High Risk': 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-rose-900/40',
   'Approved': 'bg-emerald-50 text-emerald-700 border-emerald-250 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-rose-900/40',
   'Rejected': 'bg-rose-50 text-rose-705 border-rose-250 dark:bg-rose-900/20 dark:text-rose-450 dark:border-rose-900/40',
-  'Synced': 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-900/40',
+  'Synced': 'bg-[var(--app-accent-soft)] text-[var(--app-accent)] border-[var(--app-border)] dark:bg-[var(--app-accent-soft)] dark:text-[var(--app-accent)] dark:border-[var(--app-border)]',
   'Pending Approval': 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-955/15 dark:text-amber-400 dark:border-amber-800'
 };
 
@@ -755,7 +758,7 @@ export default function ApprovalCenter() {
     const isPosted = entry.status === 'Posted To Tally';
 
     return (
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-1.5 flex items-center justify-between gap-2.5 shrink-0 shadow-md">
+      <div className="bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-xl p-1.5 flex items-center justify-between gap-2.5 shrink-0 shadow-md">
         <div className="flex items-center gap-1.5">
           {!isPosted && (
             <>
@@ -800,7 +803,7 @@ export default function ApprovalCenter() {
                 handleSyncTally(entry.id);
                 setCurrentView('list');
               }}
-              className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-lg flex items-center gap-1 transition-all text-[11px]"
+              className="px-3 py-1 bg-[var(--app-accent)] hover:opacity-90 text-white font-extrabold rounded-lg flex items-center gap-1 transition-all text-[11px]"
             >
               <UploadCloud size={12} /> Post to Tally
             </button>
@@ -813,7 +816,7 @@ export default function ApprovalCenter() {
                 handleSyncTally(entry.id);
                 setCurrentView('list');
               }}
-              className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-lg flex items-center gap-1 transition-all text-[11px]"
+              className="px-3 py-1 bg-[var(--app-accent)] hover:opacity-90 text-white font-extrabold rounded-lg flex items-center gap-1 transition-all text-[11px]"
             >
               <UploadCloud size={12} /> Approve & Push to Tally
             </button>
@@ -860,23 +863,23 @@ export default function ApprovalCenter() {
     const billAllocations = raw.billAllocations || [];
 
     return (
-      <div className="flex flex-col h-full overflow-hidden text-[12px] text-slate-700 dark:text-slate-200 bg-[#f8fafc] dark:bg-slate-950/40 p-1">
-        <div className="flex items-center justify-between gap-3 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl px-3 py-1 mb-1.5 shrink-0 shadow-sm">
+      <div className="flex flex-col h-full overflow-hidden text-[12px] text-[var(--app-heading)] bg-[#f8fafc] p-1">
+        <div className="flex items-center justify-between gap-3 bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-xl px-3 py-1 mb-1.5 shrink-0 shadow-sm">
           <div className="space-y-0.5 min-w-0">
             <div className="flex items-center gap-1.5">
-              <h2 className="text-md font-extrabold text-slate-900 dark:text-white leading-none tracking-tight">{selectedEntry.voucherNumber}</h2>
-              <span className={`px-1.5 py-0.25 rounded border text-[9px] font-semibold bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/20 dark:text-purple-400 dark:border-purple-900/40`}>{type}</span>
-              <span className={`px-1.5 py-0.25 rounded border text-[9px] font-semibold ${statusTextColors[selectedEntry.statusText] || 'bg-slate-50 text-slate-700 border-slate-200'}`}>{selectedEntry.statusText}</span>
+              <h2 className="text-md font-extrabold text-[var(--app-heading)] dark:text-white leading-none tracking-tight">{selectedEntry.voucherNumber}</h2>
+              <span className={`px-1.5 py-0.25 rounded border text-[9px] font-semibold bg-[var(--app-accent-soft)] text-[var(--app-accent)] border-[var(--app-border)] dark:bg-[var(--app-accent-soft)] dark:text-[var(--app-accent)] dark:border-[var(--app-border)]`}>{type}</span>
+              <span className={`px-1.5 py-0.25 rounded border text-[9px] font-semibold ${statusTextColors[selectedEntry.statusText] || 'bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)]'}`}>{selectedEntry.statusText}</span>
             </div>
-            <p className="text-[10px] text-slate-400">
-              Manual Entry Voucher | Created by: <span className="font-semibold text-slate-500 dark:text-slate-400">{raw.createdBy || 'Admin'}</span> | Voucher Date: <span className="font-semibold text-slate-500 dark:text-slate-400">{date}</span>
+            <p className="text-[10px] text-[var(--app-muted)]">
+              Manual Entry Voucher | Created by: <span className="font-semibold text-[var(--app-muted)]">{raw.createdBy || 'Admin'}</span> | Voucher Date: <span className="font-semibold text-[var(--app-muted)]">{date}</span>
             </p>
           </div>
 
           <div className="flex items-center gap-3">
             <button 
               onClick={() => setCurrentView('list')}
-              className="px-2.5 py-1 border border-slate-200 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 font-extrabold rounded-lg text-[11px] transition-all flex items-center gap-1"
+              className="px-2.5 py-1 border border-[var(--app-border)] hover:bg-[var(--app-content-bg)] text-[var(--app-heading)] font-extrabold rounded-lg text-[11px] transition-all flex items-center gap-1"
             >
               <ArrowLeft size={12} /> Back to List
             </button>
@@ -886,21 +889,21 @@ export default function ApprovalCenter() {
         <div className="flex-1 grid grid-cols-12 gap-2 min-h-0 overflow-hidden mb-1.5">
           {/* Double-entry preview */}
           <div className="col-span-12 lg:col-span-7 flex flex-col gap-1.5 min-h-0">
-            <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl p-2 shadow-sm flex flex-col min-h-0 flex-1 justify-between">
+            <div className="bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-xl p-2 shadow-sm flex flex-col min-h-0 flex-1 justify-between">
               <div>
-                <h3 className="text-slate-400 font-bold text-[9px] tracking-wider uppercase border-b border-slate-100 dark:border-slate-800 pb-0.5 mb-1 shrink-0">DOUBLE-ENTRY ACCOUNTING BREAKDOWN</h3>
+                <h3 className="text-[var(--app-muted)] font-bold text-[9px] tracking-wider uppercase border-b border-[var(--app-border)] pb-0.5 mb-1 shrink-0">DOUBLE-ENTRY ACCOUNTING BREAKDOWN</h3>
                 
                 <div className="flex justify-between items-center text-[10.5px] shrink-0 mb-1 px-1">
                   <div>
-                    <span className="text-slate-400 font-medium">Voucher Type</span>
-                    <span className="font-bold text-slate-900 dark:text-white ml-2">{type}</span>
+                    <span className="text-[var(--app-muted)] font-medium">Voucher Type</span>
+                    <span className="font-bold text-[var(--app-heading)] dark:text-white ml-2">{type}</span>
                   </div>
-                  <span className="text-slate-550 font-bold">{date}</span>
+                  <span className="text-[var(--app-muted)] font-bold">{date}</span>
                 </div>
 
-                <div className="space-y-1 px-1 py-1.5 border-t border-b border-slate-100 dark:border-slate-800 shrink-0 text-[12px] font-mono">
+                <div className="space-y-1 px-1 py-1.5 border-t border-b border-[var(--app-border)] shrink-0 text-[12px] font-mono">
                   {ledgerRows.map((row, idx) => (
-                    <div key={idx} className={`flex justify-between items-center ${row.debit ? 'text-emerald-600 font-extrabold' : 'text-slate-600 pl-4 font-semibold dark:text-slate-300'}`}>
+                    <div key={idx} className={`flex justify-between items-center ${row.debit ? 'text-emerald-500 font-extrabold' : 'text-[var(--app-heading)] pl-4 font-semibold'}`}>
                       <span>{row.debit ? `Dr ${row.name}` : `To ${row.name}`}</span>
                       <span>₹{row.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                     </div>
@@ -909,14 +912,14 @@ export default function ApprovalCenter() {
               </div>
 
               <div className="mt-1 space-y-1 shrink-0">
-                <div className="flex justify-between items-center font-bold px-1 text-[12px] text-slate-900 dark:text-white">
+                <div className="flex justify-between items-center font-bold px-1 text-[12px] text-[var(--app-heading)] dark:text-white">
                   <span>Total Voucher Value</span>
-                  <span className="text-emerald-600 font-extrabold">₹{amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  <span className="text-emerald-500 font-extrabold">₹{amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                 </div>
                 
                 {raw.narration && (
-                  <div className="bg-slate-50 dark:bg-slate-950 p-2 border rounded-lg text-slate-550 dark:text-slate-400 text-[11px]">
-                    <span className="text-[8px] uppercase font-bold text-slate-400 block mb-0.25">Narration / Remarks</span>
+                  <div className="bg-[var(--app-content-bg)] p-2 border rounded-lg text-[var(--app-muted)] text-[11px]">
+                    <span className="text-[8px] uppercase font-bold text-[var(--app-muted)] block mb-0.25">Narration / Remarks</span>
                     <span className="font-bold">{raw.narration}</span>
                   </div>
                 )}
@@ -926,14 +929,14 @@ export default function ApprovalCenter() {
 
           {/* Items or bill allocations */}
           <div className="col-span-12 lg:col-span-5 flex flex-col min-h-0">
-            <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl p-2.5 shadow-sm flex flex-col min-h-0 flex-1">
+            <div className="bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-xl p-2.5 shadow-sm flex flex-col min-h-0 flex-1">
               {type.includes('Sales') || type.includes('Purchase') ? (
                 <>
-                  <h3 className="text-slate-400 font-bold text-[9px] tracking-wider uppercase border-b border-slate-100 dark:border-slate-800 pb-0.5 mb-1 shrink-0">INVOICE ITEM BREAKDOWN</h3>
+                  <h3 className="text-[var(--app-muted)] font-bold text-[9px] tracking-wider uppercase border-b border-[var(--app-border)] pb-0.5 mb-1 shrink-0">INVOICE ITEM BREAKDOWN</h3>
                   <div className="flex-1 overflow-auto themed-scrollbar text-[10.5px] min-h-[80px]">
                     <table className="w-full text-left border-collapse">
                       <thead>
-                        <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase">
+                        <tr className="border-b border-[var(--app-border)] text-[var(--app-muted)] font-bold uppercase">
                           <th className="pb-1">Stock Item</th>
                           <th className="pb-1 text-right">Qty</th>
                           <th className="pb-1 text-right">Rate</th>
@@ -943,16 +946,16 @@ export default function ApprovalCenter() {
                       <tbody>
                         {items.length > 0 ? (
                           items.map((it, idx) => (
-                            <tr key={idx} className="border-b border-slate-50 font-semibold text-slate-705 dark:text-slate-350">
+                            <tr key={idx} className="border-b border-slate-50 font-semibold text-slate-705">
                               <td className="py-1">{it.stockItem || it.name || 'Stock Item'}</td>
                               <td className="py-1 text-right">{it.qty || it.quantity || 1}</td>
                               <td className="py-1 text-right">₹{(it.rate || 0).toLocaleString('en-IN')}</td>
-                              <td className="py-1 text-right font-bold text-slate-900 dark:text-white">₹{(it.amount || 0).toLocaleString('en-IN')}</td>
+                              <td className="py-1 text-right font-bold text-[var(--app-heading)] dark:text-white">₹{(it.amount || 0).toLocaleString('en-IN')}</td>
                             </tr>
                           ))
                         ) : (
                           <tr>
-                            <td colSpan="4" className="py-6 text-center text-slate-400 font-medium">No items allocated to this voucher.</td>
+                            <td colSpan="4" className="py-6 text-center text-[var(--app-muted)] font-medium">No items allocated to this voucher.</td>
                           </tr>
                         )}
                       </tbody>
@@ -961,11 +964,11 @@ export default function ApprovalCenter() {
                 </>
               ) : (
                 <>
-                  <h3 className="text-slate-400 font-bold text-[9px] tracking-wider uppercase border-b border-slate-100 dark:border-slate-800 pb-0.5 mb-1 shrink-0">OUTSTANDING BILL ALLOCATIONS</h3>
+                  <h3 className="text-[var(--app-muted)] font-bold text-[9px] tracking-wider uppercase border-b border-[var(--app-border)] pb-0.5 mb-1 shrink-0">OUTSTANDING BILL ALLOCATIONS</h3>
                   <div className="flex-1 overflow-auto themed-scrollbar text-[10.5px] min-h-[80px]">
                     <table className="w-full text-left border-collapse">
                       <thead>
-                        <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase">
+                        <tr className="border-b border-[var(--app-border)] text-[var(--app-muted)] font-bold uppercase">
                           <th className="pb-1">Invoice Ref</th>
                           <th className="pb-1 text-right">Invoice Date</th>
                           <th className="pb-1 text-right">Allocated Amount</th>
@@ -974,15 +977,15 @@ export default function ApprovalCenter() {
                       <tbody>
                         {billAllocations.length > 0 ? (
                           billAllocations.map((alloc, idx) => (
-                            <tr key={idx} className="border-b border-slate-50 font-semibold text-slate-705 dark:text-slate-350">
+                            <tr key={idx} className="border-b border-slate-50 font-semibold text-slate-705">
                               <td className="py-1 font-mono">{alloc.refNo || alloc.invoiceRefNo || 'Ref'}</td>
                               <td className="py-1 text-right">{alloc.date || alloc.invoiceDate || '—'}</td>
-                              <td className="py-1 text-right font-bold text-slate-900 dark:text-white">₹{(alloc.allocatedAmount || alloc.amountReceived || alloc.amountPaid || 0).toLocaleString('en-IN')}</td>
+                              <td className="py-1 text-right font-bold text-[var(--app-heading)] dark:text-white">₹{(alloc.allocatedAmount || alloc.amountReceived || alloc.amountPaid || 0).toLocaleString('en-IN')}</td>
                             </tr>
                           ))
                         ) : (
                           <tr>
-                            <td colSpan="3" className="py-6 text-center text-slate-400 font-medium">No outstanding bill allocations.</td>
+                            <td colSpan="3" className="py-6 text-center text-[var(--app-muted)] font-medium">No outstanding bill allocations.</td>
                           </tr>
                         )}
                       </tbody>
@@ -1006,23 +1009,23 @@ export default function ApprovalCenter() {
     if (!batch) return null;
 
     return (
-      <div className="flex flex-col h-full overflow-hidden text-[12px] text-slate-700 dark:text-slate-200 bg-[#f8fafc] dark:bg-slate-950/40 p-1">
-        <div className="flex items-center justify-between gap-3 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl px-3 py-1 mb-1.5 shrink-0 shadow-sm">
+      <div className="flex flex-col h-full overflow-hidden text-[12px] text-[var(--app-heading)] bg-[#f8fafc] p-1">
+        <div className="flex items-center justify-between gap-3 bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-xl px-3 py-1 mb-1.5 shrink-0 shadow-sm">
           <div className="space-y-0.5 min-w-0">
             <div className="flex items-center gap-1.5">
-              <h2 className="text-md font-extrabold text-slate-900 dark:text-white leading-none tracking-tight">{batch.id}</h2>
-              <span className="px-1.5 py-0.25 rounded border border-blue-200 text-blue-700 bg-blue-50 dark:bg-blue-955/20 dark:text-blue-400 dark:border-blue-900/40 text-[9px] font-semibold">Bulk Upload</span>
-              <span className={`px-1.5 py-0.25 rounded border text-[9px] font-semibold ${statusTextColors[batchEntry.statusText] || 'bg-slate-55 border-slate-200 text-slate-700'}`}>{batchEntry.statusText}</span>
+              <h2 className="text-md font-extrabold text-[var(--app-heading)] dark:text-white leading-none tracking-tight">{batch.id}</h2>
+              <span className="px-1.5 py-0.25 rounded border border-[var(--app-border)] text-[var(--app-accent)] bg-[var(--app-accent-soft)] dark:bg-[var(--app-accent-soft)] dark:text-[var(--app-accent)] dark:border-[var(--app-border)] text-[9px] font-semibold">Bulk Upload</span>
+              <span className={`px-1.5 py-0.25 rounded border text-[9px] font-semibold ${statusTextColors[batchEntry.statusText] || 'bg-[var(--app-content-bg)] border-[var(--app-border)] text-[var(--app-heading)]'}`}>{batchEntry.statusText}</span>
             </div>
-            <p className="text-[10px] text-slate-400">
-              Filename: <span className="font-semibold text-slate-750 dark:text-slate-300">{batch.filename}</span> | Upload Date: <span className="font-semibold text-slate-750 dark:text-slate-300">{batch.uploadDate}</span>
+            <p className="text-[10px] text-[var(--app-muted)]">
+              Filename: <span className="font-semibold text-[var(--app-text)]">{batch.filename}</span> | Upload Date: <span className="font-semibold text-[var(--app-text)]">{batch.uploadDate}</span>
             </p>
           </div>
           
           <div className="flex items-center gap-3">
             <button 
               onClick={() => setCurrentView('list')}
-              className="px-2.5 py-1 border border-slate-200 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 font-extrabold rounded-lg text-[11px] transition-all flex items-center gap-1"
+              className="px-2.5 py-1 border border-[var(--app-border)] hover:bg-[var(--app-content-bg)] text-[var(--app-heading)] font-extrabold rounded-lg text-[11px] transition-all flex items-center gap-1"
             >
               <ArrowLeft size={12} /> Back to List
             </button>
@@ -1030,13 +1033,13 @@ export default function ApprovalCenter() {
         </div>
 
         {/* Spreadsheet records list */}
-        <div className="flex-1 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl p-2 shadow-sm flex flex-col min-h-0">
-          <h3 className="text-slate-400 font-bold text-[9px] tracking-wider uppercase border-b border-slate-100 dark:border-slate-800 pb-0.5 mb-1.5 shrink-0">BATCH RECORDS SPREADSHEET VIEW ({batch.records?.length || 0} rows)</h3>
+        <div className="flex-1 bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-xl p-2 shadow-sm flex flex-col min-h-0">
+          <h3 className="text-[var(--app-muted)] font-bold text-[9px] tracking-wider uppercase border-b border-[var(--app-border)] pb-0.5 mb-1.5 shrink-0">BATCH RECORDS SPREADSHEET VIEW ({batch.records?.length || 0} rows)</h3>
           
           <div className="flex-1 overflow-auto themed-scrollbar min-h-0">
             <table className="w-full text-left border-collapse min-w-[1000px] text-[10.5px]">
               <thead>
-                <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400 font-bold uppercase bg-slate-50/50 dark:bg-slate-900/50 sticky top-0 z-10 select-none">
+                <tr className="border-b border-[var(--app-border)] text-[var(--app-muted)] font-bold uppercase bg-[var(--app-content-bg)]/50 sticky top-0 z-10 select-none">
                   <th className="py-1.5 px-2">ID</th>
                   <th className="py-1.5 px-2">Date</th>
                   <th className="py-1.5 px-2">Doc No</th>
@@ -1052,18 +1055,18 @@ export default function ApprovalCenter() {
               </thead>
               <tbody>
                 {batch.records && batch.records.map((r) => (
-                  <tr key={r.id} className="border-b border-slate-100 dark:border-slate-800/60 hover:bg-slate-50/50 dark:hover:bg-slate-900/30 transition-all font-semibold text-slate-700 dark:text-slate-300">
+                  <tr key={r.id} className="border-b border-[var(--app-border)] hover:bg-[var(--app-content-bg)]/50 transition-all font-semibold text-[var(--app-heading)]">
                     <td className="py-1 px-2 font-mono">{r.id}</td>
-                    <td className="py-1 px-2 text-slate-500">{r.date}</td>
-                    <td className="py-1 px-2 font-mono text-slate-900 dark:text-white">{r.docNo}</td>
+                    <td className="py-1 px-2 text-[var(--app-muted)]">{r.date}</td>
+                    <td className="py-1 px-2 font-mono text-[var(--app-heading)] dark:text-white">{r.docNo}</td>
                     <td className="py-1 px-2">
-                      <span className="px-1.5 py-0.25 rounded bg-slate-100 dark:bg-slate-800 text-[9px]">{r.category}</span>
+                      <span className="px-1.5 py-0.25 rounded bg-[var(--app-table-head-bg)] text-[9px]">{r.category}</span>
                     </td>
-                    <td className="py-1 px-2 text-slate-800 dark:text-slate-200 font-bold">{r.partyName}</td>
+                    <td className="py-1 px-2 text-[var(--app-heading)] font-bold">{r.partyName}</td>
                     <td className="py-1 px-2 font-mono">{r.gstin || '—'}</td>
                     <td className="py-1 px-2 text-right">₹{r.taxableValue.toLocaleString('en-IN')}</td>
-                    <td className="py-1 px-2 text-right text-slate-500 font-normal">₹{r.taxAmount.toLocaleString('en-IN')}</td>
-                    <td className="py-1 px-2 text-right font-black text-slate-900 dark:text-white">₹{r.totalAmount.toLocaleString('en-IN')}</td>
+                    <td className="py-1 px-2 text-right text-[var(--app-muted)] font-normal">₹{r.taxAmount.toLocaleString('en-IN')}</td>
+                    <td className="py-1 px-2 text-right font-black text-[var(--app-heading)] dark:text-white">₹{r.totalAmount.toLocaleString('en-IN')}</td>
                     <td className="py-1 px-2 text-center">
                       <span className={`px-1 py-0.25 rounded text-[9px] font-bold ${
                         r.status === 'Valid' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-400' : 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400'
@@ -1091,23 +1094,23 @@ export default function ApprovalCenter() {
     if (!doc) return null;
 
     return (
-      <div className="flex flex-col h-full overflow-hidden text-[12px] text-slate-700 dark:text-slate-200 bg-[#f8fafc] dark:bg-slate-950/40 p-1">
-        <div className="flex items-center justify-between gap-3 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl px-3 py-1 mb-1.5 shrink-0 shadow-sm">
+      <div className="flex flex-col h-full overflow-hidden text-[12px] text-[var(--app-heading)] bg-[#f8fafc] p-1">
+        <div className="flex items-center justify-between gap-3 bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-xl px-3 py-1 mb-1.5 shrink-0 shadow-sm">
           <div className="space-y-0.5 min-w-0">
             <div className="flex items-center gap-1.5">
-              <h2 className="text-md font-extrabold text-slate-900 dark:text-white leading-none tracking-tight">{docEntry.voucherNumber}</h2>
-              <span className="px-1.5 py-0.25 rounded border border-purple-200 text-purple-700 bg-purple-50 dark:bg-purple-955/20 dark:text-purple-400 dark:border-purple-900/40 text-[9px] font-semibold">{docEntry.type}</span>
-              <span className={`px-1.5 py-0.25 rounded border text-[9px] font-semibold ${statusTextColors[docEntry.statusText] || 'bg-slate-55 border-slate-200 text-slate-750'}`}>{docEntry.statusText}</span>
+              <h2 className="text-md font-extrabold text-[var(--app-heading)] dark:text-white leading-none tracking-tight">{docEntry.voucherNumber}</h2>
+              <span className="px-1.5 py-0.25 rounded border border-[var(--app-border)] text-[var(--app-accent)] bg-[var(--app-accent-soft)] dark:bg-[var(--app-accent-soft)] dark:text-[var(--app-accent)] dark:border-[var(--app-border)] text-[9px] font-semibold">{docEntry.type}</span>
+              <span className={`px-1.5 py-0.25 rounded border text-[9px] font-semibold ${statusTextColors[docEntry.statusText] || 'bg-[var(--app-content-bg)] border-[var(--app-border)] text-[var(--app-text)]'}`}>{docEntry.statusText}</span>
             </div>
-            <p className="text-[10px] text-slate-400">
-              OCR Processed Document | Confidence: <span className="text-emerald-500 font-extrabold">{docEntry.confidence}%</span> | Upload Date: <span className="font-semibold text-slate-750 dark:text-slate-300">{docEntry.date}</span>
+            <p className="text-[10px] text-[var(--app-muted)]">
+              OCR Processed Document | Confidence: <span className="text-emerald-500 font-extrabold">{docEntry.confidence}%</span> | Upload Date: <span className="font-semibold text-[var(--app-text)]">{docEntry.date}</span>
             </p>
           </div>
           
           <div className="flex items-center gap-3">
             <button 
               onClick={() => setCurrentView('list')}
-              className="px-2.5 py-1 border border-slate-200 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 font-extrabold rounded-lg text-[11px] transition-all flex items-center gap-1"
+              className="px-2.5 py-1 border border-[var(--app-border)] hover:bg-[var(--app-content-bg)] text-[var(--app-heading)] font-extrabold rounded-lg text-[11px] transition-all flex items-center gap-1"
             >
               <ArrowLeft size={12} /> Back to List
             </button>
@@ -1118,34 +1121,34 @@ export default function ApprovalCenter() {
         <div className="flex-1 grid grid-cols-12 gap-2 min-h-0 overflow-hidden mb-1.5">
           {/* Left Pane: Scan Image Preview */}
           <div className="col-span-12 lg:col-span-6 flex flex-col min-h-0">
-            <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl p-2 shadow-sm flex flex-col min-h-0 flex-1">
-              <h3 className="text-slate-400 font-bold text-[9px] tracking-wider uppercase border-b border-slate-100 dark:border-slate-800 pb-0.5 mb-1 shrink-0">DOCUMENT PREVIEW</h3>
+            <div className="bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-xl p-2 shadow-sm flex flex-col min-h-0 flex-1">
+              <h3 className="text-[var(--app-muted)] font-bold text-[9px] tracking-wider uppercase border-b border-[var(--app-border)] pb-0.5 mb-1 shrink-0">DOCUMENT PREVIEW</h3>
               
-              <div className="flex-1 relative bg-slate-50 dark:bg-slate-955 rounded-xl p-2 flex flex-col items-center justify-between border border-slate-100 dark:border-slate-850 min-h-0 overflow-hidden">
-                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-805 rounded-lg shadow-sm w-full p-3 text-[9px] space-y-2 font-sans text-slate-700 dark:text-slate-300 min-h-0 overflow-y-auto flex flex-col justify-between flex-1 mb-0.5 themed-scrollbar">
-                  <div className="flex justify-between items-start border-b border-slate-100 pb-1.5">
+              <div className="flex-1 relative bg-[var(--app-content-bg)] rounded-xl p-2 flex flex-col items-center justify-between border border-[var(--app-border)] min-h-0 overflow-hidden">
+                <div className="bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-lg shadow-sm w-full p-3 text-[9px] space-y-2 font-sans text-[var(--app-heading)] min-h-0 overflow-y-auto flex flex-col justify-between flex-1 mb-0.5 themed-scrollbar">
+                  <div className="flex justify-between items-start border-b border-[var(--app-border)] pb-1.5">
                     <div>
-                      <p className="font-extrabold text-slate-900 dark:text-white text-[11.5px] leading-tight">{doc.vendor || 'Supplier Company'}</p>
-                      <p className="text-slate-400 text-[7.5px] mt-0.5 font-semibold">GSTIN: {doc.gstin || '23AAEFFG7311L1Z7'}</p>
-                      <p className="text-slate-400 text-[7.5px]">Place of Supply: Madhya Pradesh</p>
+                      <p className="font-extrabold text-[var(--app-heading)] dark:text-white text-[11.5px] leading-tight">{doc.vendor || 'Supplier Company'}</p>
+                      <p className="text-[var(--app-muted)] text-[7.5px] mt-0.5 font-semibold">GSTIN: {doc.gstin || '23AAEFFG7311L1Z7'}</p>
+                      <p className="text-[var(--app-muted)] text-[7.5px]">Place of Supply: Madhya Pradesh</p>
                     </div>
                     <div className="text-right">
-                      <p className="font-black text-[10px] text-purple-700 leading-none uppercase tracking-wider">TAX INVOICE</p>
-                      <p className="text-slate-550 font-mono text-[7.5px] mt-0.5 font-bold">Ref: #{doc.docNo || 'INV-001'}</p>
-                      <p className="text-slate-550 font-mono text-[7.5px] font-bold">Date: {doc.docDate || '19-06-2026'}</p>
+                      <p className="font-black text-[10px] text-[var(--app-accent)] leading-none uppercase tracking-wider">TAX INVOICE</p>
+                      <p className="text-[var(--app-muted)] font-mono text-[7.5px] mt-0.5 font-bold">Ref: #{doc.docNo || 'INV-001'}</p>
+                      <p className="text-[var(--app-muted)] font-mono text-[7.5px] font-bold">Date: {doc.docDate || '19-06-2026'}</p>
                     </div>
                   </div>
                   
                   <div className="text-[9px] py-0.5 border-b border-slate-50 pb-1.5">
-                    <p className="font-bold text-slate-400">Bill To:</p>
-                    <p className="font-extrabold text-slate-855 dark:text-slate-200 mt-0.25">{doc.partyLedger || 'Customer Account'}</p>
-                    <p className="text-slate-500 font-medium">Main Office Street, City, India</p>
+                    <p className="font-bold text-[var(--app-muted)]">Bill To:</p>
+                    <p className="font-extrabold text-slate-855 mt-0.25">{doc.partyLedger || 'Customer Account'}</p>
+                    <p className="text-[var(--app-muted)] font-medium">Main Office Street, City, India</p>
                   </div>
 
-                  <div className="border-t border-b border-slate-100 py-0.5 flex-1 min-h-[60px]">
+                  <div className="border-t border-b border-[var(--app-border)] py-0.5 flex-1 min-h-[60px]">
                     <table className="w-full text-[8.5px]">
                       <thead>
-                        <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase text-left">
+                        <tr className="border-b border-[var(--app-border)] text-[var(--app-muted)] font-bold uppercase text-left">
                           <th className="pb-0.5">DESCRIPTION</th>
                           <th className="pb-0.5 text-right w-10">QTY</th>
                           <th className="pb-0.5 text-right w-16">RATE (₹)</th>
@@ -1155,7 +1158,7 @@ export default function ApprovalCenter() {
                       <tbody>
                         {doc.items && doc.items.length > 0 ? (
                           doc.items.map((it, idx) => (
-                            <tr key={idx} className="font-semibold text-slate-700 dark:text-slate-350 border-b border-slate-50/50">
+                            <tr key={idx} className="font-semibold text-[var(--app-heading)] border-b border-slate-50/50">
                               <td className="py-0.5 leading-normal">{it.name || it.description}</td>
                               <td className="py-0.5 text-right">{it.qty || 1}</td>
                               <td className="py-0.5 text-right">{(it.rate || doc.amount).toLocaleString('en-IN')}</td>
@@ -1163,7 +1166,7 @@ export default function ApprovalCenter() {
                             </tr>
                           ))
                         ) : (
-                          <tr className="font-semibold text-slate-705 dark:text-slate-300">
+                          <tr className="font-semibold text-slate-705">
                             <td className="py-1 leading-normal">{doc.narration || 'AI Extracted Voucher Details'}</td>
                             <td className="py-1 text-right">1.0</td>
                             <td className="py-1 text-right">{(doc.amount || 0).toLocaleString('en-IN')}</td>
@@ -1174,27 +1177,27 @@ export default function ApprovalCenter() {
                     </table>
                   </div>
 
-                  <div className="space-y-0.5 text-right text-[8.5px] font-semibold text-slate-600">
+                  <div className="space-y-0.5 text-right text-[8.5px] font-semibold text-[var(--app-heading)]">
                     <div className="flex justify-between pl-24">
-                      <span className="text-slate-400">Taxable Value</span>
+                      <span className="text-[var(--app-muted)]">Taxable Value</span>
                       <span>₹{(doc.taxableAmount || doc.amount || 0).toLocaleString('en-IN')}</span>
                     </div>
                     <div className="flex justify-between pl-24">
-                      <span className="text-slate-400">IGST (18%)</span>
+                      <span className="text-[var(--app-muted)]">IGST (18%)</span>
                       <span>₹{(doc.taxAmount || 0).toLocaleString('en-IN')}</span>
                     </div>
-                    <div className="flex justify-between pl-24 pt-0.5 border-t border-slate-150 text-[10px] font-extrabold text-slate-800 dark:text-white">
+                    <div className="flex justify-between pl-24 pt-0.5 border-t border-[var(--app-border)] text-[10px] font-extrabold text-[var(--app-heading)] dark:text-white">
                       <span>GRAND TOTAL</span>
-                      <span className="text-purple-700 dark:text-purple-400 font-black">₹{(doc.amount || 0).toLocaleString('en-IN')}</span>
+                      <span className="text-[var(--app-accent)] dark:text-[var(--app-accent)] font-black">₹{(doc.amount || 0).toLocaleString('en-IN')}</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Floating zoom control toolbar */}
                 <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-slate-900/95 border border-slate-805 px-2.5 py-0.5 rounded-md flex items-center gap-3 text-white shadow-md z-10 text-[9px]">
-                  <button onClick={() => toast.success('Zoom Out')} className="hover:text-purple-400 transition-colors"><ZoomOut size={11} /></button>
-                  <button onClick={() => toast.success('Zoom In')} className="hover:text-purple-400 transition-colors"><ZoomIn size={11} /></button>
-                  <button onClick={() => toast.success('Toggle Maximize')} className="hover:text-purple-400 transition-colors"><Maximize2 size={10} /></button>
+                  <button onClick={() => toast.success('Zoom Out')} className="hover:text-[var(--app-accent)] transition-colors"><ZoomOut size={11} /></button>
+                  <button onClick={() => toast.success('Zoom In')} className="hover:text-[var(--app-accent)] transition-colors"><ZoomIn size={11} /></button>
+                  <button onClick={() => toast.success('Toggle Maximize')} className="hover:text-[var(--app-accent)] transition-colors"><Maximize2 size={10} /></button>
                 </div>
               </div>
             </div>
@@ -1202,86 +1205,86 @@ export default function ApprovalCenter() {
 
           {/* Right Pane: Editable Form Fields */}
           <div className="col-span-12 lg:col-span-6 flex flex-col min-h-0">
-            <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-805 rounded-xl p-2 shadow-sm flex flex-col min-h-0 flex-1 justify-between">
+            <div className="bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-xl p-2 shadow-sm flex flex-col min-h-0 flex-1 justify-between">
               <div className="space-y-2 overflow-y-auto pr-1 themed-scrollbar">
-                <h3 className="text-slate-400 font-bold text-[9px] tracking-wider uppercase border-b border-slate-100 dark:border-slate-805 pb-0.5 mb-1 shrink-0">EDIT EXTRACTED OCR DATA</h3>
+                <h3 className="text-[var(--app-muted)] font-bold text-[9px] tracking-wider uppercase border-b border-[var(--app-border)] pb-0.5 mb-1 shrink-0">EDIT EXTRACTED OCR DATA</h3>
                 
                 <div className="grid grid-cols-2 gap-2 text-[11px]">
                   <div className="col-span-2 flex flex-col gap-0.5">
-                    <label className="text-slate-400 font-bold text-[8.5px] uppercase">Supplier (Vendor)</label>
+                    <label className="text-[var(--app-muted)] font-bold text-[8.5px] uppercase">Supplier (Vendor)</label>
                     <input 
                       type="text" 
                       value={ocrForm.vendor}
                       onChange={(e) => setOcrForm({...ocrForm, vendor: e.target.value})}
-                      className="w-full px-2 py-1 border rounded-lg outline-none bg-slate-50 dark:bg-slate-950 text-slate-850 dark:text-slate-100 border-slate-200 dark:border-slate-805 focus:border-purple-500 transition-all font-bold text-[11px]"
+                      className="w-full px-2 py-1 border rounded-lg outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)] transition-all font-bold text-[11px]"
                     />
                   </div>
 
                   <div className="flex flex-col gap-0.5">
-                    <label className="text-slate-400 font-bold text-[8.5px] uppercase">Invoice No (Doc No)</label>
+                    <label className="text-[var(--app-muted)] font-bold text-[8.5px] uppercase">Invoice No (Doc No)</label>
                     <input 
                       type="text" 
                       value={ocrForm.docNo}
                       onChange={(e) => setOcrForm({...ocrForm, docNo: e.target.value})}
-                      className="w-full px-2 py-1 border rounded-lg outline-none bg-slate-50 dark:bg-slate-950 text-slate-850 dark:text-slate-100 border-slate-200 dark:border-slate-805 focus:border-purple-500 transition-all font-mono font-bold text-[11px]"
+                      className="w-full px-2 py-1 border rounded-lg outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)] transition-all font-mono font-bold text-[11px]"
                     />
                   </div>
 
                   <div className="flex flex-col gap-0.5">
-                    <label className="text-slate-400 font-bold text-[8.5px] uppercase">Date</label>
+                    <label className="text-[var(--app-muted)] font-bold text-[8.5px] uppercase">Date</label>
                     <input 
                       type="text" 
                       value={ocrForm.docDate}
                       onChange={(e) => setOcrForm({...ocrForm, docDate: e.target.value})}
-                      className="w-full px-2 py-1 border rounded-lg outline-none bg-slate-50 dark:bg-slate-950 text-slate-850 dark:text-slate-100 border-slate-200 dark:border-slate-805 focus:border-purple-500 transition-all font-bold text-[11px]"
+                      className="w-full px-2 py-1 border rounded-lg outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)] transition-all font-bold text-[11px]"
                     />
                   </div>
 
                   <div className="flex flex-col gap-0.5">
-                    <label className="text-slate-400 font-bold text-[8.5px] uppercase">GSTIN</label>
+                    <label className="text-[var(--app-muted)] font-bold text-[8.5px] uppercase">GSTIN</label>
                     <input 
                       type="text" 
                       value={ocrForm.gstin}
                       onChange={(e) => setOcrForm({...ocrForm, gstin: e.target.value})}
-                      className="w-full px-2 py-1 border rounded-lg outline-none bg-slate-50 dark:bg-slate-950 text-slate-850 dark:text-slate-100 border-slate-200 dark:border-slate-805 focus:border-purple-500 transition-all font-mono font-bold text-[11px]"
+                      className="w-full px-2 py-1 border rounded-lg outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)] transition-all font-mono font-bold text-[11px]"
                     />
                   </div>
 
                   <div className="flex flex-col gap-0.5">
-                    <label className="text-slate-400 font-bold text-[8.5px] uppercase">Total Amount</label>
+                    <label className="text-[var(--app-muted)] font-bold text-[8.5px] uppercase">Total Amount</label>
                     <input 
                       type="number" 
                       value={ocrForm.amount}
                       onChange={(e) => setOcrForm({...ocrForm, amount: e.target.value})}
-                      className="w-full px-2 py-1 border rounded-lg outline-none bg-slate-50 dark:bg-slate-950 text-slate-850 dark:text-slate-100 border-slate-200 dark:border-slate-805 focus:border-purple-500 transition-all font-bold text-emerald-600 text-[11px]"
+                      className="w-full px-2 py-1 border rounded-lg outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)] transition-all font-bold text-emerald-500 text-[11px]"
                     />
                   </div>
 
                   <div className="col-span-2 flex flex-col gap-0.5">
-                    <label className="text-slate-400 font-bold text-[8.5px] uppercase">Ledger Account (Party Ledger)</label>
+                    <label className="text-[var(--app-muted)] font-bold text-[8.5px] uppercase">Ledger Account (Party Ledger)</label>
                     <input 
                       type="text" 
                       value={ocrForm.partyLedger}
                       onChange={(e) => setOcrForm({...ocrForm, partyLedger: e.target.value})}
-                      className="w-full px-2 py-1 border rounded-lg outline-none bg-slate-50 dark:bg-slate-950 text-slate-850 dark:text-slate-100 border-slate-200 dark:border-slate-805 focus:border-purple-500 transition-all font-bold text-blue-600 text-[11px]"
+                      className="w-full px-2 py-1 border rounded-lg outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)] transition-all font-bold text-[var(--app-accent)] text-[11px]"
                     />
                   </div>
 
                   <div className="col-span-2 flex flex-col gap-0.5">
-                    <label className="text-slate-400 font-bold text-[8.5px] uppercase">Narration</label>
+                    <label className="text-[var(--app-muted)] font-bold text-[8.5px] uppercase">Narration</label>
                     <textarea 
                       value={ocrForm.narration}
                       onChange={(e) => setOcrForm({...ocrForm, narration: e.target.value})}
-                      className="w-full h-12 px-2 py-1 border rounded-lg outline-none bg-slate-50 dark:bg-slate-950 text-slate-850 dark:text-slate-100 border-slate-200 dark:border-slate-805 focus:border-purple-500 transition-all font-bold text-[11px]"
+                      className="w-full h-12 px-2 py-1 border rounded-lg outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)] transition-all font-bold text-[11px]"
                     />
                   </div>
                 </div>
               </div>
 
-              <div className="border-t border-slate-100 dark:border-slate-800 pt-1.5 mt-1.5 flex justify-end">
+              <div className="border-t border-[var(--app-border)] pt-1.5 mt-1.5 flex justify-end">
                 <button 
                   onClick={handleSaveOcrForm}
-                  className="px-3 py-1 bg-purple-650 hover:bg-purple-700 text-white font-extrabold rounded-lg flex items-center gap-1 text-[11px] transition-all shadow-sm"
+                  className="px-3 py-1 bg-[var(--app-accent)] hover:opacity-90 text-white font-extrabold rounded-lg flex items-center gap-1 text-[11px] transition-all shadow-sm"
                 >
                   <Sparkles size={12} /> Save Changes
                 </button>
@@ -1311,18 +1314,127 @@ export default function ApprovalCenter() {
   };
 
   const renderListView = () => {
+    const SOURCE_TABS = [
+      { id: 'Manual Voucher Entry', label: 'Manual Entry', icon: FileText, section: 'MANUAL' },
+      { id: 'Bulk Upload', label: 'Bulk Batches', icon: Layers, section: 'BULK' },
+      { id: 'OCR Upload', label: 'AI OCR Docs', icon: Sparkles, section: 'OCR' },
+    ];
+    const lc = (s) => (s || '').toLowerCase();
+    const FILTERS = [
+      { key: 'Total', label: 'Total', count: sourceFilteredEntries.length, tone: 'var(--app-accent)' },
+      { key: 'Pending', label: 'Pending', count: sourceFilteredEntries.filter((e) => lc(e.status) === 'pending_approval' || lc(e.statusText).includes('pending')).length, tone: '#F59E0B' },
+      { key: 'Approved', label: 'Approved', count: sourceFilteredEntries.filter((e) => ['approved', 'posted_to_tally'].includes(lc(e.status))).length, tone: '#10B981' },
+      { key: 'Rejected', label: 'Rejected', count: sourceFilteredEntries.filter((e) => lc(e.status) === 'rejected').length, tone: '#EF4444' },
+    ];
+    const filterChips = (
+      <div className="flex items-center gap-1">
+        {FILTERS.map((f) => {
+          const on = filterTab === f.key;
+          return (
+            <button key={f.key} onClick={() => { setFilterTab(f.key); setPage(1); }}
+              className="px-2.5 h-9 rounded-lg text-[11px] font-bold border transition-colors inline-flex items-center gap-1.5"
+              style={on ? { backgroundColor: f.tone, color: '#fff', borderColor: 'transparent' } : { backgroundColor: 'var(--app-control-bg)', color: 'var(--app-heading)', borderColor: 'var(--app-border)' }}>
+              <span>{f.label}</span><span className="tabular-nums opacity-80">{f.count}</span>
+            </button>
+          );
+        })}
+      </div>
+    );
+    const bulkActions = selectedIds.length > 0 ? (
+      <div className="flex items-center gap-2 rounded-lg border px-2.5 h-9" style={{ borderColor: 'var(--app-accent)', backgroundColor: 'var(--app-accent-soft)' }}>
+        <span className="text-[10.5px] font-bold" style={{ color: 'var(--app-accent)' }}>{selectedIds.length} selected</span>
+        <button onClick={handleBulkApprove} className="text-[10.5px] font-extrabold uppercase text-emerald-600 hover:text-emerald-500">Approve</button>
+        <button onClick={handleBulkSyncTally} className="text-[10.5px] font-extrabold uppercase" style={{ color: 'var(--app-accent)' }}>Push</button>
+        <button onClick={() => { selectedIds.forEach((id) => handleReject(id)); setSelectedIds([]); }} className="text-[10.5px] font-extrabold uppercase text-rose-500 hover:text-rose-400">Reject</button>
+        <button onClick={() => setSelectedIds([])} className="text-[10.5px] font-semibold" style={{ color: 'var(--app-muted)' }}>Clear</button>
+      </div>
+    ) : null;
+    const Act = ({ icon: Icon, onClick, title, cls }) => (
+      <button onClick={onClick} title={title} aria-label={title || Icon?.displayName} className={`p-1 rounded-lg transition-all hover:scale-110 active:scale-95 text-[var(--app-muted)] hover:bg-[var(--app-control-hover)] ${cls}`}><Icon size={13} /></button>
+    );
+    const columns = [
+      { key: 'voucherNumber', header: activeSourceTab === 'Bulk Upload' ? 'Batch ID' : 'Voucher No', sortable: true, render: (e) => <span className="font-black" style={{ color: 'var(--app-heading)' }}>{e.voucherNumber}</span> },
+      { key: 'date', header: 'Date', sortable: true, render: (e) => <span className="font-semibold" style={{ color: 'var(--app-muted)' }}>{e.date}</span> },
+      { key: 'company', header: activeSourceTab === 'Bulk Upload' ? 'Filename' : 'Company / Party', sortable: true, render: (e) => <span className="font-bold truncate block max-w-[180px]" title={e.company}>{e.company}</span> },
+      { key: 'type', header: 'Type', render: (e) => <Badge tone="accent">{e.type}</Badge> },
+      { key: 'amount', header: 'Amount', align: 'right', sortable: true, sortValue: (e) => e.amount, render: (e) => <span className="font-black" style={{ color: 'var(--app-heading)' }}>₹{e.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span> },
+      { key: 'confidence', header: 'Confidence', align: 'center', sortable: true, sortValue: (e) => e.confidence, render: (e) => <Badge tone={e.confidence >= 95 ? 'success' : 'warning'}>{e.confidence}%</Badge> },
+      { key: 'status', header: 'Status', align: 'center', render: (e) => <Badge tone={statusTone(e.statusText || e.status)}>{e.statusText}</Badge> },
+      { key: 'file', header: 'File', render: (e) => <button onClick={() => { setSelectedEntryId(e.id); setCurrentView('detail'); }} className="flex items-center gap-1 font-mono text-[10.5px] hover:underline" style={{ color: 'var(--app-accent)' }}><FileText size={11} /> {e.raw?.filename || e.raw?.details?.attachments || 'document.pdf'}</button> },
+      {
+        key: 'actions', header: 'Actions', align: 'center', width: '130px', render: (e) => (
+          <div className="flex items-center justify-center gap-1">
+            <Act icon={Eye} title="Review" cls="hover:text-[var(--app-accent)]" onClick={() => { setSelectedEntryId(e.id); setCurrentView('detail'); }} />
+            {e.status === 'Pending Approval' && (<>
+              <Act icon={CheckCircle2} title="Approve" cls="hover:text-emerald-500" onClick={() => handleApprove(e.id)} />
+              <Act icon={Send} title="Push to Tally" cls="hover:text-[var(--app-accent)]" onClick={() => handleSyncTally(e.id)} />
+              <Act icon={XCircle} title="Reject" cls="hover:text-rose-500" onClick={() => handleReject(e.id)} />
+            </>)}
+            {e.status === 'Approved' && <Act icon={Send} title="Push to Tally" cls="hover:text-[var(--app-accent)]" onClick={() => handleSyncTally(e.id)} />}
+          </div>
+        ),
+      },
+    ];
+
     return (
-      <div className="flex flex-col h-full overflow-hidden text-[12.5px] text-slate-700 dark:text-slate-200 bg-[#f8fafc] dark:bg-slate-950/40 p-1.5">
+      <div className="flex flex-col h-full overflow-hidden">
+        <div className="flex items-center gap-1.5 overflow-x-auto themed-scrollbar pb-2 mb-2.5 shrink-0">
+          {SOURCE_TABS.map((tab) => {
+            const sel = activeSourceTab === tab.id;
+            return (
+              <motion.button key={tab.id} whileTap={{ scale: 0.98 }}
+                onClick={() => { setActiveSourceTab(tab.id); setPage(1); setSelectedIds([]); const f = entries.find((e) => e.source === tab.id); if (f) setSelectedEntryId(f.id); }}
+                className="relative flex items-center gap-2 px-3 py-2 rounded-xl border shrink-0 transition-colors"
+                style={{ borderColor: sel ? 'var(--app-accent)' : 'var(--app-border)', backgroundColor: sel ? 'var(--app-accent-soft)' : 'var(--app-control-bg)', color: sel ? 'var(--app-accent)' : 'var(--app-text)' }}>
+                <span className="h-6 w-6 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: sel ? 'var(--app-accent)' : 'var(--app-control-hover)', color: sel ? '#fff' : 'var(--app-muted)' }}><tab.icon size={12} strokeWidth={2.4} /></span>
+                <span className="text-left leading-tight">
+                  <span className="block text-[7.5px] font-extrabold uppercase tracking-wider opacity-70">{tab.section}</span>
+                  <span className="block text-[11.5px] font-bold">{tab.label}</span>
+                </span>
+              </motion.button>
+            );
+          })}
+        </div>
+
+        <div className="flex-1 overflow-hidden">
+          <DataTable
+            title="Approval Center"
+            description="Review and post AI-processed document vouchers to Tally"
+            icon={CheckCircle2}
+            columns={columns}
+            data={filteredEntries}
+            rowKey={(e) => e.id}
+            loading={loading}
+            emptyText="No vouchers found under this source filter."
+            minWidth="1040px"
+            selectable
+            selectedKeys={selectedIds}
+            onToggleRow={(id) => setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))}
+            onToggleAll={(c) => handleSelectAll(c)}
+            search={{ value: searchQuery, onChange: (v) => { setSearchQuery(v); setPage(1); }, placeholder: 'Search vouchers…' }}
+            filters={filterChips}
+            actions={bulkActions}
+            pagination={{ page: 1, total: filteredEntries.length, label: `${filteredEntries.length} entr${filteredEntries.length === 1 ? 'y' : 'ies'}`, onPrev: () => {}, onNext: () => {}, disableNext: true }}
+          />
+        </div>
+      </div>
+    );
+  };
+
+  // eslint-disable-next-line no-unused-vars
+  const _legacyListView = () => {
+    return (
+      <div className="flex flex-col h-full overflow-hidden text-[12.5px] text-[var(--app-heading)] bg-[#f8fafc] p-1.5">
         
         {/* Title Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between pb-1.5 shrink-0 gap-1.5">
           <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400">
+            <div className="p-1.5 rounded-lg bg-[var(--app-accent-soft)] dark:bg-[var(--app-accent-soft)] text-[var(--app-accent)] dark:text-[var(--app-accent)]">
               <CheckCircle2 size={16} />
             </div>
             <div>
-              <h1 className="text-lg font-bold tracking-tight text-slate-900 dark:text-[var(--app-heading)] leading-none">Approval Center</h1>
-              <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+              <h1 className="text-lg font-bold tracking-tight text-[var(--app-heading)] dark:text-[var(--app-heading)] leading-none">Approval Center</h1>
+              <p className="text-[10px] text-[var(--app-muted)] mt-0.5">
                 Review and post AI-processed document vouchers to Tally
               </p>
             </div>
@@ -1351,11 +1463,11 @@ export default function ApprovalCenter() {
                 }}
                 className={`flex items-center gap-2 px-3 py-1 rounded-lg border text-left min-w-[150px] shrink-0 transition-all duration-200 ${
                   isSelected
-                    ? 'bg-blue-600/10 dark:bg-blue-600/5 border-blue-500/50 text-blue-700 dark:text-blue-400 shadow-sm font-extrabold scale-[1.01]'
-                    : 'bg-white hover:bg-slate-50 dark:bg-[#12161a] dark:hover:bg-[#171d22] border-slate-200 dark:border-slate-800 text-slate-505 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white shadow-sm font-semibold'
+                    ? 'bg-[var(--app-accent-soft)] dark:bg-[var(--app-accent-soft)] border-[var(--app-accent)] text-[var(--app-accent)] dark:text-[var(--app-accent)] shadow-sm font-extrabold scale-[1.01]'
+                    : 'bg-[var(--app-panel-bg)] hover:bg-[var(--app-content-bg)] border-[var(--app-border)] text-[var(--app-muted)] hover:text-[var(--app-heading)] dark:hover:text-white shadow-sm font-semibold'
                 }`}
               >
-                <div className={`p-1 rounded-md ${isSelected ? 'bg-blue-600/20 text-blue-600 dark:text-blue-400' : 'bg-slate-200/50 dark:bg-[#1b2026] text-slate-400'}`}>
+                <div className={`p-1 rounded-md ${isSelected ? 'bg-[var(--app-accent-soft)] text-[var(--app-accent)] dark:text-[var(--app-accent)]' : 'bg-[var(--app-border)]/50 text-[var(--app-muted)]'}`}>
                   <tab.icon size={12} />
                 </div>
                 <div className="space-y-0">
@@ -1368,34 +1480,34 @@ export default function ApprovalCenter() {
         </div>
 
         {/* Main Table Card */}
-        <div className="flex-1 flex flex-col bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm min-h-0">
+        <div className="flex-1 flex flex-col bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-xl overflow-hidden shadow-sm min-h-0">
           
           {/* Table Controls */}
-          <div className="p-1.5 border-b border-slate-200 dark:border-slate-800 shrink-0 flex flex-wrap items-center justify-between gap-2 bg-slate-50/50 dark:bg-slate-900/50">
+          <div className="p-1.5 border-b border-[var(--app-border)] shrink-0 flex flex-wrap items-center justify-between gap-2 bg-[var(--app-content-bg)]/50">
             
             {/* Left: Filter Tabs */}
             <div className="flex items-center gap-1">
               <button 
                 onClick={() => { setFilterTab('Total'); setPage(1); }} 
-                className={`px-2 py-1 rounded-md text-center transition-all text-[11px] font-extrabold ${filterTab === 'Total' ? 'bg-blue-600 text-white shadow-sm' : 'bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700'}`}
+                className={`px-2 py-1 rounded-md text-center transition-all text-[11px] font-extrabold ${filterTab === 'Total' ? 'bg-[var(--app-accent)] text-white shadow-sm' : 'bg-[var(--app-panel-bg)] hover:bg-[var(--app-content-bg)] text-[var(--app-heading)] border border-[var(--app-border)]'}`}
               >
                 {sourceFilteredEntries.length} Total
               </button>
               <button 
                 onClick={() => { setFilterTab('Pending'); setPage(1); }} 
-                className={`px-2 py-1 rounded-md text-center transition-all text-[11px] font-extrabold ${filterTab === 'Pending' ? 'bg-amber-500 text-white shadow-sm' : 'bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700'}`}
+                className={`px-2 py-1 rounded-md text-center transition-all text-[11px] font-extrabold ${filterTab === 'Pending' ? 'bg-amber-500 text-white shadow-sm' : 'bg-[var(--app-panel-bg)] hover:bg-[var(--app-content-bg)] text-[var(--app-heading)] border border-[var(--app-border)]'}`}
               >
                 {sourceFilteredEntries.filter(e => e.status.toLowerCase() === 'pending_approval').length} Pending
               </button>
               <button 
                 onClick={() => { setFilterTab('Approved'); setPage(1); }} 
-                className={`px-2 py-1 rounded-md text-center transition-all text-[11px] font-extrabold ${filterTab === 'Approved' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700'}`}
+                className={`px-2 py-1 rounded-md text-center transition-all text-[11px] font-extrabold ${filterTab === 'Approved' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-[var(--app-panel-bg)] hover:bg-[var(--app-content-bg)] text-[var(--app-heading)] border border-[var(--app-border)]'}`}
               >
                 {sourceFilteredEntries.filter(e => e.status.toLowerCase() === 'approved' || e.status.toLowerCase() === 'posted_to_tally').length} Approved
               </button>
               <button 
                 onClick={() => { setFilterTab('Rejected'); setPage(1); }} 
-                className={`px-2 py-1 rounded-md text-center transition-all text-[11px] font-extrabold ${filterTab === 'Rejected' ? 'bg-rose-600 text-white shadow-sm' : 'bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700'}`}
+                className={`px-2 py-1 rounded-md text-center transition-all text-[11px] font-extrabold ${filterTab === 'Rejected' ? 'bg-rose-600 text-white shadow-sm' : 'bg-[var(--app-panel-bg)] hover:bg-[var(--app-content-bg)] text-[var(--app-heading)] border border-[var(--app-border)]'}`}
               >
                 {sourceFilteredEntries.filter(e => e.status.toLowerCase() === 'rejected').length} Rejected
               </button>
@@ -1404,38 +1516,38 @@ export default function ApprovalCenter() {
             {/* Right: Search & Bulk Actions */}
             <div className="flex items-center gap-2">
               {selectedIds.length > 0 && (
-                <div className="flex items-center gap-1 bg-blue-50/80 dark:bg-blue-950/20 border border-blue-105 dark:border-blue-900/50 px-2 py-0.5 rounded-lg">
-                  <span className="text-[10.5px] font-bold text-blue-700 dark:text-blue-400">
+                <div className="flex items-center gap-1 bg-[var(--app-accent-soft)] dark:bg-[var(--app-accent-soft)] border border-blue-105 dark:border-[var(--app-border)] px-2 py-0.5 rounded-lg">
+                  <span className="text-[10.5px] font-bold text-[var(--app-accent)] dark:text-[var(--app-accent)]">
                     {selectedIds.length} Selected
                   </span>
-                  <span className="text-slate-300">|</span>
+                  <span className="text-[var(--app-muted)]">|</span>
                   <button 
                     onClick={handleBulkApprove}
-                    className="text-[10.5px] font-extrabold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 uppercase tracking-wider transition-all"
+                    className="text-[10.5px] font-extrabold text-emerald-500 hover:text-emerald-700 dark:text-emerald-400 uppercase tracking-wider transition-all"
                   >
                     Approve
                   </button>
-                  <span className="text-slate-300">•</span>
+                  <span className="text-[var(--app-muted)]">•</span>
                   <button 
                     onClick={handleBulkSyncTally}
-                    className="text-[10.5px] font-extrabold text-blue-600 hover:text-blue-700 dark:text-blue-400 uppercase tracking-wider transition-all"
+                    className="text-[10.5px] font-extrabold text-[var(--app-accent)] hover:text-[var(--app-accent)] dark:text-[var(--app-accent)] uppercase tracking-wider transition-all"
                   >
                     Push Tally
                   </button>
-                  <span className="text-slate-300">•</span>
+                  <span className="text-[var(--app-muted)]">•</span>
                   <button 
                     onClick={() => {
                       selectedIds.forEach(id => handleReject(id));
                       setSelectedIds([]);
                     }}
-                    className="text-[10.5px] font-extrabold text-rose-600 hover:text-rose-700 dark:text-rose-400 uppercase tracking-wider transition-all"
+                    className="text-[10.5px] font-extrabold text-rose-500 hover:text-rose-700 dark:text-rose-400 uppercase tracking-wider transition-all"
                   >
                     Reject
                   </button>
-                  <span className="text-slate-300">•</span>
+                  <span className="text-[var(--app-muted)]">•</span>
                   <button 
                     onClick={() => setSelectedIds([])}
-                    className="text-[10.5px] font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors"
+                    className="text-[10.5px] font-semibold text-[var(--app-muted)] hover:text-[var(--app-heading)] dark:hover:text-white transition-colors"
                   >
                     Clear
                   </button>
@@ -1443,13 +1555,13 @@ export default function ApprovalCenter() {
               )}
 
               <div className="relative">
-                <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-[var(--app-muted)]" size={12} />
                 <input
                   type="text"
                   placeholder="Search..."
                   value={searchQuery}
                   onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
-                  className="w-40 sm:w-48 h-7 pl-6 pr-2 rounded-lg border text-[11px] outline-none bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-800 focus:border-blue-500 transition-all"
+                  className="w-40 sm:w-48 h-7 pl-6 pr-2 rounded-lg border text-[11px] outline-none bg-[var(--app-panel-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)] transition-all"
                 />
               </div>
             </div>
@@ -1459,18 +1571,18 @@ export default function ApprovalCenter() {
           <div className="flex-1 overflow-auto themed-scrollbar">
             {loading ? (
               <div className="flex items-center justify-center h-32">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[var(--app-accent)]"></div>
               </div>
             ) : (
               <table className="w-full text-left border-collapse min-w-[900px]">
                 <thead>
-                  <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400 font-bold uppercase text-[10px] bg-slate-50/30 dark:bg-slate-900/20 sticky top-0 backdrop-blur-sm z-10 select-none">
+                  <tr className="border-b border-[var(--app-border)] text-[var(--app-muted)] font-bold uppercase text-[10px] bg-[var(--app-content-bg)]/30 sticky top-0 backdrop-blur-sm z-10 select-none">
                     <th className="py-1.5 px-3 w-10">
                       <input
                         type="checkbox"
                         checked={isAllSelected}
                         onChange={(e) => handleSelectAll(e.target.checked)}
-                        className="w-3 h-3 accent-blue-600 rounded cursor-pointer"
+                        className="w-3 h-3 accent-[var(--app-accent)] rounded cursor-pointer"
                       />
                     </th>
                     <th className="py-1.5 px-3">
@@ -1494,37 +1606,37 @@ export default function ApprovalCenter() {
                       const isSelected = selectedIds.includes(entry.id);
                       
                       const typeColors = {
-                        'Sales Voucher': 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-955/20 dark:text-purple-400 dark:border-purple-900/40',
-                        'Purchase Voucher': 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-900/40',
-                        'Payment Voucher': 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/20 dark:text-indigo-400 dark:border-indigo-900/40',
+                        'Sales Voucher': 'bg-[var(--app-accent-soft)] text-[var(--app-accent)] border-[var(--app-border)] dark:bg-[var(--app-accent-soft)] dark:text-[var(--app-accent)] dark:border-[var(--app-border)]',
+                        'Purchase Voucher': 'bg-[var(--app-accent-soft)] text-[var(--app-accent)] border-[var(--app-border)] dark:bg-[var(--app-accent-soft)] dark:text-[var(--app-accent)] dark:border-[var(--app-border)]',
+                        'Payment Voucher': 'bg-[var(--app-accent-soft)] text-[var(--app-accent)] border-[var(--app-border)] dark:bg-[var(--app-accent-soft)] dark:text-[var(--app-accent)] dark:border-[var(--app-border)]',
                         'Contra Voucher': 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/40',
                         'Debit Note': 'bg-amber-50 text-amber-700 border-amber-250 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900/40',
                         'Credit Note': 'bg-pink-50 text-pink-700 border-pink-200 dark:bg-pink-900/20 dark:text-pink-400 dark:border-pink-900/40',
-                        'Bulk Batch': 'bg-blue-50 text-blue-750 border-blue-150'
-                      }[entry.type] || 'bg-slate-100 text-slate-700 border-slate-300';
+                        'Bulk Batch': 'bg-[var(--app-accent-soft)] text-[var(--app-accent)] border-blue-150'
+                      }[entry.type] || 'bg-[var(--app-table-head-bg)] text-[var(--app-heading)] border-[var(--app-border)]';
 
-                      const rowStatusColors = statusTextColors[entry.statusText] || 'bg-slate-50 text-slate-705 border-slate-200';
+                      const rowStatusColors = statusTextColors[entry.statusText] || 'bg-[var(--app-content-bg)] text-slate-705 border-[var(--app-border)]';
 
                       return (
                         <tr 
                           key={entry.id}
-                          className={`border-b border-slate-100 dark:border-slate-800/60 hover:bg-slate-50/50 dark:hover:bg-slate-900/30 transition-all font-semibold ${isSelected ? 'bg-blue-50/10 dark:bg-blue-900/10' : ''}`}
+                          className={`border-b border-[var(--app-border)] hover:bg-[var(--app-content-bg)]/50 transition-all font-semibold ${isSelected ? 'bg-[var(--app-accent-soft)] dark:bg-[var(--app-accent-soft)]' : ''}`}
                         >
                           <td className="py-1.5 px-3">
                             <input
                               type="checkbox"
                               checked={isSelected}
                               onChange={(e) => handleToggleSelect(entry.id, e)}
-                              className="w-3 h-3 accent-blue-600 rounded cursor-pointer"
+                              className="w-3 h-3 accent-[var(--app-accent)] rounded cursor-pointer"
                             />
                           </td>
-                          <td className="py-1.5 px-3 font-extrabold text-slate-900 dark:text-slate-100">{entry.voucherNumber}</td>
-                          <td className="py-1.5 px-3 text-slate-500 font-semibold">{entry.date}</td>
-                          <td className="py-1.5 px-3 text-slate-805 dark:text-slate-200 font-bold max-w-[180px] truncate" title={entry.company}>{entry.company}</td>
+                          <td className="py-1.5 px-3 font-extrabold text-[var(--app-heading)]">{entry.voucherNumber}</td>
+                          <td className="py-1.5 px-3 text-[var(--app-muted)] font-semibold">{entry.date}</td>
+                          <td className="py-1.5 px-3 text-slate-805 font-bold max-w-[180px] truncate" title={entry.company}>{entry.company}</td>
                           <td className="py-1.5 px-3">
                             <span className={`px-1.5 py-0.25 rounded-md border text-[8.5px] font-bold ${typeColors}`}>{entry.type}</span>
                           </td>
-                          <td className="py-1.5 px-3 text-right font-black text-slate-900 dark:text-white text-[12px]">₹{entry.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                          <td className="py-1.5 px-3 text-right font-black text-[var(--app-heading)] dark:text-white text-[12px]">₹{entry.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
                           <td className="py-1.5 px-3 text-center">
                             <span className={`px-1.5 py-0.25 rounded font-black text-[9.5px] ${entry.confidence >= 95 ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-400' : 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400'}`}>
                               {entry.confidence}%
@@ -1533,7 +1645,7 @@ export default function ApprovalCenter() {
                           <td className="py-1.5 px-3">
                             <span className={`px-1.5 py-0.25 rounded-md border text-[8.5px] font-extrabold ${rowStatusColors}`}>{entry.statusText}</span>
                           </td>
-                          <td className="py-1.5 px-3 text-blue-600 dark:text-blue-400 font-mono text-[10.5px] select-none hover:underline cursor-pointer" onClick={() => { setSelectedEntryId(entry.id); setCurrentView('detail'); }}>
+                          <td className="py-1.5 px-3 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-mono text-[10.5px] select-none hover:underline cursor-pointer" onClick={() => { setSelectedEntryId(entry.id); setCurrentView('detail'); }}>
                             <span className="flex items-center gap-1">
                               <FileText size={11} /> {entry.raw?.filename || entry.raw?.details?.attachments || 'document.pdf'}
                             </span>
@@ -1542,7 +1654,7 @@ export default function ApprovalCenter() {
                             <div className="flex items-center justify-center gap-1">
                               <button 
                                 onClick={() => { setSelectedEntryId(entry.id); setCurrentView('detail'); }}
-                                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors"
+                                className="p-1 hover:bg-[var(--app-table-head-bg)] rounded text-[var(--app-muted)] hover:text-[var(--app-heading)] dark:hover:text-white transition-colors"
                                 title="Open Document Review"
                               >
                                 <Eye size={13} />
@@ -1551,21 +1663,21 @@ export default function ApprovalCenter() {
                                 <>
                                   <button 
                                     onClick={() => handleApprove(entry.id)}
-                                    className="p-1 hover:bg-emerald-50 dark:hover:bg-emerald-955/30 rounded text-emerald-600 transition-colors"
+                                    className="p-1 hover:bg-emerald-50 dark:hover:bg-emerald-955/30 rounded text-emerald-500 transition-colors"
                                     title="Approve"
                                   >
                                     <CheckCircle2 size={13} />
                                   </button>
                                   <button 
                                     onClick={() => handleSyncTally(entry.id)}
-                                    className="p-1 hover:bg-blue-50 dark:hover:bg-blue-955/30 rounded text-blue-600 transition-colors"
+                                    className="p-1 hover:bg-[var(--app-accent-soft)] dark:hover:bg-[var(--app-accent-soft)] rounded text-[var(--app-accent)] transition-colors"
                                     title="Push to Tally"
                                   >
                                     <Send size={13} />
                                   </button>
                                   <button 
                                     onClick={() => handleReject(entry.id)}
-                                    className="p-1 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded text-rose-600 transition-colors"
+                                    className="p-1 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded text-rose-500 transition-colors"
                                     title="Reject"
                                   >
                                     <XCircle size={13} />
@@ -1575,7 +1687,7 @@ export default function ApprovalCenter() {
                               {entry.status === 'Approved' && (
                                 <button 
                                   onClick={() => handleSyncTally(entry.id)}
-                                  className="p-1 hover:bg-blue-50 dark:hover:bg-blue-955/30 rounded text-blue-600 transition-colors"
+                                  className="p-1 hover:bg-[var(--app-accent-soft)] dark:hover:bg-[var(--app-accent-soft)] rounded text-[var(--app-accent)] transition-colors"
                                   title="Push to Tally"
                                 >
                                   <Send size={13} />
@@ -1588,9 +1700,7 @@ export default function ApprovalCenter() {
                     })
                   ) : (
                     <tr>
-                      <td colSpan="10" className="py-6 text-center text-slate-400 font-bold">
-                        No vouchers found under this source filter.
-                      </td>
+                      <td colSpan="10" className="py-10 text-center"><div className="flex flex-col items-center gap-2"><ObjectDoodle name="approve" className="w-28 h-20" /><span className="text-[var(--app-muted)] font-semibold text-[11.5px]">No vouchers found under this source filter.</span></div></td>
                     </tr>
                   )}
                 </tbody>
@@ -1599,12 +1709,12 @@ export default function ApprovalCenter() {
           </div>
 
           {/* Table Footer / Pagination */}
-          <div className="p-1.5 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-[10.5px] font-semibold text-slate-500 shrink-0 bg-slate-50/50 dark:bg-slate-900/50">
+          <div className="p-1.5 border-t border-[var(--app-border)] flex items-center justify-between text-[10.5px] font-semibold text-[var(--app-muted)] shrink-0 bg-[var(--app-content-bg)]/50">
             <span>Showing 1 to {filteredEntries.length} of {filteredEntries.length} entries</span>
             <div className="flex items-center gap-1">
-              <button disabled className="px-2 py-0.5 rounded border bg-white dark:bg-slate-800 text-slate-300 flex items-center justify-center font-bold text-[9.5px]">PREVIOUS</button>
-              <button className="w-5 h-5 rounded bg-blue-600 text-white flex items-center justify-center font-bold text-[10px]">1</button>
-              <button disabled className="px-2 py-0.5 rounded border bg-white dark:bg-slate-800 text-slate-300 flex items-center justify-center font-bold text-[9.5px]">NEXT</button>
+              <button disabled className="px-2 py-0.5 rounded border bg-[var(--app-panel-bg)] text-[var(--app-muted)] flex items-center justify-center font-bold text-[9.5px]">PREVIOUS</button>
+              <button className="w-5 h-5 rounded bg-[var(--app-accent)] text-white flex items-center justify-center font-bold text-[10px]">1</button>
+              <button disabled className="px-2 py-0.5 rounded border bg-[var(--app-panel-bg)] text-[var(--app-muted)] flex items-center justify-center font-bold text-[9.5px]">NEXT</button>
             </div>
           </div>
 

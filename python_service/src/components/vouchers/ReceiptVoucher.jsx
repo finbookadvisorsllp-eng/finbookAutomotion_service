@@ -21,7 +21,7 @@ const ReceiptVoucher = ({ isDark, onBack }) => {
         type={type}
         defaultValue={value}
         placeholder={placeholder}
-        className="w-full h-8 rounded-md border px-2 text-[11px] outline-none transition-all focus:border-sky-400 focus:ring-1 focus:ring-sky-100"
+        className="w-full h-8 rounded-md border px-2 text-[11px] outline-none transition-all focus:border-[var(--app-accent)] focus:ring-1 focus:ring-[var(--app-accent-soft)]"
         style={{ backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.text }}
       />
     </div>
@@ -35,7 +35,7 @@ const ReceiptVoucher = ({ isDark, onBack }) => {
             <ArrowLeft size={16} />
           </button>
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-md flex items-center justify-center bg-sky-100 text-sky-600">
+            <div className="w-6 h-6 rounded-md flex items-center justify-center bg-[var(--app-accent-soft)] text-[var(--app-accent)]">
               <ArrowDownLeft size={12} strokeWidth={2.5} />
             </div>
             <h1 className="text-[14px] font-black tracking-tight" style={{ color: theme.text }}>Receipt Voucher</h1>
@@ -45,7 +45,7 @@ const ReceiptVoucher = ({ isDark, onBack }) => {
           <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-[11px] font-bold hover:bg-slate-50 transition-colors" style={{ borderColor: theme.border, color: theme.text }}>
             <Save size={12} /> Save Draft
           </button>
-          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-white text-[11px] font-bold hover:bg-sky-700 transition-colors bg-sky-600 shadow-sm">
+          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-white text-[11px] font-bold hover:opacity-90 transition-colors bg-[var(--app-accent)] shadow-sm">
             <CheckCircle2 size={12} /> Create Receipt
           </button>
         </div>
@@ -67,7 +67,7 @@ const ReceiptVoucher = ({ isDark, onBack }) => {
           <div className="rounded-xl border shadow-sm overflow-hidden" style={{ borderColor: theme.border, backgroundColor: theme.panel }}>
             <div className="px-3 py-2 border-b font-bold text-[11px] uppercase tracking-wider flex justify-between items-center" style={{ borderColor: theme.border, color: theme.text, backgroundColor: theme.headerBg }}>
               <span>Particulars</span>
-              <button className="flex items-center gap-1 text-sky-600 hover:text-sky-700 transition-colors"><Plus size={12} /> Add Ledger</button>
+              <button className="flex items-center gap-1 text-[var(--app-accent)] hover:text-[var(--app-accent)] transition-colors"><Plus size={12} /> Add Ledger</button>
             </div>
             <div className="p-4 overflow-x-auto">
               <table className="w-full text-left border-collapse">
@@ -90,7 +90,7 @@ const ReceiptVoucher = ({ isDark, onBack }) => {
               <div className="mt-4 pt-4 border-t flex flex-col gap-2" style={{ borderColor: theme.border }}>
                 <label className="text-[10px] font-semibold opacity-60" style={{ color: theme.text }}>Narration</label>
                 <textarea 
-                  className="w-full rounded-md border p-2 text-[11px] outline-none transition-all focus:border-sky-400 focus:ring-1 focus:ring-sky-100 min-h-[60px]"
+                  className="w-full rounded-md border p-2 text-[11px] outline-none transition-all focus:border-[var(--app-accent)] focus:ring-1 focus:ring-[var(--app-accent-soft)] min-h-[60px]"
                   style={{ backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.text }}
                   placeholder="Being amount received from..."
                 ></textarea>

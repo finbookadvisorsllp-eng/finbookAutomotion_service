@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'sonner'
 import ErrorBoundary from '../ErrorBoundary'
+import { ConfirmProvider } from '../../components/ui/ConfirmDialog'
 
 // Single QueryClient for the app lifetime. Defaults are tuned for an internal
 // ERP: don't refetch on every focus, retry once on transient failures.
@@ -20,8 +21,10 @@ export default function AppProviders({ children }) {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        {children}
-        <Toaster richColors position="top-right" closeButton />
+        <ConfirmProvider>
+          {children}
+          <Toaster richColors position="top-right" closeButton />
+        </ConfirmProvider>
       </QueryClientProvider>
     </ErrorBoundary>
   )
