@@ -21,15 +21,16 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
     if (onBack) {
       onBack(activeType);
     } else {
-      if (['sales_invoice', 'sales_order', 'credit_note'].includes(activeType)) {
+      const norm = getNormalizedType(activeType);
+      if (['sales_invoice', 'sales_order', 'credit_note'].includes(norm)) {
         navigate('/sales/inbox');
-      } else if (['purchase_invoice', 'purchase_order', 'debit_note'].includes(activeType)) {
+      } else if (['purchase_invoice', 'purchase_order', 'debit_note'].includes(norm)) {
         navigate('/purchase/inbox');
-      } else if (activeType === 'cash_payment') {
+      } else if (norm === 'cash_payment') {
         navigate('/fund-flow/cash-payment');
-      } else if (activeType === 'bank_payment') {
+      } else if (norm === 'bank_payment') {
         navigate('/fund-flow/bank-payment');
-      } else if (activeType === 'contra') {
+      } else if (norm === 'contra') {
         navigate('/fund-flow/contra');
       } else {
         navigate('/sales/inbox');
@@ -50,6 +51,52 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
     fetchNextInvoiceNumber,
     fetchCreditNoteInvoicesForParty, autofillFromSalesInvoice
   } = useSalesStore();
+
+  const getNormalizedType = (val) => {
+    if (!val) return '';
+    const found = (masterData.voucherTypesFull || []).find(v => v.name === val);
+    if (found) {
+      const parent = found.parent;
+      if (parent === 'Sales') return 'sales_invoice';
+      if (parent === 'Sales Order') return 'sales_order';
+      if (parent === 'Credit Note') return 'credit_note';
+      if (parent === 'Purchase') return 'purchase_invoice';
+      if (parent === 'Purchase Order') return 'purchase_order';
+      if (parent === 'Debit Note') return 'debit_note';
+    }
+    const lower = val.toLowerCase();
+    if (lower === 'sales' || lower.includes('sales_invoice') || lower.includes('sales invoice')) return 'sales_invoice';
+    if (lower.includes('sales_order') || lower.includes('sales order') || lower === 'deliv') return 'sales_order';
+    if (lower.includes('credit_note') || lower.includes('credit note')) return 'credit_note';
+    if (lower === 'purchase' || lower.includes('purchase_invoice') || lower.includes('purchase invoice')) return 'purchase_invoice';
+    if (lower.includes('purchase_order') || lower.includes('purchase order')) return 'purchase_order';
+    if (lower.includes('debit_note') || lower.includes('debit note')) return 'debit_note';
+    return val;
+  };
+
+  const salesParents = ["Sales", "Sales Order", "Credit Note"];
+  const dynamicVoucherTypes = (masterData.voucherTypesFull || [])
+    .filter(vt => salesParents.includes(vt.parent))
+    .map(vt => vt.name);
+  const voucherTypeOptions = dynamicVoucherTypes.length > 0 ? dynamicVoucherTypes : ["Sales", "Sales Order", "Credit Note"];
+
+  const getSelectValue = () => {
+    const val = form.voucherType || 'sales_invoice';
+    if (voucherTypeOptions.includes(val)) return val;
+    if (val === 'sales_invoice') {
+      const match = voucherTypeOptions.find(opt => opt === 'Sales' || opt === 'Sales Invoice');
+      if (match) return match;
+    }
+    if (val === 'sales_order') {
+      const match = voucherTypeOptions.find(opt => opt === 'Sales Order');
+      if (match) return match;
+    }
+    if (val === 'credit_note') {
+      const match = voucherTypeOptions.find(opt => opt === 'Credit Note');
+      if (match) return match;
+    }
+    return val;
+  };
 
   const isOcrReview = !!ocr.result && !!ocr.previewUrl;
   const selectedCompany = useAppStore((s) => s.selectedCompany);
@@ -632,9 +679,9 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
             <h1 className="text-[13px] font-black tracking-tight text-slate-800 dark:text-white uppercase">
               {isOcrReview
                 ? 'OCR Review'
-                : form.voucherType === 'credit_note'
+                : getNormalizedType(form.voucherType) === 'credit_note'
                   ? 'Create Credit Note'
-                  : form.voucherType === 'sales_order'
+                  : getNormalizedType(form.voucherType) === 'sales_order'
                     ? 'Create Sales Order'
                     : 'Create Sales Voucher'}
             </h1>
@@ -729,7 +776,7 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
                 { id: 'contra', label: 'Contra', section: 'CONTRA', icon: RefreshCw },
                 { id: 'others', label: 'Others', section: 'OTHERS', icon: Settings }
               ].map(type => {
-                const isSelected = ['sales_invoice', 'sales_order', 'credit_note'].includes(form.voucherType)
+                const isSelected = ['sales_invoice', 'sales_order', 'credit_note'].includes(getNormalizedType(form.voucherType))
                   ? type.id === 'sales_invoice'
                   : form.voucherType === type.id;
                 return (
@@ -853,14 +900,16 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
                       Voucher Type
                     </label>
                     <select
-                      value={form.voucherType || 'sales_invoice'}
+                      value={getSelectValue()}
                       onChange={(e) => setFormField('voucherType', e.target.value)}
                       className="w-full h-7.5 px-3 rounded-sm border text-[11px] font-bold outline-none bg-white dark:bg-[#12161a]"
                       style={{ borderColor: theme.border, color: theme.text }}
                     >
-                      <option value="sales_invoice">Sales Invoice</option>
-                      <option value="sales_order">Sales Order</option>
-                      <option value="credit_note">Credit Note</option>
+                      {voucherTypeOptions.map((opt) => (
+                        <option key={opt} value={opt}>
+                          {opt}
+                        </option>
+                      ))}
                     </select>
                   </div>
 
@@ -920,10 +969,11 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
                       hasSearch
                       onChange={(v) => {
                         setFormField('partyLedger', v);
-                        if (form.voucherType === 'credit_note') {
+                        const normType = getNormalizedType(form.voucherType);
+                        if (normType === 'credit_note') {
                           setFormField('referenceNumber', '');
                           if (v) fetchCreditNoteInvoicesForParty(v);
-                        } else if (form.voucherType === 'sales_invoice') {
+                        } else if (normType === 'sales_invoice') {
                           fetchSalesOrdersForParty(v);
                           setFormField('referenceNumber', '');
                         }

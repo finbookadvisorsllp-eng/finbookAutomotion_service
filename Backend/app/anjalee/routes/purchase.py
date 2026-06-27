@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 from app.db import get_db
@@ -28,24 +28,30 @@ async def get_summary_stats(
 
 @router.get("/party-ledgers")
 async def get_party_ledgers(
+    request: Request,
     service: PurchaseService = Depends(get_purchase_service)
 ):
-    data = service.get_party_ledgers()
+    company_header = request.headers.get("x-company-id") or request.headers.get("x-company")
+    data = service.get_party_ledgers(company_id=company_header)
     return {"success": True, "data": data}
 
 @router.get("/purchase-ledgers")
 async def get_purchase_ledgers(
+    request: Request,
     service: PurchaseService = Depends(get_purchase_service)
 ):
-    data = service.get_purchase_ledgers()
+    company_header = request.headers.get("x-company-id") or request.headers.get("x-company")
+    data = service.get_purchase_ledgers(company_id=company_header)
     return {"success": True, "data": data}
 
 @router.get("/stock-items")
 async def get_stock_items(
+    request: Request,
     service: PurchaseService = Depends(get_purchase_service)
 ):
     """Return all stock items with name and hsnCode from the stockItems collection."""
-    data = service.get_stock_items()
+    company_header = request.headers.get("x-company-id") or request.headers.get("x-company")
+    data = service.get_stock_items(company_id=company_header)
     return {"success": True, "data": data}
 
 @router.get("/next-invoice-number")
@@ -154,11 +160,30 @@ async def update_status(
     payload: StatusUpdate,
     service: PurchaseService = Depends(get_purchase_service)
 ):
-    data = service.update_status(id, payload)
+    data = await service.update_status(id, payload)
+    if data.get("status") == "FAILED_TALLY":
+        activity_log = data.get("activityLog") or []
+        error_note = "Push to Tally failed."
+        for log in reversed(activity_log):
+            if log.get("action") == "tally_push_failed" or "tally_push_failed" in log.get("action", ""):
+                error_note = log.get("note") or error_note
+                break
+        from fastapi.responses import JSONResponse
+        from fastapi.encoders import jsonable_encoder
+        return JSONResponse(
+            status_code=400,
+            content=jsonable_encoder({
+                "success": False,
+                "message": error_note,
+                "data": data
+            })
+        )
+
     return {
         "success": True,
         "data": data
     }
+
 
 @router.post("/{id}/comments")
 async def add_comment(

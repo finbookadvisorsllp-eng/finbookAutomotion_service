@@ -44,8 +44,69 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
     fetchNextVoucherNumber
   } = useFundFlowStore();
 
+  const getNormalizedType = (val) => {
+    if (!val) return '';
+    const found = (masterData?.voucherTypesFull || []).find(v => v.name === val);
+    if (found) {
+      const parent = found.parent;
+      if (parent === 'Sales') return 'sales_invoice';
+      if (parent === 'Sales Order') return 'sales_order';
+      if (parent === 'Credit Note') return 'credit_note';
+      if (parent === 'Purchase') return 'purchase_invoice';
+      if (parent === 'Purchase Order') return 'purchase_order';
+      if (parent === 'Debit Note') return 'debit_note';
+      if (parent === 'Payment') return 'cash_payment';
+      if (parent === 'Receipt') return 'bank_payment';
+      if (parent === 'Contra') return 'contra';
+    }
+    const lower = val.toLowerCase();
+    if (lower === 'sales' || lower.includes('sales_invoice') || lower.includes('sales invoice')) return 'sales_invoice';
+    if (lower.includes('sales_order') || lower.includes('sales order') || lower === 'deliv') return 'sales_order';
+    if (lower.includes('credit_note') || lower.includes('credit note')) return 'credit_note';
+    if (lower === 'purchase' || lower.includes('purchase_invoice') || lower.includes('purchase invoice')) return 'purchase_invoice';
+    if (lower.includes('purchase_order') || lower.includes('purchase order')) return 'purchase_order';
+    if (lower.includes('debit_note') || lower.includes('debit note')) return 'debit_note';
+    if (lower === 'payment' || lower.includes('cash_payment') || lower.includes('cash payment')) return 'cash_payment';
+    if (lower === 'receipt' || lower.includes('bank_payment') || lower.includes('bank payment')) return 'bank_payment';
+    if (lower === 'contra') return 'contra';
+    return val;
+  };
+
+  const getVoucherTypeOptions = () => {
+    const norm = getNormalizedType(form.voucherType || voucherType);
+    let parent = 'Payment';
+    if (norm === 'bank_payment') parent = 'Receipt';
+    else if (norm === 'contra') parent = 'Contra';
+
+    const dynamicVoucherTypes = (masterData?.voucherTypesFull || [])
+      .filter(vt => vt.parent === parent)
+      .map(vt => vt.name);
+
+    return dynamicVoucherTypes.length > 0 ? dynamicVoucherTypes : [parent];
+  };
+
+  const getSelectValue = () => {
+    const val = form.voucherType || voucherType;
+    const options = getVoucherTypeOptions();
+    if (options.includes(val)) return val;
+    const norm = getNormalizedType(val);
+    if (norm === 'cash_payment') {
+      const match = options.find(opt => opt === 'Payment' || opt === 'Payment Voucher');
+      if (match) return match;
+    }
+    if (norm === 'bank_payment') {
+      const match = options.find(opt => opt === 'Receipt' || opt === 'Receipt Voucher');
+      if (match) return match;
+    }
+    if (norm === 'contra') {
+      const match = options.find(opt => opt === 'Contra');
+      if (match) return match;
+    }
+    return val;
+  };
+
   const navigate = useNavigate();
-  const activeType = form.voucherType || voucherType;
+  const activeType = getNormalizedType(form.voucherType || voucherType);
   const isPaymentOrReceipt = activeType === 'cash_payment' || activeType === 'bank_payment';
 
   const handleCancel = () => {
@@ -64,8 +125,10 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
 
   // Sync voucherType on mount
   useEffect(() => {
-    resetForm(voucherType);
-  }, [voucherType, resetForm]);
+    if (!form._id) {
+      resetForm(voucherType);
+    }
+  }, [voucherType, resetForm, form._id]);
 
   // Auto-fill Voucher Number series-wise on new entry only
   useEffect(() => {
@@ -308,10 +371,6 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
   }, [selectedPartyDetails, setFormValue]);
 
   const validateForm = () => {
-    if (!form.partyLedger && activeType !== 'contra') {
-      toast.error('Party Ledger is required');
-      return false;
-    }
     if (activeType === 'contra') {
       if (!form.sourceLedger) {
         toast.error('Source Ledger is required');
@@ -1085,10 +1144,10 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                       <div className="col-span-12 md:col-span-3">
                         <SearchableDropdown
                           label="2. Voucher Type *"
-                          placeholder={activeType === 'cash_payment' ? "Payment Voucher" : "Receipt Voucher"}
-                          value={activeType === 'cash_payment' ? "Payment Voucher" : "Receipt Voucher"}
-                          readOnly
-                          options={[activeType === 'cash_payment' ? "Payment Voucher" : "Receipt Voucher"]}
+                          placeholder="Select Type"
+                          value={getSelectValue()}
+                          onChange={val => setFormValue('voucherType', val)}
+                          options={getVoucherTypeOptions()}
                           compact
                         />
                       </div>
@@ -2341,12 +2400,9 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                     <SearchableDropdown
                       label="Voucher Type"
                       placeholder="Select Type"
-                      value={typeToDisplay[activeType] || ''}
-                      onChange={val => {
-                        const newType = displayToType[val];
-                        if (newType) resetForm(newType);
-                      }}
-                      options={[typeToDisplay[activeType] || '']}
+                      value={getSelectValue()}
+                      onChange={val => setFormValue('voucherType', val)}
+                      options={getVoucherTypeOptions()}
                       compact
                     />
                     <InputField
@@ -2550,12 +2606,9 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                       <SearchableDropdown
                         label="Voucher Type"
                         placeholder="Select Type"
-                        value={typeToDisplay[activeType] || ''}
-                        onChange={val => {
-                          const newType = displayToType[val];
-                          if (newType) resetForm(newType);
-                        }}
-                        options={[typeToDisplay[activeType] || '']}
+                        value={getSelectValue()}
+                        onChange={val => setFormValue('voucherType', val)}
+                        options={getVoucherTypeOptions()}
                         compact
                       />
                       <InputField
@@ -2573,12 +2626,9 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                       <SearchableDropdown
                         label="Voucher Type"
                         placeholder="Select Type"
-                        value={typeToDisplay[activeType] || ''}
-                        onChange={val => {
-                          const newType = displayToType[val];
-                          if (newType) resetForm(newType);
-                        }}
-                        options={[typeToDisplay[activeType] || '']}
+                        value={getSelectValue()}
+                        onChange={val => setFormValue('voucherType', val)}
+                        options={getVoucherTypeOptions()}
                         compact
                       />
                       <InputField label="Reference Number" placeholder="e.g. REF-001" value={form.referenceNumber || ''} onChange={val => setFormValue('referenceNumber', val)} compact />

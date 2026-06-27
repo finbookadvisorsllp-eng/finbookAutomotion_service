@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import fundflowApi from '../services/fundflowApi';
+import apiClient from '../lib/apiClient';
 
 const DEFAULT_FORM = {
   voucherType:         'cash_payment',
@@ -113,6 +114,8 @@ export const useFundFlowStore = create((set, get) => ({
     costCategories: [],
     gstRates: [],
     tdsRates: [],
+    voucherTypes: [],
+    voucherTypesFull: [],
     loading: false,
   },
 
@@ -177,6 +180,16 @@ export const useFundFlowStore = create((set, get) => ({
     set((s) => ({ masterData: { ...s.masterData, loading: true } }));
     try {
       const res = await fundflowApi.getLedgers();
+      let compData = { voucherTypes: [], voucherTypesFull: [] };
+      try {
+        const compRes = await apiClient.get('/companies/current/master-data').then(r => r.data);
+        if (compRes.success && compRes.data) {
+          compData = compRes.data;
+        }
+      } catch (e) {
+        console.error("Failed to fetch company master data in fundflow:", e);
+      }
+
       if (res.success) {
         const data = res.data;
         if (data && !Array.isArray(data)) {
@@ -189,6 +202,8 @@ export const useFundFlowStore = create((set, get) => ({
               costCategories: data.costCategories || [],
               gstRates: data.gstRates || [],
               tdsRates: data.tdsRates || [],
+              voucherTypes: compData.voucherTypes || [],
+              voucherTypesFull: compData.voucherTypesFull || [],
               loading: false
             }
           });
@@ -202,6 +217,8 @@ export const useFundFlowStore = create((set, get) => ({
               costCategories: [],
               gstRates: [],
               tdsRates: [],
+              voucherTypes: compData.voucherTypes || [],
+              voucherTypesFull: compData.voucherTypesFull || [],
               loading: false
             }
           });

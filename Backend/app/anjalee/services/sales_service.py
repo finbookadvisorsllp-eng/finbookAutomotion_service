@@ -311,10 +311,15 @@ class SalesVoucherService:
                 detail="Failed to update voucher"
             )
 
+        from app.anjalee.services.tally.tally_service import TallyPushService
+        await TallyPushService.handle_voucher_update(self.repo.db, voucher_id, "sales_vouchers")
+
         updated_doc = await self.repo.find_voucher_by_id(voucher_id)
         return serialize_doc(updated_doc)
 
     async def delete_voucher(self, voucher_id: str) -> None:
+        from app.anjalee.services.tally.tally_service import TallyPushService
+        await TallyPushService.delete_payload_by_voucher_id(self.repo.db, voucher_id)
         success = await self.repo.delete_voucher(voucher_id)
         if not success:
             raise HTTPException(
@@ -325,12 +330,12 @@ class SalesVoucherService:
     async def get_party_ledgers(self, company_id: Optional[str] = None) -> List[Dict[str, Any]]:
         return await self.repo.get_party_ledgers(company_id=company_id)
 
-    async def get_sales_ledgers(self) -> List[Dict[str, Any]]:
-        return await self.repo.get_sales_ledgers()
+    async def get_sales_ledgers(self, company_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        return await self.repo.get_sales_ledgers(company_id=company_id)
 
-    async def get_stock_items(self) -> List[Dict[str, Any]]:
+    async def get_stock_items(self, company_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """Return stock items with name and hsnCode from the stockItems collection."""
-        return await self.repo.get_stock_items()
+        return await self.repo.get_stock_items(company_id=company_id)
 
     async def get_invoices_by_party(self, party_name: str) -> List[Dict[str, Any]]:
         """Change by Anjalee: Fetch all sales_invoice vouchers for a party — used for Credit Note reference dropdown."""
@@ -378,25 +383,78 @@ class SalesVoucherService:
         }
 
     async def update_status(self, voucher_id: str, status_val: str, note: Optional[str] = "") -> Dict[str, Any]:
-        update_op = {
-            "$set": {"status": status_val.upper(), "updatedAt": datetime.utcnow()},
-            "$push": {
-                "activityLog": {
-                    "action": f"status_change_{status_val.lower()}",
-                    "note": note,
-                    "at": datetime.utcnow()
+        from app.anjalee.services.tally.tally_service import TallyPushService
+        if status_val.lower() == "approved":
+            update_op = {
+                "$set": {"status": "APPROVED", "updatedAt": datetime.utcnow()},
+                "$push": {
+                    "activityLog": {
+                        "action": "status_change_approved",
+                        "note": note,
+                        "at": datetime.utcnow()
+                    }
                 }
             }
-        }
-        success = await self.repo.update_voucher_custom(voucher_id, update_op)
-        if not success:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Sales voucher with ID {voucher_id} not found"
-            )
+            await self.repo.update_voucher_custom(voucher_id, update_op)
             
-        doc = await self.repo.find_voucher_by_id(voucher_id)
-        return serialize_doc(doc)
+            try:
+                await TallyPushService.generate_and_save_xml(self.repo.db, voucher_id, "sales_vouchers")
+                doc = await self.repo.find_voucher_by_id(voucher_id)
+                return serialize_doc(doc)
+            except Exception as e:
+                fail_op = {
+                    "$set": {"status": "FAILED_TALLY", "updatedAt": datetime.utcnow()},
+                    "$push": {
+                        "activityLog": {
+                            "action": "tally_push_failed",
+                            "note": f"Tally XML generation or validation failed: {str(e)}",
+                            "at": datetime.utcnow()
+                        }
+                    }
+                }
+                await self.repo.update_voucher_custom(voucher_id, fail_op)
+                doc = await self.repo.find_voucher_by_id(voucher_id)
+                return serialize_doc(doc)
+                
+        elif status_val.lower() in ["posted_to_tally", "pushed"]:
+            try:
+                await TallyPushService.push_saved_payload_to_tally(self.repo.db, voucher_id, "sales_vouchers")
+                doc = await self.repo.find_voucher_by_id(voucher_id)
+                return serialize_doc(doc)
+            except Exception as e:
+                fail_op = {
+                    "$set": {"status": "FAILED_TALLY", "updatedAt": datetime.utcnow()},
+                    "$push": {
+                        "activityLog": {
+                            "action": "tally_push_failed",
+                            "note": f"Tally XML push failed: {str(e)}",
+                            "at": datetime.utcnow()
+                        }
+                    }
+                }
+                await self.repo.update_voucher_custom(voucher_id, fail_op)
+                doc = await self.repo.find_voucher_by_id(voucher_id)
+                return serialize_doc(doc)
+        else:
+            update_op = {
+                "$set": {"status": status_val.upper(), "updatedAt": datetime.utcnow()},
+                "$push": {
+                    "activityLog": {
+                        "action": f"status_change_{status_val.lower()}",
+                        "note": note,
+                        "at": datetime.utcnow()
+                    }
+                }
+            }
+            success = await self.repo.update_voucher_custom(voucher_id, update_op)
+            if not success:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Sales voucher with ID {voucher_id} not found"
+                )
+                
+            doc = await self.repo.find_voucher_by_id(voucher_id)
+            return serialize_doc(doc)
 
     async def add_comment(self, voucher_id: str, note: str) -> None:
         update_op = {

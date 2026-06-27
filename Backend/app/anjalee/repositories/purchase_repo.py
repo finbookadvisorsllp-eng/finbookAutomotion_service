@@ -2,7 +2,7 @@ from typing import List, Optional, Dict, Any
 from bson import ObjectId
 from app.anjalee.repositories.base_repo import BaseRepository
 from app.anjalee.constants.business_constants import (
-    PURCHASE_COLLECTION, VOUCHERS_COLLECTION, COUNTERS_COLLECTION, LEDGERS_COLLECTION, STOCK_ITEMS_COLLECTION
+    PURCHASE_COLLECTION, VOUCHERS_COLLECTION, COUNTERS_COLLECTION, LEDGERS_COLLECTION, STOCK_ITEMS_COLLECTION, COMPANIES_COLLECTION
 )
 from pymongo import ReturnDocument
 
@@ -129,9 +129,33 @@ class PurchaseRepository(BaseRepository):
         return next_seq
 
 
-    def get_party_ledgers(self) -> List[Dict[str, Any]]:
+    def get_party_ledgers(self, company_id: Optional[str] = None) -> List[Dict[str, Any]]:
         party_groups = ["Sundry Debtors", "Sundry Creditors"]
-        ledgers = list(self.db[LEDGERS_COLLECTION].find({"groupName": {"$in": party_groups}}))
+        query = {"groupName": {"$in": party_groups}}
+        
+        comp = None
+        if company_id:
+            if len(company_id) == 24:
+                try:
+                    from bson import ObjectId
+                    comp = self.db[COMPANIES_COLLECTION].find_one({"_id": ObjectId(company_id)})
+                except Exception:
+                    pass
+            if not comp:
+                comp = self.db[COMPANIES_COLLECTION].find_one({
+                    "$or": [
+                        {"companyName": company_id},
+                        {"basicCompantFormalName": company_id}
+                    ]
+                })
+        
+        if not comp:
+            comp = self.db[COMPANIES_COLLECTION].find_one()
+
+        if comp:
+            query["companyId"] = comp["_id"]
+
+        ledgers = list(self.db[LEDGERS_COLLECTION].find(query))
         
         results = []
         for l in ledgers:
@@ -161,7 +185,7 @@ class PurchaseRepository(BaseRepository):
             
             if not registration_type:
                 registration_type = "Regular" if gstin else "Consumer"
-
+ 
             if not gst_state and gstin and len(gstin) >= 2:
                 prefix = gstin[:2]
                 from app.anjalee.repositories.sales_repo import STATE_CODES
@@ -176,8 +200,32 @@ class PurchaseRepository(BaseRepository):
             })
         return results
 
-    def get_purchase_ledgers(self) -> List[Dict[str, Any]]:
-        ledgers = list(self.db[LEDGERS_COLLECTION].find({"groupName": "Purchase Accounts"}))
+    def get_purchase_ledgers(self, company_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        query = {"groupName": "Purchase Accounts"}
+        
+        comp = None
+        if company_id:
+            if len(company_id) == 24:
+                try:
+                    from bson import ObjectId
+                    comp = self.db[COMPANIES_COLLECTION].find_one({"_id": ObjectId(company_id)})
+                except Exception:
+                    pass
+            if not comp:
+                comp = self.db[COMPANIES_COLLECTION].find_one({
+                    "$or": [
+                        {"companyName": company_id},
+                        {"basicCompantFormalName": company_id}
+                    ]
+                })
+        
+        if not comp:
+            comp = self.db[COMPANIES_COLLECTION].find_one()
+
+        if comp:
+            query["companyId"] = comp["_id"]
+
+        ledgers = list(self.db[LEDGERS_COLLECTION].find(query))
         
         import re
         slab_re = re.compile(r"(\d+(?:\.\d+)?)\s*%")
@@ -199,12 +247,35 @@ class PurchaseRepository(BaseRepository):
             })
         return results
 
-    def get_stock_items(self) -> List[Dict[str, Any]]:
-        """Fetch stock items with name and HSN code from hsnSacDetails.hsnCode field."""
+    def get_stock_items(self, company_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Fetch stock items with name and HSN code from hsnSacDetails.hsnCode field scoped by company."""
         try:
             results = []
+            query = {}
+            comp = None
+            if company_id:
+                if len(company_id) == 24:
+                    try:
+                        from bson import ObjectId
+                        comp = self.db[COMPANIES_COLLECTION].find_one({"_id": ObjectId(company_id)})
+                    except Exception:
+                        pass
+                if not comp:
+                    comp = self.db[COMPANIES_COLLECTION].find_one({
+                        "$or": [
+                            {"companyName": company_id},
+                            {"basicCompantFormalName": company_id}
+                        ]
+                    })
+            
+            if not comp:
+                comp = self.db[COMPANIES_COLLECTION].find_one()
+
+            if comp:
+                query["companyId"] = comp["_id"]
+
             for doc in self.db[STOCK_ITEMS_COLLECTION].find(
-                {},
+                query,
                 {"itemName": 1, "hsnSacDetails": 1, "gstSettings": 1, "hsnCode": 1, "taxRate": 1,
                  "unit": 1, "unitOfMeasure": 1, "baseUnit": 1}
             ):

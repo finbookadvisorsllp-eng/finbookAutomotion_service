@@ -294,8 +294,31 @@ class SalesVoucherRepository:
             })
         return results
 
-    async def get_sales_ledgers(self) -> List[Dict[str, Any]]:
-        cursor = self.db[LEDGERS_COLLECTION].find({"groupName": "Sales Accounts"})
+    async def get_sales_ledgers(self, company_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        query = {"groupName": "Sales Accounts"}
+        
+        comp = None
+        if company_id:
+            if len(company_id) == 24:
+                try:
+                    comp = await self.db[COMPANIES_COLLECTION].find_one({"_id": ObjectId(company_id)})
+                except Exception:
+                    pass
+            if not comp:
+                comp = await self.db[COMPANIES_COLLECTION].find_one({
+                    "$or": [
+                        {"companyName": company_id},
+                        {"basicCompantFormalName": company_id}
+                    ]
+                })
+        
+        if not comp:
+            comp = await self.db[COMPANIES_COLLECTION].find_one()
+
+        if comp:
+            query["companyId"] = comp["_id"]
+
+        cursor = self.db[LEDGERS_COLLECTION].find(query)
         ledgers = await cursor.to_list(length=1000)
         
         import re
@@ -319,13 +342,35 @@ class SalesVoucherRepository:
             })
         return results
 
-    async def get_stock_items(self) -> List[Dict[str, Any]]:
-        """Fetch stock items with name and HSN code from hsnSacDetails.hsnCode field."""
+    async def get_stock_items(self, company_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Fetch stock items with name and HSN code from hsnSacDetails.hsnCode field, scoped by company."""
         try:
+            query = {}
+            comp = None
+            if company_id:
+                if len(company_id) == 24:
+                    try:
+                        comp = await self.db[COMPANIES_COLLECTION].find_one({"_id": ObjectId(company_id)})
+                    except Exception:
+                        pass
+                if not comp:
+                    comp = await self.db[COMPANIES_COLLECTION].find_one({
+                        "$or": [
+                            {"companyName": company_id},
+                            {"basicCompantFormalName": company_id}
+                        ]
+                    })
+            
+            if not comp:
+                comp = await self.db[COMPANIES_COLLECTION].find_one()
+
+            if comp:
+                query["companyId"] = comp["_id"]
+
             cursor = self.db[STOCK_ITEMS_COLLECTION].find(
-                {},
+                query,
                 {"itemName": 1, "hsnSacDetails": 1, "gstSettings": 1, "hsnCode": 1, "taxRate": 1,
-                 "unit": 1, "unitOfMeasure": 1, "baseUnit": 1}
+                 "unit": 1, "unitOfMeasure": 1, "baseUnit": 1, "inventory": 1, "stockGroupName": 1, "auditInfo": 1}
             )
             docs = await cursor.to_list(length=2000)
             results = []

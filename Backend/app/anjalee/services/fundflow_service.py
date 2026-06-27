@@ -148,6 +148,9 @@ class FundFlowService:
         new_bill_rows = update_data.get("billRows") or []
         self._update_invoice_balances(new_bill_rows)
         
+        from app.anjalee.services.tally.tally_service import TallyPushService
+        TallyPushService.handle_voucher_update_sync(self.repo.db, tx_id, "fund_flow_vouchers")
+
         doc = self.repo.find_transaction_by_id(tx_id)
         return serialize_doc(doc)
 
@@ -156,6 +159,8 @@ class FundFlowService:
         if not doc:
             raise TransactionNotFoundException()
             
+        self.repo.db["tally_payloads"].delete_many({"voucherId": ObjectId(tx_id)})
+        
         # Reverse invoice balances
         bill_rows = doc.get("billRows") or []
         self._reverse_invoice_balances(bill_rows, exclude_tx_id=tx_id)
@@ -312,23 +317,79 @@ class FundFlowService:
             )
 
 
-    def update_status(self, tx_id: str, payload: StatusUpdate) -> Dict[str, Any]:
-        update_op = {
-            "$set": {"status": payload.status, "updatedAt": datetime.now()},
-            "$push": {
-                "activityLog": {
-                    "action": f"status_change_{payload.status}",
-                    "note": payload.note,
-                    "at": datetime.now()
+    async def update_status(self, tx_id: str, payload: StatusUpdate) -> Dict[str, Any]:
+        from app.anjalee.services.tally.tally_service import TallyPushService
+        status_val = payload.status
+        note = payload.note
+
+        if status_val.lower() == "approved":
+            update_op = {
+                "$set": {"status": "APPROVED", "updatedAt": datetime.now()},
+                "$push": {
+                    "activityLog": {
+                        "action": "status_change_approved",
+                        "note": note,
+                        "at": datetime.now()
+                    }
                 }
             }
-        }
-        success = self.repo.update_transaction_custom(tx_id, update_op)
-        if not success:
-            raise TransactionNotFoundException()
+            self.repo.update_transaction_custom(tx_id, update_op)
             
-        doc = self.repo.find_transaction_by_id(tx_id)
-        return serialize_doc(doc)
+            try:
+                await TallyPushService.generate_and_save_xml(self.repo.db, tx_id, "fund_flow_vouchers")
+                doc = self.repo.find_transaction_by_id(tx_id)
+                return serialize_doc(doc)
+            except Exception as e:
+                fail_op = {
+                    "$set": {"status": "FAILED_TALLY", "updatedAt": datetime.now()},
+                    "$push": {
+                        "activityLog": {
+                            "action": "tally_push_failed",
+                            "note": f"Tally XML generation or validation failed: {str(e)}",
+                            "at": datetime.now()
+                        }
+                    }
+                }
+                self.repo.update_transaction_custom(tx_id, fail_op)
+                doc = self.repo.find_transaction_by_id(tx_id)
+                return serialize_doc(doc)
+
+        elif status_val.lower() in ["posted_to_tally", "pushed"]:
+            try:
+                await TallyPushService.push_saved_payload_to_tally(self.repo.db, tx_id, "fund_flow_vouchers")
+                doc = self.repo.find_transaction_by_id(tx_id)
+                return serialize_doc(doc)
+            except Exception as e:
+                fail_op = {
+                    "$set": {"status": "FAILED_TALLY", "updatedAt": datetime.now()},
+                    "$push": {
+                        "activityLog": {
+                            "action": "tally_push_failed",
+                            "note": f"Tally XML push failed: {str(e)}",
+                            "at": datetime.now()
+                        }
+                    }
+                }
+                self.repo.update_transaction_custom(tx_id, fail_op)
+                doc = self.repo.find_transaction_by_id(tx_id)
+                return serialize_doc(doc)
+        else:
+            update_op = {
+                "$set": {"status": payload.status, "updatedAt": datetime.now()},
+                "$push": {
+                    "activityLog": {
+                        "action": f"status_change_{payload.status}",
+                        "note": payload.note,
+                        "at": datetime.now()
+                    }
+                }
+            }
+            success = self.repo.update_transaction_custom(tx_id, update_op)
+            if not success:
+                raise TransactionNotFoundException()
+                
+            doc = self.repo.find_transaction_by_id(tx_id)
+            return serialize_doc(doc)
 
     def get_next_voucher_number(self, voucher_type: str) -> str:
         from app.anjalee.constants.business_constants import FUNDFLOW_PREFIXES

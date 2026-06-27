@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from typing import List, Optional
 from app.db import get_db
 from app.anjalee.repositories.company_repo import CompanyRepository
@@ -26,11 +26,15 @@ async def create_company(payload: CreateCompanyRequest, service: CompanyService 
     return service.create_company(payload)
 
 @router.get("/current/master-data")
-async def get_current_company_master_data(service: CompanyService = Depends(get_company_service)):
+async def get_current_company_master_data(
+    request: Request,
+    service: CompanyService = Depends(get_company_service)
+):
     """
     Fetch master data dynamically for the current company.
     """
-    master_data = service.get_company_master_data()
+    company_header = request.headers.get("x-company-id") or request.headers.get("x-company")
+    master_data = service.get_company_master_data(company_id=company_header)
     return {
         "success": True,
         "data": master_data

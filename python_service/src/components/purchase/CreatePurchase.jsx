@@ -21,15 +21,16 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
     if (onBack) {
       onBack(activeType);
     } else {
-      if (['sales_invoice', 'sales_order', 'credit_note'].includes(activeType)) {
+      const norm = getNormalizedType(activeType);
+      if (['sales_invoice', 'sales_order', 'credit_note'].includes(norm)) {
         navigate('/sales/inbox');
-      } else if (['purchase_invoice', 'purchase_order', 'debit_note'].includes(activeType)) {
+      } else if (['purchase_invoice', 'purchase_order', 'debit_note'].includes(norm)) {
         navigate('/purchase/inbox');
-      } else if (activeType === 'cash_payment') {
+      } else if (norm === 'cash_payment') {
         navigate('/fund-flow/cash-payment');
-      } else if (activeType === 'bank_payment') {
+      } else if (norm === 'bank_payment') {
         navigate('/fund-flow/bank-payment');
-      } else if (activeType === 'contra') {
+      } else if (norm === 'contra') {
         navigate('/fund-flow/contra');
       } else {
         navigate('/purchase/inbox');
@@ -63,6 +64,52 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
     fetchPurchaseInvoicesForParty,
     autofillFromPurchaseInvoice,
   } = usePurchaseStore();
+
+  const getNormalizedType = (val) => {
+    if (!val) return '';
+    const found = (masterData.voucherTypesFull || []).find(v => v.name === val);
+    if (found) {
+      const parent = found.parent;
+      if (parent === 'Sales') return 'sales_invoice';
+      if (parent === 'Sales Order') return 'sales_order';
+      if (parent === 'Credit Note') return 'credit_note';
+      if (parent === 'Purchase') return 'purchase_invoice';
+      if (parent === 'Purchase Order') return 'purchase_order';
+      if (parent === 'Debit Note') return 'debit_note';
+    }
+    const lower = val.toLowerCase();
+    if (lower === 'sales' || lower.includes('sales_invoice') || lower.includes('sales invoice')) return 'sales_invoice';
+    if (lower.includes('sales_order') || lower.includes('sales order') || lower === 'deliv') return 'sales_order';
+    if (lower.includes('credit_note') || lower.includes('credit note')) return 'credit_note';
+    if (lower === 'purchase' || lower.includes('purchase_invoice') || lower.includes('purchase invoice')) return 'purchase_invoice';
+    if (lower.includes('purchase_order') || lower.includes('purchase order')) return 'purchase_order';
+    if (lower.includes('debit_note') || lower.includes('debit note')) return 'debit_note';
+    return val;
+  };
+
+  const purchaseParents = ["Purchase", "Purchase Order", "Debit Note"];
+  const dynamicVoucherTypes = (masterData.voucherTypesFull || [])
+    .filter(vt => purchaseParents.includes(vt.parent))
+    .map(vt => vt.name);
+  const voucherTypeOptions = dynamicVoucherTypes.length > 0 ? dynamicVoucherTypes : ["Purchase", "Purchase Order", "Debit Note"];
+
+  const getSelectValue = () => {
+    const val = form.voucherType || 'purchase_invoice';
+    if (voucherTypeOptions.includes(val)) return val;
+    if (val === 'purchase_invoice') {
+      const match = voucherTypeOptions.find(opt => opt === 'Purchase' || opt === 'Purchase Invoice');
+      if (match) return match;
+    }
+    if (val === 'purchase_order') {
+      const match = voucherTypeOptions.find(opt => opt === 'Purchase Order');
+      if (match) return match;
+    }
+    if (val === 'debit_note') {
+      const match = voucherTypeOptions.find(opt => opt === 'Debit Note');
+      if (match) return match;
+    }
+    return val;
+  };
 
   const selectedCompany = useAppStore((s) => s.selectedCompany);
 
@@ -722,9 +769,9 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
         <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-1.5 shrink-0 border-b bg-white dark:bg-[#0d0f12]" style={{ borderColor: theme.border }}>
           <div className="flex items-center gap-4">
             <h1 className="text-[13px] font-black tracking-tight text-slate-800 dark:text-white uppercase">
-              {form.voucherType === 'debit_note'
+              {getNormalizedType(form.voucherType) === 'debit_note'
                 ? 'Create Debit Note'
-                : form.voucherType === 'purchase_order'
+                : getNormalizedType(form.voucherType) === 'purchase_order'
                   ? 'Create Purchase Order'
                   : 'Create Purchase Voucher'}
             </h1>
@@ -812,7 +859,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                 { id: 'contra', label: 'Contra', section: 'CONTRA', icon: RefreshCw },
                 { id: 'others', label: 'Others', section: 'OTHERS', icon: Settings }
               ].map(type => {
-                const isSelected = ['purchase_invoice', 'purchase_order', 'debit_note'].includes(form.voucherType)
+                const isSelected = ['purchase_invoice', 'purchase_order', 'debit_note'].includes(getNormalizedType(form.voucherType))
                   ? type.id === 'purchase_invoice'
                   : form.voucherType === type.id;
                 return (
@@ -913,14 +960,16 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                       Voucher Type
                     </label>
                     <select
-                      value={form.voucherType || 'purchase_invoice'}
+                      value={getSelectValue()}
                       onChange={(e) => updateForm({ voucherType: e.target.value })}
                       className="w-full h-7.5 px-3 rounded-sm border text-[11px] font-bold outline-none bg-white dark:bg-[#12161a]"
                       style={{ borderColor: theme.border, color: theme.text }}
                     >
-                      <option value="purchase_invoice">Purchase Invoice</option>
-                      <option value="purchase_order">Purchase Order</option>
-                      <option value="debit_note">Debit Note</option>
+                      {voucherTypeOptions.map((opt) => (
+                        <option key={opt} value={opt}>
+                          {opt}
+                        </option>
+                      ))}
                     </select>
                   </div>
 
@@ -977,10 +1026,11 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                       hasSearch
                       onChange={(v) => {
                         updateForm({ partyLedger: v });
-                        if (form.voucherType === 'debit_note') {
+                        const normType = getNormalizedType(form.voucherType);
+                        if (normType === 'debit_note') {
                           updateForm({ referenceNumber: '' });
                           if (v) fetchPurchaseInvoicesForParty(v);
-                        } else if (form.voucherType === 'purchase_invoice') {
+                        } else if (normType === 'purchase_invoice') {
                           fetchPurchaseOrdersForParty(v);
                           updateForm({ poNumber: '' });
                         }

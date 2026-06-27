@@ -592,11 +592,30 @@ async def update_status(
     payload: StatusUpdate,
     service: FundFlowService = Depends(get_fundflow_service)
 ):
-    data = service.update_status(id, payload)
+    data = await service.update_status(id, payload)
+    if data.get("status") == "FAILED_TALLY":
+        activity_log = data.get("activityLog") or []
+        error_note = "Push to Tally failed."
+        for log in reversed(activity_log):
+            if log.get("action") == "tally_push_failed" or "tally_push_failed" in log.get("action", ""):
+                error_note = log.get("note") or error_note
+                break
+        from fastapi.responses import JSONResponse
+        from fastapi.encoders import jsonable_encoder
+        return JSONResponse(
+            status_code=400,
+            content=jsonable_encoder({
+                "success": False,
+                "message": error_note,
+                "data": data
+            })
+        )
+
     return {
         "success": True,
         "data": data
     }
+
 
 @router.post("/{id}/comments")
 async def add_comment(

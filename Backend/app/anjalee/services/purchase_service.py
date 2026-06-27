@@ -136,31 +136,91 @@ class PurchaseService:
         if not success:
             raise TransactionNotFoundException()
             
+        from app.anjalee.services.tally.tally_service import TallyPushService
+        TallyPushService.handle_voucher_update_sync(self.repo.db, tx_id, "purchase_vouchers")
+
         doc = self.repo.find_transaction_by_id(tx_id)
         return serialize_doc(doc)
 
     def delete_transaction(self, tx_id: str) -> None:
+        self.repo.db["tally_payloads"].delete_many({"voucherId": ObjectId(tx_id)})
         success = self.repo.delete_transaction(tx_id)
         if not success:
             raise TransactionNotFoundException()
 
-    def update_status(self, tx_id: str, payload: StatusUpdate) -> Dict[str, Any]:
-        update_op = {
-            "$set": {"status": payload.status, "updatedAt": datetime.now()},
-            "$push": {
-                "activityLog": {
-                    "action": f"status_change_{payload.status}",
-                    "note": payload.note,
-                    "at": datetime.now()
+    async def update_status(self, tx_id: str, payload: StatusUpdate) -> Dict[str, Any]:
+        from app.anjalee.services.tally.tally_service import TallyPushService
+        status_val = payload.status
+        note = payload.note
+
+        if status_val.lower() == "approved":
+            update_op = {
+                "$set": {"status": "APPROVED", "updatedAt": datetime.now()},
+                "$push": {
+                    "activityLog": {
+                        "action": "status_change_approved",
+                        "note": note,
+                        "at": datetime.now()
+                    }
                 }
             }
-        }
-        success = self.repo.update_transaction_custom(tx_id, update_op)
-        if not success:
-            raise TransactionNotFoundException()
+            self.repo.update_transaction_custom(tx_id, update_op)
             
-        doc = self.repo.find_transaction_by_id(tx_id)
-        return serialize_doc(doc)
+            try:
+                await TallyPushService.generate_and_save_xml(self.repo.db, tx_id, "purchase_vouchers")
+                doc = self.repo.find_transaction_by_id(tx_id)
+                return serialize_doc(doc)
+            except Exception as e:
+                fail_op = {
+                    "$set": {"status": "FAILED_TALLY", "updatedAt": datetime.now()},
+                    "$push": {
+                        "activityLog": {
+                            "action": "tally_push_failed",
+                            "note": f"Tally XML generation or validation failed: {str(e)}",
+                            "at": datetime.now()
+                        }
+                    }
+                }
+                self.repo.update_transaction_custom(tx_id, fail_op)
+                doc = self.repo.find_transaction_by_id(tx_id)
+                return serialize_doc(doc)
+
+        elif status_val.lower() in ["posted_to_tally", "pushed"]:
+            try:
+                await TallyPushService.push_saved_payload_to_tally(self.repo.db, tx_id, "purchase_vouchers")
+                doc = self.repo.find_transaction_by_id(tx_id)
+                return serialize_doc(doc)
+            except Exception as e:
+                fail_op = {
+                    "$set": {"status": "FAILED_TALLY", "updatedAt": datetime.now()},
+                    "$push": {
+                        "activityLog": {
+                            "action": "tally_push_failed",
+                            "note": f"Tally XML push failed: {str(e)}",
+                            "at": datetime.now()
+                        }
+                    }
+                }
+                self.repo.update_transaction_custom(tx_id, fail_op)
+                doc = self.repo.find_transaction_by_id(tx_id)
+                return serialize_doc(doc)
+        else:
+            update_op = {
+                "$set": {"status": payload.status, "updatedAt": datetime.now()},
+                "$push": {
+                    "activityLog": {
+                        "action": f"status_change_{payload.status}",
+                        "note": payload.note,
+                        "at": datetime.now()
+                    }
+                }
+            }
+            success = self.repo.update_transaction_custom(tx_id, update_op)
+            if not success:
+                raise TransactionNotFoundException()
+                
+            doc = self.repo.find_transaction_by_id(tx_id)
+            return serialize_doc(doc)
 
     def add_comment(self, tx_id: str, payload: CommentRequest) -> None:
         update_op = {
@@ -176,15 +236,15 @@ class PurchaseService:
         if not success:
             raise TransactionNotFoundException()
 
-    def get_party_ledgers(self) -> List[Dict[str, Any]]:
-        return self.repo.get_party_ledgers()
+    def get_party_ledgers(self, company_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        return self.repo.get_party_ledgers(company_id=company_id)
 
-    def get_purchase_ledgers(self) -> List[Dict[str, Any]]:
-        return self.repo.get_purchase_ledgers()
+    def get_purchase_ledgers(self, company_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        return self.repo.get_purchase_ledgers(company_id=company_id)
 
-    def get_stock_items(self) -> List[Dict[str, Any]]:
+    def get_stock_items(self, company_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """Return stock items with name and hsnCode from the stockItems collection."""
-        return self.repo.get_stock_items()
+        return self.repo.get_stock_items(company_id=company_id)
 
     def get_invoices_by_party(self, party_name: str) -> List[Dict[str, Any]]:
         """Fetch all purchase_invoice vouchers for a party — used for Debit Note reference dropdown."""

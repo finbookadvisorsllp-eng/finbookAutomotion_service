@@ -1,0 +1,32 @@
+<ENVELOPE>
+    <HEADER>
+        <VERSION>1</VERSION>
+        <TALLYREQUEST>IMPORT</TALLYREQUEST>
+        <TYPE>DATA</TYPE>
+        <ID>All Masters</ID>
+    </HEADER>
+    <BODY>
+        <DESC>
+            <STATICVARIABLES>
+                <SVCURRENTCOMPANY>{{companyName}}</SVCURRENTCOMPANY>
+            </STATICVARIABLES>
+        </DESC>
+        <DATA>
+            <TALLYMESSAGE xmlns:UDF="TallyUDF">
+                <VOUCHER Action="{{action}}" DATE="{{voucherDate}}" VCHTYPE="{{voucherType}}" MASTERID="{{masterId}}">
+                    <MASTERID>{{masterId}}</MASTERID>
+                    <ALTERID>{{alterId}}</ALTERID>
+                    <DATE>{{voucherDate}}</DATE>
+                    <VOUCHERTYPENAME>{{voucherType}}</VOUCHERTYPENAME>
+                    <PERSISTEDVIEW>{{persistedView}}</PERSISTEDVIEW>
+                    {{narration}}
+                    {{basicShipDeliveryNote}}
+                    <PARTYNAME>{{partyName}}</PARTYNAME>
+                    {{partyLedgerName}}
+                    {{ledgerEntries}}
+                    {{inventoryEntries}}
+                </VOUCHER>
+            </TALLYMESSAGE>
+        </DATA>
+    </BODY>
+</ENVELOPE>

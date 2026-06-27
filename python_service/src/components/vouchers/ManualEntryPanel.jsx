@@ -66,7 +66,7 @@ const getUnifiedTx = (tx, tab) => {
   else if (typeLabel === 'contra') typeLabel = 'Contra';
   else if (typeLabel) typeLabel = typeLabel.charAt(0).toUpperCase() + typeLabel.slice(1).replace('_', ' ');
 
-  let party = tx.partyLedger || tx.partyLedgerName || '';
+  let party = tx.partyLedger || tx.partyLedgerName || tx.againstLedger || '';
   if (!party && tx.sourceLedger && tx.destinationLedger) {
     party = `${tx.sourceLedger} → ${tx.destinationLedger}`;
   }
@@ -688,7 +688,9 @@ const ManualEntryPanel = ({ isDark }) => {
                       <th className="p-2.5 font-black uppercase tracking-wider text-slate-500 border-r" style={{ borderColor: theme.border }}>Voucher No</th>
                       <th className="p-2.5 font-black uppercase tracking-wider text-slate-500 border-r" style={{ borderColor: theme.border }}>Voucher Date</th>
                       <th className="p-2.5 font-black uppercase tracking-wider text-slate-500 border-r" style={{ borderColor: theme.border }}>Voucher Type</th>
-                      <th className="p-2.5 font-black uppercase tracking-wider text-slate-500 border-r" style={{ borderColor: theme.border }}>Party / Ledger</th>
+                      <th className="p-2.5 font-black uppercase tracking-wider text-slate-500 border-r" style={{ borderColor: theme.border }}>
+                        {activeTab === 'cash_payment' ? 'Payment Account' : activeTab === 'bank_payment' ? 'Receipt Account' : 'Party / Ledger'}
+                      </th>
                       <th className="p-2.5 font-black uppercase tracking-wider text-slate-500 border-r text-right" style={{ borderColor: theme.border }}>Amount</th>
                       <th className="p-2.5 font-black uppercase tracking-wider text-slate-500 border-r text-center" style={{ borderColor: theme.border }}>Status</th>
                       <th className="p-2.5 font-black uppercase tracking-wider text-slate-500 border-r text-center" style={{ borderColor: theme.border }}>Created By</th>
