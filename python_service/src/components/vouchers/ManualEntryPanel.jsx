@@ -475,204 +475,35 @@ const ManualEntryPanel = ({ isDark }) => {
                   className="w-full text-left rounded-lg px-2.5 py-2 text-[11.5px] font-semibold transition-colors hover:bg-[var(--app-control-hover)]" style={{ color: 'var(--app-heading)' }}>
                   {label}
                 </button>
-                {['sales_invoice', 'purchase_invoice'].includes(activeTab) ? (
-                  <div className="relative">
-                    <button
-                      onClick={() => setShowCreateDropdown(!showCreateDropdown)}
-                      className="px-4 py-1.5 bg-[#4f46e5] hover:bg-indigo-700 text-white font-black text-[10.5px] uppercase tracking-wider rounded-lg shadow-sm flex items-center gap-1.5 transition-all cursor-pointer"
-                    >
-                      <Plus size={13} strokeWidth={3} />
-                      Create Voucher
-                      <ChevronDown size={12} />
-                    </button>
-                    {showCreateDropdown && (
-                      <div className="absolute right-0 mt-1.5 w-44 bg-white dark:bg-[#0d0f12] border border-slate-200 dark:border-slate-800 rounded-lg shadow-xl z-50 overflow-hidden py-1 animate-in fade-in slide-in-from-top-1 duration-150">
-                        {activeTab === 'sales_invoice' ? (
-                          <>
-                            <button
-                              onClick={() => {
-                                setShowCreateDropdown(false);
-                                handleCreateVoucherWithType('sales_order');
-                              }}
-                              className="w-full px-4 py-2 text-left text-[11.5px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors uppercase"
-                            >
-                              Sales Order
-                            </button>
-                            <button
-                              onClick={() => {
-                                setShowCreateDropdown(false);
-                                handleCreateVoucherWithType('sales_invoice');
-                              }}
-                              className="w-full px-4 py-2 text-left text-[11.5px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors uppercase"
-                            >
-                              Sales Invoice
-                            </button>
-                            <button
-                              onClick={() => {
-                                setShowCreateDropdown(false);
-                                handleCreateVoucherWithType('credit_note');
-                              }}
-                              className="w-full px-4 py-2 text-left text-[11.5px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors uppercase"
-                            >
-                              Credit Note
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <button
-                              onClick={() => {
-                                setShowCreateDropdown(false);
-                                handleCreateVoucherWithType('purchase_order');
-                              }}
-                              className="w-full px-4 py-2 text-left text-[11.5px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors uppercase"
-                            >
-                              Purchase Order
-                            </button>
-                            <button
-                              onClick={() => {
-                                setShowCreateDropdown(false);
-                                handleCreateVoucherWithType('purchase_invoice');
-                              }}
-                              className="w-full px-4 py-2 text-left text-[11.5px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors uppercase"
-                            >
-                              Purchase Invoice
-                            </button>
-                            <button
-                              onClick={() => {
-                                setShowCreateDropdown(false);
-                                handleCreateVoucherWithType('debit_note');
-                              }}
-                              className="w-full px-4 py-2 text-left text-[11.5px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors uppercase"
-                            >
-                              Debit Note
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <button
-                    onClick={handleCreateVoucher}
-                    className="px-4 py-1.5 bg-[#4f46e5] hover:bg-indigo-700 text-white font-black text-[10.5px] uppercase tracking-wider rounded-lg shadow-sm flex items-center gap-1.5 transition-all"
-                  >
-                    <Plus size={13} strokeWidth={3} />
-                    Create Voucher
-                  </button>
-                )}
-              </div>
-            </div>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </>
+  );
 
-            {/* List Table container */}
-            <div className="flex-1 border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0d0f12] overflow-hidden flex flex-col relative rounded-xl shadow-sm">
-              {listLoading && (
-                <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/60 dark:bg-black/60 backdrop-blur-sm">
-                  <div className="flex items-center gap-2 px-4 py-2 border rounded-xl bg-white dark:bg-[#12161a]" style={{ borderColor: theme.border }}>
-                    <Loader2 size={16} className="animate-spin text-indigo-600" />
-                    <span className="text-[10px] font-black uppercase text-slate-600 dark:text-slate-300">Loading list data...</span>
-                  </div>
-                </div>
-              )}
-
-              <div className="flex-1 overflow-auto custom-scrollbar">
-                <table className="w-full text-left border-collapse min-w-[900px] text-[10.5px]">
-                  <thead className="sticky top-0 z-10 select-none bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
-                    <tr>
-                      <th className="p-2.5 font-black uppercase tracking-wider text-slate-500 border-r" style={{ borderColor: theme.border }}>Voucher No</th>
-                      <th className="p-2.5 font-black uppercase tracking-wider text-slate-500 border-r" style={{ borderColor: theme.border }}>Voucher Date</th>
-                      <th className="p-2.5 font-black uppercase tracking-wider text-slate-500 border-r" style={{ borderColor: theme.border }}>Voucher Type</th>
-                      <th className="p-2.5 font-black uppercase tracking-wider text-slate-500 border-r" style={{ borderColor: theme.border }}>
-                        {activeTab === 'cash_payment' ? 'Payment Account' : activeTab === 'bank_payment' ? 'Receipt Account' : 'Party / Ledger'}
-                      </th>
-                      <th className="p-2.5 font-black uppercase tracking-wider text-slate-500 border-r text-right" style={{ borderColor: theme.border }}>Amount</th>
-                      <th className="p-2.5 font-black uppercase tracking-wider text-slate-500 border-r text-center" style={{ borderColor: theme.border }}>Status</th>
-                      <th className="p-2.5 font-black uppercase tracking-wider text-slate-500 border-r text-center" style={{ borderColor: theme.border }}>Created By</th>
-                      <th className="p-2.5 font-black uppercase tracking-wider text-slate-500 border-r text-center" style={{ borderColor: theme.border }}>Sync Status</th>
-                      <th className="p-2.5 font-black uppercase tracking-wider text-slate-505 text-center w-[160px]">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {unifiedList.length > 0 ? (
-                      unifiedList.map((tx, idx) => (
-                        <tr
-                          key={tx._id || idx}
-                          className="border-b hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors font-bold text-slate-700 dark:text-slate-300"
-                          style={{ borderColor: theme.border }}
-                        >
-                          <td className="p-2.5 border-r font-black" style={{ borderColor: theme.border }}>{tx.voucherNo}</td>
-                          <td className="p-2.5 border-r text-slate-505" style={{ borderColor: theme.border }}>
-                            {tx.date ? new Date(tx.date).toLocaleDateString('en-IN') : '—'}
-                          </td>
-                          <td className="p-2.5 border-r font-black text-indigo-600 dark:text-indigo-400" style={{ borderColor: theme.border }}>
-                            {tx.type}
-                          </td>
-                          <td className="p-2.5 border-r truncate max-w-[200px]" style={{ borderColor: theme.border }}>{tx.party}</td>
-                          <td className="p-2.5 border-r text-right font-black text-emerald-600 dark:text-emerald-400" style={{ borderColor: theme.border }}>
-                            ₹ {tx.amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </td>
-                          <td className="p-2.5 border-r text-center uppercase text-[9px]" style={{ borderColor: theme.border }}>
-                            <span className={`px-2.5 py-0.5 rounded-full font-black ${
-                              tx.status === 'approved' ? 'bg-emerald-105 text-emerald-700' :
-                              tx.status === 'pending_review' ? 'bg-amber-105 text-amber-700' :
-                              tx.status === 'rejected' ? 'bg-rose-105 text-rose-700' : 'bg-slate-105 text-slate-700'
-                            }`}>
-                              {tx.status.replace('_', ' ')}
-                            </span>
-                          </td>
-                          <td className="p-2.5 border-r text-center text-slate-505" style={{ borderColor: theme.border }}>{tx.createdBy}</td>
-                          <td className="p-2.5 border-r text-center" style={{ borderColor: theme.border }}>
-                            <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black ${
-                              tx.syncStatus === 'Synced' ? 'bg-blue-105 text-blue-700' : 'bg-slate-105 text-slate-500'
-                            }`}>
-                              {tx.syncStatus}
-                            </span>
-                          </td>
-                          <td className="p-2.5 text-center">
-                            <div className="flex items-center justify-center gap-1">
-                              <button
-                                onClick={() => handleEditRow(tx._id, tx.rawType)}
-                                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 text-indigo-650 rounded-lg transition-all"
-                                title="Edit"
-                              >
-                                <Edit3 size={12.5} />
-                              </button>
-                              <button
-                                onClick={() => handleCloneRow(tx._id, tx.rawType)}
-                                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 text-teal-650 rounded-lg transition-all"
-                                title="Clone"
-                              >
-                                <Copy size={12.5} />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteRow(tx._id)}
-                                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 text-rose-650 rounded-lg transition-all"
-                                title="Delete"
-                              >
-                                <Trash2 size={12.5} />
-                              </button>
-                              {tx.status !== 'approved' && (
-                                <button
-                                  onClick={() => handlePushToTallyRow(tx._id)}
-                                  className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 text-emerald-650 rounded-lg transition-all"
-                                  title="Push to Tally"
-                                >
-                                  <Send size={12.5} />
-                                </button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan="9" className="p-12 text-center text-slate-400 font-bold">
-                          No saved vouchers found for this type. Click "+ Create Voucher" to add one.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+  return (
+    <div className="flex flex-col h-full w-full overflow-hidden">
+      {/* Voucher type tabs */}
+      <div className="flex items-center gap-1.5 overflow-x-auto themed-scrollbar pb-2 mb-2.5 shrink-0">
+        {VOUCHER_TABS.map((tab) => {
+          const sel = viewMode === 'form' ? activeFormType === tab.id : activeTab === tab.id;
+          return (
+            <motion.button key={tab.id} onClick={() => handleTabClick(tab.id)} whileTap={{ scale: 0.98 }}
+              className="relative flex items-center gap-2 px-3 py-2 rounded-xl border shrink-0 transition-colors"
+              style={{ borderColor: sel ? 'var(--app-accent)' : 'var(--app-border)', backgroundColor: sel ? 'var(--app-accent-soft)' : 'var(--app-control-bg)', color: sel ? 'var(--app-accent)' : 'var(--app-text)' }}>
+              <span className="h-6 w-6 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: sel ? 'var(--app-accent)' : 'var(--app-control-hover)', color: sel ? '#fff' : 'var(--app-muted)' }}>
+                <tab.icon size={12} strokeWidth={2.4} />
+              </span>
+              <span className="text-left leading-tight">
+                <span className="block text-[7.5px] font-extrabold uppercase tracking-wider opacity-70">{tab.section}</span>
+                <span className="block text-[11.5px] font-bold">{tab.label}</span>
+              </span>
+            </motion.button>
+          );
+        })}
+      </div>
 
       {/* Work area */}
       <div className="flex-1 overflow-hidden">
