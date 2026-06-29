@@ -375,59 +375,102 @@ class SalesVoucherRepository:
             docs = await cursor.to_list(length=2000)
             results = []
             for doc in docs:
-                name = doc.get("itemName", "")
-                if not name:
-                    continue
-                # Primary: hsnSacDetails.hsnCode/hsn  Fallback: top-level hsnCode
-                hsn_sac = doc.get("hsnSacDetails") or {}
-                hsn_code = (
-                    hsn_sac.get("hsnCode")
-                    or hsn_sac.get("hsn")
-                    or doc.get("hsnCode")
-                    or ""
-                )
-                # Primary: gstSettings.gstRate/igstRate  Fallback: cgstRate + sgstRate, then top-level taxRate
-                gst_settings = doc.get("gstSettings") or {}
-                gst_rate = gst_settings.get("gstRate") or gst_settings.get("igstRate")
-                if gst_rate is None or gst_rate == 0:
-                    cgst = gst_settings.get("cgstRate")
-                    sgst = gst_settings.get("sgstRate")
-                    cgst_val = float(cgst) if cgst is not None else 0.0
-                    sgst_val = float(sgst) if sgst is not None else 0.0
-                    gst_rate = cgst_val + sgst_val
-                if not gst_rate:
-                    gst_rate = doc.get("taxRate") or 0
+                try:
+                    name = doc.get("itemName", "")
+                    if not name:
+                        continue
+                    # Primary: hsnSacDetails.hsnCode/hsn  Fallback: top-level hsnCode
+                    hsn_sac = doc.get("hsnSacDetails") or {}
+                    hsn_code = (
+                        hsn_sac.get("hsnCode")
+                        or hsn_sac.get("hsn")
+                        or doc.get("hsnCode")
+                        or ""
+                    )
+                    # Primary: gstSettings.gstRate/igstRate  Fallback: cgstRate + sgstRate, then top-level taxRate
+                    gst_settings = doc.get("gstSettings") or {}
+                    gst_rate = gst_settings.get("gstRate") or gst_settings.get("igstRate")
+                    if gst_rate is None or gst_rate == 0:
+                        cgst = gst_settings.get("cgstRate")
+                        sgst = gst_settings.get("sgstRate")
+                        try:
+                            cgst_val = float(cgst) if cgst is not None else 0.0
+                        except (ValueError, TypeError):
+                            cgst_val = 0.0
+                        try:
+                            sgst_val = float(sgst) if sgst is not None else 0.0
+                        except (ValueError, TypeError):
+                            sgst_val = 0.0
+                        gst_rate = cgst_val + sgst_val
+                    if not gst_rate:
+                        gst_rate = doc.get("taxRate") or 0
 
-                # unit field is a nested object: {baseUnit: "Nos", alternateUnit: ...}
-                # Fallback to top-level baseUnit or unitOfMeasure string if needed
-                unit_raw = doc.get("unit")
-                if isinstance(unit_raw, dict):
-                    unit = unit_raw.get("baseUnit") or ""
-                elif isinstance(unit_raw, str):
-                    unit = unit_raw
-                else:
-                    unit = doc.get("baseUnit") or doc.get("unitOfMeasure") or ""
-                qty = float(((doc.get("inventory") or {}).get("openingStock") or {}).get("quantity") or 0.0)
-                value = float(((doc.get("inventory") or {}).get("openingStock") or {}).get("value") or 0.0)
-                rate = float(((doc.get("inventory") or {}).get("openingStock") or {}).get("rate") or 0.0)
-                if rate == 0.0 and qty > 0.0:
-                    rate = round(value / qty, 2)
-                group = doc.get("stockGroupName") or ""
-                is_synced = doc.get("auditInfo", {}).get("syncedFromTally", False)
-                if is_synced is None:
-                    is_synced = False
+                    try:
+                        gst_rate = float(gst_rate)
+                    except (ValueError, TypeError):
+                        # Try parsing digits
+                        import re
+                        if isinstance(gst_rate, str):
+                            m = re.search(r"(\d+(?:\.\d+)?)", gst_rate)
+                            gst_rate = float(m.group(1)) if m else 0.0
+                        else:
+                            gst_rate = 0.0
 
-                results.append({
-                    "name": name,
-                    "hsnCode": str(hsn_code),
-                    "gstRate": float(gst_rate),
-                    "unit": str(unit),
-                    "group": group,
-                    "qty": qty,
-                    "rate": rate,
-                    "value": value,
-                    "isSynced": is_synced
-                })
+                    # unit field is a nested object: {baseUnit: "Nos", alternateUnit: ...}
+                    # Fallback to top-level baseUnit or unitOfMeasure string if needed
+                    unit_raw = doc.get("unit")
+                    if isinstance(unit_raw, dict):
+                        unit = unit_raw.get("baseUnit") or ""
+                    elif isinstance(unit_raw, str):
+                        unit = unit_raw
+                    else:
+                        unit = doc.get("baseUnit") or doc.get("unitOfMeasure") or ""
+
+                    try:
+                        qty = float(((doc.get("inventory") or {}).get("openingStock") or {}).get("quantity") or 0.0)
+                    except (ValueError, TypeError):
+                        qty = 0.0
+
+                    try:
+                        value = float(((doc.get("inventory") or {}).get("openingStock") or {}).get("value") or 0.0)
+                    except (ValueError, TypeError):
+                        value = 0.0
+
+                    rate_raw = ((doc.get("inventory") or {}).get("openingStock") or {}).get("rate") or 0.0
+                    try:
+                        rate = float(rate_raw)
+                    except (ValueError, TypeError):
+                        rate = 0.0
+                        if isinstance(rate_raw, str):
+                            import re
+                            m = re.match(r"^\s*([+-]?\d+(?:\.\d+)?)\s*", rate_raw)
+                            if m:
+                                try:
+                                    rate = float(m.group(1))
+                                except ValueError:
+                                    pass
+
+                    if rate == 0.0 and qty > 0.0:
+                        rate = round(value / qty, 2)
+                    group = doc.get("stockGroupName") or ""
+                    is_synced = doc.get("auditInfo", {}).get("syncedFromTally", False)
+                    if is_synced is None:
+                        is_synced = False
+
+                    results.append({
+                        "name": name,
+                        "hsnCode": str(hsn_code),
+                        "gstRate": float(gst_rate),
+                        "unit": str(unit),
+                        "group": group,
+                        "qty": qty,
+                        "rate": rate,
+                        "value": value,
+                        "isSynced": is_synced
+                    })
+                except Exception as doc_err:
+                    import logging
+                    logging.warning(f"Error parsing stock item document: {doc_err}")
             return results
         except Exception as e:
             return []

@@ -279,44 +279,64 @@ class PurchaseRepository(BaseRepository):
                 {"itemName": 1, "hsnSacDetails": 1, "gstSettings": 1, "hsnCode": 1, "taxRate": 1,
                  "unit": 1, "unitOfMeasure": 1, "baseUnit": 1}
             ):
-                name = doc.get("itemName", "")
-                if not name:
-                    continue
-                # Primary: hsnSacDetails.hsnCode/hsn  Fallback: top-level hsnCode
-                hsn_sac = doc.get("hsnSacDetails") or {}
-                hsn_code = (
-                    hsn_sac.get("hsnCode")
-                    or hsn_sac.get("hsn")
-                    or doc.get("hsnCode")
-                    or ""
-                )
-                # Primary: gstSettings.gstRate/igstRate  Fallback: cgstRate + sgstRate, then top-level taxRate
-                gst_settings = doc.get("gstSettings") or {}
-                gst_rate = gst_settings.get("gstRate") or gst_settings.get("igstRate")
-                if gst_rate is None or gst_rate == 0:
-                    cgst = gst_settings.get("cgstRate")
-                    sgst = gst_settings.get("sgstRate")
-                    cgst_val = float(cgst) if cgst is not None else 0.0
-                    sgst_val = float(sgst) if sgst is not None else 0.0
-                    gst_rate = cgst_val + sgst_val
-                if not gst_rate:
-                    gst_rate = doc.get("taxRate") or 0
+                try:
+                    name = doc.get("itemName", "")
+                    if not name:
+                        continue
+                    # Primary: hsnSacDetails.hsnCode/hsn  Fallback: top-level hsnCode
+                    hsn_sac = doc.get("hsnSacDetails") or {}
+                    hsn_code = (
+                        hsn_sac.get("hsnCode")
+                        or hsn_sac.get("hsn")
+                        or doc.get("hsnCode")
+                        or ""
+                    )
+                    # Primary: gstSettings.gstRate/igstRate  Fallback: cgstRate + sgstRate, then top-level taxRate
+                    gst_settings = doc.get("gstSettings") or {}
+                    gst_rate = gst_settings.get("gstRate") or gst_settings.get("igstRate")
+                    if gst_rate is None or gst_rate == 0:
+                        cgst = gst_settings.get("cgstRate")
+                        sgst = gst_settings.get("sgstRate")
+                        try:
+                            cgst_val = float(cgst) if cgst is not None else 0.0
+                        except (ValueError, TypeError):
+                            cgst_val = 0.0
+                        try:
+                            sgst_val = float(sgst) if sgst is not None else 0.0
+                        except (ValueError, TypeError):
+                            sgst_val = 0.0
+                        gst_rate = cgst_val + sgst_val
+                    if not gst_rate:
+                        gst_rate = doc.get("taxRate") or 0
 
-                # unit field is a nested object: {baseUnit: "Nos", alternateUnit: ...}
-                # Fallback to top-level baseUnit or unitOfMeasure string if needed
-                unit_raw = doc.get("unit")
-                if isinstance(unit_raw, dict):
-                    unit = unit_raw.get("baseUnit") or ""
-                elif isinstance(unit_raw, str):
-                    unit = unit_raw
-                else:
-                    unit = doc.get("baseUnit") or doc.get("unitOfMeasure") or ""
-                results.append({
-                    "name": name,
-                    "hsnCode": str(hsn_code),
-                    "gstRate": float(gst_rate),
-                    "unit": str(unit)
-                })
+                    try:
+                        gst_rate = float(gst_rate)
+                    except (ValueError, TypeError):
+                        import re
+                        if isinstance(gst_rate, str):
+                            m = re.search(r"(\d+(?:\.\d+)?)", gst_rate)
+                            gst_rate = float(m.group(1)) if m else 0.0
+                        else:
+                            gst_rate = 0.0
+
+                    # unit field is a nested object: {baseUnit: "Nos", alternateUnit: ...}
+                    # Fallback to top-level baseUnit or unitOfMeasure string if needed
+                    unit_raw = doc.get("unit")
+                    if isinstance(unit_raw, dict):
+                        unit = unit_raw.get("baseUnit") or ""
+                    elif isinstance(unit_raw, str):
+                        unit = unit_raw
+                    else:
+                        unit = doc.get("baseUnit") or doc.get("unitOfMeasure") or ""
+                    results.append({
+                        "name": name,
+                        "hsnCode": str(hsn_code),
+                        "gstRate": float(gst_rate),
+                        "unit": str(unit)
+                    })
+                except Exception as doc_err:
+                    import logging
+                    logging.warning(f"Error parsing stock item document in purchase_repo: {doc_err}")
             return results
         except Exception:
             return []
