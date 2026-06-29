@@ -442,7 +442,7 @@ const ManualEntryPanel = ({ isDark }) => {
     { key: 'voucherNo', header: 'Voucher No', sortable: true, render: (tx) => <span className="font-black" style={{ color: 'var(--app-heading)' }}>{tx.voucherNo}</span> },
     { key: 'date', header: 'Date', sortable: true, sortValue: (tx) => tx.date, render: (tx) => <span className="font-semibold">{tx.date ? new Date(tx.date).toLocaleDateString('en-IN') : '—'}</span> },
     { key: 'type', header: 'Type', sortable: true, render: (tx) => <span className="font-bold" style={{ color: 'var(--app-accent)' }}>{tx.type}</span> },
-    { key: 'party', header: 'Party / Ledger', sortable: true, render: (tx) => <span className="font-semibold truncate block max-w-[200px]">{tx.party}</span> },
+    { key: 'party', header: ['cash_payment', 'bank_payment'].includes(activeTab) ? 'Payment Account' : 'Party / Ledger', sortable: true, render: (tx) => <span className="font-semibold truncate block max-w-[200px]">{tx.party}</span> },
     { key: 'amount', header: 'Amount', align: 'right', sortable: true, sortValue: (tx) => tx.amount, render: (tx) => <span className="font-bold" style={{ color: 'var(--app-accent)' }}>₹ {tx.amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span> },
     { key: 'status', header: 'Status', align: 'center', render: (tx) => <Badge tone={statusTone(tx.status)}>{tx.status.replace('_', ' ')}</Badge> },
     { key: 'createdBy', header: 'Created By', align: 'center', render: (tx) => <span style={{ color: 'var(--app-muted)' }}>{tx.createdBy}</span> },
