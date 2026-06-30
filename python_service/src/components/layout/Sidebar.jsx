@@ -3,6 +3,9 @@ import {
   LayoutDashboard, FileText, TrendingUp, ShoppingCart, ArrowLeftRight,
   Landmark, BookOpen, Plug, Settings, ChevronDown, ChevronsLeft, ChevronsRight,
   Search, Pin, X,
+  Inbox, Eye, Archive, ClipboardList, PenLine, Upload, ScanLine, CheckCheck,
+  ArrowUpRight, ArrowDownLeft, SlidersHorizontal, Package, FolderArchive,
+  Building2, Users, ShieldCheck, ReceiptText, FileMinus, Circle,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'motion/react'
 
@@ -41,6 +44,18 @@ const NAV = [
   { label: 'Administration', icon: Settings, children: ['Companies', 'Clients', 'User & Role Management', 'Configuration'] },
 ]
 
+// Per-leaf icon (replaces the dot bullet). Keyed by leaf label.
+const LEAF_ICONS = {
+  'Manual Voucher Entry': PenLine, 'Bulk Upload': Upload, 'OCR Upload': ScanLine, 'Approval Center': CheckCheck,
+  'Sales Inbox': Inbox, 'Sales Review': Eye, 'Sales Archive': Archive, 'Sales Order': ClipboardList, 'Sales Invoice': ReceiptText, 'Credit Note (Sales Return)': FileMinus,
+  'Purchase Inbox': Inbox, 'Purchase Review': Eye, 'Purchase Archive': Archive, 'Purchase Order': ClipboardList, 'Purchase Invoice': ReceiptText, 'Debit Note (Purchase Return)': FileMinus,
+  'Payment': ArrowUpRight, 'Receipt': ArrowDownLeft, 'Contra': ArrowLeftRight, 'Fund Flow Review': Eye, 'Fund Flow Archive': Archive,
+  'Manage Bank': Landmark, 'Manage Rule': SlidersHorizontal, 'Inbox': Inbox, 'Bank Review': Eye, 'Bank Archive': Archive,
+  'Ledger Master': BookOpen, 'Item Master': Package,
+  'Tally Connector': Plug, 'Document Archive': FolderArchive,
+  'Companies': Building2, 'Clients': Users, 'User & Role Management': ShieldCheck, 'Configuration': Settings,
+}
+
 const groupOf = (item) => NAV.find((g) => g.children?.includes(item))?.label
 // Flat index for search: every leaf with its parent group label.
 const ALL_LEAVES = NAV.flatMap((g) => g.children ? g.children.map((c) => ({ label: c, group: g.label })) : [{ label: g.label, group: null }])
@@ -58,12 +73,17 @@ function Leaf({ label, sub, active, onClick, indent, pinned, onTogglePin }) {
         style={{ color: active ? 'var(--app-sidebar-accent)' : 'var(--app-sidebar-fg)', fontWeight: active ? 600 : 500 }}
       >
         {active && <motion.span layoutId="sidebar-active-bar" className="absolute inset-0 rounded-full" style={{ backgroundColor: 'var(--app-sidebar-accent-soft)' }} transition={{ type: 'spring', stiffness: 500, damping: 38 }} />}
-        {indent && (
-          <span
-            className={`rounded-full shrink-0 transition-all duration-200 ${active ? 'h-2 w-2' : 'h-1.5 w-1.5 group-hover/leaf:h-2 group-hover/leaf:w-2'}`}
-            style={{ backgroundColor: active ? 'var(--app-sidebar-accent)' : 'var(--app-sidebar-muted)', boxShadow: active ? '0 0 0 3px var(--app-sidebar-accent-soft)' : 'none' }}
-          />
-        )}
+        {indent && (() => {
+          const LeafIcon = LEAF_ICONS[label] || Circle
+          return (
+            <LeafIcon
+              size={14}
+              strokeWidth={active ? 2.4 : 1.9}
+              className="shrink-0 transition-colors group-hover/leaf:scale-110"
+              style={{ color: active ? 'var(--app-sidebar-accent)' : 'var(--app-sidebar-muted)' }}
+            />
+          )
+        })()}
         <span className={`truncate flex-1 text-[12px] tracking-wide leading-tight transition-colors ${active ? '' : 'group-hover/leaf:text-[var(--app-sidebar-heading)]'}`}>
           {label}
           {sub && <span className="block text-[9.5px] font-semibold uppercase tracking-wider mt-0.5" style={{ color: 'var(--app-sidebar-muted)' }}>{sub}</span>}
@@ -181,8 +201,8 @@ function Sidebar({ activeItem, onItemClick, collapsed, onToggle }) {
       {/* Logo */}
       <div className="flex items-center justify-between px-4 py-3.5 shrink-0">
         <div className="flex items-center gap-2.5">
-          <div className="h-8 w-8 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'var(--app-accent-gradient)', boxShadow: 'var(--app-shadow)' }}>
-            <svg viewBox="0 0 100 100" className="h-4 w-4" style={{ fill: '#fff' }}>
+          <div className="h-8 w-8 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: 'var(--app-sidebar-accent)' }}>
+            <svg viewBox="0 0 100 100" className="h-4 w-4" style={{ fill: 'var(--app-sidebar-bg)' }}>
               <polygon points="50,5 95,27.5 95,72.5 50,95 5,72.5 5,27.5" />
             </svg>
           </div>

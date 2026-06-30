@@ -30,17 +30,17 @@
   --app-panel-bg: #FFFFFF;
   --app-content-bg: #EFECF3;
   --app-border: #C8C6D2;
-  /* Dark charcoal navigation panel (ERP) — its own fg/hover/accent tokens so a
-     dark sidebar coexists with the white content workspace. */
-  --app-sidebar-bg: #1B1E24;
-  --app-sidebar-border: #2A2E37;
-  --app-sidebar-heading: #F4F6F9;
-  --app-sidebar-fg: #C2C8D2;
-  --app-sidebar-muted: #7B8593;
-  --app-sidebar-hover: rgba(255, 255, 255, 0.06);
-  --app-sidebar-accent: #6BA1F2;
-  --app-sidebar-accent-soft: rgba(107, 161, 242, 0.14);
-  --app-sidebar-control-bg: rgba(255, 255, 255, 0.05);
+  /* M3 navigation drawer — tonal surface (follows theme), active item =
+     secondary-container pill. Coherent with the M3 content workspace. */
+  --app-sidebar-bg: #F3F1F6;
+  --app-sidebar-border: #C8C6D2;
+  --app-sidebar-heading: #1B1B1F;
+  --app-sidebar-fg: #45474E;
+  --app-sidebar-muted: #777680;
+  --app-sidebar-hover: rgba(0, 0, 0, 0.05);
+  --app-sidebar-accent: #2563EB;
+  --app-sidebar-accent-soft: #DCE2F4;
+  --app-sidebar-control-bg: #FFFFFF;
   /* Red primary CTA (ERP). Blue accent stays for action elements/links. */
   --app-cta: #DC2626;
   --app-cta-hover: #B91C1C;
@@ -78,15 +78,15 @@
   --app-bg: #121317;
   --app-panel-bg: #1E2025;
   --app-content-bg: #17181C;
-  --app-sidebar-bg: #0E0F13;
-  --app-sidebar-border: #23262E;
-  --app-sidebar-heading: #ECEEF1;
-  --app-sidebar-fg: #A8ADB7;
-  --app-sidebar-muted: #6A6F79;
-  --app-sidebar-hover: rgba(255, 255, 255, 0.05);
-  --app-sidebar-accent: #5E9BF0;
-  --app-sidebar-accent-soft: rgba(94, 155, 240, 0.12);
-  --app-sidebar-control-bg: #1C1E25;
+  --app-sidebar-bg: #1A1B20;
+  --app-sidebar-border: #44474E;
+  --app-sidebar-heading: #E4E2E6;
+  --app-sidebar-fg: #C6C6D0;
+  --app-sidebar-muted: #8F909A;
+  --app-sidebar-hover: rgba(255, 255, 255, 0.06);
+  --app-sidebar-accent: #AEC6FF;
+  --app-sidebar-accent-soft: #404659;
+  --app-sidebar-control-bg: #2A2C31;
   --app-cta: #EF4444;
   --app-cta-hover: #DC2626;
   --app-border: #45474E;
