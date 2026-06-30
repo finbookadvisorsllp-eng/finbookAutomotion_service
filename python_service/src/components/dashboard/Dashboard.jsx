@@ -8,6 +8,7 @@ import { useAppStore } from '../../stores/useAppStore'
 import { fetchCompanies } from '../companies/api'
 import CompanionBar from '../ui/CompanionBar'
 import SearchOverlay from '../ui/SearchOverlay'
+import PetalField from '../ui/PetalField'
 
 
 // Design tokens now live in src/styles/index.css (:root / .dark) so every
@@ -114,9 +115,10 @@ function Dashboard() {
           />
 
           <main
-            className={`flex-1 flex flex-col overflow-hidden ${location.pathname === '/automation/ai-processing' ? 'p-0' : isCompactHeader ? 'p-2 pb-0.5' : 'p-3 sm:p-4 md:p-5'}`}
-            style={{ backgroundColor: 'transparent' }}
+            className={`relative flex-1 flex flex-col overflow-hidden ${location.pathname === '/automation/ai-processing' ? 'p-0' : isCompactHeader ? 'p-2 pb-0.5' : 'p-3 sm:p-4 md:p-5'}`}
+            style={{ backgroundColor: 'var(--app-content-bg)' }}
           >
+            <PetalField />
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeItem}
@@ -124,7 +126,7 @@ function Dashboard() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -4 }}
                 transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-                className="h-full flex flex-col"
+                className="relative z-10 h-full flex flex-col"
               >
                 <Suspense fallback={<div className="h-full flex items-center justify-center text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--app-muted)' }}>Loading…</div>}>
                   <Outlet context={{ isDark }} />

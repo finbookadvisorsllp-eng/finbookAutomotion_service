@@ -54,6 +54,7 @@
   --app-on-accent: #FFFFFF;
   --app-secondary-container: #DCE2F4;
   --app-on-secondary-container: #161B2C;
+  --app-petal: #F4B8CE;
   --app-accent-gradient: linear-gradient(135deg, #1D4ED8 0%, #2563EB 100%);
   --app-table-head-bg: #EFECF3;
   --app-row-border: #E7E4EE;
@@ -99,6 +100,7 @@
   --app-on-accent: #06306F;
   --app-secondary-container: #404659;
   --app-on-secondary-container: #DCE2F4;
+  --app-petal: #C77E97;
   --app-accent-gradient: linear-gradient(135deg, #3B82F6 0%, #5E9BF0 100%);
   --app-table-head-bg: #24262C;
   --app-row-border: #2A2C32;
@@ -166,6 +168,28 @@
 .rise-in {
   animation: riseIn 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
+
+/* Calming ambient — slow-falling sakura petals behind the workspace.
+   Pure CSS; PetalField randomizes per-petal vars. Hidden on reduced-motion. */
+.petal-field { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+.petal {
+  position: absolute;
+  top: -6%;
+  width: var(--ps, 12px);
+  height: calc(var(--ps, 12px) * 1.15);
+  background: var(--app-petal);
+  border-radius: 100% 0 100% 0;
+  opacity: 0;
+  will-change: transform, opacity;
+  animation: petalFall var(--pd, 16s) ease-in-out var(--pdelay, 0s) infinite;
+}
+@keyframes petalFall {
+  0%   { transform: translate3d(0, -6vh, 0) rotate(0deg); opacity: 0; }
+  12%  { opacity: var(--po, 0.4); }
+  88%  { opacity: var(--po, 0.4); }
+  100% { transform: translate3d(var(--psway, 40px), 106vh, 0) rotate(420deg); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .petal { display: none; } }
 
 /* Subtle grid pattern overlay used by the shell */
 .app-grid-bg {
