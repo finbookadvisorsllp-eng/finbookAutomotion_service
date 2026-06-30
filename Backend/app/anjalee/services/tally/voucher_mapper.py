@@ -41,6 +41,7 @@ class TallyInventoryEntry(BaseModel):
     isDeemedPositive: str = "No"
     unit: str = ""
     batchDetails: List[TallyBatchDetails] = []
+    gstRate: float = 18.0
 
 class TallyVoucher(BaseModel):
     companyName: str
@@ -184,7 +185,8 @@ class VoucherMapper:
                     quantity=qty,
                     salesLedger=sales_ledger,
                     isDeemedPositive="No",
-                    unit=item.get("unit") or item.get("uom") or ""
+                    unit=item.get("unit") or item.get("uom") or "",
+                    gstRate=float(item.get("gstRate") or 18.0)
                 ))
             
             # Also map any additional non-tax ledgers from salesEntries in with_item mode
@@ -350,7 +352,8 @@ class VoucherMapper:
                     quantity=qty,
                     salesLedger=pur_ledger,
                     isDeemedPositive="Yes",
-                    unit=item.get("unit") or item.get("uom") or ""
+                    unit=item.get("unit") or item.get("uom") or "",
+                    gstRate=float(item.get("gstRate") or 18.0)
                 ))
             
             # Also map any additional non-tax purchaseLines in with_item mode

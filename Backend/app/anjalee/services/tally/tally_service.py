@@ -268,11 +268,67 @@ class TallyPushService:
             })
             raise ValueError(f"XML Validation failed: {str(e)}")
 
-        # 2. Push XML to Tally (Bypassed / Successful Placeholder)
-        response_status = "Success"
-        response_xml = "<RESPONSE>XML Pushed successfully. Tally connection bypassed.</RESPONSE>"
-        pushed_at = datetime.utcnow()
+        # 2. Push XML to Tally
+        tally_url = "http://localhost:9000"
+        response_xml = ""
+        response_status = "Failed"
         error_msg = ""
+        pushed_at = datetime.utcnow()
+
+        try:
+            data_bytes = xml_payload.encode('utf-8')
+            req = urllib.request.Request(
+                tally_url,
+                data=data_bytes,
+                headers={
+                    'Content-Type': 'text/xml; charset=utf-8',
+                    'Content-Length': str(len(data_bytes))
+                },
+                method='POST'
+            )
+            
+            def do_post():
+                with urllib.request.urlopen(req, timeout=15) as resp:
+                    return resp.read().decode('utf-8')
+            
+            loop = asyncio.get_event_loop()
+            response_xml = await loop.run_in_executor(None, do_post)
+            
+            root = ET.fromstring(response_xml)
+            created_node = root.find(".//CREATED")
+            errors_node = root.find(".//ERRORS")
+            exceptions_node = root.find(".//EXCEPTIONS")
+            
+            created = int(created_node.text) if created_node is not None and created_node.text else 0
+            errors = int(errors_node.text) if errors_node is not None and errors_node.text else 0
+            exceptions = int(exceptions_node.text) if exceptions_node is not None and exceptions_node.text else 0
+            
+            line_errors = [err.text for err in root.findall(".//LINEERROR") if err.text]
+            
+            if created > 0 and errors == 0 and exceptions == 0:
+                response_status = "Success"
+            else:
+                response_status = "Failed"
+                if line_errors:
+                    error_msg = "; ".join(line_errors)
+                else:
+                    error_msg = f"Tally reported {errors} error(s) and {exceptions} exception(s)."
+        except urllib.error.HTTPError as e:
+            response_status = "Failed"
+            error_msg = f"HTTP error from Tally: {e.code} {e.reason}"
+            response_xml = f"<ERROR>HTTP_{e.code}: {e.reason}</ERROR>"
+        except urllib.error.URLError as e:
+            response_status = "Failed"
+            error_msg = f"HTTP connection to Tally failed: {str(e.reason)}"
+            response_xml = f"<ERROR>Connection Refused: {str(e.reason)}</ERROR>"
+        except ET.ParseError as e:
+            response_status = "Failed"
+            error_msg = f"Tally XML parsing failed: {str(e)}"
+            response_xml = f"<ERROR>Parse Error: {str(e)}</ERROR>"
+        except Exception as e:
+            response_status = "Failed"
+            error_msg = f"Unexpected error during Tally push: {str(e)}"
+            response_xml = f"<ERROR>Unexpected: {str(e)}</ERROR>"
 
         # 3. Update Payload Status in DB
         payload_status = "Pushed" if response_status == "Success" else "Failed"

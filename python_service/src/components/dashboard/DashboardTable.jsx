@@ -101,7 +101,7 @@ export default function DashboardTable() {
       <div className="flex items-end justify-end gap-1.5 flex-wrap md:flex-nowrap mb-2 shrink-0">
         <Select value={partyFilter} options={['All', ...(data?.partyLedgersList || [])]} onChange={setPartyFilter} placeholder="Party Ledger" align="right" searchable />
         <Select value={partyType} options={['All', 'Customer', 'Supplier']} onChange={setPartyType} align="right" />
-        <Select value={'All'} options={cities} onChange={() => {}} align="right" searchable />
+        <Select value={'All'} options={cities} onChange={() => { }} align="right" searchable />
         <Button variant="primary" size="md" icon={Settings} className="shrink-0" onClick={soon}>Customize</Button>
       </div>
 

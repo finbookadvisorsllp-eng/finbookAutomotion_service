@@ -234,6 +234,8 @@ class TallyXmlGenerator:
         xml_str = xml_str.replace("{{persistedView}}", persisted_view)
         xml_str = xml_str.replace("{{narration}}", narration_xml)
         xml_str = xml_str.replace("{{basicShipDeliveryNote}}", basic_ship_note_xml)
+        xml_str = xml_str.replace("{{voucherNumber}}", escape_xml(voucher.voucherNumber))
+        xml_str = xml_str.replace("{{referenceNumber}}", escape_xml(voucher.referenceNumber))
         xml_str = xml_str.replace("{{partyName}}", escape_xml(voucher.partyLedgerName))
         xml_str = xml_str.replace("{{partyLedgerName}}", party_ledger_name_xml)
         xml_str = xml_str.replace("{{ledgerEntries}}", ledger_entries_xml)
@@ -322,7 +324,7 @@ class TallyXmlGenerator:
             qty_str = format_qty(qty_val, unit_val)
             rate_str = format_rate(rate_val, unit_val)
 
-            # Build optional batch details
+            # Build batch details (default to Primary Batch and Main Location if not provided)
             batch_xml = ""
             if entry.batchDetails:
                 for batch in entry.batchDetails:
@@ -331,25 +333,74 @@ class TallyXmlGenerator:
                     batch_amt = -abs(batch.amount) if is_dr else abs(batch.amount)
                     batch_qty_str = format_qty(batch_qty, unit_val)
                     batch_xml += f"""
-                                    <BATCHALLOCATIONS.LIST>
-                                        <BATCHNAME>{escaped_batch_name}</BATCHNAME>
-                                        <AMOUNT>{batch_amt:.2f}</AMOUNT>
-                                        <BILLEDQTY>{batch_qty_str}</BILLEDQTY>
-                                    </BATCHALLOCATIONS.LIST>"""
+                            <BATCHALLOCATIONS.LIST>
+                                <GODOWNNAME>Main Location</GODOWNNAME>
+                                <DESTINATIONGODOWNNAME>Main Location</DESTINATIONGODOWNNAME>
+                                <BATCHNAME>{escaped_batch_name}</BATCHNAME>
+                                <AMOUNT>{batch_amt:.2f}</AMOUNT>
+                                <ACTUALQTY>{batch_qty_str}</ACTUALQTY>
+                                <BILLEDQTY>{batch_qty_str}</BILLEDQTY>
+                            </BATCHALLOCATIONS.LIST>"""
+            else:
+                batch_xml = f"""
+                            <BATCHALLOCATIONS.LIST>
+                                <GODOWNNAME>Main Location</GODOWNNAME>
+                                <DESTINATIONGODOWNNAME>Main Location</DESTINATIONGODOWNNAME>
+                                <BATCHNAME>Primary Batch</BATCHNAME>
+                                <AMOUNT>{amount_val:.2f}</AMOUNT>
+                                <ACTUALQTY>{qty_str}</ACTUALQTY>
+                                <BILLEDQTY>{qty_str}</BILLEDQTY>
+                            </BATCHALLOCATIONS.LIST>"""
+
+            # Calculate CGST, SGST, IGST rates dynamically from entry.gstRate
+            gst_rate = entry.gstRate
+            cgst_rate = gst_rate / 2
+            sgst_rate = gst_rate / 2
+            igst_rate = gst_rate
+
+            cgst_rate_str = f"{int(cgst_rate)}" if cgst_rate.is_integer() else f"{cgst_rate:.2f}"
+            sgst_rate_str = f"{int(sgst_rate)}" if sgst_rate.is_integer() else f"{sgst_rate:.2f}"
+            igst_rate_str = f"{int(igst_rate)}" if igst_rate.is_integer() else f"{igst_rate:.2f}"
 
             blocks.append(f"""
                         <ALLINVENTORYENTRIES.LIST>
                             <STOCKITEMNAME>{escaped_item_name}</STOCKITEMNAME>
                             <ISDEEMEDPOSITIVE>{entry.isDeemedPositive}</ISDEEMEDPOSITIVE>
+                            <ISLASTDEEMEDPOSITIVE>No</ISLASTDEEMEDPOSITIVE>
+                            <ISAUTONEGATE>No</ISAUTONEGATE>
+                            <ISCUSTOMSCLEARANCE>No</ISCUSTOMSCLEARANCE>
+                            <ISTRACKCOMPONENT>No</ISTRACKCOMPONENT>
+                            <ISTRACKPRODUCTION>No</ISTRACKPRODUCTION>
+                            <ISPRIMARYITEM>No</ISPRIMARYITEM>
+                            <ISSCRAP>No</ISSCRAP>
                             <RATE>{rate_str}</RATE>
-                            <AMOUNT>{amount_val:.2f}</AMOUNT>
                             <ACTUALQTY>{qty_str}</ACTUALQTY>
                             <BILLEDQTY>{qty_str}</BILLEDQTY>
+                            <AMOUNT>{amount_val:.2f}</AMOUNT>
+                            {batch_xml}
                             <ACCOUNTINGALLOCATIONS.LIST>
                                 <LEDGERNAME>{escaped_ledger_name}</LEDGERNAME>
                                 <ISDEEMEDPOSITIVE>{entry.isDeemedPositive}</ISDEEMEDPOSITIVE>
+                                <LEDGERFROMITEM>No</LEDGERFROMITEM>
+                                <REMOVEZEROENTRIES>No</REMOVEZEROENTRIES>
+                                <ISPARTYLEDGER>No</ISPARTYLEDGER>
                                 <AMOUNT>{amount_val:.2f}</AMOUNT>
-                            </ACCOUNTINGALLOCATIONS.LIST>{batch_xml}
+                            </ACCOUNTINGALLOCATIONS.LIST>
+                            <RATEDETAILS.LIST>
+                                <GSTRATEDUTYHEAD>CGST</GSTRATEDUTYHEAD>
+                                <GSTRATEVALUATIONTYPE>Based on Value</GSTRATEVALUATIONTYPE>
+                                <GSTRATE>{cgst_rate_str}</GSTRATE>
+                            </RATEDETAILS.LIST>
+                            <RATEDETAILS.LIST>
+                                <GSTRATEDUTYHEAD>SGST/UTGST</GSTRATEDUTYHEAD>
+                                <GSTRATEVALUATIONTYPE>Based on Value</GSTRATEVALUATIONTYPE>
+                                <GSTRATE>{sgst_rate_str}</GSTRATE>
+                            </RATEDETAILS.LIST>
+                            <RATEDETAILS.LIST>
+                                <GSTRATEDUTYHEAD>IGST</GSTRATEDUTYHEAD>
+                                <GSTRATEVALUATIONTYPE>Based on Value</GSTRATEVALUATIONTYPE>
+                                <GSTRATE>{igst_rate_str}</GSTRATE>
+                            </RATEDETAILS.LIST>
                         </ALLINVENTORYENTRIES.LIST>""")
 
         return "".join(blocks)
