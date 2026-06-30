@@ -611,16 +611,16 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
 
     bg: 'var(--app-content-bg)',
     panel: 'var(--app-panel-bg)',
-    border: isDark ? '#334155' : '#cbd5e1',
+    border: 'var(--app-border)',
     headerBg: 'var(--app-table-head-bg)',
-    text: isDark ? '#f8fafc' : '#0f172a',
+    text: 'var(--app-heading)',
     inputBg: 'var(--app-control-bg)',
-    mutedText: isDark ? '#94a3b8' : '#475569',
+    mutedText: 'var(--app-muted)',
     accent: 'var(--app-accent)',
     accentSoft: 'var(--app-accent-soft)',
     accentGradient: 'var(--app-accent-gradient)',
-    scrollbarThumb: isDark ? 'rgba(9, 182, 185, 0.3)' : '#cbd5e1',
-    scrollbarTrack: isDark ? 'transparent' : '#f1f5f9'
+    scrollbarThumb: 'var(--app-border)',
+    scrollbarTrack: 'transparent'
   };
 
   // --- Voucher type labels ---
@@ -903,7 +903,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
               disabled={loading.save || isUnbalanced}
               className={`px-3 py-1 rounded-lg text-[11px] font-black transition-all shadow-sm uppercase tracking-wider flex items-center gap-1 ${(loading.save || isUnbalanced)
                   ? 'bg-[var(--app-border)] text-[var(--app-muted)] cursor-not-allowed opacity-50'
-                  : 'hover:scale-[1.02] text-[var(--app-heading)] bg-[#FCD34D] hover:bg-[#FBBF24]'
+                  : ' text-[var(--app-heading)] bg-[#FCD34D] hover:bg-[#FBBF24]'
                 }`}
             >
               Review
@@ -913,7 +913,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
               disabled={isUnbalanced}
               className={`px-3 py-1 rounded-lg text-[11px] font-black shadow-sm transition-all uppercase tracking-wider ${isUnbalanced
                   ? 'bg-[var(--app-border)] text-[var(--app-muted)] cursor-not-allowed opacity-50'
-                  : 'hover:scale-[1.02] text-white bg-[var(--app-accent)] hover:opacity-90'
+                  : ' text-white bg-[var(--app-accent)] hover:opacity-90'
                 }`}
             >
               Post Tally
@@ -1093,7 +1093,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                         />
                       </div>
                       <div className="col-span-12 md:col-span-3 relative">
-                        <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 text-[var(--app-heading)]" style={{ backgroundColor: isDark ? '#12161a' : '#fff' }}>
+                        <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 text-[var(--app-heading)]" style={{ backgroundColor: 'var(--app-panel-bg)' }}>
                           3. Voucher Reference Number
                         </label>
                         <select
@@ -1259,7 +1259,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                         setActiveAllocationRowIndex(idx);
                                         setShowBillAllocation(true);
                                       }}
-                                      className="text-[10px] font-black text-[var(--app-accent)] dark:text-[var(--app-accent)] hover:underline hover:scale-105 transition-all"
+                                      className="text-[10px] font-black text-[var(--app-accent)] dark:text-[var(--app-accent)] hover:underline transition-all"
                                     >
                                       {activeType === 'cash_payment' ? 'View Bills' : 'View Invoices'} ({pendingBillsCount})
                                     </button>
@@ -1840,9 +1840,9 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                 value={row.ledgerName || ''}
                                 onChange={e => updateLedgerRow(idx, 'ledgerName', e.target.value)}
                                 className="w-full h-7 px-2 border text-[11px] font-bold outline-none rounded-lg"
-                                style={{ borderColor: isDark ? '#475569' : '#94a3b8', color: theme.text, backgroundColor: theme.inputBg }}
+                                style={{ borderColor: 'var(--app-border)', color: theme.text, backgroundColor: theme.inputBg }}
                               >
-                                <option value="" disabled style={{ color: '#94a3b8' }}>Select Ledger...</option>
+                                <option value="" disabled style={{ color: 'var(--app-muted)' }}>Select Ledger...</option>
                                 {ledgersRaw.map((l, i) => {
                                   const name = typeof l === 'string' ? l : l.name;
                                   return <option key={i} value={name}>{name}</option>;
@@ -1856,7 +1856,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                 value={row.description || ''}
                                 onChange={e => updateLedgerRow(idx, 'description', e.target.value)}
                                 className="w-full h-7 px-2 border text-[11px] font-bold outline-none rounded-lg"
-                                style={{ borderColor: isDark ? '#475569' : '#94a3b8', color: theme.text, backgroundColor: theme.inputBg }}
+                                style={{ borderColor: 'var(--app-border)', color: theme.text, backgroundColor: theme.inputBg }}
                               />
                             </td>
                             <td className="p-1 border text-right" style={{ borderColor: theme.border }}>
@@ -1866,7 +1866,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                 value={row.amount || ''}
                                 onChange={e => updateLedgerRow(idx, 'amount', e.target.value)}
                                 className="w-full h-7 px-2 border text-[11px] font-black outline-none rounded-lg text-right"
-                                style={{ borderColor: isDark ? '#475569' : '#94a3b8', color: theme.text, backgroundColor: theme.inputBg }}
+                                style={{ borderColor: 'var(--app-border)', color: theme.text, backgroundColor: theme.inputBg }}
                               />
                             </td>
                             <td className="p-1 border" style={{ borderColor: theme.border }}>
@@ -1874,7 +1874,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                 value={row.costCenter || ''}
                                 onChange={e => updateLedgerRow(idx, 'costCenter', e.target.value)}
                                 className="w-full h-7 px-2 border text-[11px] font-bold outline-none rounded-lg"
-                                style={{ borderColor: isDark ? '#475569' : '#94a3b8', color: theme.text, backgroundColor: theme.inputBg }}
+                                style={{ borderColor: 'var(--app-border)', color: theme.text, backgroundColor: theme.inputBg }}
                               >
                                 <option value="">Select...</option>
                                 {(masterData?.costCenters || []).map((cc, i) => (
@@ -1961,7 +1961,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                         onChange={e => handleAllocationChange(idx, e.target.value)}
                                         className="w-full h-8 px-2 border text-[11px] font-black outline-none rounded-lg text-right"
                                         style={{
-                                          borderColor: isDark ? '#475569' : '#94a3b8',
+                                          borderColor: 'var(--app-border)',
                                           color: theme.text,
                                           backgroundColor: theme.inputBg
                                         }}
@@ -1990,12 +1990,12 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                 onChange={e => setFormValue('excessOption', e.target.value)}
                                 className="h-8 px-2 border text-[11px] font-black outline-none rounded-lg w-48"
                                 style={{
-                                  borderColor: isDark ? '#475569' : '#cbd5e1',
+                                  borderColor: 'var(--app-border)',
                                   color: theme.text,
                                   backgroundColor: theme.inputBg
                                 }}
                               >
-                                <option value="" disabled style={{ color: '#94a3b8' }}>Select option...</option>
+                                <option value="" disabled style={{ color: 'var(--app-muted)' }}>Select option...</option>
                                 <option value="advance">Keep As Advance</option>
                                 <option value="on_account">On Account Receipt</option>
                                 <option value="refund">Refund Later</option>
@@ -2096,7 +2096,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                         onChange={e => handleAllocationChange(idx, e.target.value)}
                                         className="w-full h-8 px-2 border text-[11px] font-black outline-none rounded-lg text-right"
                                         style={{
-                                          borderColor: isDark ? '#475569' : '#94a3b8',
+                                          borderColor: 'var(--app-border)',
                                           color: theme.text,
                                           backgroundColor: theme.inputBg
                                         }}
@@ -2729,7 +2729,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                           : (selectedPartyDetails.outstandingBalance || 0);
                         return (
                           <div className="p-2.5 rounded-lg border flex flex-col gap-1.5 text-xs font-bold animate-in fade-in slide-in-from-top-1 duration-200"
-                            style={{ backgroundColor: isDark ? 'rgba(9, 182, 185, 0.03)' : '#f0f9fa', borderColor: isDark ? 'rgba(9, 182, 185, 0.1)' : '#cffafe' }}>
+                            style={{ backgroundColor: 'var(--app-accent-soft)', borderColor: 'var(--app-border)' }}>
                             <div className="flex justify-between items-center text-[10px]">
                               <div className="flex gap-1.5 items-center">
                                 <span className="text-[11px] font-black uppercase text-[var(--app-accent)] tracking-wider">Group:</span>
@@ -2742,7 +2742,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                 </span>
                               </div>
                             </div>
-                            <div className="flex justify-between items-center border-t pt-1" style={{ borderColor: isDark ? 'rgba(9, 182, 185, 0.08)' : '#cffafe' }}>
+                            <div className="flex justify-between items-center border-t pt-1" style={{ borderColor: 'var(--app-border)' }}>
                               <span className="text-[11px] font-black uppercase text-[var(--app-accent)] tracking-wider">Party Outstanding:</span>
                               <span className="text-[11.5px] font-black text-[var(--app-accent)] dark:text-[var(--app-accent)]">
                                 ₹ {partyOutstanding.toLocaleString('en-IN')}
@@ -3033,7 +3033,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                             className="w-full h-7.5 px-1.5 rounded-lg border text-[11px] font-bold outline-none"
                                             style={{ borderColor: theme.border, color: theme.text, backgroundColor: theme.panel }}
                                           >
-                                            <option value="" disabled style={{ color: '#94a3b8' }}>
+                                            <option value="" disabled style={{ color: 'var(--app-muted)' }}>
                                               Select Bill...
                                             </option>
                                             {pendingBills.map(b => (
@@ -3187,7 +3187,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                           className="w-full h-7.5 px-1.5 rounded-lg border text-[11px] font-bold outline-none"
                                           style={{ borderColor: theme.border, color: theme.text, backgroundColor: theme.panel }}
                                         >
-                                          <option value="" disabled style={{ color: '#94a3b8' }}>
+                                          <option value="" disabled style={{ color: 'var(--app-muted)' }}>
                                             Select Bill...
                                           </option>
                                           {pendingBills.map(b => (
@@ -3610,7 +3610,7 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
         </div>
 
         {isOpen && (
-          <div className="absolute top-full left-0 right-0 mt-1 rounded-lg border shadow-2xl z-50 overflow-hidden" style={{ backgroundColor: isDark ? '#1e293b' : '#fff', borderColor: theme.border }}>
+          <div className="absolute top-full left-0 right-0 mt-1 rounded-lg border shadow-2xl z-50 overflow-hidden" style={{ backgroundColor: 'var(--app-panel-bg)', borderColor: theme.border }}>
             <div className="p-1.5 border-b" style={{ borderColor: theme.border }}>
               <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--app-muted)]" size={11} />

@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useRef, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import Navbar from '../layout/Navbar'
@@ -79,51 +79,16 @@ function Dashboard() {
     }
   }, [mobileNavOpen])
 
-  // Cursor-follow ambient glow — DOM-only (no re-render per move).
-  const glowRef = useRef(null)
-  const glowRaf = useRef(0)
-
+  // ERP shell: flat, clean white workspace. No ambient glow / blur orbs /
+  // glassmorphism (the style guide bans heavy gradients + excessive animation).
   return (
     <div
       className={`h-screen overflow-hidden relative ${isDark ? 'dark' : ''}`}
       style={{ backgroundColor: 'var(--app-bg)', color: 'var(--app-heading)' }}
-      onMouseMove={(e) => {
-        const x = e.clientX, y = e.clientY
-        cancelAnimationFrame(glowRaf.current)
-        glowRaf.current = requestAnimationFrame(() => {
-          if (glowRef.current) glowRef.current.style.transform = `translate3d(${x - 300}px, ${y - 300}px, 0)`
-        })
-      }}
     >
-      {/* Ambient background — faint grid + soft brand glow + cursor-follow light. */}
-      <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
-        <div className="absolute inset-0 app-grid-bg opacity-50" />
-        <div
-          className="absolute -top-40 -left-32 h-[480px] w-[480px] rounded-full blur-[130px]"
-          style={{
-            background: isDark
-              ? 'radial-gradient(circle, rgba(96,165,250,0.12) 0%, transparent 70%)'
-              : 'radial-gradient(circle, rgba(37,99,235,0.10) 0%, transparent 70%)',
-            animation: 'softPulse 18s ease-in-out infinite',
-          }}
-        />
-        <div
-          ref={glowRef}
-          className="absolute top-0 left-0 h-[600px] w-[600px] rounded-full blur-[140px] will-change-transform hidden md:block"
-          style={{
-            background: isDark
-              ? 'radial-gradient(circle, rgba(94,155,240,0.10) 0%, transparent 65%)'
-              : 'radial-gradient(circle, rgba(37,99,235,0.07) 0%, transparent 65%)',
-          }}
-        />
-      </div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-        className="overflow-hidden h-full flex flex-row border relative z-10 glass-surface"
-        style={{ borderColor: 'var(--app-border)', boxShadow: 'var(--app-shadow-lg)' }}
+      <div
+        className="overflow-hidden h-full flex flex-row border relative z-10"
+        style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-panel-bg)' }}
       >
         {/* Desktop sidebar (full height, on the left) */}
         <div className="hidden md:flex h-full">
@@ -201,7 +166,7 @@ function Dashboard() {
             </>
           )}
         </AnimatePresence>
-      </motion.div>
+      </div>
 
       {/* Ambient AI companion + ⌘K search overlay */}
       <CompanionBar />

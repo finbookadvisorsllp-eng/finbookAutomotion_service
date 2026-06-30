@@ -486,16 +486,16 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
   const theme = {
     bg: 'var(--app-content-bg)',
     panel: 'var(--app-panel-bg)',
-    border: isDark ? '#334155' : '#cbd5e1',
+    border: 'var(--app-border)',
     headerBg: 'var(--app-table-head-bg)',
-    text: isDark ? '#f8fafc' : '#0f172a',
+    text: 'var(--app-heading)',
     inputBg: 'var(--app-control-bg)',
-    mutedText: isDark ? '#94a3b8' : '#475569',
+    mutedText: 'var(--app-muted)',
     accent: 'var(--app-accent)',
-    accentSoft: isDark ? 'rgba(79, 70, 229, 0.2)' : '#eef2ff',
+    accentSoft: 'var(--app-accent-soft)',
     accentGradient: 'var(--app-accent-gradient)',
-    scrollbarThumb: isDark ? '#475569' : '#cbd5e1',
-    scrollbarTrack: isDark ? '#1e293b' : '#f1f5f9'
+    scrollbarThumb: 'var(--app-border)',
+    scrollbarTrack: 'transparent'
   };
 
   // Helper components and date functions moved outside to prevent focus loss on typing
@@ -532,7 +532,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
             )}
           </div>
           <div className="flex justify-center mt-6">
-            <button onClick={() => setIsLedgerModalOpen(false)} className="px-8 py-2 bg-[var(--app-accent)] hover:opacity-90 text-white text-[11px] font-black tracking-wide rounded-lg shadow-md hover:shadow-lg transition-all active:scale-95">
+            <button onClick={() => setIsLedgerModalOpen(false)} className="px-8 py-2 bg-[var(--app-accent)] hover:opacity-90 text-white text-[11px] font-black tracking-wide rounded-lg shadow-md hover:shadow-lg transition-all">
               submit
             </button>
           </div>
@@ -578,7 +578,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
             </label>
           </div>
           <div className="flex justify-center mt-6">
-            <button onClick={() => setIsStockModalOpen(false)} className="px-8 py-2 bg-[var(--app-accent)] hover:opacity-90 text-white text-[11px] font-black tracking-wide rounded-lg shadow-md hover:shadow-lg transition-all active:scale-95">
+            <button onClick={() => setIsStockModalOpen(false)} className="px-8 py-2 bg-[var(--app-accent)] hover:opacity-90 text-white text-[11px] font-black tracking-wide rounded-lg shadow-md hover:shadow-lg transition-all">
               Save
             </button>
           </div>
@@ -711,10 +711,10 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
     <ThemeContext.Provider value={{ theme, isDark }}>
       <div className="flex flex-col h-full animate-in fade-in duration-500 overflow-hidden bg-[var(--app-content-bg)]" style={{ backgroundColor: theme.bg }}>
         <style>{`
-          .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
-          .custom-scrollbar::-webkit-scrollbar-track { background: ${theme.scrollbarTrack}; }
-          .custom-scrollbar::-webkit-scrollbar-thumb { background: ${theme.scrollbarThumb}; border-radius: 0px; }
-          .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: ${theme.accent}; }
+          .themed-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+          .themed-scrollbar::-webkit-scrollbar-track { background: ${theme.scrollbarTrack}; }
+          .themed-scrollbar::-webkit-scrollbar-thumb { background: ${theme.scrollbarThumb}; border-radius: 0px; }
+          .themed-scrollbar::-webkit-scrollbar-thumb:hover { background: ${theme.accent}; }
           .no-scrollbar::-webkit-scrollbar { display: none; }
         `}</style>
 
@@ -766,13 +766,13 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
             <button
               onClick={handlePushToReview}
               disabled={loading.save}
-              className="px-3 py-1 rounded-lg text-[11px] font-black transition-all hover:scale-[1.02] shadow-sm uppercase tracking-wider text-[var(--app-heading)] bg-[#FCD34D] hover:bg-[#FBBF24] flex items-center gap-1"
+              className="px-3 py-1 rounded-lg text-[11px] font-black transition-all shadow-sm uppercase tracking-wider text-[var(--app-heading)] bg-[#FCD34D] hover:bg-[#FBBF24] flex items-center gap-1"
             >
               Review
             </button>
             <button
               onClick={handlePostToTally}
-              className="px-3 py-1 rounded-lg text-[11px] font-black text-white bg-[var(--app-accent)] hover:opacity-90 shadow-sm transition-all hover:scale-[1.02] uppercase tracking-wider"
+              className="px-3 py-1 rounded-lg text-[11px] font-black text-white bg-[var(--app-accent)] hover:opacity-90 shadow-sm transition-all uppercase tracking-wider"
             >
               Post Tally
             </button>
@@ -887,7 +887,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
         {/* ─── 3. Main Body ─── */}
         <div className="flex-1 overflow-hidden flex flex-col">
           {/* Form Area */}
-          <div className="flex-1 p-2 overflow-y-auto custom-scrollbar bg-[var(--app-panel-bg)]">
+          <div className="flex-1 p-2 overflow-y-auto themed-scrollbar bg-[var(--app-panel-bg)]">
             <div className="flex flex-col gap-3">
 
               {/* A. Voucher Details Section (Flat UI, No Cards, No Rounded) */}
@@ -1889,7 +1889,7 @@ const SummaryItem = ({ label, value, isLast }) => {
   return (
     <div className="flex items-center gap-2 px-5 h-9 shrink-0 group">
       <span className="text-[11px] font-black uppercase tracking-widest opacity-60 group-hover:opacity-100 transition-opacity" style={{ color: theme.mutedText }}>{label}</span>
-      <span className="text-[11.5px] font-black px-2.5 py-0.5 rounded-lg shadow-sm border transition-all group-hover:scale-105" style={{ backgroundColor: theme.accentSoft, color: theme.accent, borderColor: isDark ? 'rgba(79, 70, 229, 0.2)' : 'transparent' }}>{value}</span>
+      <span className="text-[11.5px] font-black px-2.5 py-0.5 rounded-lg shadow-sm border transition-all" style={{ backgroundColor: theme.accentSoft, color: theme.accent, borderColor: 'var(--app-border)' }}>{value}</span>
       {!isLast && <div className="h-4 w-[1.5px] ml-4 opacity-10" style={{ backgroundColor: theme.text }} />}
     </div>
   );
@@ -1905,10 +1905,10 @@ const FormSection = ({ title, children, hasSettings = true, defaultOpen = true, 
         <h3 className="text-[10.5px] font-black uppercase tracking-[0.15em]" style={{ color: theme.text }}>{title}</h3>
         <div className="flex gap-2.5 items-center">
           {headerAction}
-          {hasSettings && <button className="text-[var(--app-muted)] hover:text-[var(--app-accent)] transition-all hover:scale-110 active:scale-90"><Settings size={13} /></button>}
+          {hasSettings && <button className="text-[var(--app-muted)] hover:text-[var(--app-accent)] transition-all"><Settings size={13} /></button>}
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className="w-6 h-6 rounded-full border flex items-center justify-center text-[var(--app-muted)] hover:bg-[var(--app-content-bg)] transition-all hover:rotate-180 active:scale-90"
+            className="w-6 h-6 rounded-full border flex items-center justify-center text-[var(--app-muted)] hover:bg-[var(--app-content-bg)] transition-all"
             style={{ borderColor: theme.border }}
           >
             {isOpen ? <Minus size={11} strokeWidth={3} /> : <Plus size={11} strokeWidth={3} />}
@@ -1971,14 +1971,8 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
             <div
               className={`absolute top-full left-0 right-0 mt-1 border ${rounded ? 'rounded-lg' : 'rounded-lg'} shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 flex flex-col max-h-[200px] z-50`}
               style={{
-                backgroundColor: isDark ? '#111318' : '#ffffff',
-                borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#ECEEF2',
-                '--app-panel-bg': isDark ? '#111318' : '#ffffff',
-                '--app-control-bg': isDark ? '#161920' : '#ffffff',
-                '--app-border': isDark ? 'rgba(255, 255, 255, 0.08)' : '#ECEEF2',
-                '--app-heading': isDark ? '#e2bf22ff' : '#0B0B12',
-                '--app-text': isDark ? '#ffffff' : '#5B6478',
-                '--app-accent': isDark ? '#60A5FA' : '#2563EB',
+                backgroundColor: 'var(--app-panel-bg)',
+                borderColor: 'var(--app-border)',
               }}
             >
               {hasSearch && (
@@ -1997,7 +1991,7 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
                   </div>
                 </div>
               )}
-              <div className="flex-1 overflow-y-auto custom-scrollbar p-1">
+              <div className="flex-1 overflow-y-auto themed-scrollbar p-1">
                 {filteredOptions.length > 0 ? filteredOptions.map((opt, idx) => (
                   <div
                     key={idx}
@@ -2131,7 +2125,7 @@ const SummaryBar = ({ entries, base, cgst, sgst, igst, total }) => {
             <React.Fragment key={item.label}>
               <div className="flex items-center gap-2 group">
                 <span style={{ color: theme.mutedText }}>{item.label}</span>
-                <span className={`px-2.5 py-0.5 rounded-lg text-[11px] border transition-all ${item.highlight ? 'bg-[var(--app-accent)] text-white border-[var(--app-accent)] shadow-lg scale-105' : 'bg-[var(--app-accent-soft)] text-[var(--app-accent)] border-[var(--app-accent)] group-hover:bg-[var(--app-accent-soft)]'}`}>
+                <span className={`px-2.5 py-0.5 rounded-lg text-[11px] border transition-all ${item.highlight ? 'bg-[var(--app-accent)] text-white border-[var(--app-accent)] shadow-lg' : 'bg-[var(--app-accent-soft)] text-[var(--app-accent)] border-[var(--app-accent)] group-hover:bg-[var(--app-accent-soft)]'}`}>
                   ₹{item.val}
                 </span>
               </div>

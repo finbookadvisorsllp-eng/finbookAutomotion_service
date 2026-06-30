@@ -54,19 +54,19 @@ function Leaf({ label, sub, active, onClick, indent, pinned, onTogglePin }) {
         whileHover={{ x: indent ? 4 : 2 }}
         whileTap={{ scale: 0.98 }}
         transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-        className={`flex w-full items-center gap-2.5 rounded-lg py-1.5 text-left transition-colors ${active ? 'bg-[var(--app-accent-soft)]' : 'hover:bg-[var(--app-control-hover)]'} ${indent ? 'pl-7 pr-7' : 'px-3 pr-7'}`}
-        style={{ color: active ? 'var(--app-accent)' : 'var(--app-text)', fontWeight: active ? 600 : 500 }}
+        className={`flex w-full items-center gap-2.5 rounded-lg py-1.5 text-left transition-colors ${active ? 'bg-[var(--app-sidebar-accent-soft)]' : 'hover:bg-[var(--app-sidebar-hover)]'} ${indent ? 'pl-7 pr-7' : 'px-3 pr-7'}`}
+        style={{ color: active ? 'var(--app-sidebar-accent)' : 'var(--app-sidebar-fg)', fontWeight: active ? 600 : 500 }}
       >
-        {active && <motion.span layoutId="sidebar-active-bar" className="absolute left-0 top-1 bottom-1 w-[3px] rounded-r-full" style={{ backgroundColor: 'var(--app-accent)' }} transition={{ type: 'spring', stiffness: 500, damping: 38 }} />}
+        {active && <motion.span layoutId="sidebar-active-bar" className="absolute left-0 top-1 bottom-1 w-[3px] rounded-r-full" style={{ backgroundColor: 'var(--app-sidebar-accent)' }} transition={{ type: 'spring', stiffness: 500, damping: 38 }} />}
         {indent && (
           <span
             className={`rounded-full shrink-0 transition-all duration-200 ${active ? 'h-2 w-2' : 'h-1.5 w-1.5 group-hover/leaf:h-2 group-hover/leaf:w-2'}`}
-            style={{ backgroundColor: active ? 'var(--app-accent)' : 'var(--app-muted)', boxShadow: active ? '0 0 0 3px var(--app-accent-soft)' : 'none' }}
+            style={{ backgroundColor: active ? 'var(--app-sidebar-accent)' : 'var(--app-sidebar-muted)', boxShadow: active ? '0 0 0 3px var(--app-sidebar-accent-soft)' : 'none' }}
           />
         )}
-        <span className={`truncate flex-1 text-[12px] tracking-wide leading-tight transition-colors ${active ? '' : 'group-hover/leaf:text-[var(--app-heading)]'}`}>
+        <span className={`truncate flex-1 text-[12px] tracking-wide leading-tight transition-colors ${active ? '' : 'group-hover/leaf:text-[var(--app-sidebar-heading)]'}`}>
           {label}
-          {sub && <span className="block text-[9.5px] font-semibold uppercase tracking-wider mt-0.5" style={{ color: 'var(--app-muted)' }}>{sub}</span>}
+          {sub && <span className="block text-[9.5px] font-semibold uppercase tracking-wider mt-0.5" style={{ color: 'var(--app-sidebar-muted)' }}>{sub}</span>}
         </span>
       </motion.button>
       {onTogglePin && (
@@ -75,7 +75,7 @@ function Leaf({ label, sub, active, onClick, indent, pinned, onTogglePin }) {
           onClick={(e) => { e.stopPropagation(); onTogglePin(label) }}
           title={pinned ? 'Unpin' : 'Pin'}
           className={`absolute right-1.5 top-1/2 -translate-y-1/2 p-1 rounded-md transition-opacity ${pinned ? 'opacity-100' : 'opacity-0 group-hover/leaf:opacity-100'}`}
-          style={{ color: pinned ? 'var(--app-accent)' : 'var(--app-muted)' }}
+          style={{ color: pinned ? 'var(--app-sidebar-accent)' : 'var(--app-sidebar-muted)' }}
         >
           <Pin size={11} fill={pinned ? 'currentColor' : 'none'} strokeWidth={2} />
         </button>
@@ -92,14 +92,14 @@ function NavGroup({ group, activeItem, onItemClick, open, onToggleGroup, pins, o
       <button
         type="button"
         onClick={() => onToggleGroup(group.label)}
-        className="group relative flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors hover:bg-[var(--app-control-hover)]"
-        style={{ color: hasActive ? 'var(--app-accent)' : 'var(--app-text)', fontWeight: hasActive ? 600 : 500 }}
+        className="group relative flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors hover:bg-[var(--app-sidebar-hover)]"
+        style={{ color: hasActive ? 'var(--app-sidebar-accent)' : 'var(--app-sidebar-fg)', fontWeight: hasActive ? 600 : 500 }}
       >
-        <span className="flex h-5 w-5 items-center justify-center shrink-0 transition-transform group-hover:scale-110" style={{ color: hasActive ? 'var(--app-accent)' : 'var(--app-muted)' }}>
+        <span className="flex h-5 w-5 items-center justify-center shrink-0 transition-transform" style={{ color: hasActive ? 'var(--app-sidebar-accent)' : 'var(--app-sidebar-muted)' }}>
           <Icon size={15} strokeWidth={hasActive ? 2.2 : 1.8} />
         </span>
         <span className="truncate flex-1 text-[12.5px] tracking-wide">{group.label}</span>
-        <ChevronDown size={13} className="shrink-0 transition-transform" style={{ color: 'var(--app-muted)', transform: open ? 'rotate(180deg)' : 'none' }} />
+        <ChevronDown size={13} className="shrink-0 transition-transform" style={{ color: 'var(--app-sidebar-muted)', transform: open ? 'rotate(180deg)' : 'none' }} />
       </button>
       <AnimatePresence initial={false}>
         {open && (
@@ -123,7 +123,7 @@ function NavGroup({ group, activeItem, onItemClick, open, onToggleGroup, pins, o
 }
 
 function SectionLabel({ children }) {
-  return <div className="px-3 pt-3 pb-1 text-[9.5px] font-bold uppercase tracking-wider" style={{ color: 'var(--app-muted)' }}>{children}</div>
+  return <div className="px-3 pt-3 pb-1 text-[9.5px] font-bold uppercase tracking-wider" style={{ color: 'var(--app-sidebar-muted)' }}>{children}</div>
 }
 
 function Sidebar({ activeItem, onItemClick, collapsed, onToggle }) {
@@ -171,7 +171,7 @@ function Sidebar({ activeItem, onItemClick, collapsed, onToggle }) {
       animate={{ width: collapsed ? 70 : 248 }}
       transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
       className="flex flex-col h-full shrink-0 relative overflow-hidden border-r shadow-sm select-none"
-      style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-sidebar-bg)' }}
+      style={{ borderColor: 'var(--app-sidebar-border)', backgroundColor: 'var(--app-sidebar-bg)' }}
     >
       <style>{`
         .sidebar-nav-container::-webkit-scrollbar { display: none; }
@@ -186,7 +186,7 @@ function Sidebar({ activeItem, onItemClick, collapsed, onToggle }) {
               <polygon points="50,5 95,27.5 95,72.5 50,95 5,72.5 5,27.5" />
             </svg>
           </div>
-          {!collapsed && <span className="text-[16px] font-extrabold tracking-tight leading-tight truncate" style={{ color: 'var(--app-heading)' }}>TallyHub</span>}
+          {!collapsed && <span className="text-[16px] font-extrabold tracking-tight leading-tight truncate" style={{ color: 'var(--app-sidebar-heading)' }}>TallyHub</span>}
         </div>
       </div>
 
@@ -194,19 +194,19 @@ function Sidebar({ activeItem, onItemClick, collapsed, onToggle }) {
       {!collapsed && (
         <div className="px-3 pb-2 shrink-0">
           <div className="relative">
-            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--app-muted)' }} />
+            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--app-sidebar-muted)' }} />
             <input
               ref={searchRef}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search…"
-              className="w-full h-8 rounded-lg border pl-8 pr-12 text-[12px] outline-none transition-all focus:border-[var(--app-accent)]"
-              style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-control-bg)', color: 'var(--app-heading)' }}
+              className="w-full h-8 rounded-lg border pl-8 pr-12 text-[12px] outline-none transition-all focus:border-[var(--app-sidebar-accent)]"
+              style={{ borderColor: 'var(--app-sidebar-border)', backgroundColor: 'var(--app-sidebar-control-bg)', color: 'var(--app-sidebar-heading)' }}
             />
             {query ? (
-              <button type="button" onClick={() => setQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2" style={{ color: 'var(--app-muted)' }}><X size={13} /></button>
+              <button type="button" onClick={() => setQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2" style={{ color: 'var(--app-sidebar-muted)' }}><X size={13} /></button>
             ) : (
-              <kbd className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] font-bold px-1 py-0.5 rounded border" style={{ color: 'var(--app-muted)', borderColor: 'var(--app-border)' }}>⌘K</kbd>
+              <kbd className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] font-bold px-1 py-0.5 rounded border" style={{ color: 'var(--app-sidebar-muted)', borderColor: 'var(--app-sidebar-border)' }}>⌘K</kbd>
             )}
           </div>
         </div>
@@ -220,7 +220,7 @@ function Sidebar({ activeItem, onItemClick, collapsed, onToggle }) {
               <Leaf key={r.label} label={r.label} sub={r.group} active={activeItem === r.label} onClick={() => { onItemClick(r.label); setQuery('') }} pinned={pins.includes(r.label)} onTogglePin={togglePin} />
             ))
           ) : (
-            <div className="px-3 py-6 text-center text-[11px] font-medium" style={{ color: 'var(--app-muted)' }}>No matches for “{query}”.</div>
+            <div className="px-3 py-6 text-center text-[11px] font-medium" style={{ color: 'var(--app-sidebar-muted)' }}>No matches for “{query}”.</div>
           )
         ) : (
           <>
@@ -230,7 +230,7 @@ function Sidebar({ activeItem, onItemClick, collapsed, onToggle }) {
                 {pins.map((label) => (
                   <Leaf key={`pin-${label}`} label={label} active={activeItem === label} onClick={() => onItemClick(label)} pinned onTogglePin={togglePin} />
                 ))}
-                <div className="mx-3 my-2 border-t" style={{ borderColor: 'var(--app-border)' }} />
+                <div className="mx-3 my-2 border-t" style={{ borderColor: 'var(--app-sidebar-border)' }} />
               </>
             )}
 
@@ -242,8 +242,8 @@ function Sidebar({ activeItem, onItemClick, collapsed, onToggle }) {
                     type="button"
                     onClick={() => { onToggle(); setOpenGroups((p) => ({ ...p, [entry.label]: true })) }}
                     title={entry.label}
-                    className="group relative flex w-full items-center justify-center rounded-lg px-3 py-2.5 transition-colors hover:bg-[var(--app-control-hover)]"
-                    style={{ color: entry.children.includes(activeItem) ? 'var(--app-accent)' : 'var(--app-muted)' }}
+                    className="group relative flex w-full items-center justify-center rounded-lg px-3 py-2.5 transition-colors hover:bg-[var(--app-sidebar-hover)]"
+                    style={{ color: entry.children.includes(activeItem) ? 'var(--app-sidebar-accent)' : 'var(--app-sidebar-muted)' }}
                   >
                     <entry.icon size={16} strokeWidth={entry.children.includes(activeItem) ? 2.2 : 1.8} />
                   </button>
@@ -265,8 +265,8 @@ function Sidebar({ activeItem, onItemClick, collapsed, onToggle }) {
                   type="button"
                   onClick={() => onItemClick(entry.label)}
                   title={entry.label}
-                  className="group relative flex w-full items-center justify-center rounded-lg px-3 py-2.5 transition-colors hover:bg-[var(--app-control-hover)]"
-                  style={{ color: activeItem === entry.label ? 'var(--app-accent)' : 'var(--app-muted)' }}
+                  className="group relative flex w-full items-center justify-center rounded-lg px-3 py-2.5 transition-colors hover:bg-[var(--app-sidebar-hover)]"
+                  style={{ color: activeItem === entry.label ? 'var(--app-sidebar-accent)' : 'var(--app-sidebar-muted)' }}
                 >
                   <entry.icon size={16} strokeWidth={activeItem === entry.label ? 2.2 : 1.8} />
                 </button>
@@ -278,11 +278,11 @@ function Sidebar({ activeItem, onItemClick, collapsed, onToggle }) {
                   whileHover={{ x: 2 }}
                   whileTap={{ scale: 0.98 }}
                   transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                  className={`group/leaf relative flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors ${activeItem === entry.label ? 'bg-[var(--app-accent-soft)]' : 'hover:bg-[var(--app-control-hover)]'}`}
-                  style={{ color: activeItem === entry.label ? 'var(--app-accent)' : 'var(--app-text)', fontWeight: activeItem === entry.label ? 600 : 500 }}
+                  className={`group/leaf relative flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors ${activeItem === entry.label ? 'bg-[var(--app-sidebar-accent-soft)]' : 'hover:bg-[var(--app-sidebar-hover)]'}`}
+                  style={{ color: activeItem === entry.label ? 'var(--app-sidebar-accent)' : 'var(--app-sidebar-fg)', fontWeight: activeItem === entry.label ? 600 : 500 }}
                 >
-                  {activeItem === entry.label && <motion.span layoutId="sidebar-active-bar" className="absolute left-0 top-1 bottom-1 w-[3px] rounded-r-full" style={{ backgroundColor: 'var(--app-accent)' }} transition={{ type: 'spring', stiffness: 500, damping: 38 }} />}
-                  <span className="flex h-5 w-5 items-center justify-center shrink-0 transition-transform group-hover/leaf:scale-110" style={{ color: activeItem === entry.label ? 'var(--app-accent)' : 'var(--app-muted)' }}>
+                  {activeItem === entry.label && <motion.span layoutId="sidebar-active-bar" className="absolute left-0 top-1 bottom-1 w-[3px] rounded-r-full" style={{ backgroundColor: 'var(--app-sidebar-accent)' }} transition={{ type: 'spring', stiffness: 500, damping: 38 }} />}
+                  <span className="flex h-5 w-5 items-center justify-center shrink-0 transition-transform" style={{ color: activeItem === entry.label ? 'var(--app-sidebar-accent)' : 'var(--app-sidebar-muted)' }}>
                     <entry.icon size={15} strokeWidth={activeItem === entry.label ? 2.2 : 1.8} />
                   </span>
                   <span className="truncate flex-1 text-[12.5px] tracking-wide">{entry.label}</span>
@@ -299,7 +299,7 @@ function Sidebar({ activeItem, onItemClick, collapsed, onToggle }) {
           type="button"
           onClick={onToggle}
           className="w-full h-9 px-3 rounded-lg flex items-center justify-center gap-2 font-semibold text-[12px] transition-colors"
-          style={{ color: 'var(--app-accent)', backgroundColor: 'var(--app-accent-soft)', border: 'none' }}
+          style={{ color: 'var(--app-sidebar-accent)', backgroundColor: 'var(--app-sidebar-accent-soft)', border: 'none' }}
         >
           {collapsed ? <ChevronsRight size={14} className="shrink-0" /> : (<><ChevronsLeft size={14} className="shrink-0" /><span className="truncate">Collapse</span></>)}
         </button>

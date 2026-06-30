@@ -10,11 +10,10 @@ export default function Card({ children, className = '', hover = false, animate 
   return (
     <Comp
       {...motionProps}
-      className={`rounded-xl border ${hover ? 'transition-all hover:shadow-md' : ''} ${className}`}
+      className={`rounded-xl border transition-shadow ${hover ? 'hover:shadow-sm' : ''} ${className}`}
       style={{
         borderColor: 'var(--app-border)',
         backgroundColor: 'var(--app-panel-bg)',
-        boxShadow: 'var(--app-shadow)',
         ...style,
       }}
       {...props}

@@ -1,8 +1,8 @@
 import { motion } from 'motion/react'
 
-// Shared button. Variants share one royal-blue accent (var(--app-accent*)).
-// Replaces the ad-hoc IconButton blocks scattered across panels.
-//   variant: primary | ghost | danger | subtle
+// Shared button. Blue accent = action elements; red --app-cta = primary CTA (ERP).
+// Filled variants (primary/cta) are pill-shaped; the rest use the small ERP radius.
+//   variant: cta | primary | ghost | danger | subtle
 //   size:    sm | md
 //   iconOnly: square icon button (pass `icon`, no children)
 const SIZES = {
@@ -23,10 +23,12 @@ export default function Button({
   const s = SIZES[size] || SIZES.sm
   const isq = iconSize ?? (size === 'md' ? 14 : 12)
 
+  const pill = variant === 'primary' || variant === 'cta'
   const base =
-    'inline-flex items-center justify-center rounded-lg font-semibold transition-all focus-ring disabled:opacity-50 disabled:pointer-events-none select-none'
+    `inline-flex items-center justify-center ${pill ? 'rounded-full' : 'rounded-md'} font-semibold transition-all focus-ring disabled:opacity-50 disabled:pointer-events-none select-none`
 
   const variants = {
+    cta: { color: '#fff', backgroundColor: 'var(--app-cta)', border: '1px solid transparent', boxShadow: 'var(--app-shadow)' },
     primary: { color: '#fff', background: 'var(--app-accent-gradient)', border: '1px solid transparent', boxShadow: 'var(--app-shadow)' },
     subtle: { color: 'var(--app-heading)', backgroundColor: 'var(--app-control-bg)', border: '1px solid var(--app-border)' },
     ghost: { color: 'var(--app-text)', backgroundColor: 'transparent', border: '1px solid transparent' },
@@ -40,7 +42,7 @@ export default function Button({
   return (
     <motion.button
       whileTap={{ scale: 0.96 }}
-      whileHover={{ y: variant === 'primary' ? -1 : 0 }}
+      whileHover={{ y: pill ? -1 : 0 }}
       className={`${base} ${shape} ${s.text} ${className}`}
       style={variants[variant] || variants.subtle}
       {...props}

@@ -64,8 +64,8 @@ export default function Select({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -6, scale: 0.98 }}
             transition={{ duration: 0.15 }}
-            className={`absolute z-50 mt-1 min-w-full rounded-xl border p-1 shadow-2xl glass-surface ${align === 'right' ? 'right-0' : 'left-0'}`}
-            style={{ borderColor: 'var(--app-border)' }}
+            className={`absolute z-50 mt-1 min-w-full rounded-xl border p-1 ${align === 'right' ? 'right-0' : 'left-0'}`}
+            style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-panel-bg)', boxShadow: 'var(--app-shadow-lg)' }}
           >
             {searchable && (
               <div className="mb-1 flex items-center gap-2 rounded-lg border px-2 py-1.5" style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-control-bg)' }}>

@@ -1,6 +1,22 @@
 @import "tailwindcss";
 @variant dark (&:where(.dark, .dark *));
 
+/* Enterprise-ERP radius scale. Overriding Tailwind's radius tokens here flattens
+   EVERY rounded-{sm..3xl} usage across all screens to 4–6px without editing a
+   single component. rounded-full (pills/avatars) is unaffected. */
+@theme {
+  --radius-sm: 3px;
+  --radius-md: 4px;
+  --radius-lg: 5px;
+  --radius-xl: 6px;
+  --radius-2xl: 8px;
+  --radius-3xl: 10px;
+  /* Minimal-shadow ERP: soften Tailwind's heavy shadow utilities app-wide so
+     shadow-xl/2xl read as controlled elevation, not consumer drop-shadows. */
+  --shadow-xl: 0 8px 24px -8px rgba(16, 24, 40, 0.16);
+  --shadow-2xl: 0 12px 32px -10px rgba(16, 24, 40, 0.20);
+}
+
 /* ──────────────────────────────────────────────────────────────
    Design tokens — single source of truth.
    Unified royal-blue accent. Light = warm neutrals, Dark = deep slate.
@@ -12,8 +28,21 @@
   --app-bg: #F5F6F8;
   --app-panel-bg: #FFFFFF;
   --app-content-bg: #F0F2F5;
-  --app-sidebar-bg: #FFFFFF;
   --app-border: #E2E5EB;
+  /* Dark charcoal navigation panel (ERP) — its own fg/hover/accent tokens so a
+     dark sidebar coexists with the white content workspace. */
+  --app-sidebar-bg: #1B1E24;
+  --app-sidebar-border: #2A2E37;
+  --app-sidebar-heading: #F4F6F9;
+  --app-sidebar-fg: #C2C8D2;
+  --app-sidebar-muted: #7B8593;
+  --app-sidebar-hover: rgba(255, 255, 255, 0.06);
+  --app-sidebar-accent: #6BA1F2;
+  --app-sidebar-accent-soft: rgba(107, 161, 242, 0.14);
+  --app-sidebar-control-bg: rgba(255, 255, 255, 0.05);
+  /* Red primary CTA (ERP). Blue accent stays for action elements/links. */
+  --app-cta: #DC2626;
+  --app-cta-hover: #B91C1C;
   --app-heading: #0F1117;
   --app-text: #51596B;
   --app-muted: #858C9A;
@@ -44,6 +73,16 @@
   --app-panel-bg: #17191F;
   --app-content-bg: #101115;
   --app-sidebar-bg: #0E0F13;
+  --app-sidebar-border: #23262E;
+  --app-sidebar-heading: #ECEEF1;
+  --app-sidebar-fg: #A8ADB7;
+  --app-sidebar-muted: #6A6F79;
+  --app-sidebar-hover: rgba(255, 255, 255, 0.05);
+  --app-sidebar-accent: #5E9BF0;
+  --app-sidebar-accent-soft: rgba(94, 155, 240, 0.12);
+  --app-sidebar-control-bg: #1C1E25;
+  --app-cta: #EF4444;
+  --app-cta-hover: #DC2626;
   --app-border: #25272E;
   --app-heading: #ECEEF1;
   --app-text: #A8ADB7;
@@ -157,12 +196,11 @@
   background: var(--app-accent);
 }
 
-/* Glass card surface */
+/* Flat ERP panel surface — was glassmorphic; blur dropped (guide bans glass).
+   Solid panel + thin border so every legacy `glass-surface` reads flat. */
 .glass-surface {
   background-color: var(--app-panel-bg);
   border: 1px solid var(--app-border);
-  backdrop-filter: saturate(140%) blur(14px);
-  -webkit-backdrop-filter: saturate(140%) blur(14px);
 }
 
 /* Focus ring used on inputs/buttons */

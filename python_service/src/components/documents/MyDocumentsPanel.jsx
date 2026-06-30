@@ -24,7 +24,7 @@ const MyDocumentsPanel = ({ isDark }) => {
         onClick={onClick}
         title={label || Icon?.displayName}
         aria-label={label || Icon?.displayName}
-        className={`w-8 h-8 rounded-full border flex items-center justify-center transition-all hover:scale-110 active:scale-95 ${shadow ? 'shadow-md' : 'shadow-sm'}`}
+        className={`w-8 h-8 rounded-full border flex items-center justify-center transition-all ${shadow ? 'shadow-md' : 'shadow-sm'}`}
         style={{
           borderColor: border ? activeColor + '40' : activeColor + '20',
           color: activeColor,
@@ -102,7 +102,7 @@ const MyDocumentsPanel = ({ isDark }) => {
                   <div className="absolute top-2 right-2 bg-slate-50 dark:bg-slate-800 text-[var(--app-muted)] text-[10px] font-black px-1.5 py-0.5 rounded shadow-sm border border-[var(--app-border)]">
                     1
                   </div>
-                  <Folder size={40} className="text-[var(--app-accent)] fill-purple-500/20 group-hover:scale-110 transition-transform duration-300" strokeWidth={1.5} />
+                  <Folder size={40} className="text-[var(--app-accent)] fill-[var(--app-accent-soft)] transition-transform duration-300" strokeWidth={1.5} />
                   <span className="text-[13px] font-bold text-[var(--app-text)]">January 2026</span>
                 </div>
               </div>

@@ -66,7 +66,7 @@ const CreateQuotation = ({ isDark, onBack }) => {
         <h1 className="text-xl font-extrabold tracking-tighter" style={{ color: 'var(--app-accent)' }}>Quotation - Transaction mode</h1>
         <div className="flex items-center gap-2">
           <button 
-            className="flex items-center gap-1.5 px-6 py-2 rounded-full text-[11px] font-bold shadow-[0_4px_12px_rgba(0,0,0,0.1)] transition-all hover:scale-105 active:scale-95 group text-white border-none"
+            className="flex items-center gap-1.5 px-6 py-2 rounded-full text-[11px] font-bold shadow-[0_4px_12px_rgba(0,0,0,0.1)] transition-all group text-white border-none"
             style={{ background: 'var(--app-accent-gradient)' }}
           >
             <Save size={14} className="group-hover:rotate-12 transition-transform" /> Save Changes
@@ -87,7 +87,7 @@ const CreateQuotation = ({ isDark, onBack }) => {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-4 pb-8">
+      <div className="flex-1 overflow-y-auto pr-2 themed-scrollbar space-y-4 pb-8">
         {/* Toggle Bar */}
         <div className="flex items-center gap-5 p-4 rounded-2xl border shadow-sm transition-all hover:shadow-md" 
           style={{ borderColor: 'var(--app-border)', backgroundColor: isDark ? 'var(--app-panel-bg)' : '#ffffff' }}>
@@ -238,13 +238,13 @@ const CreateQuotation = ({ isDark, onBack }) => {
       <div className="flex justify-end gap-3 mt-auto pt-2 shrink-0 px-1 border-t" style={{ borderColor: 'var(--app-row-border)' }}>
         <button 
           onClick={onBack}
-          className="px-6 py-2 rounded-full border text-[11px] font-bold transition-all hover:bg-gray-50 active:scale-95"
+          className="px-6 py-2 rounded-full border text-[11px] font-bold transition-all hover:bg-gray-50"
           style={{ borderColor: 'var(--app-border)', backgroundColor: isDark ? 'var(--app-control-bg)' : '#ffffff', color: 'var(--app-text)' }}
         >
           Cancel
         </button>
         <button 
-          className="px-10 py-2.5 rounded-full text-[11px] font-extrabold shadow-[0_4px_15px_rgba(0,0,0,0.15)] transition-all hover:brightness-110 hover:translate-y-[-1px] active:scale-95 text-white border-none"
+          className="px-10 py-2.5 rounded-full text-[11px] font-extrabold shadow-[0_4px_15px_rgba(0,0,0,0.15)] transition-all hover:brightness-110 hover:translate-y-[-1px] text-white border-none"
           style={{ background: 'var(--app-accent-gradient)' }}
         >
           Save Quotation

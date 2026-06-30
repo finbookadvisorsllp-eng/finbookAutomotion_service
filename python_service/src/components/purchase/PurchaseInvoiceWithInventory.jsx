@@ -23,7 +23,7 @@ const PurchaseInvoiceWithInventory = ({ isDark, onBack }) => {
           </div>
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto p-4 custom-scrollbar relative">
+      <div className="flex-1 overflow-y-auto p-4 themed-scrollbar relative">
         <div className="max-w-6xl mx-auto">
           <VoucherEntryEngine isDark={isDark} defaultMode="manual" voucherType="purchase" />
         </div>

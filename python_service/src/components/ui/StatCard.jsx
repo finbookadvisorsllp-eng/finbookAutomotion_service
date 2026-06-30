@@ -1,35 +1,16 @@
-import { useRef, useState } from 'react'
-import { motion } from 'motion/react'
 import { ArrowUpRight, ArrowDownRight, Sparkles } from 'lucide-react'
 import useCountUp from './useCountUp'
 
-// Minimalist KPI card: neutral surface, accent icon, semantic delta, animated
-// value + a gentle cursor tilt ("invisible delight"). Calm, not flashy.
-export default function StatCard({ label, value, icon: Icon, delta, right, insight, index = 0 }) {
+// Flat ERP KPI card: neutral surface, accent icon, semantic delta, count-up
+// value. No tilt / hover-lift / hover-shadow — functional, not decorative.
+export default function StatCard({ label, value, icon: Icon, delta, right, insight }) {
   const up = delta?.dir !== 'down'
   const display = useCountUp(value)
-  const ref = useRef(null)
-  const [tilt, setTilt] = useState({ x: 0, y: 0 })
-
-  const onMove = (e) => {
-    const r = ref.current?.getBoundingClientRect()
-    if (!r) return
-    const px = (e.clientX - r.left) / r.width - 0.5
-    const py = (e.clientY - r.top) / r.height - 0.5
-    setTilt({ x: py * -3, y: px * 3 })
-  }
 
   return (
-    <motion.div
-      ref={ref}
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0, rotateX: tilt.x, rotateY: tilt.y }}
-      transition={{ opacity: { duration: 0.32, delay: index * 0.04 }, y: { duration: 0.32, delay: index * 0.04 }, rotateX: { duration: 0.3 }, rotateY: { duration: 0.3 }, ease: [0.22, 1, 0.36, 1] }}
-      onMouseMove={onMove}
-      onMouseLeave={() => setTilt({ x: 0, y: 0 })}
-      whileHover={{ y: -2 }}
-      style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-panel-bg)', boxShadow: 'var(--app-shadow)', transformPerspective: 800 }}
-      className="rounded-xl border p-3 flex flex-col gap-2 transition-shadow hover:shadow-md"
+    <div
+      style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-panel-bg)' }}
+      className="rounded-xl border p-3 flex flex-col gap-2"
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
@@ -60,6 +41,6 @@ export default function StatCard({ label, value, icon: Icon, delta, right, insig
           <span className="text-[9.5px] font-medium leading-snug" style={{ color: 'var(--app-muted)' }}>{insight}</span>
         </div>
       )}
-    </motion.div>
+    </div>
   )
 }

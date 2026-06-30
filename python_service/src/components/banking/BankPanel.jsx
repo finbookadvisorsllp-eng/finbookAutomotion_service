@@ -188,7 +188,7 @@ const BankPanel = ({ mode: propMode, isDark }) => {
 
   // ── DataTable migration: one config per bank segment ──────────────────
   const RowAct = ({ icon: Icon, onClick, title, tone = 'hover:text-[var(--app-accent)]' }) => (
-    <button onClick={onClick} title={title || Icon?.displayName} aria-label={title || Icon?.displayName} className={`p-1 rounded-lg transition-all hover:scale-110 active:scale-95 text-[var(--app-muted)] hover:bg-[var(--app-control-hover)] ${tone}`}>
+    <button onClick={onClick} title={title || Icon?.displayName} aria-label={title || Icon?.displayName} className={`p-1 rounded-lg transition-all text-[var(--app-muted)] hover:bg-[var(--app-control-hover)] ${tone}`}>
       <Icon size={13} strokeWidth={2.2} />
     </button>
   );
@@ -522,7 +522,7 @@ const SearchableDropdown = ({ placeholder, items, value, onChange, label, isSmal
               />
             </div>
           </div>
-          <div className="max-h-[200px] overflow-y-auto custom-scrollbar no-scrollbar">
+          <div className="max-h-[200px] overflow-y-auto themed-scrollbar no-scrollbar">
             {filtered.length > 0 ? (
               filtered.map((item, idx) => (
                 <div
@@ -566,7 +566,7 @@ const FilterDrawer = ({ title, onClose, children }) => {
           <button onClick={onClose} className="flex-1 h-9 rounded-lg border border-red-200 bg-[var(--app-panel-bg)] text-red-500 text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all hover:bg-red-50 shadow-sm">
             Clear
           </button>
-          <button className="flex-1 h-9 rounded-lg bg-[var(--app-accent)] text-white text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg transition-all hover:opacity-90 active:scale-95">
+          <button className="flex-1 h-9 rounded-lg bg-[var(--app-accent)] text-white text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg transition-all hover:opacity-90">
             Apply
           </button>
         </div>
@@ -608,7 +608,7 @@ const AddBankModal = ({ onClose }) => {
           </div>
 
           <div className="flex justify-center">
-            <button className="bg-[var(--app-accent)] hover:opacity-90 text-white px-12 py-2.5 rounded-lg text-[14px] font-black uppercase tracking-widest shadow-xl dark:shadow-none transition-all hover:scale-105 active:scale-95">
+            <button className="bg-[var(--app-accent)] hover:opacity-90 text-white px-12 py-2.5 rounded-lg text-[14px] font-black uppercase tracking-widest shadow-xl dark:shadow-none transition-all">
               submit
             </button>
           </div>
@@ -657,7 +657,7 @@ const UploadStatementModal = ({ onClose }) => {
           </div>
 
           <div className="flex justify-center pt-2">
-            <button className="bg-[var(--app-accent)] hover:opacity-90 text-white px-12 py-2.5 rounded-lg text-[13px] font-black uppercase tracking-widest shadow-xl dark:shadow-none transition-all hover:opacity-90 active:scale-95">
+            <button className="bg-[var(--app-accent)] hover:opacity-90 text-white px-12 py-2.5 rounded-lg text-[13px] font-black uppercase tracking-widest shadow-xl dark:shadow-none transition-all hover:opacity-90">
               Upload
             </button>
           </div>
@@ -716,7 +716,7 @@ const AddRuleModal = ({ onClose }) => {
           </div>
 
           <div className="flex justify-center pt-2">
-            <button className="bg-[var(--app-accent)] hover:opacity-90 text-white px-14 py-2.5 rounded-lg text-[13px] font-black uppercase tracking-widest shadow-xl dark:shadow-none transition-all hover:scale-105 active:scale-95">
+            <button className="bg-[var(--app-accent)] hover:opacity-90 text-white px-14 py-2.5 rounded-lg text-[13px] font-black uppercase tracking-widest shadow-xl dark:shadow-none transition-all">
               submit
             </button>
           </div>
@@ -753,7 +753,7 @@ const BulkUploadRulesModal = ({ onClose }) => {
           </div>
 
           <div className="flex justify-center pt-2">
-            <button className="bg-[var(--app-accent)] hover:opacity-90 text-white px-12 py-2.5 rounded-lg text-[13px] font-black uppercase tracking-widest shadow-xl dark:shadow-none transition-all hover:opacity-90 active:scale-95">
+            <button className="bg-[var(--app-accent)] hover:opacity-90 text-white px-12 py-2.5 rounded-lg text-[13px] font-black uppercase tracking-widest shadow-xl dark:shadow-none transition-all hover:opacity-90">
               Validate
             </button>
           </div>
@@ -808,7 +808,7 @@ const AddLedgerModal = ({ title, type, onClose }) => {
           )}
 
           <div className="flex justify-center pt-2">
-            <button className="bg-[var(--app-accent)] hover:opacity-90 text-white px-16 py-2.5 rounded-lg text-[13px] font-black uppercase tracking-widest shadow-xl dark:shadow-none transition-all hover:scale-105 active:scale-95">
+            <button className="bg-[var(--app-accent)] hover:opacity-90 text-white px-16 py-2.5 rounded-lg text-[13px] font-black uppercase tracking-widest shadow-xl dark:shadow-none transition-all">
               submit
             </button>
           </div>
@@ -838,7 +838,7 @@ const ColumnConfigPopup = ({ onClose, activeTab }) => {
           ))}
         </div>
         <div className="p-4 border-t bg-[var(--app-content-bg)]/30 flex justify-end" style={{ borderColor: 'var(--app-row-border)' }}>
-          <button onClick={onClose} className="bg-[var(--app-accent)] hover:opacity-90 text-white px-8 py-2 rounded-lg text-[12px] font-black uppercase tracking-widest shadow-sm transition-all hover:scale-105 active:scale-95">Apply</button>
+          <button onClick={onClose} className="bg-[var(--app-accent)] hover:opacity-90 text-white px-8 py-2 rounded-lg text-[12px] font-black uppercase tracking-widest shadow-sm transition-all">Apply</button>
         </div>
       </div>
     </div>
