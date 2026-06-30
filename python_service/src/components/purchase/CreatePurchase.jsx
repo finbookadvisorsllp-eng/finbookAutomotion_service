@@ -1906,8 +1906,9 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
             <div
               className={`absolute top-full left-0 right-0 mt-1 border ${rounded ? 'rounded-lg' : 'rounded-lg'} shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 flex flex-col max-h-[200px] z-50`}
               style={{
-                backgroundColor: 'var(--app-panel-bg)',
-                borderColor: 'var(--app-border)',
+                backgroundColor: 'var(--m3-surface-container-high)',
+                borderColor: 'var(--m3-outline-variant)',
+                boxShadow: 'var(--m3-e2)',
               }}
             >
               {hasSearch && (

@@ -3544,7 +3544,7 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
         <div
           onClick={() => setIsOpen(!isOpen)}
           className={`w-full ${compact ? 'h-7 px-1.5' : 'h-10 px-2'} rounded-lg border flex items-center justify-between cursor-pointer transition-all duration-300 group/input ${isOpen ? 'border-[var(--app-accent)]' : 'hover:border-[var(--app-accent)]'}`}
-          style={{ backgroundColor: theme.inputBg, borderColor: isOpen ? theme.accent : theme.border }}
+          style={{ backgroundColor: 'var(--m3-surface-container-high)', borderColor: isOpen ? 'var(--m3-primary)' : 'var(--m3-outline-variant)' }}
         >
           <span className={`${compact ? 'text-[10px]' : 'text-[11px]'} font-bold truncate transition-colors ${value ? (isDark ? 'text-[var(--app-accent)]' : 'text-[var(--app-accent)]') : 'text-[var(--app-muted)]'}`}>
             {value || placeholder}
@@ -3556,15 +3556,15 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
         </div>
 
         {isOpen && (
-          <div className="absolute top-full left-0 right-0 mt-1 rounded-lg border shadow-2xl z-50 overflow-hidden" style={{ backgroundColor: 'var(--app-panel-bg)', borderColor: theme.border }}>
+          <div className="absolute top-full left-0 right-0 mt-1 rounded-lg border z-50 overflow-hidden" style={{ backgroundColor: 'var(--m3-surface-container-high)', borderColor: 'var(--m3-outline-variant)', boxShadow: 'var(--m3-e2)' }}>
             <div className="p-1.5 border-b" style={{ borderColor: theme.border }}>
               <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--app-muted)]" size={11} />
                 <input
                   type="text" value={search} onChange={e => setSearch(e.target.value)}
                   placeholder="Search by Name, GSTIN, Phone..."
-                  className="w-full h-8 px-8 text-[11px] font-semibold outline-none transition-all border focus:border-[var(--app-accent)] rounded-lg"
-                  style={{ backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.text }}
+                  className="w-full h-8 px-8 text-[11px] font-semibold outline-none transition-all border focus:border-[var(--m3-primary)] rounded-lg"
+                  style={{ backgroundColor: 'var(--m3-surface-container-high)', borderColor: 'var(--m3-outline-variant)', color: 'var(--m3-on-surface)' }}
                   autoFocus
                 />
               </div>
@@ -3582,8 +3582,8 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
                 );
                 return (
                   <button key={i} onClick={() => { onChange && onChange(optVal); setIsOpen(false); setSearch(''); }}
-                    className="w-full text-left px-2 py-1 text-[11px] font-bold hover:bg-[var(--app-accent-soft)] transition-colors border-b last:border-0"
-                    style={{ color: theme.text, borderColor: theme.border }}
+                    className="w-full text-left px-2 py-1 text-[11px] font-bold hover:bg-[var(--m3-primary-container)] transition-colors border-b last:border-0"
+                    style={{ color: 'var(--m3-on-surface)', borderColor: 'var(--m3-outline-variant)' }}
                   >
                     {displayLabel}
                   </button>
