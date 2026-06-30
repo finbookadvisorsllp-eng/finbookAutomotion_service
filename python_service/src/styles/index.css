@@ -172,22 +172,42 @@
 /* Calming ambient — slow-falling sakura petals behind the workspace.
    Pure CSS; PetalField randomizes per-petal vars. Hidden on reduced-motion. */
 .petal-field { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+/* Layered wind motion (one transform per element, so nest):
+   .petal falls vertically · .petal-gust sways horizontally (gust) ·
+   .petal-spin flutters (spin + edge-on rotateY tumble). Vars inherit from .petal. */
 .petal {
   position: absolute;
-  top: -6%;
+  top: -8%;
   width: var(--ps, 12px);
-  height: calc(var(--ps, 12px) * 1.15);
-  background: var(--app-petal);
-  border-radius: 100% 0 100% 0;
+  height: calc(var(--ps, 12px) * 1.25);
   opacity: 0;
   will-change: transform, opacity;
-  animation: petalFall var(--pd, 16s) ease-in-out var(--pdelay, 0s) infinite;
+  animation: petalFall var(--pd, 16s) linear var(--pdelay, 0s) infinite;
 }
+.petal-gust {
+  display: block; width: 100%; height: 100%; will-change: transform;
+  animation: petalGust var(--pg, 6s) ease-in-out var(--pdelay, 0s) infinite alternate;
+}
+.petal-spin {
+  display: block; width: 100%; height: 100%; will-change: transform;
+  animation: petalSpin var(--pt, 3s) linear var(--pdelay, 0s) infinite;
+}
+.petal svg { display: block; width: 100%; height: 100%; }
+
 @keyframes petalFall {
-  0%   { transform: translate3d(0, -6vh, 0) rotate(0deg); opacity: 0; }
-  12%  { opacity: var(--po, 0.4); }
-  88%  { opacity: var(--po, 0.4); }
-  100% { transform: translate3d(var(--psway, 40px), 106vh, 0) rotate(420deg); opacity: 0; }
+  0%   { transform: translateY(-8vh); opacity: 0; }
+  10%  { opacity: var(--po, 0.4); }
+  90%  { opacity: var(--po, 0.4); }
+  100% { transform: translateY(112vh); opacity: 0; }
+}
+@keyframes petalGust {
+  0%   { transform: translateX(calc(var(--psway, 40px) * -0.7)); }
+  100% { transform: translateX(var(--psway, 40px)); }
+}
+@keyframes petalSpin {
+  0%   { transform: perspective(500px) rotateZ(0deg) rotateY(0deg); }
+  50%  { transform: perspective(500px) rotateZ(180deg) rotateY(180deg); }
+  100% { transform: perspective(500px) rotateZ(360deg) rotateY(360deg); }
 }
 @media (prefers-reduced-motion: reduce) { .petal { display: none; } }
 
