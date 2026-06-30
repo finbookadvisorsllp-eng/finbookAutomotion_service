@@ -1,7 +1,6 @@
-// Calming ambient: two sakura tree silhouettes at the bottom corners + a dense
-// drift of falling cherry-blossom petals behind the workspace. Pure CSS/SVG, no
-// deps; petals are CSS-animated (see .petal in index.css) and hidden on
-// reduced-motion. Randomized once at module load so they don't reshuffle.
+// Calming ambient: a dense drift of falling cherry-blossom petals behind the
+// workspace. Pure CSS (see .petal in index.css), hidden on reduced-motion.
+// Randomized once at module load so they don't reshuffle on every render.
 const PETAL_COUNT = 70
 
 const PETALS = Array.from({ length: PETAL_COUNT }, (_, i) => {
@@ -17,32 +16,9 @@ const PETALS = Array.from({ length: PETAL_COUNT }, (_, i) => {
   }
 })
 
-// Sakura tree silhouette — forked trunk + soft blossom canopy.
-function SakuraTree({ className, flip = false }) {
-  return (
-    <svg viewBox="0 0 200 200" className={className} aria-hidden="true"
-      style={{ transform: flip ? 'scaleX(-1)' : undefined }}>
-      <path d="M100 200 L100 118 M100 150 L68 116 M100 140 L134 104 M100 128 L82 100 M100 132 L120 96"
-        stroke="#8A5A44" strokeWidth="6" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-      <g fill="var(--app-petal)">
-        <circle cx="100" cy="78" r="36" />
-        <circle cx="66" cy="94" r="27" />
-        <circle cx="134" cy="92" r="27" />
-        <circle cx="84" cy="58" r="23" />
-        <circle cx="118" cy="60" r="23" />
-        <circle cx="100" cy="104" r="25" />
-        <circle cx="50" cy="74" r="17" />
-        <circle cx="150" cy="74" r="17" />
-      </g>
-    </svg>
-  )
-}
-
 export default function PetalField() {
   return (
     <div className="petal-field" aria-hidden="true">
-      <SakuraTree className="absolute bottom-0 left-0 w-40 sm:w-52 opacity-40" />
-      <SakuraTree className="absolute bottom-0 right-0 w-36 sm:w-48 opacity-35" flip />
       {PETALS.map(({ key, left, ...vars }) => (
         <span key={key} className="petal" style={{ left, ...vars }} />
       ))}
