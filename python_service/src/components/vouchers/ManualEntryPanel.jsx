@@ -19,6 +19,7 @@ import DataTable from '../ui/DataTable';
 import Button from '../ui/Button';
 import Select from '../ui/Select';
 import Badge, { statusTone } from '../ui/Badge';
+import ObjectDoodle from '../ui/ObjectDoodle';
 
 const VOUCHER_TABS = [
   { id: 'sales_invoice', label: 'Sales Voucher', section: 'SALES', icon: FileText },
@@ -571,12 +572,10 @@ const ManualEntryPanel = ({ isDark }) => {
             <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
             <motion.div initial={{ opacity: 0, y: 12, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 8, scale: 0.98 }}
               className="relative w-full max-w-sm rounded-2xl border p-5 glass-surface" style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-panel-bg)', boxShadow: 'var(--app-shadow-lg)' }}>
-              <div className="flex items-start gap-3">
-                <span className="h-9 w-9 rounded-xl flex items-center justify-center shrink-0 bg-emerald-500/12 text-emerald-500"><CheckCircle2 size={18} /></span>
-                <div>
-                  <h3 className="text-[14px] font-bold" style={{ color: 'var(--app-heading)' }}>Voucher saved</h3>
-                  <p className="text-[12px] mt-1 leading-relaxed" style={{ color: 'var(--app-muted)' }}>Saved to your draft database. What next?</p>
-                </div>
+              <div className="flex flex-col items-center text-center">
+                <ObjectDoodle name="approve" className="w-24 h-20" tint="var(--app-success)" />
+                <h3 className="mt-1 text-[14px] font-bold" style={{ color: 'var(--app-heading)' }}>Voucher saved</h3>
+                <p className="text-[12px] mt-1 leading-relaxed" style={{ color: 'var(--app-muted)' }}>Saved to your draft database. What next?</p>
               </div>
               <div className="flex flex-col gap-2 mt-5">
                 <Button variant="primary" size="md" className="w-full" onClick={handleCreateNewSuccess}>Create new voucher</Button>

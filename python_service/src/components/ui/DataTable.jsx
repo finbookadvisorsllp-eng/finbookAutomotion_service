@@ -3,6 +3,7 @@ import { motion } from 'motion/react'
 import { ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react'
 import { SearchInput } from './Input'
 import EmptyState from './EmptyState'
+import ObjectDoodle from './ObjectDoodle'
 
 /**
  * Shared table shell. Replaces the hand-rolled <table> markup duplicated across
@@ -129,8 +130,8 @@ export default function DataTable({
       >
         {loading && (
           <div className="absolute inset-0 z-30 flex items-center justify-center rounded-xl" style={{ backgroundColor: 'var(--app-accent-soft)' }}>
-            <div className="flex flex-col items-center gap-2 px-5 py-4 rounded-xl border" style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-panel-bg)' }}>
-              <Loader2 className="animate-spin" size={20} style={{ color: 'var(--app-accent)' }} />
+            <div className="flex flex-col items-center gap-1 px-5 py-4 rounded-xl border" style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-panel-bg)' }}>
+              <ObjectDoodle name="processing" className="w-16 h-12" />
               <span className="text-[11px] font-semibold tracking-wide" style={{ color: 'var(--app-heading)' }}>Loading…</span>
             </div>
           </div>

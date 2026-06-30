@@ -79,12 +79,12 @@ function Leaf({ label, sub, active, onClick, indent, pinned, onTogglePin }) {
             <LeafIcon
               size={14}
               strokeWidth={active ? 2.4 : 1.9}
-              className="shrink-0 transition-colors group-hover/leaf:scale-110"
+              className="relative z-10 shrink-0 transition-colors group-hover/leaf:scale-110"
               style={{ color: active ? 'var(--app-sidebar-accent)' : 'var(--app-sidebar-muted)' }}
             />
           )
         })()}
-        <span className={`truncate flex-1 text-[12px] tracking-wide leading-tight transition-colors ${active ? '' : 'group-hover/leaf:text-[var(--app-sidebar-heading)]'}`}>
+        <span className={`relative z-10 truncate flex-1 text-[12px] tracking-wide leading-tight transition-colors ${active ? '' : 'group-hover/leaf:text-[var(--app-sidebar-heading)]'}`}>
           {label}
           {sub && <span className="block text-[9.5px] font-semibold uppercase tracking-wider mt-0.5" style={{ color: 'var(--app-sidebar-muted)' }}>{sub}</span>}
         </span>
@@ -302,10 +302,10 @@ function Sidebar({ activeItem, onItemClick, collapsed, onToggle }) {
                   style={{ color: activeItem === entry.label ? 'var(--app-sidebar-accent)' : 'var(--app-sidebar-fg)', fontWeight: activeItem === entry.label ? 600 : 500 }}
                 >
                   {activeItem === entry.label && <motion.span layoutId="sidebar-active-bar" className="absolute inset-0 rounded-full" style={{ backgroundColor: 'var(--app-sidebar-accent-soft)' }} transition={{ type: 'spring', stiffness: 500, damping: 38 }} />}
-                  <span className="flex h-5 w-5 items-center justify-center shrink-0 transition-transform" style={{ color: activeItem === entry.label ? 'var(--app-sidebar-accent)' : 'var(--app-sidebar-muted)' }}>
+                  <span className="relative z-10 flex h-5 w-5 items-center justify-center shrink-0 transition-transform" style={{ color: activeItem === entry.label ? 'var(--app-sidebar-accent)' : 'var(--app-sidebar-muted)' }}>
                     <entry.icon size={15} strokeWidth={activeItem === entry.label ? 2.2 : 1.8} />
                   </span>
-                  <span className="truncate flex-1 text-[12.5px] tracking-wide">{entry.label}</span>
+                  <span className="relative z-10 truncate flex-1 text-[12.5px] tracking-wide">{entry.label}</span>
                 </motion.button>
               )
             )}
