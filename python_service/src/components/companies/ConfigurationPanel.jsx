@@ -233,7 +233,7 @@ export default function ConfigurationPanel() {
             <div className="absolute bottom-0 left-0 right-0 h-12 border-t flex items-center justify-end px-4 bg-[var(--app-content-bg)] border-[var(--app-border)]/80">
               <button
                 type="submit"
-                className="h-8 px-6 bg-[var(--app-cta)] hover:opacity-90 text-white font-bold uppercase text-[11.5px] shadow rounded-full transition-all"
+                className="h-8 px-6 m3-interactive bg-[var(--app-cta)] hover:opacity-90 text-white font-bold uppercase text-[11.5px] shadow rounded-full transition-all"
               >
                 Save {activeSection}
               </button>

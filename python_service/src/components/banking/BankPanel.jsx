@@ -608,7 +608,7 @@ const AddBankModal = ({ onClose }) => {
           </div>
 
           <div className="flex justify-center">
-            <button className="bg-[var(--app-accent)] hover:opacity-90 text-white px-12 py-2.5 rounded-lg text-[14px] font-black uppercase tracking-widest shadow-xl dark:shadow-none transition-all">
+            <button className="m3-interactive bg-[var(--app-accent)] hover:opacity-90 text-white px-12 py-2.5 rounded-lg text-[14px] font-black uppercase tracking-widest shadow-xl dark:shadow-none transition-all">
               submit
             </button>
           </div>
@@ -657,7 +657,7 @@ const UploadStatementModal = ({ onClose }) => {
           </div>
 
           <div className="flex justify-center pt-2">
-            <button className="bg-[var(--app-accent)] hover:opacity-90 text-white px-12 py-2.5 rounded-lg text-[13px] font-black uppercase tracking-widest shadow-xl dark:shadow-none transition-all hover:opacity-90">
+            <button className="m3-interactive bg-[var(--app-accent)] hover:opacity-90 text-white px-12 py-2.5 rounded-lg text-[13px] font-black uppercase tracking-widest shadow-xl dark:shadow-none transition-all hover:opacity-90">
               Upload
             </button>
           </div>
@@ -716,7 +716,7 @@ const AddRuleModal = ({ onClose }) => {
           </div>
 
           <div className="flex justify-center pt-2">
-            <button className="bg-[var(--app-accent)] hover:opacity-90 text-white px-14 py-2.5 rounded-lg text-[13px] font-black uppercase tracking-widest shadow-xl dark:shadow-none transition-all">
+            <button className="m3-interactive bg-[var(--app-accent)] hover:opacity-90 text-white px-14 py-2.5 rounded-lg text-[13px] font-black uppercase tracking-widest shadow-xl dark:shadow-none transition-all">
               submit
             </button>
           </div>
@@ -753,7 +753,7 @@ const BulkUploadRulesModal = ({ onClose }) => {
           </div>
 
           <div className="flex justify-center pt-2">
-            <button className="bg-[var(--app-accent)] hover:opacity-90 text-white px-12 py-2.5 rounded-lg text-[13px] font-black uppercase tracking-widest shadow-xl dark:shadow-none transition-all hover:opacity-90">
+            <button className="m3-interactive bg-[var(--app-accent)] hover:opacity-90 text-white px-12 py-2.5 rounded-lg text-[13px] font-black uppercase tracking-widest shadow-xl dark:shadow-none transition-all hover:opacity-90">
               Validate
             </button>
           </div>
@@ -808,7 +808,7 @@ const AddLedgerModal = ({ title, type, onClose }) => {
           )}
 
           <div className="flex justify-center pt-2">
-            <button className="bg-[var(--app-accent)] hover:opacity-90 text-white px-16 py-2.5 rounded-lg text-[13px] font-black uppercase tracking-widest shadow-xl dark:shadow-none transition-all">
+            <button className="m3-interactive bg-[var(--app-accent)] hover:opacity-90 text-white px-16 py-2.5 rounded-lg text-[13px] font-black uppercase tracking-widest shadow-xl dark:shadow-none transition-all">
               submit
             </button>
           </div>
@@ -838,7 +838,7 @@ const ColumnConfigPopup = ({ onClose, activeTab }) => {
           ))}
         </div>
         <div className="p-4 border-t bg-[var(--app-content-bg)]/30 flex justify-end" style={{ borderColor: 'var(--app-row-border)' }}>
-          <button onClick={onClose} className="bg-[var(--app-accent)] hover:opacity-90 text-white px-8 py-2 rounded-lg text-[12px] font-black uppercase tracking-widest shadow-sm transition-all">Apply</button>
+          <button onClick={onClose} className="m3-interactive bg-[var(--app-accent)] hover:opacity-90 text-white px-8 py-2 rounded-lg text-[12px] font-black uppercase tracking-widest shadow-sm transition-all">Apply</button>
         </div>
       </div>
     </div>

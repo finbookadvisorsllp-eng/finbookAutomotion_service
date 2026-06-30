@@ -938,7 +938,7 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
 
               {/* B. Item Details Section (Flat UI, No Cards, No Rounded) */}
               {activeTab === 'With Item' && (
-                <div className="p-3 bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-xl shadow-sm mb-0 shrink-0 flex flex-col">
+                <div className="p-3 m3-card mb-0 shrink-0 flex flex-col">
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="text-[10px] font-black uppercase tracking-wider text-[var(--app-heading)]">Item Details</h3>
                     <div className="flex items-center gap-2">
@@ -1219,7 +1219,7 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
                 {/* Left Stack: Ledger Details & HSN Tax Detailes */}
                 <div className="flex flex-col gap-4">
                   {/* Ledger Details */}
-                  <div className="p-2.5 bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-xl shadow-sm shadow-[0_2px_8px_-3px_rgba(0,0,0,0.05)] flex flex-col gap-2">
+                  <div className="p-2.5 m3-card flex flex-col gap-2">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <div className="p-1 bg-[var(--app-accent-soft)] dark:bg-[var(--app-accent-soft)] text-[var(--app-accent)] dark:text-[var(--app-accent)] rounded-lg border border-[var(--app-border)] dark:border-[var(--app-border)] flex items-center justify-center">
@@ -1308,7 +1308,7 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
                   </div>
 
                   {/* HSN / Sales Tax Details */}
-                  <div className="p-2.5 bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-xl shadow-sm shadow-[0_2px_8px_-3px_rgba(0,0,0,0.05)] flex flex-col gap-2">
+                  <div className="p-2.5 m3-card flex flex-col gap-2">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <div className="p-1 bg-amber-50 dark:bg-amber-950/40 text-amber-500 dark:text-amber-400 rounded-lg border border-amber-100 dark:border-amber-900/50 flex items-center justify-center">
@@ -1421,7 +1421,7 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
                 </div>
 
                 {/* Tax & Statutory Ledger Details */}
-                <div className="p-2.5 bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-xl shadow-sm shadow-[0_2px_8px_-3px_rgba(0,0,0,0.05)] flex flex-col gap-2">
+                <div className="p-2.5 m3-card flex flex-col gap-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <div className="p-1 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-500 dark:text-emerald-400 rounded-lg border border-emerald-100 dark:border-emerald-900/50 flex items-center justify-center">

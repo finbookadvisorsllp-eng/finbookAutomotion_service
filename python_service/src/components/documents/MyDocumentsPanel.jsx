@@ -302,7 +302,7 @@ const FilterModal = ({ onClose }) => {
             <span className="text-[12px] font-bold">Clear</span>
           </button>
           
-          <button onClick={onClose} className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-[var(--app-accent)] hover:opacity-90 text-white transition-colors shadow-sm">
+          <button onClick={onClose} className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg m3-interactive bg-[var(--app-accent)] hover:opacity-90 text-white transition-colors shadow-sm">
             <Check size={14} strokeWidth={3} />
             <span className="text-[12px] font-bold">Apply</span>
           </button>

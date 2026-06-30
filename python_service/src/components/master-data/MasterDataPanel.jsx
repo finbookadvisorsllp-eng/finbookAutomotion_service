@@ -293,7 +293,7 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
 
         <button
           onClick={() => setShowCreateForm(p => !p)}
-          className="px-3.5 py-1.5 bg-[var(--app-accent)] hover:opacity-90 text-white font-bold text-[10.5px] rounded-lg flex items-center gap-1 transition-all uppercase shrink-0 shadow-sm"
+          className="px-3.5 py-1.5 m3-interactive bg-[var(--app-accent)] hover:opacity-90 text-white font-bold text-[10.5px] rounded-lg flex items-center gap-1 transition-all uppercase shrink-0 shadow-sm"
         >
           {showCreateForm ? <X size={12} /> : <Plus size={12} />}
           {showCreateForm ? 'Close Form' : isStock ? 'New Stock Item' : 'New Party Ledger'}
@@ -590,7 +590,7 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-1.5 bg-[var(--app-cta)] hover:opacity-90 text-white rounded-full shadow-sm transition-all font-bold"
+                    className="px-5 py-1.5 m3-interactive bg-[var(--app-cta)] hover:opacity-90 text-white rounded-full shadow-sm transition-all font-bold"
                   >
                     Save Item
                   </button>
@@ -1006,7 +1006,7 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-1.5 bg-[var(--app-cta)] hover:opacity-90 text-white rounded-full shadow-sm transition-all font-bold"
+                    className="px-5 py-1.5 m3-interactive bg-[var(--app-cta)] hover:opacity-90 text-white rounded-full shadow-sm transition-all font-bold"
                   >
                     Save Ledger
                   </button>

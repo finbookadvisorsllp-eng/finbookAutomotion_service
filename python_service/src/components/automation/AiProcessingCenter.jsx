@@ -1460,7 +1460,7 @@ export default function AiProcessingCenter() {
 
             <button
               onClick={() => setIsUploadModalOpen(true)}
-              className="h-8 px-3 bg-[var(--app-accent)] hover:opacity-90 text-white rounded-lg transition flex items-center justify-center gap-1.5 font-bold shadow-xs text-[11px] cursor-pointer shrink-0"
+              className="h-8 px-3 m3-interactive bg-[var(--app-accent)] hover:opacity-90 text-white rounded-lg transition flex items-center justify-center gap-1.5 font-bold shadow-xs text-[11px] cursor-pointer shrink-0"
             >
               <UploadCloud size={13} />
               <span>Upload Documents</span>
@@ -1659,7 +1659,7 @@ export default function AiProcessingCenter() {
 
                 <button
                   onClick={handleActionPushToTally}
-                  className="h-8.5 px-3.5 bg-[var(--app-accent)] hover:opacity-90 text-white rounded-lg transition flex items-center gap-1.5 font-bold shadow-xs text-[11px]"
+                  className="h-8.5 px-3.5 m3-interactive bg-[var(--app-accent)] hover:opacity-90 text-white rounded-lg transition flex items-center gap-1.5 font-bold shadow-xs text-[11px]"
                 >
                   <Send size={13} />
                   <span>Push to Tally</span>
@@ -2569,7 +2569,7 @@ export default function AiProcessingCenter() {
               </p>
               <button
                 onClick={() => setIsUploadModalOpen(true)}
-                className="mt-4 px-3 py-1.5 bg-[var(--app-accent)] hover:opacity-90 text-white font-bold rounded-lg text-xs cursor-pointer"
+                className="mt-4 px-3 py-1.5 m3-interactive bg-[var(--app-accent)] hover:opacity-90 text-white font-bold rounded-lg text-xs cursor-pointer"
               >
                 Upload Documents
               </button>
@@ -2695,7 +2695,7 @@ export default function AiProcessingCenter() {
                 <button
                   disabled={uploadFiles.length === 0}
                   onClick={handleUploadAndProcess}
-                  className="h-8 px-3.5 bg-[var(--app-accent)] hover:opacity-90 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+                  className="h-8 px-3.5 m3-interactive bg-[var(--app-accent)] hover:opacity-90 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
                 >
                   <PlayCircle size={13} />
                   <span>Start AI Processing</span>

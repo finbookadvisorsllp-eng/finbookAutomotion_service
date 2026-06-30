@@ -673,7 +673,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
       const destClosing = destBal + receivedAmt;
 
       return (
-        <div className="rounded-xl border p-2 shadow-sm" style={{ borderColor: theme.border, backgroundColor: theme.panel }}>
+        <div className="rounded-xl border p-2 shadow-sm" style={{ borderColor: 'var(--m3-outline-variant)', backgroundColor: 'var(--m3-surface-container-low)' }}>
           <h3 className="text-[10px] font-black uppercase tracking-wider text-[var(--app-muted)] mb-2 flex items-center gap-1">
             <Wallet size={10} /> Live Balance Panel (Contra)
           </h3>
@@ -714,7 +714,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
     }
 
     return (
-      <div className="rounded-xl border p-2 shadow-sm" style={{ borderColor: theme.border, backgroundColor: theme.panel }}>
+      <div className="rounded-xl border p-2 shadow-sm" style={{ borderColor: 'var(--m3-outline-variant)', backgroundColor: 'var(--m3-surface-container-low)' }}>
         <h3 className="text-[10px] font-black uppercase tracking-wider text-[var(--app-muted)] mb-2 flex items-center gap-1">
           <Wallet size={10} /> Live Balance Panel ({isBank ? 'Bank' : 'Cash'})
         </h3>
@@ -759,7 +759,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
     }
 
     return (
-      <div className="rounded-xl border p-2 shadow-sm" style={{ borderColor: theme.border, backgroundColor: theme.panel }}>
+      <div className="rounded-xl border p-2 shadow-sm" style={{ borderColor: 'var(--m3-outline-variant)', backgroundColor: 'var(--m3-surface-container-low)' }}>
         <h3 className="text-[10px] font-black uppercase tracking-wider text-[var(--app-muted)] mb-2 flex items-center gap-1">
           <ArrowRightLeft size={10} /> Accounting Entry Preview
         </h3>
@@ -812,7 +812,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
     const formatCur = (val) => `₹ ${val.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
     return (
-      <div className="rounded-xl border p-3 shadow-sm animate-in fade-in duration-200" style={{ borderColor: theme.border, backgroundColor: theme.panel }}>
+      <div className="rounded-xl border p-3 shadow-sm animate-in fade-in duration-200" style={{ borderColor: 'var(--m3-outline-variant)', backgroundColor: 'var(--m3-surface-container-low)' }}>
         <h3 className="text-[10px] font-black uppercase tracking-wider text-[var(--app-muted)] mb-2.5 flex items-center gap-1">
           <BookText size={10} /> Voucher Summary
         </h3>
@@ -872,7 +872,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
 
   return (
     <ThemeContext.Provider value={{ isDark, theme }}>
-      <div className="flex flex-col h-full overflow-hidden" style={{ backgroundColor: theme.bg }}>
+      <div className="m3-scope flex flex-col h-full overflow-hidden" style={{ backgroundColor: 'var(--m3-surface)' }}>
         <style>{`
           .themed-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
           .themed-scrollbar::-webkit-scrollbar-track { background: ${theme.scrollbarTrack}; }
@@ -882,64 +882,25 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
         `}</style>
 
         {/* Top Header Row (Same style as Purchase) */}
-        <div className="flex items-center justify-between px-4 py-1.5 bg-[var(--app-panel-bg)] border-b shrink-0" style={{ borderColor: theme.border }}>
+        <div className="flex items-center justify-between px-4 py-2.5 border-b shrink-0" style={{ borderColor: 'var(--m3-outline-variant)', backgroundColor: 'var(--m3-surface-container-low)' }}>
           <div className="flex items-center gap-2">
-            <h1 className="text-[12px] md:text-[13px] font-black uppercase tracking-tight text-[var(--app-heading)]">
-              {activeType === 'cash_payment' ? 'CREATE PAYMENT VOUCHER' :
-                activeType === 'bank_payment' ? 'CREATE RECEIPT VOUCHER' : 'CREATE CONTRA VOUCHER'}
+            <h1 className="text-[15px] font-semibold tracking-tight" style={{ color: 'var(--m3-on-surface)' }}>
+              {activeType === 'cash_payment' ? 'Create Payment Voucher' :
+                activeType === 'bank_payment' ? 'Create Receipt Voucher' : 'Create Contra Voucher'}
             </h1>
           </div>
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={handleSaveDraft}
-              disabled={loading.save}
-              className="px-3 py-1 rounded-lg border text-[11px] font-black transition-all hover:bg-[var(--app-content-bg)] shadow-sm uppercase tracking-wider text-[var(--app-heading)] flex items-center gap-1"
-              style={{ borderColor: theme.border, backgroundColor: theme.inputBg }}
-            >
-              Draft
-            </button>
-            <button
-              onClick={handlePushToReview}
-              disabled={loading.save || isUnbalanced}
-              className={`px-3 py-1 rounded-lg text-[11px] font-black transition-all shadow-sm uppercase tracking-wider flex items-center gap-1 ${(loading.save || isUnbalanced)
-                  ? 'bg-[var(--app-border)] text-[var(--app-muted)] cursor-not-allowed opacity-50'
-                  : ' text-[var(--app-heading)] bg-[#FCD34D] hover:bg-[#FBBF24]'
-                }`}
-            >
-              Review
-            </button>
-            <button
-              onClick={handlePostToTally}
-              disabled={isUnbalanced}
-              className={`px-3 py-1 rounded-lg text-[11px] font-black shadow-sm transition-all uppercase tracking-wider ${isUnbalanced
-                  ? 'bg-[var(--app-border)] text-[var(--app-muted)] cursor-not-allowed opacity-50'
-                  : ' text-white bg-[var(--app-accent)] hover:opacity-90'
-                }`}
-            >
-              Post Tally
-            </button>
-            <button
-              onClick={handleCancel}
-              className="px-3 py-1 rounded-lg border text-[11px] font-black hover:bg-red-50 hover:text-red-500 transition-all uppercase tracking-wider text-[var(--app-muted)]"
-              style={{ borderColor: theme.border }}
-            >
-              Cancel
-            </button>
-            <button className="p-1.5 rounded-lg border text-[var(--app-muted)] hover:text-[var(--app-accent)] transition-all" style={{ borderColor: theme.border }}>
-              <Settings size={12} />
-            </button>
-            <button
-              onClick={handleCancel}
-              className="p-1.5 rounded-lg border text-[var(--app-muted)] hover:text-red-500 transition-all hover:bg-red-50"
-              style={{ borderColor: theme.border, backgroundColor: theme.inputBg }}
-            >
-              <X size={12} strokeWidth={3} />
-            </button>
+          <div className="flex items-center gap-2">
+            <button onClick={handleSaveDraft} disabled={loading.save} className="m3-btn m3-btn--outlined">Draft</button>
+            <button onClick={handlePushToReview} disabled={loading.save || isUnbalanced} className="m3-btn m3-btn--tonal">Review</button>
+            <button onClick={handlePostToTally} disabled={isUnbalanced} className="m3-btn m3-btn--filled">Post Tally</button>
+            <button onClick={handleCancel} className="m3-btn m3-btn--text">Cancel</button>
+            <button className="m3-icon-btn" title="Settings" aria-label="Settings"><Settings size={16} /></button>
+            <button onClick={handleCancel} className="m3-icon-btn" title="Close Form" aria-label="Close Form"><X size={16} strokeWidth={2.5} /></button>
           </div>
         </div>
 
         {/* Voucher Types & Summary Row (Same style as Purchase) */}
-        <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-0.75 bg-[var(--app-panel-bg)] border-b shrink-0" style={{ borderColor: theme.border }}>
+        <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-2 border-b shrink-0" style={{ borderColor: 'var(--m3-outline-variant)', backgroundColor: 'var(--m3-surface-container-low)' }}>
           {/* Voucher Types Switcher */}
           {!onSaveSuccess && (
             <div className="flex gap-1.5 overflow-x-auto no-scrollbar py-0.5">
@@ -981,13 +942,13 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
 
             return (
               <div className="flex items-center flex-wrap gap-1 text-[11px]">
-                <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[var(--app-content-bg)] border border-[var(--app-border)]">
+                <div className="m3-chip">
                   <span className="text-[var(--app-muted)] font-bold uppercase tracking-wider text-[7.5px]">TOTAL LEDGER AMOUNT (₹):</span>
                   <span className="font-black text-[var(--app-heading)]">
                     ₹ {totalLedgerAmountVal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </span>
                 </div>
-                <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[var(--app-content-bg)] border border-[var(--app-border)]">
+                <div className="m3-chip">
                   <span className="text-[var(--app-muted)] font-bold uppercase tracking-wider text-[7.5px]">
                     {activeType === 'cash_payment' ? 'TOTAL BILL AMOUNT (₹):' : 'TOTAL INVOICE AMOUNT (₹):'}
                   </span>
@@ -995,13 +956,13 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                     ₹ {totalBillAmountVal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </span>
                 </div>
-                <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[var(--app-content-bg)] border border-[var(--app-border)]">
+                <div className="m3-chip">
                   <span className="text-[var(--app-muted)] font-bold uppercase tracking-wider text-[7.5px]">TOTAL ALLOCATED AMOUNT (₹):</span>
                   <span className="font-black text-[var(--app-heading)]">
                     ₹ {totalAllocatedVal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </span>
                 </div>
-                <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[var(--app-content-bg)] border border-[var(--app-border)]">
+                <div className="m3-chip">
                   <span className="text-[var(--app-muted)] font-bold uppercase tracking-wider text-[7.5px]">REMAINING UNALLOCATED (₹):</span>
                   <span className="font-black text-emerald-500 dark:text-emerald-400">
                     ₹ {totalUnallocatedVal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
@@ -1021,24 +982,9 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
             );
           })() : (
             <div className="flex items-center flex-wrap gap-1 text-[11px]">
-              <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[var(--app-content-bg)] border border-[var(--app-border)]">
-                <span className="text-[var(--app-muted)] font-bold uppercase tracking-wider text-[7.5px]">Total Debit:</span>
-                <span className="font-black text-[var(--app-heading)]">
-                  ₹ {(form.totalDebit || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                </span>
-              </div>
-              <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[var(--app-content-bg)] border border-[var(--app-border)]">
-                <span className="text-[var(--app-muted)] font-bold uppercase tracking-wider text-[7.5px]">Total Credit:</span>
-                <span className="font-black text-[var(--app-heading)]">
-                  ₹ {(form.totalCredit || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                </span>
-              </div>
-              <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[var(--app-content-bg)] border border-[var(--app-border)]">
-                <span className="text-[var(--app-muted)] font-bold uppercase tracking-wider text-[7.5px]">Difference:</span>
-                <span className="font-black text-[var(--app-heading)]">
-                  ₹ {(form.difference || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                </span>
-              </div>
+              <span className="m3-chip"><span>Total Debit</span> <b>₹ {(form.totalDebit || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</b></span>
+              <span className="m3-chip"><span>Total Credit</span> <b>₹ {(form.totalCredit || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</b></span>
+              <span className="m3-chip"><span>Difference</span> <b>₹ {(form.difference || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</b></span>
               <div className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg shadow-md text-white ${form.difference === 0 ? 'bg-emerald-600' : 'bg-rose-600'}`}>
                 <span className="text-[7.5px] font-black uppercase tracking-wider opacity-85">Status:</span>
                 <span className="font-black text-[10px]">
@@ -3014,7 +2960,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                         updateBillRow(idx, 'pendingAmount', 0);
                                       }}
                                       className="w-full h-7.5 px-1.5 rounded-lg border text-[11px] font-bold outline-none"
-                                      style={{ borderColor: theme.border, color: theme.text, backgroundColor: theme.panel }}
+                                      style={{ borderColor: 'var(--m3-outline-variant)', color: 'var(--m3-on-surface)', backgroundColor: 'var(--m3-surface-container-high)' }}
                                     >
                                       <option value="Against Ref">Against Reference</option>
                                       <option value="Advance">Advance</option>
@@ -3031,7 +2977,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                             value={row.billNo || ''}
                                             onChange={e => handleBillRefChange(idx, e.target.value)}
                                             className="w-full h-7.5 px-1.5 rounded-lg border text-[11px] font-bold outline-none"
-                                            style={{ borderColor: theme.border, color: theme.text, backgroundColor: theme.panel }}
+                                            style={{ borderColor: 'var(--m3-outline-variant)', color: 'var(--m3-on-surface)', backgroundColor: 'var(--m3-surface-container-high)' }}
                                           >
                                             <option value="" disabled style={{ color: 'var(--app-muted)' }}>
                                               Select Bill...
@@ -3052,7 +2998,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                               updateBillRow(idx, 'billNo', e.target.value);
                                             }}
                                             className="w-full h-7.5 px-1.5 rounded-lg border text-[11px] font-bold outline-none"
-                                            style={{ borderColor: theme.border, color: theme.text, backgroundColor: theme.panel }}
+                                            style={{ borderColor: 'var(--m3-outline-variant)', color: 'var(--m3-on-surface)', backgroundColor: 'var(--m3-surface-container-high)' }}
                                           />
                                         )}
                                       </>
@@ -3168,7 +3114,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                       updateBillRow(idx, 'pendingAmount', 0);
                                     }}
                                     className="w-full h-7.5 px-1.5 rounded-lg border text-[11px] font-bold outline-none"
-                                    style={{ borderColor: theme.border, color: theme.text, backgroundColor: theme.panel }}
+                                    style={{ borderColor: 'var(--m3-outline-variant)', color: 'var(--m3-on-surface)', backgroundColor: 'var(--m3-surface-container-high)' }}
                                   >
                                     <option value="Against Ref">Against Reference</option>
                                     <option value="Advance">Advance</option>
@@ -3185,7 +3131,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                           value={row.billNo || ''}
                                           onChange={e => handleBillRefChange(idx, e.target.value)}
                                           className="w-full h-7.5 px-1.5 rounded-lg border text-[11px] font-bold outline-none"
-                                          style={{ borderColor: theme.border, color: theme.text, backgroundColor: theme.panel }}
+                                          style={{ borderColor: 'var(--m3-outline-variant)', color: 'var(--m3-on-surface)', backgroundColor: 'var(--m3-surface-container-high)' }}
                                         >
                                           <option value="" disabled style={{ color: 'var(--app-muted)' }}>
                                             Select Bill...
@@ -3206,7 +3152,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                             updateBillRow(idx, 'billNo', e.target.value);
                                           }}
                                           className="w-full h-7.5 px-1.5 rounded-lg border text-[11px] font-bold outline-none"
-                                          style={{ borderColor: theme.border, color: theme.text, backgroundColor: theme.panel }}
+                                          style={{ borderColor: 'var(--m3-outline-variant)', color: 'var(--m3-on-surface)', backgroundColor: 'var(--m3-surface-container-high)' }}
                                         />
                                       )}
                                     </>
@@ -3256,7 +3202,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                       onChange={e => handleAllocationChange(idx, e.target.value)}
                                       placeholder="0.00"
                                       className="w-full h-7.5 px-1.5 rounded-lg border text-[11px] font-black outline-none focus:border-[var(--app-accent)] text-right"
-                                      style={{ borderColor: theme.border, color: theme.text, backgroundColor: theme.panel }}
+                                      style={{ borderColor: 'var(--m3-outline-variant)', color: 'var(--m3-on-surface)', backgroundColor: 'var(--m3-surface-container-high)' }}
                                     />
                                   </div>
                                   <div className="flex flex-col justify-end pb-1.5 text-right">
@@ -3520,7 +3466,7 @@ const FormSection = ({
   return (
     <div
       className={`p-2.5 border rounded-lg mb-0 shrink-0 flex flex-col gap-2 relative ${className}`}
-      style={{ borderColor: theme.border, backgroundColor: theme.panel, zIndex: isContentVisible ? zIndex : 1 }}
+      style={{ borderColor: 'var(--m3-outline-variant)', backgroundColor: 'var(--m3-surface-container-low)', zIndex: isContentVisible ? zIndex : 1 }}
     >
       <div className="flex items-center justify-between mb-0.5">
         <div className="flex items-center gap-2">
@@ -3585,7 +3531,7 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
   return (
     <div className="relative flex flex-col gap-1 w-full group" ref={dropdownRef} style={{ zIndex: isOpen ? 50 : 1 }}>
       {label && (
-        <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 text-[var(--app-heading)] group-focus-within:text-[var(--app-accent)] transition-colors" style={{ backgroundColor: theme.panel }}>
+        <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 group-focus-within:text-[var(--m3-primary)] transition-colors" style={{ backgroundColor: 'var(--m3-surface-container-low)', color: 'var(--m3-on-surface-variant)' }}>
           {label.startsWith('*') ? (
             <>
               <span className="text-red-500 mr-1">*</span>
@@ -3690,7 +3636,7 @@ const InputField = ({ label, placeholder, value, onChange, type = 'text', readOn
   return (
     <div className="relative flex flex-col gap-1 w-full group">
       {label && (
-        <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 text-[var(--app-heading)] group-focus-within:text-[var(--app-accent)] transition-colors" style={{ backgroundColor: theme.panel }}>
+        <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 group-focus-within:text-[var(--m3-primary)] transition-colors" style={{ backgroundColor: 'var(--m3-surface-container-low)', color: 'var(--m3-on-surface-variant)' }}>
           {label.startsWith('*') ? (
             <>
               <span className="text-red-500 mr-1">*</span>
@@ -3709,7 +3655,7 @@ const InputField = ({ label, placeholder, value, onChange, type = 'text', readOn
               placeholder="dd-mm-yyyy"
               readOnly={readOnly}
               className={`w-full ${compact ? 'h-7 px-1.5 text-[10px]' : 'h-10 px-2 text-[11px]'} rounded-lg border font-bold outline-none transition-all duration-300 focus:ring-0 ${isDark ? 'placeholder:text-white/10' : 'placeholder:text-[var(--app-muted)]'} ${align === 'right' ? 'text-right' : ''} ${readOnly ? (isDark ? 'cursor-not-allowed opacity-60 bg-slate-800/20' : 'cursor-not-allowed bg-[var(--app-content-bg)]/50') : 'hover:border-[var(--app-accent)]'}`}
-              style={{ backgroundColor: readOnly ? theme.headerBg : theme.inputBg, borderColor: theme.border, color: readOnly ? theme.accent : theme.text }}
+              style={{ backgroundColor: readOnly ? 'var(--m3-surface-container)' : 'var(--m3-surface-container-high)', borderColor: 'var(--m3-outline-variant)', color: readOnly ? 'var(--m3-primary)' : 'var(--m3-on-surface)' }}
             />
             {Icon && !readOnly && (
               <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center cursor-pointer">
@@ -3732,7 +3678,7 @@ const InputField = ({ label, placeholder, value, onChange, type = 'text', readOn
             readOnly={readOnly}
             placeholder={placeholder}
             className={`w-full ${compact ? 'h-7 px-1.5 text-[10px]' : 'h-10 px-2 text-[11px]'} rounded-lg border font-bold outline-none transition-all duration-300 focus:ring-0 ${isDark ? 'placeholder:text-white/10' : 'placeholder:text-[var(--app-muted)]'} ${align === 'right' ? 'text-right' : ''} ${readOnly ? (isDark ? 'cursor-not-allowed opacity-60 bg-slate-800/20' : 'cursor-not-allowed bg-[var(--app-content-bg)]/50') : 'hover:border-[var(--app-accent)]'}`}
-            style={{ backgroundColor: readOnly ? theme.headerBg : theme.inputBg, borderColor: theme.border, color: readOnly ? theme.accent : theme.text }}
+            style={{ backgroundColor: readOnly ? 'var(--m3-surface-container)' : 'var(--m3-surface-container-high)', borderColor: 'var(--m3-outline-variant)', color: readOnly ? 'var(--m3-primary)' : 'var(--m3-on-surface)' }}
           />
         )}
         {type !== 'date' && Icon && <Icon className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--app-muted)] group-focus-within:text-[var(--app-accent)] transition-colors" size={12} />}

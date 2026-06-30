@@ -1,16 +1,16 @@
 @import "tailwindcss";
 @variant dark (&:where(.dark, .dark *));
 
-/* Enterprise-ERP radius scale. Overriding Tailwind's radius tokens here flattens
-   EVERY rounded-{sm..3xl} usage across all screens to 4–6px without editing a
-   single component. rounded-full (pills/avatars) is unaffected. */
+/* Material 3 radius scale. Overriding Tailwind's radius tokens here gives EVERY
+   rounded-{sm..3xl} usage across all screens M3 rounded corners without editing
+   a single component. rounded-full (pills/avatars) is unaffected. */
 @theme {
-  --radius-sm: 3px;
-  --radius-md: 4px;
-  --radius-lg: 5px;
-  --radius-xl: 6px;
-  --radius-2xl: 8px;
-  --radius-3xl: 10px;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+  --radius-3xl: 28px;
   /* Minimal-shadow ERP: soften Tailwind's heavy shadow utilities app-wide so
      shadow-xl/2xl read as controlled elevation, not consumer drop-shadows. */
   --shadow-xl: 0 8px 24px -8px rgba(16, 24, 40, 0.16);
@@ -25,10 +25,11 @@
    shell + Login both toggle it), so tokens cascade either way.
    ────────────────────────────────────────────────────────────── */
 :root {
-  --app-bg: #F5F6F8;
+  /* Material 3 light surfaces — tonal neutrals, white cards pop on a tinted page. */
+  --app-bg: #FAF8FC;
   --app-panel-bg: #FFFFFF;
-  --app-content-bg: #F0F2F5;
-  --app-border: #E2E5EB;
+  --app-content-bg: #EFECF3;
+  --app-border: #C8C6D2;
   /* Dark charcoal navigation panel (ERP) — its own fg/hover/accent tokens so a
      dark sidebar coexists with the white content workspace. */
   --app-sidebar-bg: #1B1E24;
@@ -43,18 +44,22 @@
   /* Red primary CTA (ERP). Blue accent stays for action elements/links. */
   --app-cta: #DC2626;
   --app-cta-hover: #B91C1C;
-  --app-heading: #0F1117;
-  --app-text: #51596B;
-  --app-muted: #858C9A;
+  --app-heading: #1B1B1F;
+  --app-text: #46464F;
+  --app-muted: #777680;
   --app-accent: #2563EB;
   --app-accent-strong: #1D4ED8;
   --app-accent-soft: rgba(37, 99, 235, 0.09);
+  /* M3 button roles (on-primary + secondary-container) used app-wide by ui/Button. */
+  --app-on-accent: #FFFFFF;
+  --app-secondary-container: #DCE2F4;
+  --app-on-secondary-container: #161B2C;
   --app-accent-gradient: linear-gradient(135deg, #1D4ED8 0%, #2563EB 100%);
-  --app-table-head-bg: #F4F6F9;
-  --app-row-border: #EDEFF3;
-  --app-row-hover: #F4F6F9;
+  --app-table-head-bg: #EFECF3;
+  --app-row-border: #E7E4EE;
+  --app-row-hover: #F3F0F8;
   --app-control-bg: #FFFFFF;
-  --app-control-hover: #F1F3F6;
+  --app-control-hover: #F1EEF6;
   --app-success: #059669;
   --app-warning: #D97706;
   --app-danger-bg: #FEF2F2;
@@ -69,9 +74,10 @@
   /* Neutral-slate SaaS dark. Single cool-neutral hue, controlled elevation
      ramp (page < sidebar < content < panel < control/head), subtle borders,
      desaturated accent. No blue cast, no neon, no pure black. */
-  --app-bg: #0C0D10;
-  --app-panel-bg: #17191F;
-  --app-content-bg: #101115;
+  /* Material 3 dark surfaces — tonal elevation ramp (bg < content < panel). */
+  --app-bg: #121317;
+  --app-panel-bg: #1E2025;
+  --app-content-bg: #17181C;
   --app-sidebar-bg: #0E0F13;
   --app-sidebar-border: #23262E;
   --app-sidebar-heading: #ECEEF1;
@@ -83,19 +89,22 @@
   --app-sidebar-control-bg: #1C1E25;
   --app-cta: #EF4444;
   --app-cta-hover: #DC2626;
-  --app-border: #25272E;
-  --app-heading: #ECEEF1;
-  --app-text: #A8ADB7;
-  --app-muted: #6A6F79;
-  --app-accent: #5E9BF0;
-  --app-accent-strong: #3B82F6;
-  --app-accent-soft: rgba(94, 155, 240, 0.12);
+  --app-border: #45474E;
+  --app-heading: #E4E2E6;
+  --app-text: #C6C6D0;
+  --app-muted: #8F909A;
+  --app-accent: #AEC6FF;
+  --app-accent-strong: #84A9FF;
+  --app-accent-soft: rgba(174, 198, 255, 0.14);
+  --app-on-accent: #06306F;
+  --app-secondary-container: #404659;
+  --app-on-secondary-container: #DCE2F4;
   --app-accent-gradient: linear-gradient(135deg, #3B82F6 0%, #5E9BF0 100%);
-  --app-table-head-bg: #1C1E25;
-  --app-row-border: #21232A;
-  --app-row-hover: #1B1D23;
-  --app-control-bg: #1C1E25;
-  --app-control-hover: #24262E;
+  --app-table-head-bg: #24262C;
+  --app-row-border: #2A2C32;
+  --app-row-hover: #1F2127;
+  --app-control-bg: #2A2C31;
+  --app-control-hover: #303239;
   --app-success: #34D399;
   --app-warning: #FBBF24;
   --app-danger-bg: rgba(239, 68, 68, 0.13);
@@ -298,6 +307,18 @@
 .m3-scope .m3-field input, .m3-scope .m3-field select { width: 100%; height: 46px; padding: 18px 12px 5px; background: var(--m3-surface-container-high); border: none; border-bottom: 1px solid var(--m3-outline); border-radius: var(--m3-r-xs) var(--m3-r-xs) 0 0; color: var(--m3-on-surface); font-size: 13px; font-weight: 500; outline: none; transition: border-color .15s, background .15s; }
 .m3-scope .m3-field input:focus, .m3-scope .m3-field select:focus { border-bottom: 2px solid var(--m3-primary); background: color-mix(in srgb, var(--m3-primary) 6%, var(--m3-surface-container-high)); }
 .m3-scope .m3-field input::placeholder { color: var(--m3-on-surface-variant); opacity: .6; }
+
+/* M3 state layer + ripple. currentColor overlay = invisible over text (same
+   color), tints only the surface → correct M3. Add `m3-interactive` to ANY
+   button (incl. raw ones) for hover/press state; ui/Button also fires a
+   click-point ripple by setting --m3-rx/--m3-ry + toggling .m3-rippling. */
+.m3-interactive { position: relative; overflow: hidden; }
+.m3-interactive::after { content: ''; position: absolute; inset: 0; background: currentColor; opacity: 0; transition: opacity .12s ease; pointer-events: none; }
+.m3-interactive:hover::after { opacity: .08; }
+.m3-interactive:active::after { opacity: .14; }
+.m3-interactive::before { content: ''; position: absolute; left: var(--m3-rx, 50%); top: var(--m3-ry, 50%); width: 0; height: 0; border-radius: 9999px; background: currentColor; opacity: 0; transform: translate(-50%, -50%); pointer-events: none; }
+.m3-interactive.m3-rippling::before { animation: m3ripple .5s ease-out; }
+@keyframes m3ripple { 0% { width: 0; height: 0; opacity: .18; } 100% { width: 250%; height: 250%; opacity: 0; } }
 
 /* Soft chip */
 .chip {

@@ -131,7 +131,7 @@ export default function RolePanel({ mode: propMode, isDark }) {
             <p className="text-[10px] text-[var(--app-muted)] mt-1 truncate">Configure user credentials, security policies and the access permission matrix.</p>
           </div>
         </div>
-        <button onClick={() => setShowCreateForm(p => !p)} className="h-8 px-3 bg-[var(--app-accent)] hover:opacity-90 text-white font-bold text-[11px] rounded-lg flex items-center gap-1.5 transition-all shrink-0 shadow-xs">
+        <button onClick={() => setShowCreateForm(p => !p)} className="h-8 px-3 m3-interactive bg-[var(--app-accent)] hover:opacity-90 text-white font-bold text-[11px] rounded-lg flex items-center gap-1.5 transition-all shrink-0 shadow-xs">
           {showCreateForm ? <X size={13} /> : <Plus size={13} />}
           {showCreateForm ? 'Close' : 'Create User'}
         </button>
@@ -304,7 +304,7 @@ export default function RolePanel({ mode: propMode, isDark }) {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-1.5 bg-[var(--app-cta)] hover:opacity-90 text-white rounded-full shadow-sm transition-all font-bold"
+                  className="px-5 py-1.5 m3-interactive bg-[var(--app-cta)] hover:opacity-90 text-white rounded-full shadow-sm transition-all font-bold"
                 >
                   Save User
                 </button>
@@ -370,7 +370,7 @@ export default function RolePanel({ mode: propMode, isDark }) {
           <div className="p-2.5 border-t border-[var(--app-border)] bg-[var(--app-content-bg)] flex justify-end shrink-0">
             <button
               onClick={() => toast.success('Role permissions matrix saved successfully!')}
-              className="px-4 py-1 bg-[var(--app-accent)] hover:opacity-90 text-white font-bold text-[11px] uppercase shadow rounded transition-colors"
+              className="px-4 py-1 m3-interactive bg-[var(--app-accent)] hover:opacity-90 text-white font-bold text-[11px] uppercase shadow rounded transition-colors"
             >
               Save Permission Matrix
             </button>

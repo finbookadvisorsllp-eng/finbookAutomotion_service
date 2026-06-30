@@ -202,7 +202,7 @@ function AddCompanyModal({ open, onClose, formValues, onFieldChange, onSave }) {
             </button>
             <button
               type="submit"
-              className="px-5 py-1.5 bg-[var(--app-cta)] hover:opacity-90 text-white rounded-full shadow-sm transition-all font-bold"
+              className="px-5 py-1.5 m3-interactive bg-[var(--app-cta)] hover:opacity-90 text-white rounded-full shadow-sm transition-all font-bold"
             >
               Save Company
             </button>
