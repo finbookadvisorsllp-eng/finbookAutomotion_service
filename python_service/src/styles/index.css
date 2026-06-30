@@ -209,6 +209,96 @@
   outline-offset: 2px;
 }
 
+/* ──────────────────────────────────────────────────────────────
+   Material 3 — SCOPED to .m3-scope only (Manual Voucher Entry page).
+   Defines its own --m3-* roles + component classes so it never
+   touches the ERP-flat --app-* system used everywhere else.
+   Primary kept on the brand blue so it reads on-brand.
+   ────────────────────────────────────────────────────────────── */
+.m3-scope {
+  --m3-primary: #2563EB;
+  --m3-on-primary: #FFFFFF;
+  --m3-primary-container: #DBE4FF;
+  --m3-on-primary-container: #0A1A52;
+  --m3-secondary-container: #DCE2F4;
+  --m3-on-secondary-container: #161B2C;
+  --m3-tertiary-container: #FCE7A6;
+  --m3-on-tertiary-container: #4A3600;
+  --m3-surface: #FBF8FE;
+  --m3-surface-container-low: #F4F2F7;
+  --m3-surface-container: #EEEDF1;
+  --m3-surface-container-high: #E8E6EC;
+  --m3-on-surface: #1A1B20;
+  --m3-on-surface-variant: #45474E;
+  --m3-outline: #75777F;
+  --m3-outline-variant: #C5C6D0;
+  --m3-error: #BA1A1A;
+  --m3-on-error: #FFFFFF;
+  --m3-success: #146C2E;
+  --m3-r-xs: 4px;
+  --m3-r-sm: 8px;
+  --m3-r-md: 12px;
+  --m3-r-lg: 16px;
+  --m3-r-full: 999px;
+  --m3-e1: 0 1px 2px rgba(0,0,0,.20), 0 1px 3px 1px rgba(0,0,0,.10);
+  --m3-e2: 0 1px 2px rgba(0,0,0,.20), 0 2px 6px 2px rgba(0,0,0,.12);
+  color: var(--m3-on-surface);
+}
+.dark .m3-scope {
+  --m3-primary: #AEC6FF;
+  --m3-on-primary: #06306F;
+  --m3-primary-container: #284777;
+  --m3-on-primary-container: #D8E2FF;
+  --m3-secondary-container: #404659;
+  --m3-on-secondary-container: #DCE2F4;
+  --m3-tertiary-container: #5B4300;
+  --m3-on-tertiary-container: #FFDF9E;
+  --m3-surface: #121317;
+  --m3-surface-container-low: #1A1B20;
+  --m3-surface-container: #1E2025;
+  --m3-surface-container-high: #292A2F;
+  --m3-on-surface: #E3E2E6;
+  --m3-on-surface-variant: #C5C6D0;
+  --m3-outline: #8F9099;
+  --m3-outline-variant: #44474E;
+  --m3-error: #FFB4AB;
+  --m3-on-error: #690005;
+  --m3-success: #7CDB8A;
+}
+
+.m3-scope .m3-card { background: var(--m3-surface-container-low); border: 1px solid var(--m3-outline-variant); border-radius: var(--m3-r-md); }
+.m3-scope .m3-card-elev { background: var(--m3-surface); border-radius: var(--m3-r-md); box-shadow: var(--m3-e1); }
+
+.m3-scope .m3-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 0 20px; border-radius: var(--m3-r-full); font-weight: 600; font-size: 13px; letter-spacing: .01em; transition: box-shadow .15s, background .15s, opacity .15s; cursor: pointer; border: none; white-space: nowrap; }
+.m3-scope .m3-btn:disabled { opacity: .5; pointer-events: none; }
+.m3-scope .m3-btn--filled { background: var(--m3-primary); color: var(--m3-on-primary); }
+.m3-scope .m3-btn--filled:hover { box-shadow: var(--m3-e1); }
+.m3-scope .m3-btn--tonal { background: var(--m3-tertiary-container); color: var(--m3-on-tertiary-container); }
+.m3-scope .m3-btn--tonal:hover { box-shadow: var(--m3-e1); }
+.m3-scope .m3-btn--outlined { background: transparent; border: 1px solid var(--m3-outline); color: var(--m3-primary); }
+.m3-scope .m3-btn--outlined:hover { background: color-mix(in srgb, var(--m3-primary) 8%, transparent); }
+.m3-scope .m3-btn--text { background: transparent; color: var(--m3-primary); padding: 0 12px; }
+.m3-scope .m3-btn--text:hover { background: color-mix(in srgb, var(--m3-primary) 8%, transparent); }
+.m3-scope .m3-icon-btn { display: inline-flex; align-items: center; justify-content: center; height: 36px; width: 36px; border-radius: var(--m3-r-full); color: var(--m3-on-surface-variant); background: transparent; cursor: pointer; transition: background .15s; }
+.m3-scope .m3-icon-btn:hover { background: color-mix(in srgb, var(--m3-on-surface) 8%, transparent); }
+
+.m3-scope .m3-seg { display: inline-flex; border: 1px solid var(--m3-outline); border-radius: var(--m3-r-full); overflow: hidden; height: 36px; }
+.m3-scope .m3-seg button { height: 100%; padding: 0 16px; font-size: 12px; font-weight: 600; color: var(--m3-on-surface-variant); background: transparent; cursor: pointer; transition: background .15s; display: inline-flex; align-items: center; gap: 6px; }
+.m3-scope .m3-seg button + button { border-left: 1px solid var(--m3-outline); }
+.m3-scope .m3-seg button[aria-pressed="true"] { background: var(--m3-secondary-container); color: var(--m3-on-secondary-container); }
+
+.m3-scope .m3-chip { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: var(--m3-r-sm); border: 1px solid var(--m3-outline-variant); background: var(--m3-surface-container); font-size: 11px; color: var(--m3-on-surface-variant); }
+.m3-scope .m3-chip b { color: var(--m3-on-surface); font-weight: 700; }
+.m3-scope .m3-chip--primary { background: var(--m3-primary); border-color: var(--m3-primary); color: var(--m3-on-primary); }
+.m3-scope .m3-chip--primary b { color: var(--m3-on-primary); }
+
+/* M3 filled text field (used by the form-body cards in later phases). */
+.m3-scope .m3-field { position: relative; display: flex; flex-direction: column; }
+.m3-scope .m3-field > span { position: absolute; left: 12px; top: 5px; font-size: 10px; font-weight: 600; letter-spacing: .03em; text-transform: uppercase; color: var(--m3-on-surface-variant); pointer-events: none; z-index: 1; }
+.m3-scope .m3-field input, .m3-scope .m3-field select { width: 100%; height: 46px; padding: 18px 12px 5px; background: var(--m3-surface-container-high); border: none; border-bottom: 1px solid var(--m3-outline); border-radius: var(--m3-r-xs) var(--m3-r-xs) 0 0; color: var(--m3-on-surface); font-size: 13px; font-weight: 500; outline: none; transition: border-color .15s, background .15s; }
+.m3-scope .m3-field input:focus, .m3-scope .m3-field select:focus { border-bottom: 2px solid var(--m3-primary); background: color-mix(in srgb, var(--m3-primary) 6%, var(--m3-surface-container-high)); }
+.m3-scope .m3-field input::placeholder { color: var(--m3-on-surface-variant); opacity: .6; }
+
 /* Soft chip */
 .chip {
   display: inline-flex;

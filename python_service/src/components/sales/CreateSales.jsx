@@ -617,7 +617,7 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
 
   return (
     <ThemeContext.Provider value={{ theme, isDark }}>
-      <div className="flex flex-col h-full animate-in fade-in duration-500 overflow-hidden bg-[var(--app-content-bg)]" style={{ backgroundColor: theme.bg }}>
+      <div className="m3-scope flex flex-col h-full overflow-hidden" style={{ backgroundColor: 'var(--m3-surface)' }}>
         <style>{`
           .themed-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
           .themed-scrollbar::-webkit-scrollbar-track { background: ${theme.scrollbarTrack}; }
@@ -627,9 +627,9 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
         `}</style>
 
         {/* ─── 1. Compact Header Row ─── */}
-        <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-1.5 shrink-0 border-b bg-[var(--app-panel-bg)]" style={{ borderColor: theme.border }}>
+        <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-2.5 shrink-0 border-b" style={{ borderColor: 'var(--m3-outline-variant)', backgroundColor: 'var(--m3-surface-container-low)' }}>
           <div className="flex items-center gap-4">
-            <h1 className="text-[13px] font-black tracking-tight text-[var(--app-heading)] dark:text-white uppercase">
+            <h1 className="text-[15px] font-semibold tracking-tight" style={{ color: 'var(--m3-on-surface)' }}>
               {isOcrReview
                 ? 'OCR Review'
                 : form.voucherType === 'credit_note'
@@ -639,85 +639,42 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
                     : 'Create Sales Voucher'}
             </h1>
 
-            {/* Tabs Selector */}
-            <div className="flex items-center gap-1 bg-[var(--app-table-head-bg)] p-0.5 rounded-lg border border-[var(--app-border)]">
+            {/* M3 segmented button — entry mode */}
+            <div className="m3-seg" role="group" aria-label="Entry mode">
               <button
-                onClick={() => {
-                  setActiveTab('With Item');
-                  setFormField('entryTab', 'with_item');
-                }}
-                className={`px-3 py-0.5 rounded-lg text-[11px] font-black uppercase tracking-tight transition-all ${activeTab === 'With Item'
-                  ? 'bg-emerald-600 text-white shadow-sm'
-                  : 'text-[var(--app-muted)] hover:text-[var(--app-heading)]'
-                  }`}
+                aria-pressed={activeTab === 'With Item'}
+                onClick={() => { setActiveTab('With Item'); setFormField('entryTab', 'with_item'); }}
               >
-                With Item
+                {activeTab === 'With Item' && <Check size={14} />} With Item
               </button>
               <button
-                onClick={() => {
-                  setActiveTab('Without Item');
-                  setFormField('entryTab', 'without_item');
-                }}
-                className={`px-3 py-0.5 rounded-lg text-[11px] font-black uppercase tracking-tight transition-all ${activeTab === 'Without Item'
-                  ? 'bg-emerald-600 text-white shadow-sm'
-                  : 'text-[var(--app-muted)] hover:text-[var(--app-heading)]'
-                  }`}
+                aria-pressed={activeTab === 'Without Item'}
+                onClick={() => { setActiveTab('Without Item'); setFormField('entryTab', 'without_item'); }}
               >
-                Without Item
+                {activeTab === 'Without Item' && <Check size={14} />} Without Item
               </button>
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={handleSaveDraft}
-              disabled={loading.save}
-              className="px-3 py-1 rounded-lg border text-[11px] font-black transition-all hover:bg-[var(--app-content-bg)] shadow-sm uppercase tracking-wider text-[var(--app-heading)] flex items-center gap-1"
-              style={{ borderColor: theme.border }}
-            >
-              {loading.save ? <Loader2 size={10} className="animate-spin" /> : null}
-              Draft
+          {/* M3 action buttons */}
+          <div className="flex items-center gap-2">
+            <button onClick={handleSaveDraft} disabled={loading.save} className="m3-btn m3-btn--outlined">
+              {loading.save ? <Loader2 size={14} className="animate-spin" /> : null} Draft
             </button>
-            <button
-              onClick={handlePushToReview}
-              disabled={loading.save || loading.status}
-              className="px-3 py-1 rounded-lg text-[11px] font-black transition-all shadow-sm uppercase tracking-wider text-[var(--app-heading)] bg-[#FCD34D] hover:bg-[#FBBF24] flex items-center gap-1"
-            >
-              {loading.status ? <Loader2 size={10} className="animate-spin" /> : null}
-              Review
+            <button onClick={handlePushToReview} disabled={loading.save || loading.status} className="m3-btn m3-btn--tonal">
+              {loading.status ? <Loader2 size={14} className="animate-spin" /> : null} Review
             </button>
-            <button
-              onClick={handlePostToTally}
-              className="px-3 py-1 rounded-lg text-[11px] font-black text-white bg-[var(--app-accent)] hover:opacity-90 shadow-sm transition-all uppercase tracking-wider"
-            >
-              Post Tally
-            </button>
-            <button
-              onClick={handleCancel}
-              className="px-3 py-1 rounded-lg border text-[11px] font-black hover:bg-red-50 hover:text-red-500 transition-all uppercase tracking-wider text-[var(--app-muted)]"
-              style={{ borderColor: theme.border }}
-            >
-              Cancel
-            </button>
-            <button className="p-1.5 rounded-lg border text-[var(--app-muted)] hover:text-[var(--app-accent)] transition-all" style={{ borderColor: theme.border }}>
-              <Settings size={12} />
-            </button>
+            <button onClick={handlePostToTally} className="m3-btn m3-btn--filled">Post Tally</button>
+            <button onClick={handleCancel} className="m3-btn m3-btn--text">Cancel</button>
+            <button className="m3-icon-btn" title="Settings" aria-label="Settings"><Settings size={16} /></button>
             {onBack && (
-              <button
-                onClick={onBack}
-                className="p-1.5 text-[var(--app-muted)] hover:text-red-500 border hover:bg-red-50 hover:border-red-200 transition-all rounded-lg ml-1.5 flex items-center justify-center"
-                style={{ borderColor: theme.border }}
-                title="Close Form"
-              >
-                <X size={12} strokeWidth={3} />
-              </button>
+              <button onClick={onBack} className="m3-icon-btn" title="Close Form" aria-label="Close Form"><X size={16} strokeWidth={2.5} /></button>
             )}
           </div>
         </div>
 
         {/* ─── 2. Voucher Types & Summary Row ─── */}
-        <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-0.75 bg-[var(--app-panel-bg)] border-b shrink-0" style={{ borderColor: theme.border }}>
+        <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-2 border-b shrink-0" style={{ borderColor: 'var(--m3-outline-variant)', backgroundColor: 'var(--m3-surface-container-low)' }}>
           {/* Voucher Types */}
           {!onSaveSuccess && (
             <div className="flex gap-1.5 overflow-x-auto no-scrollbar py-0.5">
@@ -766,38 +723,17 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
             </div>
           )}
 
-          {/* Amount Summary Cards */}
-          <div className="flex items-center flex-wrap gap-1 text-[11px]">
+          {/* M3 amount summary chips */}
+          <div className="flex items-center flex-wrap gap-1.5 ml-auto">
             {activeTab === 'With Item' && (
-              <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[var(--app-content-bg)] border border-[var(--app-border)]">
-                <span className="text-[var(--app-muted)] font-bold uppercase tracking-wider text-[7.5px]">Items:</span>
-                <span className="font-black text-[var(--app-heading)]">{form.productLines.length}</span>
-              </div>
+              <span className="m3-chip"><span>Items</span> <b>{form.productLines.length}</b></span>
             )}
-            <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[var(--app-content-bg)] border border-[var(--app-border)]">
-              <span className="text-[var(--app-muted)] font-bold uppercase tracking-wider text-[7.5px]">Disc:</span>
-              <span className="font-black text-[var(--app-heading)]">₹ {form.entryTab === 'with_item' ? form.productLines.reduce((acc, l) => acc + (parseFloat(l.discountPercent) || 0), 0).toFixed(2) : "0.00"}</span>
-            </div>
-            <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[var(--app-content-bg)] border border-[var(--app-border)]">
-              <span className="text-[var(--app-muted)] font-bold uppercase tracking-wider text-[7.5px]">Taxable:</span>
-              <span className="font-black text-[var(--app-heading)]">₹ {parseFloat(form.baseTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-            </div>
-            <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[var(--app-content-bg)] border border-[var(--app-border)]">
-              <span className="text-[var(--app-muted)] font-bold uppercase tracking-wider text-[7.5px]">Tax:</span>
-              <span className="font-black text-[var(--app-heading)]">₹ {((parseFloat(form.cgstTotal) || 0) + (parseFloat(form.sgstTotal) || 0) + (parseFloat(form.igstTotal) || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-            </div>
-            <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[var(--app-content-bg)] border border-[var(--app-border)]">
-              <span className="text-[var(--app-muted)] font-bold uppercase tracking-wider text-[7.5px]">Subtotal:</span>
-              <span className="font-black text-[var(--app-heading)]">₹ {parseFloat(form.subTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-            </div>
-            <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[var(--app-content-bg)] border border-[var(--app-border)]">
-              <span className="text-[var(--app-muted)] font-bold uppercase tracking-wider text-[7.5px]">Round:</span>
-              <span className="font-black text-[var(--app-heading)]">{isRoundOffChecked ? `₹ ${form.roundOff || "0.00"}` : "₹ 0.00"}</span>
-            </div>
-            <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-[var(--app-accent)] text-white shadow-md">
-              <span className="text-[7.5px] font-black uppercase tracking-wider opacity-85">Net:</span>
-              <span className="font-black text-[11px]">₹ {parseFloat(isRoundOffChecked ? (form.grandTotal || 0) : (form.subTotal || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-            </div>
+            <span className="m3-chip"><span>Disc</span> <b>₹ {form.entryTab === 'with_item' ? form.productLines.reduce((acc, l) => acc + (parseFloat(l.discountPercent) || 0), 0).toFixed(2) : "0.00"}</b></span>
+            <span className="m3-chip"><span>Taxable</span> <b>₹ {parseFloat(form.baseTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</b></span>
+            <span className="m3-chip"><span>Tax</span> <b>₹ {((parseFloat(form.cgstTotal) || 0) + (parseFloat(form.sgstTotal) || 0) + (parseFloat(form.igstTotal) || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</b></span>
+            <span className="m3-chip"><span>Subtotal</span> <b>₹ {parseFloat(form.subTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</b></span>
+            <span className="m3-chip"><span>Round</span> <b>{isRoundOffChecked ? `₹ ${form.roundOff || "0.00"}` : "₹ 0.00"}</b></span>
+            <span className="m3-chip m3-chip--primary"><span>Net</span> <b>₹ {parseFloat(isRoundOffChecked ? (form.grandTotal || 0) : (form.subTotal || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</b></span>
           </div>
         </div>
 
@@ -827,12 +763,12 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
           )}
 
           {/* Form Area */}
-          <div className="flex-1 p-2 overflow-y-auto themed-scrollbar bg-[var(--app-panel-bg)]">
+          <div className="flex-1 p-3 overflow-y-auto themed-scrollbar" style={{ backgroundColor: 'var(--m3-surface)' }}>
             <div className="flex flex-col gap-3">
 
               {/* A. Voucher Details Section (Flat UI, No Cards, No Rounded) */}
-              <div className="p-2.5 bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-xl shadow-sm mb-0 shrink-0">
-                <h3 className="text-[10px] font-black uppercase tracking-wider text-[var(--app-heading)] mb-1.5">Voucher Details</h3>
+              <div className="m3-card p-3 mb-0 shrink-0">
+                <h3 className="text-[11px] font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--m3-on-surface-variant)' }}>Voucher Details</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-x-3 gap-y-3">
 
                   {/* Row 1: Voucher Date | Voucher Type | Voucher Number Series | Voucher No. */}
@@ -849,14 +785,14 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
 
                   {/* Voucher Type — clickable select */}
                   <div className="col-span-1 relative">
-                    <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 text-[var(--app-heading)]" style={{ backgroundColor: theme.panel }}>
+                    <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 " style={{ backgroundColor: 'var(--m3-surface-container-low)', color: 'var(--m3-on-surface-variant)' }}>
                       Voucher Type
                     </label>
                     <select
                       value={form.voucherType || 'sales_invoice'}
                       onChange={(e) => setFormField('voucherType', e.target.value)}
-                      className="w-full h-7.5 px-3 rounded-lg border text-[11px] font-bold outline-none bg-[var(--app-panel-bg)]"
-                      style={{ borderColor: theme.border, color: theme.text }}
+                      className="w-full h-9 px-3 rounded-t border-b text-[12px] font-medium outline-none"
+                      style={{ backgroundColor: 'var(--m3-surface-container-high)', borderColor: 'var(--m3-outline)', color: 'var(--m3-on-surface)' }}
                     >
                       <option value="sales_invoice">Sales Invoice</option>
                       <option value="sales_order">Sales Order</option>
@@ -866,14 +802,14 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
 
                   {/* Voucher Number Series */}
                   <div className="col-span-1 relative">
-                    <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 text-[var(--app-heading)]" style={{ backgroundColor: theme.panel }}>
+                    <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 " style={{ backgroundColor: 'var(--m3-surface-container-low)', color: 'var(--m3-on-surface-variant)' }}>
                       Voucher Number Series
                     </label>
                     <select
                       value={form.voucherNumberSeries || 'Default'}
                       onChange={(e) => setFormField('voucherNumberSeries', e.target.value)}
-                      className="w-full h-7.5 px-3 rounded-lg border text-[11px] font-bold outline-none bg-[var(--app-panel-bg)]"
-                      style={{ borderColor: theme.border, color: theme.text }}
+                      className="w-full h-9 px-3 rounded-t border-b text-[12px] font-medium outline-none"
+                      style={{ backgroundColor: 'var(--m3-surface-container-high)', borderColor: 'var(--m3-outline)', color: 'var(--m3-on-surface)' }}
                     >
                       <option value="Default">Default</option>
                       <option value="Manual">Manual</option>
@@ -986,15 +922,15 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
 
                   {/* Narration */}
                   <div className={(form.consigneeLedger && form.consigneeLedger !== 'Same as Party' && form.consigneeLedger !== form.partyLedger) ? 'col-span-3 relative flex flex-col gap-1' : 'col-span-4 relative flex flex-col gap-1'}>
-                    <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 text-[var(--app-heading)]" style={{ backgroundColor: theme.panel }}>
+                    <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 " style={{ backgroundColor: 'var(--m3-surface-container-low)', color: 'var(--m3-on-surface-variant)' }}>
                       Narration
                     </label>
                     <input
                       type="text"
                       value={form.narration || ''}
                       onChange={(e) => setFormField('narration', e.target.value)}
-                      className="w-full h-7.5 px-3 rounded-lg border text-[11px] font-bold outline-none bg-[var(--app-panel-bg)]"
-                      style={{ borderColor: theme.border, color: theme.text }}
+                      className="w-full h-9 px-3 rounded-t border-b text-[12px] font-medium outline-none"
+                      style={{ backgroundColor: 'var(--m3-surface-container-high)', borderColor: 'var(--m3-outline)', color: 'var(--m3-on-surface)' }}
                     />
                   </div>
                 </div>
@@ -1877,7 +1813,7 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
   return (
     <div className={`relative flex flex-col gap-1 w-full group ${disabled ? 'opacity-50 pointer-events-none' : ''}`} ref={dropdownRef} style={{ zIndex: isOpen ? 50 : 1 }}>
       {label && (
-        <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 text-[var(--app-heading)] group-focus-within:text-[var(--app-accent)] transition-colors" style={{ backgroundColor: theme.panel }}>
+        <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 group-focus-within:text-[var(--m3-primary)] transition-colors" style={{ backgroundColor: 'var(--m3-surface-container-low)', color: 'var(--m3-on-surface-variant)' }}>
           {label}
         </label>
       )}
@@ -1886,7 +1822,7 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
           <div
             onClick={() => !disabled && setIsOpen(!isOpen)}
             className={`w-full ${compact ? 'h-7.5' : 'h-10'} ${rounded ? 'rounded-lg' : 'rounded-lg'} border px-2 flex items-center justify-between cursor-pointer transition-all duration-300 group/input ${isOpen ? 'border-[var(--app-accent)]' : 'hover:border-[var(--app-accent)]'} ${disabled ? 'bg-[var(--app-table-head-bg)] cursor-not-allowed' : ''}`}
-            style={{ backgroundColor: disabled ? undefined : theme.inputBg, borderColor: isOpen ? theme.accent : theme.border }}
+            style={{ backgroundColor: disabled ? undefined : 'var(--m3-surface-container-high)', borderColor: isOpen ? 'var(--m3-primary)' : 'var(--m3-outline-variant)' }}
           >
             <span className={`text-[11px] font-bold truncate transition-colors ${value ? (isDark ? 'text-[var(--app-accent)]' : 'text-[var(--app-accent)]') : 'text-[var(--app-muted)]'}`}>
               {value || placeholder}
@@ -1901,8 +1837,9 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
             <div
               className={`absolute top-full left-0 right-0 mt-1 border ${rounded ? 'rounded-lg' : 'rounded-lg'} shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 flex flex-col max-h-[200px] z-50`}
               style={{
-                backgroundColor: 'var(--app-panel-bg)',
-                borderColor: 'var(--app-border)',
+                backgroundColor: 'var(--m3-surface-container-high)',
+                borderColor: 'var(--m3-outline-variant)',
+                boxShadow: 'var(--m3-e2)',
               }}
             >
               {hasSearch && (
@@ -1927,8 +1864,8 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
                     key={idx}
                     className={`px-3 py-1.5 text-[11px] font-semibold cursor-pointer rounded-md transition-colors ${value === opt ? 'text-white font-bold' : 'hover:bg-[var(--app-table-head-bg)] hover:text-[var(--app-accent)] dark:hover:text-[var(--app-accent)]'}`}
                     style={{
-                      backgroundColor: value === opt ? 'var(--app-accent)' : 'transparent',
-                      color: value === opt ? '#ffffff' : 'var(--app-text)'
+                      backgroundColor: value === opt ? 'var(--m3-primary-container)' : 'transparent',
+                      color: value === opt ? 'var(--m3-on-primary-container)' : 'var(--m3-on-surface)'
                     }}
                     onClick={() => { onChange(opt); setIsOpen(false); setSearch(''); }}
                   >
@@ -2016,7 +1953,7 @@ const InputField = ({ label, placeholder, value, icon: Icon, type = "text", comp
   return (
     <div className="relative flex flex-col gap-1 w-full group">
       {label && (
-        <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 text-[var(--app-heading)] group-focus-within:text-[var(--app-accent)] transition-colors" style={{ backgroundColor: theme.panel }}>
+        <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 group-focus-within:text-[var(--m3-primary)] transition-colors" style={{ backgroundColor: 'var(--m3-surface-container-low)', color: 'var(--m3-on-surface-variant)' }}>
           {label}
         </label>
       )}
@@ -2030,7 +1967,7 @@ const InputField = ({ label, placeholder, value, icon: Icon, type = "text", comp
               placeholder="dd-mm-yyyy"
               readOnly={readOnly}
               className={`w-full ${compact ? 'h-7.5 px-2' : 'h-10 px-2'} rounded-lg border text-[11px] font-bold outline-none transition-all duration-300 focus:ring-0 ${isDark ? 'placeholder:text-white/10' : 'placeholder:text-[var(--app-muted)]'} ${align === 'right' ? 'text-right' : ''} ${readOnly ? (isDark ? 'cursor-not-allowed opacity-60 bg-slate-800/20' : 'cursor-not-allowed bg-[var(--app-content-bg)]/50') : 'hover:border-[var(--app-accent)]'}`}
-              style={{ backgroundColor: readOnly ? theme.headerBg : theme.inputBg, borderColor: theme.border, color: readOnly ? theme.accent : theme.text }}
+              style={{ backgroundColor: readOnly ? 'var(--m3-surface-container)' : 'var(--m3-surface-container-high)', borderColor: 'var(--m3-outline-variant)', color: readOnly ? 'var(--m3-primary)' : 'var(--m3-on-surface)' }}
             />
             {Icon && !readOnly && (
               <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center cursor-pointer">
@@ -2053,7 +1990,7 @@ const InputField = ({ label, placeholder, value, icon: Icon, type = "text", comp
             readOnly={readOnly}
             placeholder={placeholder}
             className={`w-full ${compact ? 'h-7.5 px-2' : 'h-10 px-2'} rounded-lg border text-[11px] font-bold outline-none transition-all duration-300 focus:ring-0 ${isDark ? 'placeholder:text-white/10' : 'placeholder:text-[var(--app-muted)]'} ${align === 'right' ? 'text-right' : ''} ${readOnly ? (isDark ? 'cursor-not-allowed opacity-60 bg-slate-800/20' : 'cursor-not-allowed bg-[var(--app-content-bg)]/50') : 'hover:border-[var(--app-accent)]'}`}
-            style={{ backgroundColor: readOnly ? theme.headerBg : theme.inputBg, borderColor: theme.border, color: readOnly ? theme.accent : theme.text }}
+            style={{ backgroundColor: readOnly ? 'var(--m3-surface-container)' : 'var(--m3-surface-container-high)', borderColor: 'var(--m3-outline-variant)', color: readOnly ? 'var(--m3-primary)' : 'var(--m3-on-surface)' }}
           />
         )}
         {type !== "date" && Icon && <Icon className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--app-muted)] group-focus-within:text-[var(--app-accent)] transition-colors pointer-events-none" size={12} />}

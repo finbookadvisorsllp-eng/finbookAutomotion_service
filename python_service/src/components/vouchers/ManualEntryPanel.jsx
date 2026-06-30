@@ -486,21 +486,29 @@ const ManualEntryPanel = ({ isDark }) => {
   return (
     <div className="flex flex-col h-full w-full overflow-hidden">
       {/* Voucher type tabs */}
-      <div className="flex items-center gap-1.5 overflow-x-auto themed-scrollbar pb-2 mb-2.5 shrink-0">
+      <div className="m3-scope flex items-center gap-1 overflow-x-auto themed-scrollbar pb-2 mb-2.5 shrink-0">
         {VOUCHER_TABS.map((tab) => {
           const sel = viewMode === 'form' ? activeFormType === tab.id : activeTab === tab.id;
           return (
-            <motion.button key={tab.id} onClick={() => handleTabClick(tab.id)} whileTap={{ scale: 0.98 }}
-              className="relative flex items-center gap-2 px-3 py-2 rounded-xl border shrink-0 transition-colors"
-              style={{ borderColor: sel ? 'var(--app-accent)' : 'var(--app-border)', backgroundColor: sel ? 'var(--app-accent-soft)' : 'var(--app-control-bg)', color: sel ? 'var(--app-accent)' : 'var(--app-text)' }}>
-              <span className="h-6 w-6 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: sel ? 'var(--app-accent)' : 'var(--app-control-hover)', color: sel ? '#fff' : 'var(--app-muted)' }}>
-                <tab.icon size={12} strokeWidth={2.4} />
+            <button
+              key={tab.id}
+              onClick={() => handleTabClick(tab.id)}
+              className="relative flex items-center gap-2 px-4 h-10 rounded-full shrink-0 transition-colors hover:bg-[var(--m3-surface-container)]"
+              style={{ color: sel ? 'var(--m3-on-secondary-container)' : 'var(--m3-on-surface-variant)' }}
+            >
+              {sel && (
+                <motion.span
+                  layoutId="m3-voucher-tab"
+                  className="absolute inset-0 rounded-full"
+                  style={{ backgroundColor: 'var(--m3-secondary-container)' }}
+                  transition={{ type: 'spring', stiffness: 500, damping: 40 }}
+                />
+              )}
+              <span className="relative flex items-center gap-2">
+                <tab.icon size={15} strokeWidth={2.2} />
+                <span className="text-[12.5px] font-semibold whitespace-nowrap">{tab.label}</span>
               </span>
-              <span className="text-left leading-tight">
-                <span className="block text-[7.5px] font-extrabold uppercase tracking-wider opacity-70">{tab.section}</span>
-                <span className="block text-[11.5px] font-bold">{tab.label}</span>
-              </span>
-            </motion.button>
+            </button>
           );
         })}
       </div>
