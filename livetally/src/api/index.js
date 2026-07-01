@@ -1,6 +1,6 @@
 // Typed API surface mirroring the LiveTally data exports — every function maps
 // to a /api/v3 endpoint. `fy` is the financial year id, e.g. "2025-2026".
-import { apiGet, apiGetFull, apiPost, auth, setCompanyId } from './client'
+import { apiGet, apiGetFull, apiPost, apiPut, apiDelete, apiDownload, auth, setCompanyId } from './client'
 
 // ─── Auth ───
 export const login = (email, password) => apiPost('/auth/login', { email, password })
@@ -8,6 +8,7 @@ export const me = () => apiGet('/auth/me')
 
 // ─── Company / setup ───
 export const getCompanies = () => apiGet('/companies')
+export const getAllCompanies = () => apiGet('/companies/all')  // every tenant company (switcher)
 export const getCurrentCompany = () => apiGet('/companies/current')
 export const getFinancialYears = () => apiGet('/companies/current/financial-years')
 export const getMasterData = () => apiGet('/companies/current/master-data')
@@ -20,7 +21,9 @@ export const getDashboard = (fy) => apiGet('/dashboard/overview', { fy })
 export const getKpis = (fy) => apiGet('/dashboard/kpis', { fy })
 export const getMonthlyTrend = (fy) => apiGet('/dashboard/monthly-trend', { fy })
 export const getExpenseBreakdown = (fy) => apiGet('/dashboard/expense-breakdown', { fy })
-export const getRecentVouchers = (fy) => apiGet('/dashboard/recent-vouchers', { fy })
+export const getDashboardReceivablesAging = (fy) => apiGet('/dashboard/receivables-aging', { fy })
+export const getDashboardCashFlow = (fy) => apiGet('/dashboard/cash-flow', { fy })
+export const getRecentVouchers = (fy, limit) => apiGet('/dashboard/recent-vouchers', { fy, limit })
 export const getTopCustomers = (fy) => apiGet('/dashboard/top-customers', { fy })
 export const getTopVendors = (fy) => apiGet('/dashboard/top-vendors', { fy })
 export const getTopItems = (fy) => apiGet('/dashboard/top-items', { fy })
@@ -49,11 +52,21 @@ export const getBsGroupChildren = (groupId, fy) =>
   apiGet(`/reports/balance-sheet/group/${encodeURIComponent(groupId)}/children`, { fy })
 export const getBsLedgerVouchers = (ledgerId, fy, page = 1, limit = 100) =>
   apiGetFull(`/reports/balance-sheet/ledger/${encodeURIComponent(ledgerId)}/vouchers`, { fy, page, limit })
-export const getCashFlow = (fy) => apiGet('/reports/cash-flow', { fy })
-export const getDayBook = (fy, date, page = 1, limit = 100) =>
-  apiGetFull('/reports/daybook', { fy, date, page, limit })
-export const getReceivables = (fy) => apiGet('/reports/outstanding/receivables', { fy })
-export const getPayables = (fy) => apiGet('/reports/outstanding/payables', { fy })
+export const getCashFlow = (fy, params = {}) => apiGet('/reports/cash-flow', { fy, ...params })
+export const getCashFlowLedgerVouchers = (ledgerId, fy, page = 1, limit = 10, params = {}) =>
+  apiGetFull(`/reports/cash-flow/ledger/${encodeURIComponent(ledgerId)}/vouchers`, { fy, page, limit, ...params })
+export const getDayBook = (fy, date, page = 1, limit = 100, params = {}) =>
+  apiGetFull('/reports/daybook', { fy, date, page, limit, ...params })
+// ─── Outstanding (Receivables / Payables) ───
+export const getReceivables = (fy, params = {}) =>
+  apiGetFull('/reports/outstanding/receivables', { fy, page: 1, limit: 10, ...params })
+export const getPayables = (fy, params = {}) =>
+  apiGetFull('/reports/outstanding/payables', { fy, page: 1, limit: 10, ...params })
+export const getAgingConfig = () => apiGet('/reports/outstanding/aging-config')
+export const saveAgingConfig = (buckets) => apiPut('/reports/outstanding/aging-config', { buckets })
+export const resetAgingConfig = () => apiDelete('/reports/outstanding/aging-config')
+export const getOutstandingPartyVouchers = (ledgerId, fy, page = 1, limit = 10) =>
+  apiGetFull(`/reports/outstanding/party/${encodeURIComponent(ledgerId)}/vouchers`, { fy, page, limit })
 export const getVoucher = (ident) => apiGet(`/reports/voucher/${ident}`)
 
 // ─── GST ───
@@ -64,6 +77,15 @@ export const getGstRateBreakdown = (fy) => apiGet('/reports/gst/rate-breakdown',
 export const getGstHsnSummary = (fy) => apiGet('/reports/gst/hsn-summary', { fy })
 
 // ─── Sales ───
+// Dynamic, Tally-matched Sales Register drill-down engine. One call serves every
+// level (0 register → 1 invoice list → 2 voucher detail). `params` carries
+// { level, groupBy, measure, groupValue, voucherId, fy, page, limit, search,
+//   sort, order, fromDate, toDate }.
+export const getSalesRegisterDrilldown = (params = {}) => apiGetFull('/sales/register/drilldown', params)
+// Export the current Sales Register level (respects groupBy + measure + filters + date + company).
+export const exportSalesRegister = (params = {}, format = 'pdf') =>
+  apiDownload('/sales/register/export', { ...params, format },
+    `sales-register.${format === 'excel' ? 'xlsx' : format}`)
 export const getSalesRegister = (fy, params = {}) => apiGetFull('/sales', { fy, ...params })
 export const getSalesStats = (fy) => apiGet('/sales/stats', { fy })
 export const getSalesAnalysis = (fy) => apiGet('/sales/analysis', { fy })
@@ -75,6 +97,15 @@ export const getDeliveryNotes = (fy) => apiGet('/sales/delivery-note', { fy })
 export const getDeliveryNoteMonth = (month, fy) => apiGetFull(`/sales/delivery-note/month/${encodeURIComponent(month)}`, { fy })
 
 // ─── Purchase ───
+// Dynamic, Tally-matched Purchase Register drill-down engine. One call serves every
+// level (0 register → 1 invoice list → 2 voucher detail). `params` carries
+// { level, groupBy, measure, groupValue, voucherId, fy, page, limit, search,
+//   sort, order, fromDate, toDate }.
+export const getPurchaseRegisterDrilldown = (params = {}) => apiGetFull('/purchase/register/drilldown', params)
+// Export the current Purchase Register level (respects groupBy + measure + filters + date + company).
+export const exportPurchaseRegister = (params = {}, format = 'pdf') =>
+  apiDownload('/purchase/register/export', { ...params, format },
+    `purchase-register.${format === 'excel' ? 'xlsx' : format}`)
 export const getPurchaseRegister = (fy, params = {}) => apiGetFull('/purchase', { fy, ...params })
 export const getPurchaseStats = (fy) => apiGet('/purchase/stats', { fy })
 export const getPurchaseTrends = (fy) => apiGet('/purchase/trends', { fy })
@@ -92,13 +123,26 @@ export const getBillsDue = (fy) => apiGet('/parties/bills-due', { fy })
 export const getCashBankDashboard = (fy) => apiGet('/cash-bank/dashboard', { fy })
 export const getCashBankLedger = (accountId, fy) =>
   apiGet(`/cash-bank/ledger/${encodeURIComponent(accountId)}`, { fy })
+// Generic Tally-like drill-down engine: one call serves every level (0..4).
+// `params` carries { level, group, ledgerId, ledgerName, month, voucherId, fy,
+//   page, limit, search, sort, order, voucherType, fromDate, toDate }.
+export const getCashBankDrilldown = (params = {}) => apiGetFull('/cash-bank/drilldown', params)
+// Export the current drill level (respects level + filters + date range + company).
+export const exportCashBank = (params = {}, format = 'pdf') =>
+  apiDownload('/cash-bank/export', { ...params, format },
+    `cash-bank.${format === 'excel' ? 'xlsx' : format}`)
 
-// ─── Inventory ───
-export const getInventory = (fy) => apiGet('/inventory', { fy })
-export const getSlowMoving = (fy) => apiGet('/inventory/slow', { fy })
-export const getFastMoving = (fy) => apiGet('/inventory/fast', { fy })
-export const getStockValuation = (fy) => apiGet('/inventory/valuation', { fy })
-export const getStockAlerts = (fy) => apiGet('/inventory/alerts', { fy })
+// ─── Inventory ─── (fully dynamic; every report is company + FY/date aware)
+export const getStockSummary = (params = {}) => apiGetFull('/inventory', params)
+// Stock Summary drill-down: 0 Groups → 1 Items → 2 Item ledger → 3 Voucher.
+export const getInventoryDrilldown = (params = {}) => apiGetFull('/inventory/drilldown', params)
+export const getSlowMoving = (params = {}) => apiGetFull('/inventory/slow', params)
+export const getFastMoving = (params = {}) => apiGetFull('/inventory/fast', params)
+export const getStockValuation = (params = {}) => apiGetFull('/inventory/valuation', params)
+export const getStockAlerts = (params = {}) => apiGetFull('/inventory/alerts', params)
+export const getItemPerformanceList = (params = {}) => apiGetFull('/inventory/performance', params)
+export const getItemPerformance = (item, params = {}) =>
+  apiGet(`/inventory/item/${encodeURIComponent(item)}/performance`, params)
 
 // ─── Accounting registers ───
 export const getJournal = (fy, params = {}) => apiGetFull('/accounting/journal', { fy, ...params })

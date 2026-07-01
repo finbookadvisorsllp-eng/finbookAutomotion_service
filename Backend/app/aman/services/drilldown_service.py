@@ -134,6 +134,10 @@ def map_voucher_detail(db, v: dict) -> dict:
     gst = v.get("gstDetails") or {}
     totals = v.get("totals") or {}
     grand_total = money(totals.get("totalDebit") or totals.get("grandTotal") or 0)
+    # Many tenants' synced vouchers have no ``totals`` block — fall back to the
+    # debit-side magnitude (a balanced voucher's invoice/grand total).
+    if not grand_total:
+        grand_total = money(sum(e["amount"] for e in entries if e.get("isDr")))
 
     # Payment/Receipt style helpers
     payment_details = [{"ledgerName": s["name"], "amount": s["amount"]} for s in summary]
@@ -169,11 +173,11 @@ def get_voucher_detail(db, ident: str) -> dict | None:
 
 # ─────────────────────────── Pattern A: ledger -> vouchers ───────────────────────────
 def voucher_list_for_ledger(db, fy: str | None = None, ledger_name: str | None = None, page: int = 1,
-                            limit: int = 100, sort_dir: int = -1, date_match: dict | None = None) -> tuple[list[dict], int]:
+                            limit: int = 100, sort_dir: int = -1, date_match: dict | None = None, search: str | None = None) -> tuple[list[dict], int]:
     skip = (page - 1) * limit
-    total = voucher_repo.count_for_ledger(db, fy, ledger_name, date_match=date_match)
+    total = voucher_repo.count_for_ledger(db, fy, ledger_name, date_match=date_match, search=search)
     docs = voucher_repo.vouchers_for_ledger(db, fy, ledger_name, skip=skip,
-                                            limit=limit, sort_dir=sort_dir, date_match=date_match)
+                                            limit=limit, sort_dir=sort_dir, date_match=date_match, search=search)
     rows = [voucher_row(v, ledger_amount_in_voucher(v, ledger_name)) for v in docs]
     return rows, total
 

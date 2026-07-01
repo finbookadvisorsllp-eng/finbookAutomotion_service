@@ -1,19 +1,85 @@
+"""Centralised backend configuration.
+
+Every deployment-specific / sensitive value (Mongo connection, company IDs,
+tenant database naming) is loaded from environment variables via a git-ignored
+``.env`` file. Nothing company-specific is hardcoded in source — see
+``.env.example`` for the full list of supported variables.
+"""
 import os
+import json
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Base directory of the project
+# Base directory of the project (…/Backend)
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Load environment variables from .env file inside Automation_Backend/
-dotenv_path = BASE_DIR / ".env"
-load_dotenv(dotenv_path=dotenv_path)
+# Load environment variables from Backend/.env (git-ignored).
+load_dotenv(dotenv_path=BASE_DIR / ".env")
+
+
+def _clean(value: str | None) -> str:
+    return (value or "").strip()
+
+
+def build_tenant_db_name(company_id: str | None, prefix: str) -> str:
+    """``6a182ee…`` -> ``sf_tenant_6a182ee…`` (idempotent if already prefixed)."""
+    cid = _clean(company_id)
+    if not cid:
+        return ""
+    return cid if cid.startswith(prefix) else f"{prefix}{cid}"
+
 
 class Settings:
-    # Use MONGO_URI, default to local if not specified
+    # ─── Mongo ───
     MONGO_URI: str = os.getenv("MONGO_URI") or os.getenv("MONGODB_URI") or "mongodb://localhost:27017"
-    
-    # Default Database Name to fetch data for Friends Grafix FY 2024-25
-    DEFAULT_DB_NAME: str = "sf_tenant_6a182ee36efd32db3c490a6c"
+
+    # ─── Multi-tenant naming ───
+    # Each company lives in its own database named ``<prefix><company_id>``.
+    TENANT_DB_PREFIX: str = os.getenv("TENANT_DB_PREFIX", "sf_tenant_")
+
+    # Company served when a request carries no ``x-company-id`` header.
+    # NEVER hardcode a real id here — supply it through the (git-ignored) .env.
+    DEFAULT_COMPANY_ID: str = _clean(os.getenv("DEFAULT_COMPANY_ID"))
+
+    # Optional explicit override of the default database name; otherwise it is
+    # derived from DEFAULT_COMPANY_ID. Empty when neither is configured, in which
+    # case every request must identify its tenant via the ``x-company-id`` header.
+    DEFAULT_DB_NAME: str = _clean(os.getenv("DEFAULT_DB_NAME")) or build_tenant_db_name(
+        DEFAULT_COMPANY_ID, TENANT_DB_PREFIX
+    )
+
+    # Optional allow-list of company ids this deployment may serve
+    # (comma-separated). Empty => allow any tenant database that exists
+    # (dynamic multi-tenant, convenient for local development).
+    COMPANY_IDS: list[str] = [c.strip() for c in _clean(os.getenv("COMPANY_IDS")).split(",") if c.strip()]
+
+    def tenant_db_name(self, company_id: str | None) -> str:
+        return build_tenant_db_name(company_id, self.TENANT_DB_PREFIX)
+
+    @property
+    def company_aliases(self) -> dict:
+        """Optional ``{"Friendly Name": "company_id"}`` JSON map used only to warm
+        the tenant resolver cache so a human name resolves without a DB scan."""
+        raw = _clean(os.getenv("COMPANY_ALIASES"))
+        if not raw:
+            return {}
+        try:
+            data = json.loads(raw)
+            return {str(k).strip(): str(v).strip() for k, v in data.items()} if isinstance(data, dict) else {}
+        except (ValueError, TypeError):
+            return {}
+
+    def tenant_seed(self) -> dict:
+        """Warm-start ``{reference: db_name}`` entries derived purely from config
+        (default company, allow-listed ids, and human aliases). Never hardcoded."""
+        seed: dict = {}
+        if self.DEFAULT_COMPANY_ID:
+            seed[self.DEFAULT_COMPANY_ID] = self.tenant_db_name(self.DEFAULT_COMPANY_ID)
+        for cid in self.COMPANY_IDS:
+            seed[cid] = self.tenant_db_name(cid)
+        for alias, cid in self.company_aliases.items():
+            seed[alias] = self.tenant_db_name(cid)
+        return {k: v for k, v in seed.items() if k and v}
+
 
 settings = Settings()

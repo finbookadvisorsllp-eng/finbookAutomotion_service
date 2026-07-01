@@ -1,66 +1,42 @@
-import DataTable from '../components/DataTable'
-import { stockItems, formatINR } from '../data/mockData'
-import { Clock, AlertTriangle } from 'lucide-react'
+import { Clock } from 'lucide-react';
+import { getSlowMoving } from '../api';
+import { fmt } from './CashBank/views/helpers';
+import InventoryListPage, { Segmented, qtyFmt } from './Inventory/InventoryListPage';
+
+const DAY_OPTS = [30, 60, 90, 180].map((d) => ({ value: d, label: `${d} Days` }));
+
+const columns = [
+  { key: 'name', label: 'Item Name', render: (v) => <span className="report-strong">{v}</span> },
+  { key: 'group', label: 'Group', render: (v) => <span className="report-muted">{v}</span> },
+  { key: 'closing', label: 'Stock Qty', align: 'right', sortKey: 'qty', render: (v, r) => `${qtyFmt(v)} ${r.unit || ''}` },
+  { key: 'value', label: 'Stock Value', align: 'right', money: true },
+  { key: 'agingDays', label: 'Aging (Days)', align: 'right', sortKey: 'aging', render: (v) => (
+    <span className={`font-bold ${v > 180 ? 'text-red-500' : v > 90 ? 'text-amber-500' : 'text-slate-500'}`}>{v == null ? 'Never sold' : `${v} days`}</span>
+  ) },
+  { key: 'lastSaleDate', label: 'Last Sale', render: (v) => v || '—' },
+];
 
 export default function SlowMoving() {
-  // Mock slow moving items logic
-  const slowItems = stockItems.map(item => {
-    // Generate random last sale date between 60 to 180 days ago
-    const daysAgo = Math.floor(Math.random() * 120) + 60;
-    const date = new Date();
-    date.setDate(date.getDate() - daysAgo);
-    
-    return {
-      ...item,
-      lastSaleDate: date.toISOString().split('T')[0],
-      agingDays: daysAgo,
-      action: daysAgo > 120 ? 'Discount & Clear' : 'Run Promotion'
-    }
-  }).filter(item => item.agingDays > 60).sort((a,b) => b.agingDays - a.agingDays)
-
-  const columns = [
-    { key: 'name', label: 'Item Name', sortable: true, render: v => <span className="font-bold">{v}</span> },
-    { key: 'group', label: 'Group' },
-    { key: 'closing', label: 'Stock Qty', align: 'right', sortable: true },
-    { key: 'value', label: 'Stock Value', align: 'right', sortable: true, render: v => formatINR(v) },
-    { key: 'agingDays', label: 'Aging (Days)', align: 'right', sortable: true, render: v => (
-      <span className={`font-bold ${v > 120 ? 'text-red-500' : 'text-amber-500'}`}>{v} Days</span>
-    )},
-    { key: 'lastSaleDate', label: 'Last Sale Date' },
-    { key: 'action', label: 'Suggested Action', render: v => (
-      <span className="text-[11px] font-bold bg-slate-100 text-slate-600 px-2 py-1 rounded-md">{v}</span>
-    )},
-  ]
-
   return (
-    <div className="animate-fade-in">
-      <div className="flex items-start justify-between mb-5 flex-wrap gap-3">
-        <div>
-          <h1 className="text-xl font-black text-slate-900">Slow Moving Items</h1>
-          <p className="text-sm text-slate-400 mt-0.5">Identify inventory holding up capital.</p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 col-span-1 md:col-span-2 lg:col-span-1">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center">
-              <Clock size={20} />
-            </div>
-            <div>
-              <p className="text-xs font-bold text-amber-700 uppercase tracking-wider">Dead Stock Value</p>
-              <p className="text-2xl font-black text-amber-800">{formatINR(slowItems.reduce((acc, i) => acc + i.value, 0))}</p>
-            </div>
-          </div>
-          <p className="text-sm font-medium text-amber-700 mt-2">{slowItems.length} items haven't moved in 60+ days.</p>
-        </div>
-      </div>
-
-      <DataTable 
-        columns={columns}
-        data={slowItems}
-        title="Dead & Slow Inventory"
-      />
-    </div>
-  )
+    <InventoryListPage
+      title="Slow Moving Items"
+      subtitle="Stock that has not sold within the selected window — capital held up."
+      icon={Clock}
+      fetcher={getSlowMoving}
+      columns={columns}
+      extra={{ days: 90 }}
+      defaultLimit={25}
+      searchPlaceholder="Search item…"
+      renderControls={({ extra, setExtra }) => (
+        <Segmented options={DAY_OPTS} value={extra.days} onChange={(d) => setExtra({ days: d })} />
+      )}
+      kpis={(meta) => {
+        const s = meta?.summary || {};
+        return [
+          { label: `Dead Stock (${s.days || 90}d+)`, value: s.deadStockItems ?? 0, tone: 'text-amber-600 dark:text-amber-400' },
+          { label: 'Dead Stock Value', value: fmt(s.deadStockValue), tone: 'text-red-600 dark:text-red-400' },
+        ];
+      }}
+    />
+  );
 }

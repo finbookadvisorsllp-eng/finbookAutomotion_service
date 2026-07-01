@@ -50,7 +50,7 @@ const navGroups = [
   {
     id: 'cash-bank', label: 'Cash & Bank',
     items: [
-      { id: 'cb-dashboard', label: 'Dashboard', path: '/cash-bank', icon: Landmark }
+      { id: 'cb-dashboard', label: 'Cash & Bank', path: '/cash-bank', icon: Landmark }
     ],
   },
   {
@@ -64,25 +64,7 @@ const navGroups = [
       { id: 'item-perf', label: 'Item Performance', path: '/inventory/performance', icon: BarChart2 },
     ],
   },
-  {
-    id: 'accounting', label: 'Accounting',
-    items: [
-      { id: 'journal', label: 'Journal Entries', path: '/accounting/journal', icon: FileEdit },
-      { id: 'payment', label: 'Payment Voucher', path: '/accounting/payment', icon: CreditCard },
-      { id: 'receipt', label: 'Receipt Voucher', path: '/accounting/receipt', icon: ReceiptText },
-    ],
-  },
-  {
-    id: 'admin', label: 'Administration',
-    items: [
-      { id: 'clients', label: 'Clients', path: '/admin', icon: UsersRound },
-      { id: 'users', label: 'Users & Roles', path: '/admin/users', icon: ShieldCheck },
-      { id: 'tally-sync', label: 'Tally Sync', path: '/setup', icon: PlugZap },
-      { id: 'audit', label: 'Audit Logs', path: '/admin/audit', icon: FolderKanban },
-      { id: 'billing', label: 'Billing', path: '/admin/billing', icon: CreditCard },
-      { id: 'support', label: 'Support', path: '/admin/support', icon: HeadphonesIcon },
-    ],
-  },
+
 ]
 
 // ── Color palette — responsive to theme ──

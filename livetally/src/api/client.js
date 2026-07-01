@@ -2,8 +2,9 @@
 // Injects auth + tenant headers, appends the financial-year query param, and
 // unwraps the { success, data, pagination, meta } envelope.
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api/v3'
-const DEFAULT_COMPANY_ID = import.meta.env.VITE_DEFAULT_COMPANY_ID || '6a182ee36efd32db3c490a6c'
+import { API_BASE_URL, DEFAULT_COMPANY_ID } from '../config'
+
+const BASE_URL = API_BASE_URL
 
 const TOKEN_KEY = 'aman_token'
 const COMPANY_KEY = 'aman_company_id'
@@ -65,4 +66,45 @@ export async function apiPost(path, body, params) {
   return r?.data ?? r
 }
 
-export default { apiGet, apiGetFull, apiPost, auth, getCompanyId, setCompanyId }
+export async function apiPut(path, body, params) {
+  const r = await request(path, { method: 'PUT', body, params })
+  return r?.data ?? r
+}
+
+export async function apiDelete(path, params) {
+  const r = await request(path, { method: 'DELETE', params })
+  return r?.data ?? r
+}
+
+// Download a binary file (PDF/Excel/CSV) from an endpoint that returns raw bytes.
+// Sends the same auth + tenant headers, honours the server Content-Disposition
+// filename, and triggers a browser save. Used by the report export buttons.
+export async function apiDownload(path, params = {}, fallbackName = 'export') {
+  const headers = { 'x-company-id': getCompanyId() }
+  const token = auth.getToken()
+  if (token) headers['Authorization'] = `Bearer ${token}`
+
+  const res = await fetch(buildUrl(path, params), { headers })
+  if (!res.ok) {
+    let detail
+    try { detail = (await res.json())?.detail } catch { /* not json */ }
+    throw new Error(detail || `Export failed (${res.status})`)
+  }
+
+  const blob = await res.blob()
+  const cd = res.headers.get('Content-Disposition') || ''
+  const star = cd.match(/filename\*=UTF-8''([^;]+)/i)
+  const plain = cd.match(/filename="?([^";]+)"?/i)
+  const filename = star ? decodeURIComponent(star[1]) : (plain ? plain[1] : fallbackName)
+
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}
+
+export default { apiGet, apiGetFull, apiPost, apiPut, apiDelete, apiDownload, auth, getCompanyId, setCompanyId }

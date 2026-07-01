@@ -1,69 +1,50 @@
-import DataTable from '../components/DataTable'
-import { stockItems } from '../data/mockData'
-import { AlertOctagon, AlertTriangle } from 'lucide-react'
+import { AlertTriangle, Info } from 'lucide-react';
+import { getStockAlerts } from '../api';
+import { qtyFmt } from './Inventory/InventoryListPage';
+import InventoryListPage from './Inventory/InventoryListPage';
+
+const ALERT_BADGE = {
+  negative: 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-400',
+  zero: 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400',
+};
+
+const columns = [
+  { key: 'name', label: 'Item Name', render: (v) => <span className="report-strong">{v}</span> },
+  { key: 'group', label: 'Group', render: (v) => <span className="report-muted">{v}</span> },
+  { key: 'closing', label: 'Current Stock', align: 'right', sortKey: 'qty', render: (v, r) => (
+    <span className={`font-black ${r.alertType === 'negative' ? 'text-red-600' : 'text-amber-600'}`}>{qtyFmt(v)} {r.unit || ''}</span>
+  ) },
+  { key: 'alertType', label: 'Alert Type', render: (v) => (
+    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${ALERT_BADGE[v] || ''}`}>
+      {v === 'negative' ? 'Negative Stock' : 'Out of Stock'}
+    </span>
+  ) },
+];
 
 export default function StockAlerts() {
-  const alerts = stockItems.filter(i => i.status !== 'ok').sort((a,b) => {
-    if (a.status === 'critical' && b.status !== 'critical') return -1;
-    if (a.status !== 'critical' && b.status === 'critical') return 1;
-    return 0;
-  })
-
-  const criticalCount = alerts.filter(i => i.status === 'critical').length
-  const warningCount = alerts.filter(i => i.status === 'warning').length
-
-  const columns = [
-    { key: 'name', label: 'Item Name', sortable: true, render: v => <span className="font-bold">{v}</span> },
-    { key: 'group', label: 'Group' },
-    { key: 'closing', label: 'Current Stock', align: 'right', sortable: true, render: (v, r) => (
-      <span className={`font-black ${r.status === 'critical' ? 'text-red-600' : 'text-amber-600'}`}>{v} {r.unit}</span>
-    )},
-    { key: 'reorder', label: 'Reorder Level', align: 'right', sortable: true, render: (v, r) => `${v} ${r.unit}` },
-    { key: 'status', label: 'Alert Type', render: v => (
-      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
-        v === 'critical' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
-      }`}>
-        {v === 'critical' ? 'Out of Stock' : 'Low Stock'}
-      </span>
-    )},
-  ]
-
   return (
-    <div className="animate-fade-in">
-      <div className="flex items-start justify-between mb-5 flex-wrap gap-3">
-        <div>
-          <h1 className="text-xl font-black text-slate-900">Stock Alerts</h1>
-          <p className="text-sm text-slate-400 mt-0.5">Inventory requiring immediate reordering.</p>
+    <InventoryListPage
+      title="Stock Alerts"
+      subtitle="Items needing attention — out of stock and negative (oversold) balances."
+      icon={AlertTriangle}
+      fetcher={getStockAlerts}
+      columns={columns}
+      defaultLimit={25}
+      searchPlaceholder="Search item…"
+      kpis={(meta) => {
+        const s = meta?.summary || {};
+        return [
+          { label: 'Negative Stock', value: s.negativeCount ?? 0, tone: 'text-red-600 dark:text-red-400' },
+          { label: 'Out of Stock', value: s.zeroCount ?? 0, tone: 'text-amber-600 dark:text-amber-400' },
+          { label: 'Total Alerts', value: s.totalAlerts ?? 0 },
+        ];
+      }}
+      renderBanner={(meta) => meta?.dataGaps?.length ? (
+        <div className="report-card px-4 py-3 flex items-start gap-2.5" style={{ borderLeft: '3px solid #f59e0b' }}>
+          <Info size={16} className="text-amber-500 mt-0.5 shrink-0" />
+          <p className="text-[12px] font-semibold" style={{ color: 'var(--report-text-soft)' }}>{meta.dataGaps[0]}</p>
         </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <div className="bg-red-50 border border-red-200 rounded-2xl p-5 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center shrink-0">
-            <AlertOctagon size={24} />
-          </div>
-          <div>
-            <p className="text-xs font-bold text-red-700 uppercase tracking-wider mb-0.5">Critical / Out of Stock</p>
-            <p className="text-2xl font-black text-red-800">{criticalCount} Items</p>
-          </div>
-        </div>
-        
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
-            <AlertTriangle size={24} />
-          </div>
-          <div>
-            <p className="text-xs font-bold text-amber-700 uppercase tracking-wider mb-0.5">Low Stock Warning</p>
-            <p className="text-2xl font-black text-amber-800">{warningCount} Items</p>
-          </div>
-        </div>
-      </div>
-
-      <DataTable 
-        columns={columns}
-        data={alerts}
-        title="Items Below Reorder Level"
-      />
-    </div>
-  )
+      ) : null}
+    />
+  );
 }

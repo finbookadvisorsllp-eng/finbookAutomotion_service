@@ -4,6 +4,8 @@ Tenant isolation reuses the shared, read-only resolver in ``app.db`` (header
 ``x-company-id``). Application isolation (aman vs anjalee) is enforced by
 ``require_aman_subscription`` checking the JWT ``app`` claim.
 """
+import threading
+import time
 from typing import Optional
 
 from fastapi import Depends, Header, HTTPException, Query, Request, status
@@ -15,21 +17,108 @@ from app.aman.services.financial_year import current_fy, is_valid_fy
 
 
 # ─────────────────────────────── Tenant ───────────────────────────────
-def get_db(request: Request, companyId: Optional[str] = Query(None)):
-    """Return the tenant-scoped Mongo database (shared resolver)."""
-    company_header = companyId or request.headers.get("x-company-id") or request.headers.get("x-company")
+# Every company's data lives in its own ``sf_tenant_<id>`` database. The id is
+# whatever the company switcher sends as ``x-company-id`` (the suffix of the db
+# name — a Mongo ObjectId for some tenants, a slug like ``natraj321`` for others).
+#
+# The shared ``resolve_db_name`` only rebuilds ``sf_tenant_<id>`` when the id is a
+# 24-char hex ObjectId; any other suffix silently falls back to the DEFAULT db, so
+# those companies appear in the switcher but load the wrong data. We resolve it
+# generically here instead: if ``sf_tenant_<id>`` is an existing database, use it.
+# This makes a newly synced company switch correctly the moment its database
+# exists — no code change, no ObjectId requirement, no restart.
+_TENANT_RESOLVE_TTL = 60.0          # seconds; bounds how stale a mapping can be
+_tenant_resolve_cache: dict[str, tuple[float, str]] = {}
+_tenant_resolve_lock = threading.Lock()
+_PLACEHOLDERS = {"", "undefined", "null", "default", "none"}
+
+
+def _candidate_tenant_db(ref: str) -> Optional[str]:
+    """``natraj321`` -> ``sf_tenant_natraj321`` (idempotent if already prefixed).
+
+    Uses the tenant db prefix from the central config so the naming convention is
+    defined in exactly one place (``app.config``)."""
+    from app.config import settings
+    ref = (ref or "").strip()
+    if not ref or ref.lower() in _PLACEHOLDERS:
+        return None
+    return settings.tenant_db_name(ref)
+
+
+def _tenant_db_exists(client, name: str) -> bool:
+    """True if ``name`` is a real, populated tenant database (one cheap command)."""
+    try:
+        cols = client[name].list_collection_names()
+    except Exception:
+        return False
+    return "companies" in cols or "vouchers" in cols
+
+
+def resolve_tenant_db_name(company_ref: Optional[str]) -> str:
+    """Resolve a company reference to its Mongo database name, dynamically.
+
+    Order: (1) short-TTL cache, (2) ``sf_tenant_<ref>`` if that database exists,
+    (3) the shared resolver (ObjectId / org slug / company name / default). Any
+    company synced as its own ``sf_tenant_*`` database is therefore reachable
+    automatically — the switcher and the data agree."""
     from app.db import resolve_db_name, client
-    db_name = resolve_db_name(company_header)
-    return client[db_name]
+    ref = (company_ref or "").strip()
+    if not ref or ref.lower() in _PLACEHOLDERS:
+        return resolve_db_name(ref)
+
+    now = time.time()
+    hit = _tenant_resolve_cache.get(ref)
+    if hit and hit[0] > now:
+        return hit[1]
+
+    candidate = _candidate_tenant_db(ref)
+    if candidate and _tenant_db_exists(client, candidate):
+        db_name = candidate
+    else:
+        # Backward-compatible: ObjectId ids, org slugs/names, and the default.
+        db_name = resolve_db_name(ref)
+
+    with _tenant_resolve_lock:
+        _tenant_resolve_cache[ref] = (now + _TENANT_RESOLVE_TTL, db_name)
+    return db_name
+
+
+def get_db(request: Request, companyId: Optional[str] = Query(None)):
+    """Return the tenant-scoped Mongo database for the requested company."""
+    company_header = companyId or request.headers.get("x-company-id") or request.headers.get("x-company")
+    from app.db import client
+    db_name = resolve_tenant_db_name(company_header)
+    db = client[db_name]
+    # Self-heal: if this tenant's sync omitted the reserved voucher parent class
+    # (voucherTypeOrigName), backfill it from the voucherTypes master so the
+    # standard classification works. Runs once per tenant/process, in the
+    # background, and is a no-op for normally-synced tenants.
+    if db_name not in _origin_healed:
+        _origin_healed.add(db_name)
+        threading.Thread(target=_heal_voucher_origin, args=(db, db_name), daemon=True).start()
+    return db
+
+
+_origin_healed: set[str] = set()
+
+
+def _heal_voucher_origin(db, db_name: str) -> None:
+    try:
+        from app.aman.services.tenant_normalize import ensure_voucher_origin
+        ensure_voucher_origin(db, db_name)
+    except Exception:
+        pass
 
 
 
 def get_tenant_key(
+    request: Request,
     x_company_id: Optional[str] = Header(default=None, alias="x-company-id"),
     x_company: Optional[str] = Header(default=None, alias="x-company"),
 ) -> str:
     """A stable string identifying the tenant, for cache keys."""
-    return (x_company_id or x_company or "default").strip()
+    company_id = request.query_params.get("companyId")
+    return (x_company_id or x_company or company_id or "default").strip()
 
 
 # ─────────────────────────────── Auth ───────────────────────────────

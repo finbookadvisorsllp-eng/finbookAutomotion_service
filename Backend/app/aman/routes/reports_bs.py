@@ -18,8 +18,8 @@ async def balance_sheet(fy: str = Depends(get_fy), tenant: str = Depends(get_ten
     The KPI cards and every chart are derived from this single response, so the
     whole dashboard stays consistent with the statement and the Trial Balance.
     """
-    data = cached_report(tenant, "balance-sheet", lambda: bs.build_balance_sheet(db, fy), fy=fy)
-    return ok(data, meta={"fy": fy})
+    data = bs.build_balance_sheet(db, fy)
+    return ok(data, meta={"fy": fy, "debug_db": db.name, "debug_tenant": tenant})
 
 
 @router.get("/balance-sheet/group/{group_id}/children")

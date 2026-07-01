@@ -1,27 +1,8 @@
-import React from 'react';
-import { useSearchParams } from 'react-router-dom';
+import CashBankReport from './CashBank/CashBankReport';
 
-import CashBankDashboard from './CashBank/CashBankDashboard';
-import LedgerDetail from './CashBank/LedgerDetail';
-import VoucherDetail from './CashBank/VoucherDetail';
-
+// Cash & Bank: a single, fully dynamic, Tally-like drill-down report.
+// All levels (summary → ledger → monthly → date-wise → voucher) are served by
+// one engine and navigated in-place with URL-synced breadcrumbs.
 export default function CashBankModule() {
-  const [searchParams] = useSearchParams();
-
-  const ledgerId = searchParams.get('ledgerId');
-  const voucherId = searchParams.get('voucherId');
-  const yearId = searchParams.get('year') || '2024-2025';
-
-  // Level 3: Voucher Detail
-  if (voucherId) {
-    return <VoucherDetail voucherId={voucherId} yearId={yearId} ledgerId={ledgerId} />;
-  }
-
-  // Level 2: Ledger Detail
-  if (ledgerId) {
-    return <LedgerDetail ledgerId={ledgerId} yearId={yearId} />;
-  }
-
-  // Level 1: Dashboard
-  return <CashBankDashboard />;
+  return <CashBankReport />;
 }

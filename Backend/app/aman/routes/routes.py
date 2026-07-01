@@ -12,7 +12,7 @@ from app.aman.core.cache import report_cache
 from . import (
     auth, companies, setup, reports_tb, reports_pl, reports_bs, reports_gst,
     reports_cashflow, daybook, outstanding, sales, purchase, parties,
-    cashbank, inventory, accounting, analytics, alerts, dashboard,
+    cashbank, inventory, accounting, analytics, alerts, dashboard, export,
 )
 
 aman_api_router = APIRouter(prefix="/api/v3")
@@ -34,7 +34,7 @@ _protected = APIRouter(dependencies=[Depends(require_aman_subscription)])
 for _module in (
     companies, setup, dashboard, reports_tb, reports_pl, reports_bs, reports_gst,
     reports_cashflow, daybook, outstanding, sales, purchase, parties,
-    cashbank, inventory, accounting, analytics, alerts,
+    cashbank, inventory, accounting, analytics, alerts, export,
 ):
     _protected.include_router(_module.router)
 

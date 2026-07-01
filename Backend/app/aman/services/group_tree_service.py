@@ -7,6 +7,25 @@ collection into that tree, deriving every parent/child link from
 ``groups.parentGroupName`` — never hardcoded. Each node carries a netted
 (Debit, Credit) pair aggregated bottom-up.
 
+Tally's Trial Balance netting (reproduced here from the ``groups`` masters, not
+hardcoded per company):
+
+* Every ledger always shows its net closing balance on a single side.
+* A GROUP is **netted to one side** (its opposite-side members cancel out) UNLESS
+  Tally keeps it "bill-wise" — i.e. a party control account (Sundry Debtors,
+  Sundry Creditors, Branch/Divisions, …) where a debtor who owes must never be
+  netted against a debtor in credit. That behaviour is carried per group by
+  ``behaviour.isBillWiseOn``.
+* A bill-wise group (and a *primary* group that directly owns one) is therefore
+  shown with **separate Debit and Credit columns**; every other group collapses
+  to a single net side. When a group collapses, its whole subtree collapses with
+  it (Tally does not resurrect a bill-wise flag under a netted parent — e.g.
+  Sundry Debtors nets even though its branch sub-groups are bill-wise).
+
+This is what makes the report tie to Tally's Grand Total to the rupee for every
+tenant, because netting removes ``min(debit, credit)`` from *both* column totals
+equally and so can never unbalance the Trial Balance.
+
 node = {
   id, name, type:'group'|'ledger', debit, credit,
   isExpandable, isDrillable, classification?, groupName?, unmapped?, children:[node]
@@ -18,6 +37,12 @@ from collections import defaultdict
 
 from app.aman.core.serializers import money
 from app.aman.repositories import group_repo
+
+
+def _net_sides(debit: float, credit: float) -> tuple[float, float]:
+    """Collapse a (debit, credit) pair to a single net side (one side is 0)."""
+    net = round(debit - credit, 2)
+    return (net, 0.0) if net >= 0 else (0.0, -net)
 
 
 def _ledger_node(lb, unmapped: bool = False) -> dict:
@@ -61,11 +86,32 @@ def build_forest(balances: dict, groups_by_name: dict) -> tuple[list[dict], list
         else:
             ledgers_in_group[gname].append((lb, False))
 
-    def build_group(gname: str) -> dict | None:
+    def _is_billwise(gname: str) -> bool:
+        return bool(((by_name.get(gname) or {}).get("behaviour") or {}).get("isBillWiseOn"))
+
+    def _shows_both_sides(gname: str, is_primary: bool) -> bool:
+        """Whether this group keeps separate Dr/Cr columns (Tally bill-wise view).
+
+        True when the group itself is bill-wise, or when a *primary* group directly
+        parents a bill-wise sub-group (Sundry Creditors under Current Liabilities,
+        the branch account under Branch/Divisions). Everything else collapses to a
+        single net side. The primary restriction is deliberate: a non-primary
+        holder (e.g. Provisions parenting a bill-wise salary-creditor sub-group) is
+        netted by Tally, so bill-wise flags only "surface" at the top level."""
+        if _is_billwise(gname):
+            return True
+        if is_primary:
+            return any(_is_billwise(cg) for cg in children_groups.get(gname, []))
+        return False
+
+    def build_group(gname: str, is_primary: bool, force_net: bool) -> dict | None:
+        # A collapsing ancestor forces this whole subtree onto one net side.
+        both = (not force_net) and _shows_both_sides(gname, is_primary)
+        child_force = force_net or (not both)
         children: list[dict] = []
         debit = credit = 0.0
         for cg in children_groups.get(gname, []):
-            cn = build_group(cg)
+            cn = build_group(cg, is_primary=False, force_net=child_force)
             if cn:
                 children.append(cn)
                 debit += cn["debit"]
@@ -78,6 +124,8 @@ def build_forest(balances: dict, groups_by_name: dict) -> tuple[list[dict], list
             credit += ln["credit"]
         if not children:
             return None
+        if not both:
+            debit, credit = _net_sides(debit, credit)
         g = by_name.get(gname) or {}
         return {
             "id": gname, "name": gname, "type": "group",
@@ -89,7 +137,7 @@ def build_forest(balances: dict, groups_by_name: dict) -> tuple[list[dict], list
 
     top_nodes: list[dict] = []
     for gname in children_groups.get("Primary", []):
-        node = build_group(gname)
+        node = build_group(gname, is_primary=True, force_net=False)
         if node:
             top_nodes.append(node)
     for lb in primary_ledgers:

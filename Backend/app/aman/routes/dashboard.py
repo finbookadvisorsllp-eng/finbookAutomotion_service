@@ -1,5 +1,5 @@
 """Dashboard routes (/api/v3/dashboard)."""
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 
 from app.aman.core.dependencies import get_db, get_fy, get_tenant_key
 from app.aman.core.cache import cached_report
@@ -17,7 +17,9 @@ async def overview(fy: str = Depends(get_fy), tenant: str = Depends(get_tenant_k
             "kpis": ds.kpis(db, fy),
             "monthlyTrend": ds.monthly_trend(db, fy)["series"],
             "expenseBreakdown": ds.expense_breakdown(db, fy),
-            "recentVouchers": ds.recent_vouchers(db, fy),
+            "receivablesAging": ds.receivables_aging(db, fy),
+            "cashFlow": ds.cash_flow(db, fy),
+            "recentVouchers": ds.recent_vouchers(db, fy, 50),
             "topCustomers": ds.top_customers(db, fy),
             "topVendors": ds.top_vendors(db, fy),
             "topItems": ds.top_items(db, fy),
@@ -41,9 +43,19 @@ async def expense_breakdown(fy: str = Depends(get_fy), db=Depends(get_db)):
     return ok(ds.expense_breakdown(db, fy), meta={"fy": fy})
 
 
+@router.get("/receivables-aging")
+async def receivables_aging(fy: str = Depends(get_fy), tenant: str = Depends(get_tenant_key), db=Depends(get_db)):
+    return ok(cached_report(tenant, "dashboard-aging", lambda: ds.receivables_aging(db, fy), fy=fy), meta={"fy": fy})
+
+
+@router.get("/cash-flow")
+async def cash_flow(fy: str = Depends(get_fy), tenant: str = Depends(get_tenant_key), db=Depends(get_db)):
+    return ok(cached_report(tenant, "dashboard-cashflow", lambda: ds.cash_flow(db, fy), fy=fy), meta={"fy": fy})
+
+
 @router.get("/recent-vouchers")
-async def recent_vouchers(fy: str = Depends(get_fy), db=Depends(get_db)):
-    return ok(ds.recent_vouchers(db, fy), meta={"fy": fy})
+async def recent_vouchers(fy: str = Depends(get_fy), limit: int = Query(50, ge=1, le=200), db=Depends(get_db)):
+    return ok(ds.recent_vouchers(db, fy, limit), meta={"fy": fy})
 
 
 @router.get("/top-customers")

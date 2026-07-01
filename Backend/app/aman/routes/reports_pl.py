@@ -42,13 +42,14 @@ async def pl_ledger_vouchers(
     toDate: str | None = Query(None),
     page: int = Query(1, ge=1),
     limit: int = Query(100, ge=1, le=500),
+    search: str | None = Query(None),
     db=Depends(get_db)
 ):
     from app.aman.services.financial_year import resolve_date_range, date_range_filter
     start_date, end_date = resolve_date_range(dateFilter, fromDate, toDate, fy)
     date_match = date_range_filter(start_date, end_date)
-    rows, total = voucher_list_for_ledger(db, fy, ledger_id, page=page, limit=limit, date_match=date_match)
-    return ok(rows, pagination=paginate(total, page, limit), meta={"fy": fy, "ledger": ledger_id})
+    rows, total = voucher_list_for_ledger(db, fy, ledger_id, page=page, limit=limit, date_match=date_match, search=search)
+    return ok(rows, pagination=paginate(total, page, limit), meta={"fy": fy, "ledger": ledger_id, "search": search})
 
 
 @router.get("/stock/items")

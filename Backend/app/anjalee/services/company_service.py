@@ -35,15 +35,9 @@ class CompanyService:
                 createdAt=str(created_at) if created_at else None
             ))
         
-        if not companies:
-            # Fallback/mock for frontend if DB is empty
-            companies.append(CompanyResponse(
-                id="6a182ee36efd32db3c490a6c",
-                name="Friends Grafix FY 2024-25",
-                gstin="23AAOFG0550B1ZZ",
-                createdAt=datetime.now().isoformat()
-            ))
-            
+        # No hardcoded company fallback: real company identifiers/GSTINs must never
+        # be baked into source. When the collection is empty we return an empty list
+        # and let the client surface a "no companies" state.
         return companies
 
     def create_company(self, payload: CreateCompanyRequest) -> CompanyResponse:

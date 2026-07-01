@@ -8,12 +8,9 @@ from app.config import settings
 client = MongoClient(settings.MONGO_URI, serverSelectionTimeoutMS=5000)
 
 # In-memory cache for resolving company references to database names.
-# Pre-populate with default company mapping to avoid blocking first requests/refresh.
-_tenant_cache = {
-    "6a182ee36efd32db3c490a6c": "sf_tenant_6a182ee36efd32db3c490a6c",
-    "Friends Grafix FY 2024-25": "sf_tenant_6a182ee36efd32db3c490a6c",
-    "Friends Grafix": "sf_tenant_6a182ee36efd32db3c490a6c"
-}
+# Warm-started purely from configuration (default company id + optional aliases
+# from the env) so no company identifier is ever hardcoded here. See app.config.
+_tenant_cache = dict(settings.tenant_seed())
 _cache_warmed = False
 
 def ensure_db_indexes(db):
@@ -63,10 +60,10 @@ def _warm_up_worker():
                 if name_clean not in _tenant_cache:
                     _tenant_cache[name_clean] = db_name
                 
-        # 2. Warm up company names from sf_tenant_* databases
+        # 2. Warm up company names from tenant databases
         all_dbs = client.list_database_names()
         for db_name in all_dbs:
-            if db_name.startswith("sf_tenant_"):
+            if db_name.startswith(settings.TENANT_DB_PREFIX):
                 try:
                     companies = client[db_name]["companies"].find({}, {"companyName": 1, "basicCompantFormalName": 1})
                     for comp in companies:
@@ -115,7 +112,7 @@ def resolve_db_name(company_ref: str) -> str:
         
     # 2. Check if the reference is a 24-character hex string (standard MongoDB ObjectId)
     if len(company_ref) == 24 and re.match(r"^[0-9a-fA-F]{24}$", company_ref):
-        db_name = f"sf_tenant_{company_ref.lower()}"
+        db_name = settings.tenant_db_name(company_ref.lower())
         _tenant_cache[company_ref] = db_name
         return db_name
 
@@ -144,7 +141,7 @@ def resolve_db_name(company_ref: str) -> str:
         try:
             all_dbs = client.list_database_names()
             for db_name in all_dbs:
-                if db_name.startswith("sf_tenant_"):
+                if db_name.startswith(settings.TENANT_DB_PREFIX):
                     comp_doc = client[db_name]["companies"].find_one({
                         "$or": [
                             {"companyName": company_ref},

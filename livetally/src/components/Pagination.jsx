@@ -25,16 +25,16 @@ export default function Pagination({ pagination, onPageChange, onPageSizeChange 
   ordered.forEach((n, i) => { if (i > 0 && n - ordered[i - 1] > 1) withGaps.push('…'); withGaps.push(n); });
 
   return (
-    <div className="py-2.5 px-4 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3 bg-slate-50/60">
+    <div className="py-2.5 px-4 border-t border-[var(--report-divider)] flex flex-wrap items-center justify-between gap-3 bg-[var(--theme-card-bg)]">
       <div className="flex items-center gap-3">
-        <span className="text-[11px] font-medium text-slate-500">{start}-{end} of {total}</span>
+        <span className="text-[11px] font-bold text-[var(--theme-text-muted)]">{start}-{end} of {total}</span>
         {onPageSizeChange && (
           <div className="flex items-center gap-1.5">
-            <span className="text-[11px] font-medium text-slate-500">Rows:</span>
+            <span className="text-[11px] font-bold text-[var(--theme-text-muted)]">Rows:</span>
             <select
               value={pageSize}
               onChange={(e) => onPageSizeChange(Number(e.target.value))}
-              className="text-[11px] font-medium text-slate-700 bg-white border border-slate-300 rounded px-1.5 py-1 focus:outline-none cursor-pointer"
+              className="text-[11px] font-bold text-[var(--theme-text-main)] bg-[var(--theme-card-bg)] border border-[var(--report-border)] rounded-none px-1.5 py-1 focus:outline-none focus:border-[var(--theme-text-main)] focus:ring-0 transition-colors cursor-pointer"
             >
               {PAGE_SIZES.map((n) => <option key={n} value={n}>{n}</option>)}
             </select>
@@ -45,19 +45,19 @@ export default function Pagination({ pagination, onPageChange, onPageSizeChange 
       {totalPages > 1 && (
         <div className="flex items-center gap-1">
           <button onClick={() => onPageChange(page - 1)} disabled={!hasPrev}
-            className="p-1 rounded text-slate-400 hover:bg-slate-200 disabled:opacity-40 disabled:hover:bg-transparent transition-colors">
+            className="p-1 rounded-none border border-[var(--report-border)] text-[var(--theme-text-muted)] hover:text-[var(--theme-text-main)] hover:bg-[var(--report-row-hover)] disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer focus:outline-none">
             <ChevronLeft size={16} />
           </button>
           {withGaps.map((n, i) => n === '…' ? (
-            <span key={`g${i}`} className="w-7 h-7 flex items-center justify-center text-slate-400 text-[12px]">…</span>
+            <span key={`g${i}`} className="w-7 h-7 flex items-center justify-center text-[var(--theme-text-light)] text-[12px]">…</span>
           ) : (
             <button key={n} onClick={() => onPageChange(n)}
-              className={`w-7 h-7 flex items-center justify-center rounded text-[12px] transition-colors ${n === page ? 'bg-blue-600 text-white font-bold shadow-sm' : 'text-slate-600 hover:bg-slate-200 font-medium'}`}>
+              className={`w-7 h-7 flex items-center justify-center rounded-none text-[12px] border transition-colors ${n === page ? 'border-blue-600 bg-blue-600 text-white font-bold' : 'border-[var(--report-border)] text-[var(--theme-text-muted)] bg-[var(--theme-card-bg)] hover:bg-[var(--report-row-hover)] hover:text-[var(--theme-text-main)]'}`}>
               {n}
             </button>
           ))}
           <button onClick={() => onPageChange(page + 1)} disabled={!hasNext}
-            className="p-1 rounded text-slate-400 hover:bg-slate-200 disabled:opacity-40 disabled:hover:bg-transparent transition-colors">
+            className="p-1 rounded-none border border-[var(--report-border)] text-[var(--theme-text-muted)] hover:text-[var(--theme-text-main)] hover:bg-[var(--report-row-hover)] disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer focus:outline-none">
             <ChevronRight size={16} />
           </button>
         </div>

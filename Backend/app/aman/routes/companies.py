@@ -20,6 +20,39 @@ def _company_gstin(doc: dict):
     return doc.get("gstin")
 
 
+@router.get("/all")
+async def all_companies():
+    """Every company across all tenant databases — drives the company switcher.
+
+    The returned ``id`` is the tenant id (the suffix of ``sf_tenant_<id>``), i.e.
+    exactly the value the frontend sends as ``x-company-id`` to scope all reports.
+    Cross-tenant, read-only; not scoped to one company.
+    """
+    from app.db import client as mongo_client
+    out = []
+    try:
+        names = mongo_client.list_database_names()
+    except Exception:
+        names = []
+    for name in names:
+        if not name.startswith("sf_tenant_"):
+            continue
+        try:
+            comp = mongo_client[name]["companies"].find_one(
+                {}, {"companyName": 1, "basicCompantFormalName": 1, "financialYear": 1})
+        except Exception:
+            comp = None
+        if not comp:
+            continue
+        out.append({
+            "id": name.replace("sf_tenant_", ""),
+            "name": comp.get("companyName") or comp.get("basicCompantFormalName") or name,
+            "financialYear": comp.get("financialYear"),
+        })
+    out.sort(key=lambda c: (c["name"] or "").lower())
+    return ok(out)
+
+
 @router.get("")
 async def list_companies(db=Depends(get_db)):
     companies = []

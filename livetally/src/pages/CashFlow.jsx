@@ -1,30 +1,28 @@
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
-  AreaChart, Area, BarChart, Bar, ComposedChart, Line,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
+  BarChart, Bar, ComposedChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell,
 } from 'recharts'
-import { cashFlowData, formatINR } from '../data/mockData'
+import { Download, ChevronRight, ChevronDown, AlertTriangle, ArrowDownLeft, ArrowUpRight, Wallet, TrendingUp, Banknote } from 'lucide-react'
+import { formatINR } from '../data/mockData'
+import { useDateRange } from '../context/DateContext'
+import { useApi } from '../hooks/useApi'
+import DateRangePicker from '../components/common/DateRangePicker'
+import { getCashFlow } from '../api'
 
-const monthly = [
-  { month:'Apr', inflow:3800000, outflow:3250000, net:550000, balance:2800000 },
-  { month:'May', inflow:4100000, outflow:3450000, net:650000, balance:3450000 },
-  { month:'Jun', inflow:3600000, outflow:3120000, net:480000, balance:3930000 },
-  { month:'Jul', inflow:4400000, outflow:3650000, net:750000, balance:4680000 },
-  { month:'Aug', inflow:4800000, outflow:3980000, net:820000, balance:5500000 },
-  { month:'Sep', inflow:5100000, outflow:4220000, net:880000, balance:6380000 },
-  { month:'Oct', inflow:4750000, outflow:3930000, net:820000, balance:7200000 },
-  { month:'Nov', inflow:5300000, outflow:4380000, net:920000, balance:8120000 },
-  { month:'Dec', inflow:5900000, outflow:4880000, net:1020000, balance:9140000 },
-  { month:'Jan', inflow:5500000, outflow:4550000, net:950000, balance:10090000 },
-  { month:'Feb', inflow:6000000, outflow:4960000, net:1040000, balance:11130000 },
-  { month:'Mar', inflow:6300000, outflow:5200000, net:1100000, balance:12230000 },
-]
+const ACTIVITY_COLOR = { Operating: '#10b981', Investing: '#f59e0b', Financing: '#6366f1' }
 
-const fmt = ({ active, payload, label }) => {
+const fyBounds = (fy) => {
+  const y = parseInt(fy, 10)
+  return Number.isFinite(y) ? { fromDate: `${y}-04-01`, toDate: `${y + 1}-03-31`, preset: 'custom' } : null
+}
+
+const ChartTip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null
   return (
-    <div className="glass-card p-3 shadow-lg dark:shadow-[0_0_15px_rgba(182,255,0,0.15)] text-xs">
+    <div className="glass-card p-3 shadow-lg text-xs">
       <p className="font-semibold text-slate-600 mb-2">{label}</p>
-      {payload.map(p => (
+      {payload.map((p) => (
         <div key={p.dataKey} className="flex items-center gap-2 mb-0.5">
           <div className="w-2 h-2 rounded-full" style={{ background: p.color }} />
           <span className="text-slate-500">{p.name}:</span>
@@ -36,114 +34,219 @@ const fmt = ({ active, payload, label }) => {
 }
 
 export default function CashFlow() {
-  const totalInflow  = monthly.reduce((a,m)=>a+m.inflow, 0)
-  const totalOutflow = monthly.reduce((a,m)=>a+m.outflow, 0)
-  const netCashFlow  = totalInflow - totalOutflow
-  const closingBalance = monthly[monthly.length-1].balance
+  const navigate = useNavigate()
+  const { fy } = useDateRange()
+  const [range, setRange] = useState(null)        // null => full FY
+  const [expanded, setExpanded] = useState(new Set())
+
+  const params = range ? { dateFilter: 'custom', fromDate: range.fromDate, toDate: range.toDate } : {}
+  const { data: cf, loading, error } = useApi(() => getCashFlow(fy, params), [fy, range], { skip: !fy })
+
+  const summary = cf?.summary || { opening: 0, inflow: 0, outflow: 0, net: 0, closing: 0 }
+  const activities = cf?.activities || []
+  const series = cf?.series || []
+  const pickerValue = range || fyBounds(fy) || { fromDate: '', toDate: '', preset: 'custom' }
+
+  const toggle = (id) => setExpanded((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n })
+  const drillLedger = (name) => navigate(`/reports/pl?ledger=${encodeURIComponent(name)}&from=cash-flow`)
+
+  const activityChart = activities.map((a) => ({ name: a.name, inflow: a.inflow, outflow: a.outflow, color: ACTIVITY_COLOR[a.name] || '#64748b' }))
+
+  const exportCSV = () => {
+    const lines = [['Activity', 'Group', 'Ledger', 'Inflow', 'Outflow', 'Net'].join(',')]
+    activities.forEach((a) => a.groups.forEach((g) => g.ledgers.forEach((l) =>
+      lines.push([a.name, g.name, l.name, l.inflow, l.outflow, l.net].map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')))))
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' })
+    const el = document.createElement('a'); el.href = URL.createObjectURL(blob); el.download = `cash-flow_${fy}.csv`; el.click(); URL.revokeObjectURL(el.href)
+  }
+
+  const cards = [
+    { label: 'Opening Balance', value: summary.opening, icon: <Wallet size={16} className="text-slate-500" />, color: 'text-slate-800', ring: 'bg-slate-100' },
+    { label: 'Total Inflow', value: summary.inflow, icon: <ArrowDownLeft size={16} className="text-emerald-600" />, color: 'text-emerald-700', ring: 'bg-emerald-50' },
+    { label: 'Total Outflow', value: summary.outflow, icon: <ArrowUpRight size={16} className="text-red-600" />, color: 'text-red-600', ring: 'bg-red-50' },
+    { label: 'Net Cash Flow', value: summary.net, icon: <TrendingUp size={16} className="text-blue-600" />, color: summary.net >= 0 ? 'text-blue-700' : 'text-red-600', ring: 'bg-blue-50' },
+    { label: 'Closing Balance', value: summary.closing, icon: <Banknote size={16} className="text-indigo-600" />, color: 'text-indigo-700', ring: 'bg-indigo-50' },
+  ]
 
   return (
-    <div className="animate-fade-in">
-      <div className="flex items-start justify-between mb-5 flex-wrap gap-3">
+    <div className="animate-fade-in space-y-5">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-black text-slate-900">Cash Flow Statement</h1>
-          <p className="text-sm text-slate-400 mt-0.5">FY 2024-25 · Inflows, Outflows & Net Position</p>
+          <p className="text-sm text-slate-400 mt-0.5">{cf?.method || 'Direct Method'} · every figure traces to a voucher</p>
         </div>
-        <button className="px-4 py-2 border border-slate-200 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">⬇ Export PDF</button>
+        <div className="flex items-center gap-2">
+          <DateRangePicker value={pickerValue} onChange={(v) => setRange(v)} />
+          <button onClick={exportCSV} className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 bg-white hover:bg-slate-50 shadow-sm"><Download size={15} /> Export</button>
+        </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 mb-5">
-        {[
-          { label:'Total Inflows',     value:formatINR(totalInflow),    bg:'bg-emerald-50 dark:bg-[#B6FF00]/10', border:'border-emerald-100 dark:border-[#B6FF00]/20', color:'text-emerald-700 dark:text-[#B6FF00]' },
-          { label:'Total Outflows',    value:formatINR(totalOutflow),   bg:'bg-red-50 dark:bg-red-500/10',     border:'border-red-100 dark:border-red-500/20',     color:'text-red-600 dark:text-red-400' },
-          { label:'Net Cash Flow',     value:formatINR(netCashFlow),    bg:'bg-blue-50 dark:bg-blue-500/10',    border:'border-blue-100 dark:border-blue-500/20',    color:'text-blue-700 dark:text-blue-400' },
-          { label:'Closing Balance',   value:formatINR(closingBalance), bg:'bg-indigo-50 dark:bg-indigo-500/10',  border:'border-indigo-100 dark:border-indigo-500/20',  color:'text-indigo-700 dark:text-indigo-400' },
-        ].map(s => (
-          <div key={s.label} className={`${s.bg} ${s.border} border rounded-2xl p-4 transition-colors`}>
-            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">{s.label}</p>
-            <p className={`text-xl font-extrabold ${s.color}`}>{s.value}</p>
+      {cf && cf.reconciled === false && (
+        <div className="px-4 py-2 bg-amber-50 border border-amber-200 rounded-lg text-[11px] text-amber-800 font-medium flex items-center gap-2">
+          <AlertTriangle size={14} /> Cash flow does not tie out to the cash/bank closing balance — investigate.
+        </div>
+      )}
+
+      {/* KPI cards */}
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
+        {cards.map((c) => (
+          <div key={c.label} className="glass-card p-4 flex items-center justify-between">
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 truncate">{c.label}</p>
+              <p className={`text-lg font-black truncate ${c.color}`}>{formatINR(c.value)}</p>
+            </div>
+            <div className={`w-9 h-9 rounded-lg ${c.ring} flex items-center justify-center shrink-0`}>{c.icon}</div>
           </div>
         ))}
       </div>
 
-      {/* Charts */}
-      <div className="glass-card p-5 mb-4">
-        <h2 className="text-sm font-bold text-slate-800 mb-4">Monthly Cash Flow — Inflow vs Outflow</h2>
-        <ResponsiveContainer width="100%" height={260}>
-          <BarChart data={monthly} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid-stroke)" />
-            <XAxis dataKey="month" tick={{ fontSize:11, fill:'#94a3b8' }} axisLine={false} tickLine={false} />
-            <YAxis tickFormatter={v=>`₹${(v/100000).toFixed(0)}L`} tick={{ fontSize:10, fill:'#94a3b8' }} axisLine={false} tickLine={false} />
-            <Tooltip content={fmt} cursor={false} />
-            <Legend iconType="circle" iconSize={8} formatter={v=><span style={{fontSize:11,color:'#64748b'}}>{v}</span>}/>
-            <Bar dataKey="inflow"  fill="#10b981" radius={[3,3,0,0]} name="Cash In" />
-            <Bar dataKey="outflow" fill="#ef4444" radius={[3,3,0,0]} name="Cash Out" />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
+      {loading ? (
+        <div className="glass-card py-20 text-center text-slate-500 font-medium animate-pulse">Loading cash flow…</div>
+      ) : error ? (
+        <div className="glass-card py-20 text-center text-red-500 font-medium">{error.message}</div>
+      ) : (
+        <>
+          {/* Charts */}
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            <div className="glass-card p-5">
+              <h2 className="text-sm font-bold text-slate-800 mb-4">Monthly Inflow vs Outflow</h2>
+              <ResponsiveContainer width="100%" height={240}>
+                <BarChart data={series} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid-stroke)" />
+                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                  <YAxis tickFormatter={(v) => `₹${(v / 100000).toFixed(0)}L`} tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                  <Tooltip content={<ChartTip />} cursor={false} />
+                  <Legend iconType="circle" iconSize={8} formatter={(v) => <span style={{ fontSize: 11, color: '#64748b' }}>{v}</span>} />
+                  <Bar dataKey="inflow" fill="#10b981" radius={[3, 3, 0, 0]} name="Inflow" />
+                  <Bar dataKey="outflow" fill="#ef4444" radius={[3, 3, 0, 0]} name="Outflow" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="glass-card p-5">
+              <h2 className="text-sm font-bold text-slate-800 mb-4">Net Cash Flow &amp; Running Balance</h2>
+              <ResponsiveContainer width="100%" height={240}>
+                <ComposedChart data={series} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid-stroke)" />
+                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                  {/* left axis: monthly Net (small) · right axis: cumulative Closing (large) */}
+                  <YAxis yAxisId="left" tickFormatter={(v) => `₹${(v / 100000).toFixed(1)}L`} tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                  <YAxis yAxisId="right" orientation="right" tickFormatter={(v) => `₹${(v / 100000).toFixed(0)}L`} tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                  <Tooltip content={<ChartTip />} cursor={false} />
+                  <Legend iconType="circle" iconSize={8} formatter={(v) => <span style={{ fontSize: 11, color: '#64748b' }}>{v}</span>} />
+                  <Bar yAxisId="left" dataKey="net" name="Net (monthly)" radius={[3, 3, 0, 0]} maxBarSize={26}>
+                    {series.map((s, i) => <Cell key={i} fill={s.net >= 0 ? '#6366f1' : '#ef4444'} />)}
+                  </Bar>
+                  <Line yAxisId="right" type="monotone" dataKey="closing" stroke="#2563eb" strokeWidth={2.5} dot={{ r: 2 }} name="Closing Balance" />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-4">
-        {/* Net Cash + Running Balance */}
-        <div className="glass-card p-5">
-          <h2 className="text-sm font-bold text-slate-800 mb-4">Net Cash Flow & Cumulative Balance</h2>
-          <ResponsiveContainer width="100%" height={220}>
-            <ComposedChart data={monthly}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid-stroke)"/>
-              <XAxis dataKey="month" tick={{fontSize:11,fill:'#94a3b8'}} axisLine={false} tickLine={false}/>
-              <YAxis tickFormatter={v=>`₹${(v/100000).toFixed(0)}L`} tick={{fontSize:10,fill:'#94a3b8'}} axisLine={false} tickLine={false}/>
-              <Tooltip content={fmt} cursor={false} />
-              <Legend iconType="circle" iconSize={8} formatter={v=><span style={{fontSize:11,color:'#64748b'}}>{v}</span>}/>
-              <Bar dataKey="net" fill="#6366f1" radius={[3,3,0,0]} name="Net Cash" />
-              <Line type="monotone" dataKey="balance" stroke="#2563eb" strokeWidth={2.5} dot={false} name="Running Balance" />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
+          {/* Activity breakdown tree (drill-down) */}
+          <div className="glass-card overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 bg-slate-50/60">
+              <h2 className="text-sm font-bold text-slate-800">Cash Flow by Activity</h2>
+              <div className="w-40 h-12">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={activityChart} layout="vertical" margin={{ left: 0, right: 0, top: 0, bottom: 0 }}>
+                    <XAxis type="number" hide /><YAxis type="category" dataKey="name" hide />
+                    <Bar dataKey="net" radius={[0, 3, 3, 0]} barSize={8}>{activityChart.map((e, i) => <Cell key={i} fill={e.color} />)}</Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse min-w-[640px]">
+                <thead>
+                  <tr className="bg-slate-50/60 border-b border-slate-200 text-[11px] font-bold text-slate-700">
+                    <th className="py-2.5 px-4">Particulars</th>
+                    <th className="py-2.5 px-4 text-right">Inflow</th>
+                    <th className="py-2.5 px-4 text-right">Outflow</th>
+                    <th className="py-2.5 px-4 text-right">Net</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {activities.length === 0 ? (
+                    <tr><td colSpan={4} className="py-8 text-center text-[12px] text-slate-500">No cash movements in this period.</td></tr>
+                  ) : activities.map((a) => {
+                    const aOpen = expanded.has(a.name)
+                    return [
+                      <tr key={a.name} className="cursor-pointer hover:bg-slate-50 font-bold" onClick={() => toggle(a.name)}>
+                        <td className="py-2 px-4 text-[13px] text-slate-800">
+                          <span className="inline-flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full" style={{ background: ACTIVITY_COLOR[a.name] || '#64748b' }} />
+                            {aOpen ? <ChevronDown size={13} className="text-slate-400" /> : <ChevronRight size={13} className="text-slate-400" />}
+                            {a.name} Activities
+                          </span>
+                        </td>
+                        <td className="py-2 px-4 text-right text-[13px] text-emerald-600 tabular-nums">{a.inflow ? formatINR(a.inflow) : '—'}</td>
+                        <td className="py-2 px-4 text-right text-[13px] text-red-500 tabular-nums">{a.outflow ? formatINR(a.outflow) : '—'}</td>
+                        <td className={`py-2 px-4 text-right text-[13px] font-black tabular-nums ${a.net >= 0 ? 'text-blue-700' : 'text-red-600'}`}>{formatINR(a.net)}</td>
+                      </tr>,
+                      ...(aOpen ? a.groups.flatMap((g) => {
+                        const gKey = `${a.name}/${g.name}`
+                        const gOpen = expanded.has(gKey)
+                        return [
+                          <tr key={gKey} className="cursor-pointer hover:bg-slate-50/70" onClick={() => toggle(gKey)}>
+                            <td className="py-1.5 px-4 text-[12px] font-semibold text-slate-700" style={{ paddingLeft: 44 }}>
+                              <span className="inline-flex items-center gap-1.5">{gOpen ? <ChevronDown size={12} className="text-slate-400" /> : <ChevronRight size={12} className="text-slate-400" />}{g.name}</span>
+                            </td>
+                            <td className="py-1.5 px-4 text-right text-[12px] text-slate-600 tabular-nums">{g.inflow ? formatINR(g.inflow) : '—'}</td>
+                            <td className="py-1.5 px-4 text-right text-[12px] text-slate-600 tabular-nums">{g.outflow ? formatINR(g.outflow) : '—'}</td>
+                            <td className="py-1.5 px-4 text-right text-[12px] font-bold text-slate-700 tabular-nums">{formatINR(g.net)}</td>
+                          </tr>,
+                          ...(gOpen ? g.ledgers.map((l) => (
+                            <tr key={`${gKey}/${l.id}`} className="hover:bg-slate-50/60">
+                              <td className="py-1.5 px-4 text-[12px] text-blue-600 hover:underline cursor-pointer" style={{ paddingLeft: 70 }} onClick={() => drillLedger(l.name)}>{l.name}</td>
+                              <td className="py-1.5 px-4 text-right text-[12px] text-slate-500 tabular-nums">{l.inflow ? formatINR(l.inflow) : '—'}</td>
+                              <td className="py-1.5 px-4 text-right text-[12px] text-slate-500 tabular-nums">{l.outflow ? formatINR(l.outflow) : '—'}</td>
+                              <td className="py-1.5 px-4 text-right text-[12px] text-slate-600 tabular-nums">{formatINR(l.net)}</td>
+                            </tr>
+                          )) : []),
+                        ]
+                      }) : []),
+                    ]
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr className="bg-slate-50 border-t-2 border-slate-200 font-black text-[13px]">
+                    <td className="py-2.5 px-4 text-slate-900">Net Cash Flow</td>
+                    <td className="py-2.5 px-4 text-right text-emerald-600 tabular-nums">{formatINR(summary.inflow)}</td>
+                    <td className="py-2.5 px-4 text-right text-red-500 tabular-nums">{formatINR(summary.outflow)}</td>
+                    <td className={`py-2.5 px-4 text-right tabular-nums ${summary.net >= 0 ? 'text-blue-700' : 'text-red-600'}`}>{formatINR(summary.net)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
 
-        {/* Operating CF Breakdown */}
-        <div className="glass-card p-5">
-          <h2 className="text-sm font-bold text-slate-800 mb-4">Cash Position Overview</h2>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={cashFlowData} layout="vertical" margin={{left:10}}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid-stroke)" horizontal={false}/>
-              <XAxis type="number" tickFormatter={v=>`₹${(v/100000).toFixed(0)}L`} tick={{fontSize:10,fill:'#94a3b8'}} axisLine={false} tickLine={false}/>
-              <YAxis type="category" dataKey="month" tick={{fontSize:11,fill:'#64748b'}} axisLine={false} tickLine={false} width={30}/>
-              <Tooltip content={fmt} cursor={false} />
-              <Legend iconType="circle" iconSize={8} formatter={v=><span style={{fontSize:11,color:'#64748b'}}>{v}</span>}/>
-              <Bar dataKey="operating" fill="#10b981" radius={[0,3,3,0]} name="Operating" />
-              <Bar dataKey="net"       fill="#2563eb" radius={[0,3,3,0]} name="Net" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* Monthly Table */}
-      <div className="glass-card overflow-hidden">
-        <div className="px-5 py-4 border-b border-slate-100">
-          <h2 className="text-sm font-bold text-slate-800">Monthly Summary</h2>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-100">
-                {['Month','Cash Inflow','Cash Outflow','Net Cash Flow','Closing Balance'].map(h=>(
-                  <th key={h} className="px-5 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest whitespace-nowrap">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {monthly.map((row,i)=>(
-                <tr key={i} className="hover:bg-slate-50/60 transition-colors">
-                  <td className="px-5 py-3 font-semibold text-slate-800">{row.month} '25</td>
-                  <td className="px-5 py-3 text-emerald-600 font-semibold">{formatINR(row.inflow)}</td>
-                  <td className="px-5 py-3 text-red-500 font-semibold">{formatINR(row.outflow)}</td>
-                  <td className={`px-5 py-3 font-bold ${row.net>=0?'text-blue-700':'text-red-600'}`}>{formatINR(row.net)}</td>
-                  <td className="px-5 py-3 font-bold text-indigo-700">{formatINR(row.balance)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+          {/* Monthly summary table */}
+          <div className="glass-card overflow-hidden">
+            <div className="px-5 py-3 border-b border-slate-100"><h2 className="text-sm font-bold text-slate-800">Monthly Summary</h2></div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-100 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                    {['Month', 'Inflow', 'Outflow', 'Net', 'Closing Balance'].map((h) => <th key={h} className="px-5 py-3 text-left whitespace-nowrap">{h}</th>)}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {series.map((r, i) => (
+                    <tr key={i} className="hover:bg-slate-50/60">
+                      <td className="px-5 py-2.5 font-semibold text-slate-800">{r.month}</td>
+                      <td className="px-5 py-2.5 text-emerald-600 font-semibold tabular-nums">{formatINR(r.inflow)}</td>
+                      <td className="px-5 py-2.5 text-red-500 font-semibold tabular-nums">{formatINR(r.outflow)}</td>
+                      <td className={`px-5 py-2.5 font-bold tabular-nums ${r.net >= 0 ? 'text-blue-700' : 'text-red-600'}`}>{formatINR(r.net)}</td>
+                      <td className="px-5 py-2.5 font-bold text-indigo-700 tabular-nums">{formatINR(r.closing)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }

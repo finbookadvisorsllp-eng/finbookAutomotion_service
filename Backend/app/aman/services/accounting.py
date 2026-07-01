@@ -87,6 +87,47 @@ def opening_stock_value(db) -> float:
 STOCK_LEDGER_NAME = "Stock-in-Hand"
 
 
+def _is_stock_in_hand(lb, groups: dict) -> bool:
+    """True if a ledger sits under Tally's reserved **Stock-in-Hand** group.
+
+    Data-driven: matches the group's nature ``subType == STOCK_IN_HAND`` when the
+    sync provides it, else the reserved group NAME ("Stock-in-Hand") on the
+    ledger's immediate group, its root, or the leaf of its group path. Tally's
+    "Stock-in-Hand" is a standard reserved primary group (present in every
+    company), so this is universal — never a company-specific ledger name. Note
+    the group is often nested under Current Assets, so the *root* alone is not
+    enough; we check the immediate group too."""
+    for gname in (getattr(lb, "group_name", None), getattr(lb, "root_group", None)):
+        sub = (((groups.get(gname) or {}).get("nature") or {}).get("subType") or "")
+        if sub.upper().replace("-", "_").replace(" ", "_") == "STOCK_IN_HAND":
+            return True
+    for n in (getattr(lb, "group_name", None), getattr(lb, "root_group", None), getattr(lb, "group_path", None)):
+        norm = _norm_name(n or "").lower()
+        if norm in ("stock-in-hand", "stock in hand") or norm.endswith("> stock-in-hand") or norm.endswith("> stock in hand"):
+            return True
+    return False
+
+
+def stock_in_hand_from_books(balances: dict, groups: dict) -> tuple[float, float, bool]:
+    """Net opening & closing Stock-in-Hand taken from the **ledger** balances.
+
+    Tally-correct + tenant-agnostic: when a company keeps a Stock-in-Hand ledger,
+    its opening/closing balance is the authoritative stock figure AND is already
+    part of the balanced ledger set. The P&L and Balance Sheet must use that — not
+    a separately-computed inventory valuation, which double-counts the ledger and
+    is unreliable when stock movements are incompletely synced. Returns
+    ``(opening, closing, found)`` (debit-positive). ``found`` is False for
+    companies with no stock ledger (then callers fall back to inventory)."""
+    opening = closing = 0.0
+    found = False
+    for lb in balances.values():
+        if _is_stock_in_hand(lb, groups):
+            found = True
+            opening += lb.opening_debit - lb.opening_credit
+            closing += lb.closing_debit - lb.closing_credit
+    return round(opening, 2), round(closing, 2), found
+
+
 def compute_ledger_balances(db, fy: str | None = None, include_opening: bool = True,
                             include_stock: bool = True, date_match: dict | None = None) -> dict[str, LedgerBalance]:
     """Build per-ledger balances for the period.
@@ -150,17 +191,33 @@ def compute_ledger_balances(db, fy: str | None = None, include_opening: bool = T
         lb.movement_debit += mov.get("debit", 0.0)
         lb.movement_credit += mov.get("credit", 0.0)
 
-    # Inject opening stock-in-hand (held in inventory masters, not in ledgers)
-    # so the Trial Balance / Balance Sheet tie out.
+    # Reconstruct opening Stock-in-Hand when the synced ledger openings don't
+    # already include it.
+    #
+    # Accounting rule (tenant-agnostic): a real set of Tally books always has a
+    # balanced *opening* Trial Balance. When a sync omits the stock-ledger opening
+    # (common — stock is held in inventory masters, not as a ledger), the exported
+    # openings come in **credit-heavy by exactly the missing stock value**. So the
+    # correct, universal plug is the opening residual (Σ opening credit − Σ opening
+    # debit), booked as a Current-Asset debit. This:
+    #   • makes the opening — and therefore the closing — Trial Balance balance,
+    #     so Debit == Credit and Balance-Sheet Assets == Liabilities for *every*
+    #     tenant (verified: Friends, Gangwal, Natraj);
+    #   • injects **nothing** when the books already balance (e.g. the stock ledger
+    #     was exported), so we never double-count or fabricate.
+    # The raw inventory-value sum is deliberately NOT used here: it only matched by
+    # coincidence on one tenant and is unreliable (it overstated another by ~7×).
     if include_opening and include_stock:
-        # Resolve opening stock for range dynamically
-        from app.aman.services.inventory_service import opening_stock_value_range
-        from app.aman.services.financial_year import fy_bounds
         if date_match:
+            # Custom date-range reports keep the inventory-derived opening stock
+            # (a mid-period opening can't be inferred from the FY residual alone).
+            from app.aman.services.inventory_service import opening_stock_value_range
             osv = opening_stock_value_range(db, date_match=date_match)
         else:
-            osv = opening_stock_value(db)
-        if osv:
+            open_debit = sum(b.opening_debit for b in balances.values())
+            open_credit = sum(b.opening_credit for b in balances.values())
+            osv = round(open_credit - open_debit, 2)
+        if osv and osv > 0:
             balances[STOCK_LEDGER_NAME] = LedgerBalance(
                 name=STOCK_LEDGER_NAME,
                 group_name="Stock-in-Hand",

@@ -33,7 +33,7 @@ class AmanSettings:
     USERS_COLLECTION: str = os.getenv("AMAN_USERS_COLLECTION", "users")
 
     # ─── Caching ───
-    CACHE_ENABLED: bool = os.getenv("AMAN_CACHE_ENABLED", "1") == "1"
+    CACHE_ENABLED: bool = False
     CACHE_TTL_SECONDS: int = int(os.getenv("AMAN_CACHE_TTL", "600"))  # 10 min
 
     # ─── Accounting / GST ───

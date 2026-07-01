@@ -102,7 +102,20 @@ export default function ProfitLoss() {
     // Server-side pagination state for the ledger voucher drill (default 10/page).
     const [voucherPage, setVoucherPage] = useState(1);
     const [voucherPageSize, setVoucherPageSize] = useState(10);
-    useEffect(() => { setVoucherPage(1); }, [ledgerId, fy, selectedDateRange]);
+    const [search, setSearch] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
+
+    // Debounce the search box (avoid a request per keystroke).
+    useEffect(() => {
+        const t = setTimeout(() => { setDebouncedSearch(search); setVoucherPage(1); }, 300);
+        return () => clearTimeout(t);
+    }, [search]);
+
+    useEffect(() => {
+        setVoucherPage(1);
+        setSearch('');
+        setDebouncedSearch('');
+    }, [ledgerId, fy, selectedDateRange]);
 
     // 1. Fetch main Profit & Loss report (L1 & L2)
     const { data: apiData, loading: plLoading, error: plError } = useApi(
@@ -113,8 +126,8 @@ export default function ProfitLoss() {
 
     // 2. Fetch vouchers list for selected ledger (L3) — server-side paginated
     const { data: voucherRes, loading: vouchersLoading } = useApi(
-        () => getPlLedgerVouchers(ledgerId, fy, voucherPage, voucherPageSize, apiParams),
-        [ledgerId, fy, selectedDateRange, voucherPage, voucherPageSize],
+        () => getPlLedgerVouchers(ledgerId, fy, voucherPage, voucherPageSize, { ...apiParams, search: debouncedSearch }),
+        [ledgerId, fy, selectedDateRange, voucherPage, voucherPageSize, debouncedSearch],
         { skip: !ledgerId || ledgerId === 'stock-hand-closing' }
     );
 
@@ -294,7 +307,8 @@ export default function ProfitLoss() {
 
     // Determine what level to render
     const renderCurrentLevel = () => {
-        if (plLoading || (ledgerId && vouchersLoading) || (ledgerId === 'stock-hand-closing' && stockItemsLoading) || (stockItemId && itemPerformanceLoading) || (voucherId && voucherDetailLoading)) {
+        const isVoucherLoadingInitial = ledgerId && vouchersLoading && !voucherRes;
+        if (plLoading || isVoucherLoadingInitial || (ledgerId === 'stock-hand-closing' && stockItemsLoading) || (stockItemId && itemPerformanceLoading) || (voucherId && voucherDetailLoading)) {
             return <div className="py-12 text-center text-[13px] text-slate-500 font-medium animate-pulse">Loading…</div>;
         }
 
@@ -322,7 +336,10 @@ export default function ProfitLoss() {
             return <Level3VoucherList ledgerData={getLedgerData()} vouchers={vouchers}
                 pagination={voucherRes?.pagination}
                 onPageChange={setVoucherPage}
-                onPageSizeChange={(s) => { setVoucherPageSize(s); setVoucherPage(1); }} />;
+                onPageSizeChange={(s) => { setVoucherPageSize(s); setVoucherPage(1); }}
+                searchTerm={search}
+                onSearchChange={setSearch}
+                isLoadingVouchers={vouchersLoading} />;
         }
 
         // Default Level 1 & 2 (Unified)

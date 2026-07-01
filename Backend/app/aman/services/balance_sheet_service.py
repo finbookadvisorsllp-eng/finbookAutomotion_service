@@ -95,9 +95,24 @@ def build_balance_sheet(db, fy: str) -> dict:
             liabilities.append(_to_side_node(node, "liability"))
         # INCOME / EXPENSE (nominal) -> excluded; captured via Net Profit below.
 
+    # ── Profit & Loss (built first so the Balance Sheet reuses the SAME stock &
+    # profit figures the P&L derived — guaranteeing Assets == Liabilities) ──
+    # CA rule (matches Tally): the P&L A/c is the one primary account with no fixed
+    # side. A net CREDIT (profit) sits on Liabilities; a net DEBIT (loss) sits on
+    # Assets. The side follows the sign of the result — never hardcoded.
+    pl = build_profit_loss(db, fy)
+    pl_summary = pl["years"][0]["summary"]
+    net_profit = pl_summary["net"]                       # credit-positive (loss < 0)
+    closing_stock = pl_summary.get("closingStock", 0)
+    has_stock_ledger = pl.get("stockInfo", {}).get("stockFromLedger", False)
+
     # ── Closing Stock -> Current Assets ──
-    closing_stock = closing_stock_value(db, fy)
-    if closing_stock:
+    # When stock is kept as a ledger it is ALREADY in the asset ledgers above (at its
+    # closing balance) — re-adding it would double-count and break the tie. Only when
+    # there is NO stock ledger do we surface a separate Closing Stock node, using the
+    # exact value the P&L used. Combined with the P&L's opening-stock = opening-residual
+    # rule, this makes Assets == Liabilities hold by construction for every tenant.
+    if not has_stock_ledger and closing_stock:
         ca = next((a for a in assets if a["name"] == _CLOSING_STOCK_GROUP), None)
         stock_row = _leaf_ledger_node("Closing Stock", closing_stock)
         if ca is None:
@@ -109,14 +124,6 @@ def build_balance_sheet(db, fy: str) -> dict:
             ca.setdefault("children", []).append(stock_row)
             ca["amount"] = money(ca["amount"] + closing_stock)
 
-    # ── Profit & Loss A/c = brought-forward balance + current-period result ──
-    # CA rule (matches Tally): the P&L A/c is the one primary account with no
-    # fixed side. A net CREDIT (profit) sits on the Liabilities side; a net DEBIT
-    # (loss) sits on the Assets side. We place it dynamically by the sign of the
-    # derived balance and always present a positive magnitude — the side is never
-    # hardcoded, it follows the accounting result.
-    pl = build_profit_loss(db, fy)
-    net_profit = pl["years"][0]["summary"]["net"]        # credit-positive (loss < 0)
     pl_components.append(("Current Period", net_profit))
     pl_net_credit = money(sum(amt for _, amt in pl_components))
 

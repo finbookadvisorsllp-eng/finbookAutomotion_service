@@ -9,9 +9,10 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# Environment variables
+# Environment variables (never commit real values; keep the template tracked)
 .env
 .env.*
+!.env.example
 
 # IDE files
 .vscode/

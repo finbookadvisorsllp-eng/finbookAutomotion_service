@@ -1,13 +1,29 @@
-import { useState } from 'react'
-import { Menu, Bell, Download, Plug, Calendar, ChevronDown, CheckCircle2, Plus, Moon, Sun } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Menu, Bell, Download, Plug, Calendar, ChevronDown, CheckCircle2, Moon, Sun } from 'lucide-react'
 import { company, notifications } from '../data/mockData'
 import { useDateRange } from '../context/DateContext'
+import { getAllCompanies } from '../api'
+import { getCompanyId, setCompanyId } from '../api/client'
 
 export default function Header({ collapsed, onToggleSidebar, isDarkMode, toggleTheme }) {
   const [notifOpen, setNotifOpen] = useState(false)
   const [companyOpen, setCompanyOpen] = useState(false)
   const [dateRangeOpen, setDateRangeOpen] = useState(false)
   const { selectedDateRange, setSelectedDateRange } = useDateRange()
+
+  // Real company switcher — lists every tenant company, switches the active one.
+  const [companies, setCompanies] = useState([])
+  const currentId = getCompanyId()
+  useEffect(() => { getAllCompanies().then((c) => setCompanies(c || [])).catch(() => {}) }, [])
+  const currentCompany = companies.find((c) => c.id === currentId)
+  const currentName = currentCompany?.name || 'Select Company'
+  const initials = (currentName || 'C').replace(/[^A-Za-z ]/g, '').trim().slice(0, 2).toUpperCase() || 'CO'
+  const switchCompany = (id) => {
+    setCompanyOpen(false)
+    if (id === currentId) return
+    setCompanyId(id)        // persists to localStorage; x-company-id header uses it
+    window.location.reload()  // re-fetch every report fresh for the new company
+  }
   
   const dateRanges = [
     "Today (29th May '26)",
@@ -77,12 +93,12 @@ export default function Header({ collapsed, onToggleSidebar, isDarkMode, toggleT
             className="w-5 h-5 rounded-md flex items-center justify-center text-[9px] font-black text-white shrink-0"
             style={{ background: 'linear-gradient(135deg,#f59e0b,#ef4444)', fontFamily: 'inherit' }}
           >
-            SE
+            {initials}
           </div>
           <span className="text-xs font-bold truncate hidden sm:block" style={{ color: glassBtn.text }}>
-            {company.shortName}
+            {currentName}
           </span>
-          <span className="text-xs font-bold truncate sm:hidden" style={{ color: glassBtn.text }}>SE</span>
+          <span className="text-xs font-bold truncate sm:hidden" style={{ color: glassBtn.text }}>{initials}</span>
           <ChevronDown size={13} style={{ color: glassBtn.muted }} />
         </button>
 
@@ -96,28 +112,31 @@ export default function Header({ collapsed, onToggleSidebar, isDarkMode, toggleT
               boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
             }}
           >
-            {company.companies.map(c => (
-              <button key={c.id} onClick={() => setCompanyOpen(false)}
-                className="w-full flex items-center gap-3 px-4 py-2 transition-colors text-left group"
-                style={{ color: 'var(--theme-text-main)' }}
-                onMouseEnter={e => e.currentTarget.style.background = hoverBg}
-                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-              >
-                <div className="w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-black text-white shrink-0"
-                  style={{ background: c.color }}>
-                  {c.name[0]}
-                </div>
-                <span className="text-[13px] font-bold" style={{ color: 'var(--theme-text-main)' }}>{c.name}</span>
-              </button>
-            ))}
-            <div className="mx-3 my-2 h-px" style={{ background: 'var(--theme-card-border)' }} />
-            <button className="w-full flex items-center gap-2 px-4 py-2 text-[13px] font-bold text-left transition-colors"
-              style={{ color: '#1E7BFF' }}
-              onMouseEnter={e => e.currentTarget.style.background = 'rgba(30, 123, 255, 0.12)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-            >
-              <Plus size={15} /> Add Company
-            </button>
+            <div className="px-4 pt-1 pb-2 text-[10px] font-black uppercase tracking-wider" style={{ color: 'var(--theme-text-light)' }}>
+              Switch Company
+            </div>
+            <div className="max-h-[60vh] overflow-y-auto">
+              {companies.length === 0 ? (
+                <div className="px-4 py-3 text-[12px] font-medium" style={{ color: 'var(--theme-text-muted)' }}>Loading companies…</div>
+              ) : companies.map(c => {
+                const active = c.id === currentId
+                return (
+                  <button key={c.id} onClick={() => switchCompany(c.id)}
+                    className="w-full flex items-center gap-3 px-4 py-2 transition-colors text-left"
+                    style={{ color: 'var(--theme-text-main)', background: active ? accentLight : 'transparent' }}
+                    onMouseEnter={e => e.currentTarget.style.background = active ? accentLight : hoverBg}
+                    onMouseLeave={e => e.currentTarget.style.background = active ? accentLight : 'transparent'}
+                  >
+                    <div className="w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-black text-white shrink-0"
+                      style={{ background: active ? accentColor : 'linear-gradient(135deg,#64748b,#94a3b8)', color: active && !isDarkMode ? 'white' : undefined }}>
+                      {(c.name || '?')[0]}
+                    </div>
+                    <span className="text-[13px] font-bold flex-1 truncate" style={{ color: 'var(--theme-text-main)' }}>{c.name}</span>
+                    {active && <CheckCircle2 size={15} style={{ color: accentColor }} />}
+                  </button>
+                )
+              })}
+            </div>
           </div>
         )}
       </div>

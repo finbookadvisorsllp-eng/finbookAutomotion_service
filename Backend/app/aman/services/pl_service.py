@@ -69,17 +69,41 @@ def build_profit_loss(
             rec["ledgers"].append({"id": lb.name, "name": lb.name,
                                    "debit": money(cd), "credit": money(cc)})
 
-    # Single-pass stock valuation (opening + closing share the same item rows).
-    stock_rows = inv.item_rows(db, start_date=start_date, end_date=end_date)
-    opening_stock = money(sum(r["opening_value"] for r in stock_rows))
+    # Stock valuation — prefer the books. When the company keeps a Stock-in-Hand
+    # ledger, its opening/closing balance is the authoritative, Tally-matching
+    # stock figure (already part of the balanced ledger set), so the trading
+    # account uses it. Only when there is NO stock ledger do we fall back to the
+    # inventory WAC roll-forward (e.g. Friends Grafix). An authoritative override
+    # (aman_stock_periods) still wins for the closing value.
+    from app.aman.services.accounting import stock_in_hand_from_books
+    book_open, book_close, has_stock_ledger = stock_in_hand_from_books(balances, groups)
     closing_override = inv.authoritative_closing_value(db, start_date, end_date)
-    if closing_override is not None:
-        closing_stock = money(closing_override)
-        closing_source = "authoritative"
+    oversold_items = []
+    if has_stock_ledger:
+        # Stock is kept as a ledger — its balance is authoritative and already part
+        # of the balanced book set; use it for both opening and closing.
+        opening_stock = money(book_open)
+        closing_stock = money(closing_override) if closing_override is not None else money(book_close)
+        closing_source = "authoritative" if closing_override is not None else "ledger"
     else:
-        closing_stock = money(sum(r["value"] for r in stock_rows))
-        closing_source = "computed"
-    oversold_items = [r["name"] for r in stock_rows if r.get("negativeStock")]
+        # No stock-in-hand ledger: opening stock is the opening residual the synced
+        # books are missing (Σ opening credit − Σ opening debit) — the exact figure
+        # that makes the opening Trial Balance / Balance Sheet tie. Closing stock
+        # uses the authoritative override if supplied, else the inventory WAC roll-
+        # forward. (Opening == residual keeps the Balance Sheet tied regardless of
+        # the closing value; see balance_sheet_service.)
+        open_debit = sum(b.opening_debit for b in balances.values())
+        open_credit = sum(b.opening_credit for b in balances.values())
+        residual = round(open_credit - open_debit, 2)
+        opening_stock = money(residual if residual > 0 else 0.0)
+        if closing_override is not None:
+            closing_stock = money(closing_override)
+            closing_source = "authoritative"
+        else:
+            stock_rows = inv.item_rows(db, start_date=start_date, end_date=end_date)
+            closing_stock = money(sum(r["value"] for r in stock_rows))
+            closing_source = "computed"
+            oversold_items = [r["name"] for r in stock_rows if r.get("negativeStock")]
 
     def net_amount(rec) -> float:
         # income -> net credit ; expense -> net debit
@@ -215,6 +239,7 @@ def build_profit_loss(
     # Transparency: report how closing stock was obtained so the UI can flag it.
     stock_info = {
         "closingStockSource": closing_source,
+        "stockFromLedger": has_stock_ledger,
         "oversoldItemCount": len(oversold_items),
     }
     if closing_source == "computed" and oversold_items:

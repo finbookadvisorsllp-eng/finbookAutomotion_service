@@ -15,15 +15,13 @@ import BalanceSheet from './pages/BalanceSheet'
 import CashFlow from './pages/CashFlow'
 import Receivables from './pages/Receivables'
 import Payables from './pages/Payables'
-import SalesRegister from './pages/SalesRegister'
+import SalesRegister from './pages/SalesRegister/SalesRegisterReport'
 import PurchaseRegister from './pages/PurchaseRegister'
 import Inventory from './pages/Inventory'
 import GSTReports from './pages/GSTReports'
 import Analytics from './pages/Analytics'
 import Customers from './pages/Customers'
 import Vendors from './pages/Vendors'
-import Administration from './pages/Administration'
-import TallySetup from './pages/TallySetup'
 
 // New Pages
 import SalesOrder from './pages/SalesOrder'
@@ -174,20 +172,10 @@ export default function App() {
             <Route path="/inventory/alerts" element={<StockAlerts />} />
             <Route path="/inventory/performance" element={<ItemPerformance />} />
 
-            {/* ── Accounting ── */}
-            <Route path="/accounting/journal" element={<GenericReport title="Journal Entries" description="View and manage all journal vouchers." />} />
-            <Route path="/accounting/payment" element={<GenericReport title="Payment Vouchers" description="View and manage all payment vouchers." />} />
-            <Route path="/accounting/receipt" element={<GenericReport title="Receipt Vouchers" description="View and manage all receipt vouchers." />} />
 
             {/* ── Analytics ── */}
             <Route path="/analytics" element={<Analytics />} />
 
-            {/* ── Administration ── */}
-            <Route path="/admin" element={<Administration />} />
-            <Route path="/admin/users" element={<Administration />} />
-            <Route path="/admin/audit" element={<Administration />} />
-            <Route path="/admin/billing" element={<Administration />} />
-            <Route path="/setup" element={<TallySetup />} />
 
             {/* ── Fallback ── */}
             <Route path="*" element={<Navigate to="/" replace />} />

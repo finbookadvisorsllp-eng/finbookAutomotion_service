@@ -15,6 +15,8 @@ export default function Breadcrumbs({ ledgerName, currentYearData }) {
     const ORIGIN_ROUTES = {
         'trial-balance': '/reports/tb',
         'balance-sheet': '/reports/bs',
+        'outstanding': '/reports/outstanding',
+        'cash-flow': '/reports/cf',
         'cash': '/cash-bank/cash',
         'bank': '/cash-bank/bank',
     };
