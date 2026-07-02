@@ -26,7 +26,7 @@ const ActionButton = ({ onClick, icon: Icon, tone = 'accent', tooltip }) => {
     <div className="relative group flex items-center justify-center">
       <button
         onClick={onClick}
-        className={`p-1 rounded-lg transition-all hover:scale-110 active:scale-95 text-[var(--app-muted)] hover:bg-[var(--app-control-hover)] ${tones[tone] || tones.accent}`}
+        className={`p-1 rounded-lg transition-all text-[var(--app-muted)] hover:bg-[var(--app-control-hover)] ${tones[tone] || tones.accent}`}
       >
         <Icon size={12} strokeWidth={2.5} />
       </button>

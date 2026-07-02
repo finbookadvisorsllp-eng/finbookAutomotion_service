@@ -123,7 +123,7 @@ export default function TallyConnectorPanel() {
           <div className="flex gap-1.5 pt-1 mt-auto">
             <button type="button" onClick={handleTestConnection} className="flex-1 h-8 text-[11px] uppercase font-bold rounded-lg border border-[var(--app-border)] hover:bg-[var(--app-control-hover)] text-[var(--app-text)] transition-colors">Test</button>
             <button type="submit" className="flex-1 h-8 text-[11px] uppercase font-bold rounded-lg border border-[var(--app-border)] bg-[var(--app-control-bg)] hover:bg-[var(--app-control-hover)] text-[var(--app-heading)] transition-colors">Save</button>
-            <button type="button" onClick={handleSyncNow} disabled={isSyncing} className="flex-1 h-8 text-[11px] uppercase font-bold rounded-lg bg-[var(--app-accent)] hover:opacity-90 text-white shadow-sm flex items-center justify-center gap-1 transition-all disabled:opacity-60">
+            <button type="button" onClick={handleSyncNow} disabled={isSyncing} className="flex-1 h-8 text-[11px] uppercase font-bold rounded-lg m3-interactive bg-[var(--app-accent)] hover:opacity-90 text-white shadow-sm flex items-center justify-center gap-1 transition-all disabled:opacity-60">
               {isSyncing ? <RefreshCw className="animate-spin" size={11} /> : <Database size={11} />} Sync Now
             </button>
           </div>

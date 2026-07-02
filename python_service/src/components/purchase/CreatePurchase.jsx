@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, createContext, useContext } from 'react';
 import {
   Save, Send, Calendar, ChevronDown, Plus, Minus, Layout,
-  Settings, X, Search, BookText, List, FileText, Clock, User,
+  Settings, X, Search, Check, BookText, List, FileText, Clock, User,
   Link as LinkIcon, CheckCircle, AlertCircle, ArrowLeftRight,
   UploadCloud, Paperclip, CheckCircle2, ShieldAlert, Tag, Bot, Loader2, RefreshCw
 } from 'lucide-react';
@@ -533,16 +533,16 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
   const theme = {
     bg: 'var(--app-content-bg)',
     panel: 'var(--app-panel-bg)',
-    border: isDark ? '#334155' : '#cbd5e1',
+    border: 'var(--app-border)',
     headerBg: 'var(--app-table-head-bg)',
-    text: isDark ? '#f8fafc' : '#0f172a',
+    text: 'var(--app-heading)',
     inputBg: 'var(--app-control-bg)',
-    mutedText: isDark ? '#94a3b8' : '#475569',
+    mutedText: 'var(--app-muted)',
     accent: 'var(--app-accent)',
-    accentSoft: isDark ? 'rgba(79, 70, 229, 0.2)' : '#eef2ff',
+    accentSoft: 'var(--app-accent-soft)',
     accentGradient: 'var(--app-accent-gradient)',
-    scrollbarThumb: isDark ? '#475569' : '#cbd5e1',
-    scrollbarTrack: isDark ? '#1e293b' : '#f1f5f9'
+    scrollbarThumb: 'var(--app-border)',
+    scrollbarTrack: 'transparent'
   };
 
   // Helper components and date functions moved outside to prevent focus loss on typing
@@ -579,7 +579,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
             )}
           </div>
           <div className="flex justify-center mt-6">
-            <button onClick={() => setIsLedgerModalOpen(false)} className="px-8 py-2 bg-[var(--app-accent)] hover:opacity-90 text-white text-[11px] font-black tracking-wide rounded-lg shadow-md hover:shadow-lg transition-all active:scale-95">
+            <button onClick={() => setIsLedgerModalOpen(false)} className="px-8 py-2 m3-interactive bg-[var(--app-accent)] hover:opacity-90 text-white text-[11px] font-black tracking-wide rounded-lg shadow-md hover:shadow-lg transition-all">
               submit
             </button>
           </div>
@@ -625,7 +625,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
             </label>
           </div>
           <div className="flex justify-center mt-6">
-            <button onClick={() => setIsStockModalOpen(false)} className="px-8 py-2 bg-[var(--app-accent)] hover:opacity-90 text-white text-[11px] font-black tracking-wide rounded-lg shadow-md hover:shadow-lg transition-all active:scale-95">
+            <button onClick={() => setIsStockModalOpen(false)} className="px-8 py-2 m3-interactive bg-[var(--app-accent)] hover:opacity-90 text-white text-[11px] font-black tracking-wide rounded-lg shadow-md hover:shadow-lg transition-all">
               Save
             </button>
           </div>
@@ -756,98 +756,54 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
 
   return (
     <ThemeContext.Provider value={{ theme, isDark }}>
-      <div className="flex flex-col h-full animate-in fade-in duration-500 overflow-hidden bg-[var(--app-content-bg)]" style={{ backgroundColor: theme.bg }}>
+      <div className="m3-scope flex flex-col h-full overflow-hidden" style={{ backgroundColor: 'var(--m3-surface)' }}>
         <style>{`
-          .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
-          .custom-scrollbar::-webkit-scrollbar-track { background: ${theme.scrollbarTrack}; }
-          .custom-scrollbar::-webkit-scrollbar-thumb { background: ${theme.scrollbarThumb}; border-radius: 0px; }
-          .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: ${theme.accent}; }
+          .themed-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+          .themed-scrollbar::-webkit-scrollbar-track { background: ${theme.scrollbarTrack}; }
+          .themed-scrollbar::-webkit-scrollbar-thumb { background: ${theme.scrollbarThumb}; border-radius: 0px; }
+          .themed-scrollbar::-webkit-scrollbar-thumb:hover { background: ${theme.accent}; }
           .no-scrollbar::-webkit-scrollbar { display: none; }
         `}</style>
 
         {/* ─── 1. Compact Header Row ─── */}
-        <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-1.5 shrink-0 border-b bg-[var(--app-panel-bg)]" style={{ borderColor: theme.border }}>
+        <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-2.5 shrink-0 border-b" style={{ borderColor: 'var(--m3-outline-variant)', backgroundColor: 'var(--m3-surface-container-low)' }}>
           <div className="flex items-center gap-4">
-            <h1 className="text-[13px] font-black tracking-tight text-slate-800 dark:text-white uppercase">
-              {getNormalizedType(form.voucherType) === 'debit_note'
+            <h1 className="text-[15px] font-semibold tracking-tight" style={{ color: 'var(--m3-on-surface)' }}>
+              {form.voucherType === 'debit_note'
                 ? 'Create Debit Note'
                 : getNormalizedType(form.voucherType) === 'purchase_order'
                   ? 'Create Purchase Order'
                   : 'Create Purchase Voucher'}
             </h1>
 
-            {/* Tabs Selector */}
-            <div className="flex items-center gap-1 bg-[var(--app-table-head-bg)] p-0.5 rounded-lg border border-[var(--app-border)]">
-              <button
-                onClick={() => handleTabChange('With Item Invoice')}
-                className={`px-3 py-0.5 rounded-lg text-[11px] font-black uppercase tracking-tight transition-all ${activeTab === 'With Item Invoice'
-                    ? 'bg-emerald-600 text-white shadow-sm'
-                    : 'text-[var(--app-muted)] hover:text-[var(--app-heading)]'
-                  }`}
-              >
-                With Item
+            {/* M3 segmented button — entry mode */}
+            <div className="m3-seg" role="group" aria-label="Entry mode">
+              <button aria-pressed={activeTab === 'With Item Invoice'} onClick={() => handleTabChange('With Item Invoice')}>
+                {activeTab === 'With Item Invoice' && <Check size={14} />} With Item
               </button>
-              <button
-                onClick={() => handleTabChange('Without Item Invoice')}
-                className={`px-3 py-0.5 rounded-lg text-[11px] font-black uppercase tracking-tight transition-all ${activeTab === 'Without Item Invoice'
-                    ? 'bg-emerald-600 text-white shadow-sm'
-                    : 'text-[var(--app-muted)] hover:text-[var(--app-heading)]'
-                  }`}
-              >
-                Without Item
+              <button aria-pressed={activeTab === 'Without Item Invoice'} onClick={() => handleTabChange('Without Item Invoice')}>
+                {activeTab === 'Without Item Invoice' && <Check size={14} />} Without Item
               </button>
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={handleSaveDraft}
-              disabled={loading.save}
-              className="px-3 py-1 rounded-lg border text-[11px] font-black transition-all hover:bg-[var(--app-content-bg)] shadow-sm uppercase tracking-wider text-[var(--app-heading)] flex items-center gap-1"
-              style={{ borderColor: theme.border }}
-            >
-              {loading.save ? <Loader2 size={10} className="animate-spin" /> : null}
-              Draft
+          {/* M3 action buttons */}
+          <div className="flex items-center gap-2">
+            <button onClick={handleSaveDraft} disabled={loading.save} className="m3-btn m3-btn--outlined">
+              {loading.save ? <Loader2 size={14} className="animate-spin" /> : null} Draft
             </button>
-            <button
-              onClick={handlePushToReview}
-              disabled={loading.save}
-              className="px-3 py-1 rounded-lg text-[11px] font-black transition-all hover:scale-[1.02] shadow-sm uppercase tracking-wider text-[var(--app-heading)] bg-[#FCD34D] hover:bg-[#FBBF24] flex items-center gap-1"
-            >
-              Review
-            </button>
-            <button
-              onClick={handlePostToTally}
-              className="px-3 py-1 rounded-lg text-[11px] font-black text-white bg-[var(--app-accent)] hover:opacity-90 shadow-sm transition-all hover:scale-[1.02] uppercase tracking-wider"
-            >
-              Post Tally
-            </button>
-            <button
-              onClick={handleCancel}
-              className="px-3 py-1 rounded-lg border text-[11px] font-black hover:bg-red-50 hover:text-red-500 transition-all uppercase tracking-wider text-[var(--app-muted)]"
-              style={{ borderColor: theme.border }}
-            >
-              Cancel
-            </button>
-            <button className="p-1.5 rounded-lg border text-[var(--app-muted)] hover:text-[var(--app-accent)] transition-all" style={{ borderColor: theme.border }}>
-              <Settings size={12} />
-            </button>
+            <button onClick={handlePushToReview} disabled={loading.save} className="m3-btn m3-btn--tonal">Review</button>
+            <button onClick={handlePostToTally} className="m3-btn m3-btn--filled">Post Tally</button>
+            <button onClick={handleCancel} className="m3-btn m3-btn--text">Cancel</button>
+            <button className="m3-icon-btn" title="Settings" aria-label="Settings"><Settings size={16} /></button>
             {onBack && (
-              <button
-                onClick={onBack}
-                className="p-1.5 text-[var(--app-muted)] hover:text-red-500 border hover:bg-red-50 hover:border-red-200 transition-all rounded-lg ml-1.5 flex items-center justify-center"
-                style={{ borderColor: theme.border }}
-                title="Close Form"
-              >
-                <X size={12} strokeWidth={3} />
-              </button>
+              <button onClick={onBack} className="m3-icon-btn" title="Close Form" aria-label="Close Form"><X size={16} strokeWidth={2.5} /></button>
             )}
           </div>
         </div>
 
         {/* ─── 2. Voucher Types & Summary Row ─── */}
-        <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-0.75 bg-[var(--app-panel-bg)] border-b shrink-0" style={{ borderColor: theme.border }}>
+        <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-2 border-b shrink-0" style={{ borderColor: 'var(--m3-outline-variant)', backgroundColor: 'var(--m3-surface-container-low)' }}>
           {/* Voucher Types */}
           {!onSaveSuccess && (
             <div className="flex gap-1.5 overflow-x-auto no-scrollbar py-0.5">
@@ -896,49 +852,28 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
             </div>
           )}
 
-          {/* Amount Summary Cards */}
-          <div className="flex items-center flex-wrap gap-1 text-[11px]">
+          {/* M3 amount summary chips */}
+          <div className="flex items-center flex-wrap gap-1.5 ml-auto">
             {activeTab === 'With Item Invoice' && (
-              <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[var(--app-content-bg)] border border-[var(--app-border)]">
-                <span className="text-[var(--app-muted)] font-bold uppercase tracking-wider text-[7.5px]">Items:</span>
-                <span className="font-black text-[var(--app-heading)]">{form.productLines.length}</span>
-              </div>
+              <span className="m3-chip"><span>Items</span> <b>{form.productLines.length}</b></span>
             )}
-            <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[var(--app-content-bg)] border border-[var(--app-border)]">
-              <span className="text-[var(--app-muted)] font-bold uppercase tracking-wider text-[7.5px]">Disc:</span>
-              <span className="font-black text-[var(--app-heading)]">₹ {form.entryTab === 'with_item' ? form.productLines.reduce((acc, l) => acc + (parseFloat(l.discountPercent) || 0), 0).toFixed(2) : "0.00"}</span>
-            </div>
-            <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[var(--app-content-bg)] border border-[var(--app-border)]">
-              <span className="text-[var(--app-muted)] font-bold uppercase tracking-wider text-[7.5px]">Taxable:</span>
-              <span className="font-black text-[var(--app-heading)]">₹ {parseFloat(form.baseTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-            </div>
-            <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[var(--app-content-bg)] border border-[var(--app-border)]">
-              <span className="text-[var(--app-muted)] font-bold uppercase tracking-wider text-[7.5px]">Tax:</span>
-              <span className="font-black text-[var(--app-heading)]">₹ {((parseFloat(form.cgstTotal) || 0) + (parseFloat(form.sgstTotal) || 0) + (parseFloat(form.igstTotal) || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-            </div>
-            <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[var(--app-content-bg)] border border-[var(--app-border)]">
-              <span className="text-[var(--app-muted)] font-bold uppercase tracking-wider text-[7.5px]">Subtotal:</span>
-              <span className="font-black text-[var(--app-heading)]">₹ {parseFloat(form.subTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-            </div>
-            <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[var(--app-content-bg)] border border-[var(--app-border)]">
-              <span className="text-[var(--app-muted)] font-bold uppercase tracking-wider text-[7.5px]">Round:</span>
-              <span className="font-black text-[var(--app-heading)]">{isRoundOffChecked ? `₹ ${form.roundOff || "0.00"}` : "₹ 0.00"}</span>
-            </div>
-            <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-[var(--app-accent)] text-white shadow-md">
-              <span className="text-[7.5px] font-black uppercase tracking-wider opacity-85">Net:</span>
-              <span className="font-black text-[11px]">₹ {parseFloat(isRoundOffChecked ? (form.grandTotal || 0) : (form.subTotal || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-            </div>
+            <span className="m3-chip"><span>Disc</span> <b>₹ {form.entryTab === 'with_item' ? form.productLines.reduce((acc, l) => acc + (parseFloat(l.discountPercent) || 0), 0).toFixed(2) : "0.00"}</b></span>
+            <span className="m3-chip"><span>Taxable</span> <b>₹ {parseFloat(form.baseTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</b></span>
+            <span className="m3-chip"><span>Tax</span> <b>₹ {((parseFloat(form.cgstTotal) || 0) + (parseFloat(form.sgstTotal) || 0) + (parseFloat(form.igstTotal) || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</b></span>
+            <span className="m3-chip"><span>Subtotal</span> <b>₹ {parseFloat(form.subTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</b></span>
+            <span className="m3-chip"><span>Round</span> <b>{isRoundOffChecked ? `₹ ${form.roundOff || "0.00"}` : "₹ 0.00"}</b></span>
+            <span className="m3-chip m3-chip--primary"><span>Net</span> <b>₹ {parseFloat(isRoundOffChecked ? (form.grandTotal || 0) : (form.subTotal || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</b></span>
           </div>
         </div>
 
         {/* ─── 3. Main Body ─── */}
         <div className="flex-1 overflow-hidden flex flex-col">
           {/* Form Area */}
-          <div className="flex-1 p-2 overflow-y-auto custom-scrollbar bg-[var(--app-panel-bg)]">
+          <div className="flex-1 p-2 overflow-y-auto themed-scrollbar bg-[var(--app-panel-bg)]">
             <div className="flex flex-col gap-3">
 
               {/* A. Voucher Details Section (Flat UI, No Cards, No Rounded) */}
-              <div className="p-2.5 bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-xl shadow-sm mb-0 shrink-0">
+              <div className="p-2.5 m3-card mb-0 shrink-0">
                 <h3 className="text-[10px] font-black uppercase tracking-wider text-[var(--app-heading)] mb-1.5">Voucher Details</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-x-3 gap-y-3">
 
@@ -956,7 +891,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
 
                   {/* Voucher Type — clickable select, auto-set from header but editable */}
                   <div className="col-span-1 relative">
-                    <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 text-[var(--app-heading)]" style={{ backgroundColor: theme.panel }}>
+                    <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 " style={{ backgroundColor: 'var(--m3-surface-container-low)', color: 'var(--m3-on-surface-variant)' }}>
                       Voucher Type
                     </label>
                     <select
@@ -975,7 +910,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
 
                   {/* Voucher Number Series */}
                   <div className="col-span-1 relative">
-                    <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 text-[var(--app-heading)]" style={{ backgroundColor: theme.panel }}>
+                    <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 " style={{ backgroundColor: 'var(--m3-surface-container-low)', color: 'var(--m3-on-surface-variant)' }}>
                       Voucher Number Series
                     </label>
                     <select
@@ -1093,7 +1028,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
 
                   {/* Narration */}
                   <div className={(form.consigneeLedger && form.consigneeLedger !== 'Same as Party' && form.consigneeLedger !== form.partyLedger) ? 'col-span-3 relative flex flex-col gap-1' : 'col-span-4 relative flex flex-col gap-1'}>
-                    <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 text-[var(--app-heading)]" style={{ backgroundColor: theme.panel }}>
+                    <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 " style={{ backgroundColor: 'var(--m3-surface-container-low)', color: 'var(--m3-on-surface-variant)' }}>
                       Narration
                     </label>
                     <input
@@ -1111,7 +1046,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
 
               {/* B. Item Details Section (Flat UI, No Cards, No Rounded) */}
               {activeTab === 'With Item Invoice' && (
-                <div className="p-3 bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-xl shadow-sm mb-0 shrink-0 flex flex-col">
+                <div className="p-3 m3-card mb-0 shrink-0 flex flex-col">
                   <div className="flex items-center justify-between mb-2">
                   <h3 className="text-[10px] font-black uppercase tracking-wider text-[var(--app-heading)]">Item Details</h3>
                   <div className="flex items-center gap-2">
@@ -1397,7 +1332,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                 {/* Left Stack: Ledger Details & HSN Tax Detailes */}
                 <div className="flex flex-col gap-4">
                   {/* Ledger Details */}
-                  <div className="p-4 bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-xl shadow-[0_2px_8px_-3px_rgba(0,0,0,0.05)] flex flex-col gap-3">
+                  <div className="p-4 m3-card flex flex-col gap-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <div className="p-1.5 bg-[var(--app-accent-soft)] dark:bg-[var(--app-accent-soft)] text-[var(--app-accent)] dark:text-[var(--app-accent)] rounded-lg border border-[var(--app-border)] dark:border-[var(--app-border)] flex items-center justify-center">
@@ -1487,7 +1422,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                   </div>
 
                   {/* HSN / Sales Tax Details */}
-                  <div className="p-4 bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-xl shadow-[0_2px_8px_-3px_rgba(0,0,0,0.05)] flex flex-col gap-3">
+                  <div className="p-4 m3-card flex flex-col gap-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <div className="p-1.5 bg-amber-50 dark:bg-amber-950/40 text-amber-500 dark:text-amber-400 rounded-lg border border-amber-100 dark:border-amber-900/50 flex items-center justify-center">
@@ -1600,7 +1535,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                 </div>
 
                 {/* Tax & Statutory Ledger Details */}
-                <div className="p-2.5 bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-xl shadow-sm shadow-[0_2px_8px_-3px_rgba(0,0,0,0.05)] flex flex-col gap-2">
+                <div className="p-2.5 m3-card flex flex-col gap-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <div className="p-1 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-500 dark:text-emerald-400 rounded-lg border border-emerald-100 dark:border-emerald-900/50 flex items-center justify-center">
@@ -1629,7 +1564,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                               }]
                             });
                           }}
-                          className={`px-2.5 py-0.5 text-[11px] font-black transition-all cursor-pointer ${isTdsApplicable ? 'bg-emerald-600 text-white shadow-sm' : 'text-[var(--app-muted)] hover:text-[var(--app-heading)]'}`}
+                          className={`rounded-md px-2.5 py-0.5 text-[11px] font-black transition-all cursor-pointer ${isTdsApplicable ? 'bg-emerald-600 text-white shadow-sm' : 'text-[var(--app-muted)] hover:text-[var(--app-heading)]'}`}
                         >
                           Yes
                         </button>
@@ -1639,7 +1574,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                             setIsTdsApplicable(false);
                             updateForm({ tdsDetails: [] });
                           }}
-                          className={`px-2.5 py-0.5 text-[11px] font-black transition-all cursor-pointer ${!isTdsApplicable ? 'bg-emerald-600 text-white shadow-sm' : 'text-[var(--app-muted)] hover:text-[var(--app-heading)]'}`}
+                          className={`rounded-md px-2.5 py-0.5 text-[11px] font-black transition-all cursor-pointer ${!isTdsApplicable ? 'bg-emerald-600 text-white shadow-sm' : 'text-[var(--app-muted)] hover:text-[var(--app-heading)]'}`}
                         >
                           No
                         </button>
@@ -1939,7 +1874,7 @@ const SummaryItem = ({ label, value, isLast }) => {
   return (
     <div className="flex items-center gap-2 px-5 h-9 shrink-0 group">
       <span className="text-[11px] font-black uppercase tracking-widest opacity-60 group-hover:opacity-100 transition-opacity" style={{ color: theme.mutedText }}>{label}</span>
-      <span className="text-[11.5px] font-black px-2.5 py-0.5 rounded-lg shadow-sm border transition-all group-hover:scale-105" style={{ backgroundColor: theme.accentSoft, color: theme.accent, borderColor: isDark ? 'rgba(79, 70, 229, 0.2)' : 'transparent' }}>{value}</span>
+      <span className="text-[11.5px] font-black px-2.5 py-0.5 rounded-lg shadow-sm border transition-all" style={{ backgroundColor: theme.accentSoft, color: theme.accent, borderColor: 'var(--app-border)' }}>{value}</span>
       {!isLast && <div className="h-4 w-[1.5px] ml-4 opacity-10" style={{ backgroundColor: theme.text }} />}
     </div>
   );
@@ -1955,10 +1890,10 @@ const FormSection = ({ title, children, hasSettings = true, defaultOpen = true, 
         <h3 className="text-[10.5px] font-black uppercase tracking-[0.15em]" style={{ color: theme.text }}>{title}</h3>
         <div className="flex gap-2.5 items-center">
           {headerAction}
-          {hasSettings && <button className="text-[var(--app-muted)] hover:text-[var(--app-accent)] transition-all hover:scale-110 active:scale-90"><Settings size={13} /></button>}
+          {hasSettings && <button className="text-[var(--app-muted)] hover:text-[var(--app-accent)] transition-all"><Settings size={13} /></button>}
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className="w-6 h-6 rounded-full border flex items-center justify-center text-[var(--app-muted)] hover:bg-[var(--app-content-bg)] transition-all hover:rotate-180 active:scale-90"
+            className="w-6 h-6 rounded-full border flex items-center justify-center text-[var(--app-muted)] hover:bg-[var(--app-content-bg)] transition-all"
             style={{ borderColor: theme.border }}
           >
             {isOpen ? <Minus size={11} strokeWidth={3} /> : <Plus size={11} strokeWidth={3} />}
@@ -1997,7 +1932,7 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
   return (
     <div className={`relative flex flex-col gap-1 w-full group ${disabled ? 'opacity-50 pointer-events-none' : ''}`} ref={dropdownRef} style={{ zIndex: isOpen ? 50 : 1 }}>
       {label && (
-        <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 text-[var(--app-heading)] group-focus-within:text-[var(--app-accent)] transition-colors" style={{ backgroundColor: theme.panel }}>
+        <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 group-focus-within:text-[var(--m3-primary)] transition-colors" style={{ backgroundColor: 'var(--m3-surface-container-low)', color: 'var(--m3-on-surface-variant)' }}>
           {label}
         </label>
       )}
@@ -2006,7 +1941,7 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
           <div
             onClick={() => !disabled && setIsOpen(!isOpen)}
             className={`w-full ${compact ? 'h-7.5' : 'h-10'} ${rounded ? 'rounded-lg' : 'rounded-lg'} border px-2 flex items-center justify-between cursor-pointer transition-all duration-300 group/input ${isOpen ? 'border-[var(--app-accent)]' : 'hover:border-[var(--app-accent)]'} ${disabled ? 'bg-[var(--app-table-head-bg)] cursor-not-allowed' : ''}`}
-            style={{ backgroundColor: disabled ? undefined : theme.inputBg, borderColor: isOpen ? theme.accent : theme.border }}
+            style={{ backgroundColor: disabled ? undefined : 'var(--m3-surface-container-high)', borderColor: isOpen ? 'var(--m3-primary)' : 'var(--m3-outline-variant)' }}
           >
             <span className={`text-[11px] font-bold truncate transition-colors ${value ? (isDark ? 'text-[var(--app-accent)]' : 'text-[var(--app-accent)]') : 'text-[var(--app-muted)]'}`}>
               {value || placeholder}
@@ -2021,14 +1956,9 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
             <div
               className={`absolute top-full left-0 right-0 mt-1 border ${rounded ? 'rounded-lg' : 'rounded-lg'} shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 flex flex-col max-h-[200px] z-50`}
               style={{
-                backgroundColor: isDark ? '#111318' : '#ffffff',
-                borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#ECEEF2',
-                '--app-panel-bg': isDark ? '#111318' : '#ffffff',
-                '--app-control-bg': isDark ? '#161920' : '#ffffff',
-                '--app-border': isDark ? 'rgba(255, 255, 255, 0.08)' : '#ECEEF2',
-                '--app-heading': isDark ? '#e2bf22ff' : '#0B0B12',
-                '--app-text': isDark ? '#ffffff' : '#5B6478',
-                '--app-accent': isDark ? '#60A5FA' : '#2563EB',
+                backgroundColor: 'var(--m3-surface-container-high)',
+                borderColor: 'var(--m3-outline-variant)',
+                boxShadow: 'var(--m3-e2)',
               }}
             >
               {hasSearch && (
@@ -2047,14 +1977,14 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
                   </div>
                 </div>
               )}
-              <div className="flex-1 overflow-y-auto custom-scrollbar p-1">
+              <div className="flex-1 overflow-y-auto themed-scrollbar p-1">
                 {filteredOptions.length > 0 ? filteredOptions.map((opt, idx) => (
                   <div
                     key={idx}
                     className={`px-3 py-1.5 text-[11px] font-semibold cursor-pointer rounded-md transition-colors ${value === opt ? 'text-white font-bold' : 'hover:bg-[var(--app-table-head-bg)] hover:text-[var(--app-accent)] dark:hover:text-[var(--app-accent)]'}`}
                     style={{
-                      backgroundColor: value === opt ? 'var(--app-accent)' : 'transparent',
-                      color: value === opt ? '#ffffff' : 'var(--app-text)'
+                      backgroundColor: value === opt ? 'var(--m3-primary-container)' : 'transparent',
+                      color: value === opt ? 'var(--m3-on-primary-container)' : 'var(--m3-on-surface)'
                     }}
                     onClick={() => { onChange && onChange(opt); setIsOpen(false); setSearch(''); }}
                   >
@@ -2115,7 +2045,7 @@ const InputField = ({ label, placeholder, value, icon: Icon, type = "text", comp
   return (
     <div className="relative flex flex-col gap-1 w-full group">
       {label && (
-        <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 text-[var(--app-heading)] group-focus-within:text-[var(--app-accent)] transition-colors" style={{ backgroundColor: theme.panel }}>
+        <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 group-focus-within:text-[var(--m3-primary)] transition-colors" style={{ backgroundColor: 'var(--m3-surface-container-low)', color: 'var(--m3-on-surface-variant)' }}>
           {label}
         </label>
       )}
@@ -2129,7 +2059,7 @@ const InputField = ({ label, placeholder, value, icon: Icon, type = "text", comp
               placeholder="dd-mm-yyyy"
               readOnly={readOnly}
               className={`w-full ${compact ? 'h-7.5 px-2' : 'h-10 px-2'} rounded-lg border text-[11px] font-bold outline-none transition-all duration-300 focus:ring-0 ${isDark ? 'placeholder:text-white/10' : 'placeholder:text-[var(--app-muted)]'} ${align === 'right' ? 'text-right' : ''} ${readOnly ? (isDark ? 'cursor-not-allowed opacity-60 bg-slate-800/20' : 'cursor-not-allowed bg-[var(--app-content-bg)]/50') : 'hover:border-[var(--app-accent)]'}`}
-              style={{ backgroundColor: readOnly ? theme.headerBg : theme.inputBg, borderColor: theme.border, color: readOnly ? theme.accent : theme.text }}
+              style={{ backgroundColor: readOnly ? 'var(--m3-surface-container)' : 'var(--m3-surface-container-high)', borderColor: 'var(--m3-outline-variant)', color: readOnly ? 'var(--m3-primary)' : 'var(--m3-on-surface)' }}
             />
             {Icon && !readOnly && (
               <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center cursor-pointer">
@@ -2152,7 +2082,7 @@ const InputField = ({ label, placeholder, value, icon: Icon, type = "text", comp
             readOnly={readOnly}
             placeholder={placeholder}
             className={`w-full ${compact ? 'h-7.5 px-2' : 'h-10 px-2'} rounded-lg border text-[11px] font-bold outline-none transition-all duration-300 focus:ring-0 ${isDark ? 'placeholder:text-white/10' : 'placeholder:text-[var(--app-muted)]'} ${align === 'right' ? 'text-right' : ''} ${readOnly ? (isDark ? 'cursor-not-allowed opacity-60 bg-slate-800/20' : 'cursor-not-allowed bg-[var(--app-content-bg)]/50') : 'hover:border-[var(--app-accent)]'}`}
-            style={{ backgroundColor: readOnly ? theme.headerBg : theme.inputBg, borderColor: theme.border, color: readOnly ? theme.accent : theme.text }}
+            style={{ backgroundColor: readOnly ? 'var(--m3-surface-container)' : 'var(--m3-surface-container-high)', borderColor: 'var(--m3-outline-variant)', color: readOnly ? 'var(--m3-primary)' : 'var(--m3-on-surface)' }}
           />
         )}
         {type !== "date" && Icon && <Icon className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--app-muted)] group-focus-within:text-[var(--app-accent)] transition-colors pointer-events-none" size={12} />}
@@ -2181,7 +2111,7 @@ const SummaryBar = ({ entries, base, cgst, sgst, igst, total }) => {
             <React.Fragment key={item.label}>
               <div className="flex items-center gap-2 group">
                 <span style={{ color: theme.mutedText }}>{item.label}</span>
-                <span className={`px-2.5 py-0.5 rounded-lg text-[11px] border transition-all ${item.highlight ? 'bg-[var(--app-accent)] text-white border-[var(--app-accent)] shadow-lg scale-105' : 'bg-[var(--app-accent-soft)] text-[var(--app-accent)] border-[var(--app-accent)] group-hover:bg-[var(--app-accent-soft)]'}`}>
+                <span className={`px-2.5 py-0.5 rounded-lg text-[11px] border transition-all ${item.highlight ? 'bg-[var(--app-accent)] text-white border-[var(--app-accent)] shadow-lg' : 'bg-[var(--app-accent-soft)] text-[var(--app-accent)] border-[var(--app-accent)] group-hover:bg-[var(--app-accent-soft)]'}`}>
                   ₹{item.val}
                 </span>
               </div>

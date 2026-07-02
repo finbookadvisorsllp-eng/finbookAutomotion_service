@@ -24,7 +24,7 @@ const MyDocumentsPanel = ({ isDark }) => {
         onClick={onClick}
         title={label || Icon?.displayName}
         aria-label={label || Icon?.displayName}
-        className={`w-8 h-8 rounded-full border flex items-center justify-center transition-all hover:scale-110 active:scale-95 ${shadow ? 'shadow-md' : 'shadow-sm'}`}
+        className={`w-8 h-8 rounded-full border flex items-center justify-center transition-all ${shadow ? 'shadow-md' : 'shadow-sm'}`}
         style={{
           borderColor: border ? activeColor + '40' : activeColor + '20',
           color: activeColor,
@@ -102,7 +102,7 @@ const MyDocumentsPanel = ({ isDark }) => {
                   <div className="absolute top-2 right-2 bg-slate-50 dark:bg-slate-800 text-[var(--app-muted)] text-[10px] font-black px-1.5 py-0.5 rounded shadow-sm border border-[var(--app-border)]">
                     1
                   </div>
-                  <Folder size={40} className="text-[var(--app-accent)] fill-purple-500/20 group-hover:scale-110 transition-transform duration-300" strokeWidth={1.5} />
+                  <Folder size={40} className="text-[var(--app-accent)] fill-[var(--app-accent-soft)] transition-transform duration-300" strokeWidth={1.5} />
                   <span className="text-[13px] font-bold text-[var(--app-text)]">January 2026</span>
                 </div>
               </div>
@@ -302,7 +302,7 @@ const FilterModal = ({ onClose }) => {
             <span className="text-[12px] font-bold">Clear</span>
           </button>
           
-          <button onClick={onClose} className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-[var(--app-accent)] hover:opacity-90 text-white transition-colors shadow-sm">
+          <button onClick={onClose} className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg m3-interactive bg-[var(--app-accent)] hover:opacity-90 text-white transition-colors shadow-sm">
             <Check size={14} strokeWidth={3} />
             <span className="text-[12px] font-bold">Apply</span>
           </button>

@@ -122,7 +122,7 @@ function CompaniesPanel({ onIconAction }) {
             <p className="text-[10px] text-[var(--app-muted)] mt-1 truncate">Configure tenants, businesses, GSTIN registrations and fiscal scopes.</p>
           </div>
         </div>
-        <button onClick={() => setShowCreateForm(p => !p)} className="h-8 px-3 bg-[var(--app-accent)] hover:opacity-90 text-white font-bold text-[11px] rounded-lg flex items-center gap-1.5 transition-all shrink-0 shadow-xs">
+        <button onClick={() => setShowCreateForm(p => !p)} className="h-8 px-3 m3-interactive bg-[var(--app-accent)] hover:opacity-90 text-white font-bold text-[11px] rounded-lg flex items-center gap-1.5 transition-all shrink-0 shadow-xs">
           {showCreateForm ? <X size={13} /> : <Plus size={13} />}
           {showCreateForm ? 'Close' : 'Create Company'}
         </button>

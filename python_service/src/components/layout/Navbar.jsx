@@ -48,7 +48,7 @@ function PageHeading({ pathname }) {
       transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
       className="flex items-center gap-2.5 min-w-0"
     >
-      <div className="h-9 w-9 rounded-xl flex items-center justify-center text-white shrink-0" style={{ background: 'var(--app-accent-gradient)', boxShadow: 'var(--app-shadow)' }}>
+      <div className="h-9 w-9 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: 'var(--app-secondary-container)', color: 'var(--app-on-secondary-container)' }}>
         <Icon size={16} strokeWidth={2.2} />
       </div>
       <div className="min-w-0 leading-none">
@@ -62,7 +62,7 @@ function PageHeading({ pathname }) {
 // Status pill — semantic only (connected/synced state), not brand color.
 function StatusPill({ icon: Icon, label, value }) {
   return (
-    <div className="hidden lg:flex items-center gap-2 rounded-xl border px-3 py-1" style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-control-bg)' }}>
+    <div className="hidden lg:flex items-center gap-2 rounded-full border px-3 py-1" style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-control-bg)' }}>
       <div className="relative flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-500 shrink-0">
         <Icon size={11} strokeWidth={2.5} />
         <span className="absolute -top-0.5 -right-0.5 h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -82,8 +82,8 @@ function IconBtn({ icon: Icon, badge, onClick, label }) {
       type="button"
       onClick={onClick}
       aria-label={label}
-      className="relative inline-flex h-8 w-8 items-center justify-center rounded-lg border transition-colors hover:bg-[var(--app-control-hover)]"
-      style={{ borderColor: 'var(--app-border)', color: 'var(--app-heading)', backgroundColor: 'var(--app-control-bg)' }}
+      className="m3-interactive relative inline-flex h-9 w-9 items-center justify-center rounded-full transition-colors"
+      style={{ color: 'var(--app-text)' }}
     >
       <Icon size={13} />
       {badge != null && (
@@ -152,7 +152,7 @@ function Navbar({ isDark, onModeToggle, companies, selectedCompany, onCompanyCha
         <IconBtn icon={HelpCircle} label="Help" />
 
         <div className="flex items-center gap-1 cursor-pointer ml-1 select-none">
-          <div className="h-8 w-8 rounded-full flex items-center justify-center font-bold text-[12px] text-white shrink-0" style={{ background: 'var(--app-accent-gradient)' }}>R</div>
+          <div className="h-8 w-8 rounded-full flex items-center justify-center font-bold text-[12px] shrink-0" style={{ backgroundColor: 'var(--app-accent)', color: 'var(--app-on-accent)' }}>R</div>
           <ChevronDown size={12} className="shrink-0" style={{ color: 'var(--app-muted)' }} />
         </div>
       </div>

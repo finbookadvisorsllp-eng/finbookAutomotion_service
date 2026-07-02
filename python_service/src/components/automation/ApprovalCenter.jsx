@@ -803,7 +803,7 @@ export default function ApprovalCenter() {
                 handleSyncTally(entry.id);
                 setCurrentView('list');
               }}
-              className="px-3 py-1 bg-[var(--app-accent)] hover:opacity-90 text-white font-extrabold rounded-lg flex items-center gap-1 transition-all text-[11px]"
+              className="px-3 py-1 m3-interactive bg-[var(--app-cta)] hover:opacity-90 text-white font-extrabold rounded-full flex items-center gap-1 transition-all text-[11px]"
             >
               <UploadCloud size={12} /> Post to Tally
             </button>
@@ -816,7 +816,7 @@ export default function ApprovalCenter() {
                 handleSyncTally(entry.id);
                 setCurrentView('list');
               }}
-              className="px-3 py-1 bg-[var(--app-accent)] hover:opacity-90 text-white font-extrabold rounded-lg flex items-center gap-1 transition-all text-[11px]"
+              className="px-3 py-1 m3-interactive bg-[var(--app-cta)] hover:opacity-90 text-white font-extrabold rounded-full flex items-center gap-1 transition-all text-[11px]"
             >
               <UploadCloud size={12} /> Approve & Push to Tally
             </button>
@@ -1284,7 +1284,7 @@ export default function ApprovalCenter() {
               <div className="border-t border-[var(--app-border)] pt-1.5 mt-1.5 flex justify-end">
                 <button 
                   onClick={handleSaveOcrForm}
-                  className="px-3 py-1 bg-[var(--app-accent)] hover:opacity-90 text-white font-extrabold rounded-lg flex items-center gap-1 text-[11px] transition-all shadow-sm"
+                  className="px-3 py-1 m3-interactive bg-[var(--app-accent)] hover:opacity-90 text-white font-extrabold rounded-lg flex items-center gap-1 text-[11px] transition-all shadow-sm"
                 >
                   <Sparkles size={12} /> Save Changes
                 </button>
@@ -1350,7 +1350,7 @@ export default function ApprovalCenter() {
       </div>
     ) : null;
     const Act = ({ icon: Icon, onClick, title, cls }) => (
-      <button onClick={onClick} title={title} aria-label={title || Icon?.displayName} className={`p-1 rounded-lg transition-all hover:scale-110 active:scale-95 text-[var(--app-muted)] hover:bg-[var(--app-control-hover)] ${cls}`}><Icon size={13} /></button>
+      <button onClick={onClick} title={title} aria-label={title || Icon?.displayName} className={`p-1 rounded-lg transition-all text-[var(--app-muted)] hover:bg-[var(--app-control-hover)] ${cls}`}><Icon size={13} /></button>
     );
     const columns = [
       { key: 'voucherNumber', header: activeSourceTab === 'Bulk Upload' ? 'Batch ID' : 'Voucher No', sortable: true, render: (e) => <span className="font-black" style={{ color: 'var(--app-heading)' }}>{e.voucherNumber}</span> },

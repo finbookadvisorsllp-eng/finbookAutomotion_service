@@ -142,7 +142,7 @@ const OcrPanel = ({ isDark, theme, voucherType, isSales, onSwitchToManual }) => 
                 </div>
                 <h4 className="text-base font-bold" style={{ color: theme.text }}>Upload Invoice / PDF</h4>
                 <p className="text-sm" style={{ color: theme.mutedText }}>Drag & drop or click. PDF, JPEG, PNG up to 20MB</p>
-                <span className="px-6 py-2.5 rounded-lg font-bold text-sm bg-[var(--app-accent)] hover:opacity-90 text-white shadow-md flex items-center gap-2">
+                <span className="px-6 py-2.5 rounded-lg font-bold text-sm m3-interactive bg-[var(--app-accent)] hover:opacity-90 text-white shadow-md flex items-center gap-2">
                   <ScanLine size={16} /> Browse Files
                 </span>
                 <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png,.webp,.tiff" onChange={handleInput} />
@@ -185,7 +185,7 @@ const OcrPanel = ({ isDark, theme, voucherType, isSales, onSwitchToManual }) => 
               <button
                 onClick={handleExtract}
                 disabled={ocr.isExtracting}
-                className="w-full py-2.5 rounded-xl font-bold text-sm bg-[var(--app-accent)] hover:opacity-90 text-white shadow-md flex items-center justify-center gap-2 transition-all disabled:opacity-60"
+                className="w-full py-2.5 rounded-xl font-bold text-sm m3-interactive bg-[var(--app-accent)] hover:opacity-90 text-white shadow-md flex items-center justify-center gap-2 transition-all disabled:opacity-60"
               >
                 {ocr.isExtracting ? <><Loader2 size={16} className="animate-spin" /> Scanning…</> : <><ScanLine size={16} /> Extract & Autofill</>}
               </button>
@@ -375,7 +375,7 @@ const CsvUploadPanel = ({ isDark, theme, voucherType, isSales }) => {
         </button>
         {csv.file && !csv.preview && (
           <button onClick={handlePreview} disabled={csv.isPreviewLoading}
-            className="px-6 py-2 rounded-lg font-bold text-sm bg-[var(--app-accent)] hover:opacity-90 text-white shadow-md flex items-center gap-2 transition-colors disabled:opacity-60">
+            className="px-6 py-2 rounded-lg font-bold text-sm m3-interactive bg-[var(--app-accent)] hover:opacity-90 text-white shadow-md flex items-center gap-2 transition-colors disabled:opacity-60">
             {csv.isPreviewLoading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />} Preview CSV
           </button>
         )}

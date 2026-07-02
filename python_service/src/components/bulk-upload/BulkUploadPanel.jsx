@@ -976,7 +976,7 @@ export default function BulkUploadPanel() {
                   className={`h-8 px-3 rounded-lg transition flex items-center gap-1.5 font-bold shadow-xs text-xs cursor-pointer ${
                     activeBatch.status === 'Posted'
                       ? 'bg-[var(--app-table-head-bg)] border border-[var(--app-border)] text-[var(--app-muted)] cursor-not-allowed'
-                      : 'bg-[var(--app-accent)] hover:opacity-90 text-white'
+                      : 'm3-interactive bg-[var(--app-accent)] hover:opacity-90 text-white'
                   }`}
                   disabled={activeBatch.status === 'Posted'}
                 >
@@ -1581,7 +1581,7 @@ export default function BulkUploadPanel() {
                       <button
                         type="button"
                         onClick={handleBrowse}
-                        className="px-4 py-2 rounded-lg bg-[var(--app-accent)] hover:opacity-90 text-white font-semibold text-xs transition-colors shadow-sm cursor-pointer animate-pulse"
+                        className="px-4 py-2 rounded-lg m3-interactive bg-[var(--app-accent)] hover:opacity-90 text-white font-semibold text-xs transition-colors shadow-sm cursor-pointer animate-pulse"
                       >
                         Choose File
                       </button>

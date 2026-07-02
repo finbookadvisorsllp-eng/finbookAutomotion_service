@@ -21,7 +21,7 @@ export const TextInput = forwardRef(function TextInput(
       )}
       <input
         ref={ref}
-        className={`w-full h-9 rounded-lg border px-3 text-[12px] font-medium outline-none transition-all focus:ring-4 focus:ring-[var(--app-accent-soft)] focus:border-[var(--app-accent)] ${inputClassName}`}
+        className={`w-full h-9 rounded-lg border px-3 text-[12px] font-medium outline-none transition-all focus:ring-2 focus:ring-[var(--app-accent-soft)] focus:border-[var(--app-accent)] ${inputClassName}`}
         style={fieldStyle}
         {...props}
       />
@@ -47,7 +47,7 @@ export const SearchInput = forwardRef(function SearchInput(
         value={value}
         onChange={onChange}
         placeholder={placeholder}
-        className={`w-full ${h} rounded-lg border pl-8.5 pr-3 text-[11px] font-semibold outline-none transition-all focus:ring-4 focus:ring-[var(--app-accent-soft)] focus:border-[var(--app-accent)]`}
+        className={`w-full ${h} rounded-lg border pl-8.5 pr-3 text-[11px] font-semibold outline-none transition-all focus:ring-2 focus:ring-[var(--app-accent-soft)] focus:border-[var(--app-accent)]`}
         style={fieldStyle}
         {...props}
       />

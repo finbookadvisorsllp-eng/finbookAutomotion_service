@@ -99,7 +99,7 @@ export default function ClientManagementPanel() {
             <p className="text-[10px] text-[var(--app-muted)] mt-1 truncate">Configure client portfolios, tax profiles and assigned operation roles.</p>
           </div>
         </div>
-        <button onClick={() => setShowCreateForm(p => !p)} className="h-8 px-3 bg-[var(--app-accent)] hover:opacity-90 text-white font-bold text-[11px] rounded-lg flex items-center gap-1.5 transition-all shrink-0 shadow-xs">
+        <button onClick={() => setShowCreateForm(p => !p)} className="h-8 px-3 m3-interactive bg-[var(--app-accent)] hover:opacity-90 text-white font-bold text-[11px] rounded-lg flex items-center gap-1.5 transition-all shrink-0 shadow-xs">
           {showCreateForm ? <X size={13} /> : <Plus size={13} />}
           {showCreateForm ? 'Close' : 'New Client'}
         </button>
@@ -294,7 +294,7 @@ export default function ClientManagementPanel() {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-1.5 bg-[var(--app-accent)] hover:opacity-90 text-white rounded-lg shadow-sm transition-all font-bold"
+                  className="px-5 py-1.5 m3-interactive bg-[var(--app-cta)] hover:opacity-90 text-white rounded-full shadow-sm transition-all font-bold"
                 >
                   Save Client
                 </button>

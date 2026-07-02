@@ -56,11 +56,7 @@ export default function Login() {
 
   return (
     <div className={`min-h-screen flex relative overflow-hidden ${isDark ? 'dark' : ''}`} style={{ backgroundColor: 'var(--app-bg)', color: 'var(--app-heading)' }}>
-      <div className="absolute inset-0 app-grid-bg opacity-40 pointer-events-none" />
-      <div
-        className="absolute -top-40 -left-32 h-[480px] w-[480px] rounded-full blur-[130px] pointer-events-none"
-        style={{ background: 'radial-gradient(circle, var(--app-accent-soft) 0%, transparent 70%)', animation: 'softPulse 18s ease-in-out infinite' }}
-      />
+      <div className="absolute inset-0 app-grid-bg opacity-30 pointer-events-none" />
 
       {/* Brand panel */}
       <div className="hidden lg:flex flex-col justify-between w-1/2 p-12 relative z-10 border-r" style={{ borderColor: 'var(--app-border)' }}>
@@ -104,8 +100,8 @@ export default function Login() {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-          className="w-full max-w-sm rounded-2xl border p-7 space-y-5 glass-surface"
-          style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-panel-bg)', boxShadow: 'var(--app-shadow-lg)' }}
+          className="w-full max-w-sm rounded-2xl border p-7 space-y-5"
+          style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-panel-bg)', boxShadow: 'var(--app-shadow)' }}
         >
           <div>
             <h1 className="text-[20px] font-extrabold tracking-tight" style={{ color: 'var(--app-heading)' }}>Welcome back</h1>
@@ -138,7 +134,7 @@ export default function Login() {
             </div>
           </label>
 
-          <Button type="submit" variant="primary" size="md" disabled={submitting} className="w-full">
+          <Button type="submit" variant="cta" size="md" disabled={submitting} className="w-full">
             {submitting ? <><Loader2 size={14} className="animate-spin" /> Signing in…</> : 'Sign in'}
           </Button>
         </motion.form>

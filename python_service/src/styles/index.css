@@ -1,6 +1,22 @@
 @import "tailwindcss";
 @variant dark (&:where(.dark, .dark *));
 
+/* Material 3 radius scale. Overriding Tailwind's radius tokens here gives EVERY
+   rounded-{sm..3xl} usage across all screens M3 rounded corners without editing
+   a single component. rounded-full (pills/avatars) is unaffected. */
+@theme {
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+  --radius-3xl: 28px;
+  /* Minimal-shadow ERP: soften Tailwind's heavy shadow utilities app-wide so
+     shadow-xl/2xl read as controlled elevation, not consumer drop-shadows. */
+  --shadow-xl: 0 8px 24px -8px rgba(16, 24, 40, 0.16);
+  --shadow-2xl: 0 12px 32px -10px rgba(16, 24, 40, 0.20);
+}
+
 /* ──────────────────────────────────────────────────────────────
    Design tokens — single source of truth.
    Unified royal-blue accent. Light = warm neutrals, Dark = deep slate.
@@ -9,23 +25,42 @@
    shell + Login both toggle it), so tokens cascade either way.
    ────────────────────────────────────────────────────────────── */
 :root {
-  --app-bg: #F5F6F8;
+  /* Material 3 light surfaces — tonal neutrals, white cards pop on a tinted page. */
+  --app-bg: #FAF8FC;
   --app-panel-bg: #FFFFFF;
-  --app-content-bg: #F0F2F5;
-  --app-sidebar-bg: #FFFFFF;
-  --app-border: #E2E5EB;
-  --app-heading: #0F1117;
-  --app-text: #51596B;
-  --app-muted: #858C9A;
+  --app-content-bg: #EFECF3;
+  --app-border: #C8C6D2;
+  /* M3 navigation drawer — tonal surface (follows theme), active item =
+     secondary-container pill. Coherent with the M3 content workspace. */
+  --app-sidebar-bg: #F3F1F6;
+  --app-sidebar-border: #C8C6D2;
+  --app-sidebar-heading: #1B1B1F;
+  --app-sidebar-fg: #45474E;
+  --app-sidebar-muted: #777680;
+  --app-sidebar-hover: rgba(0, 0, 0, 0.05);
+  --app-sidebar-accent: #2563EB;
+  --app-sidebar-accent-soft: #DCE2F4;
+  --app-sidebar-control-bg: #FFFFFF;
+  /* Red primary CTA (ERP). Blue accent stays for action elements/links. */
+  --app-cta: #DC2626;
+  --app-cta-hover: #B91C1C;
+  --app-heading: #1B1B1F;
+  --app-text: #46464F;
+  --app-muted: #777680;
   --app-accent: #2563EB;
   --app-accent-strong: #1D4ED8;
   --app-accent-soft: rgba(37, 99, 235, 0.09);
+  /* M3 button roles (on-primary + secondary-container) used app-wide by ui/Button. */
+  --app-on-accent: #FFFFFF;
+  --app-secondary-container: #DCE2F4;
+  --app-on-secondary-container: #161B2C;
+  --app-petal: #F4B8CE;
   --app-accent-gradient: linear-gradient(135deg, #1D4ED8 0%, #2563EB 100%);
-  --app-table-head-bg: #F4F6F9;
-  --app-row-border: #EDEFF3;
-  --app-row-hover: #F4F6F9;
+  --app-table-head-bg: #EFECF3;
+  --app-row-border: #E7E4EE;
+  --app-row-hover: #F3F0F8;
   --app-control-bg: #FFFFFF;
-  --app-control-hover: #F1F3F6;
+  --app-control-hover: #F1EEF6;
   --app-success: #059669;
   --app-warning: #D97706;
   --app-danger-bg: #FEF2F2;
@@ -40,23 +75,38 @@
   /* Neutral-slate SaaS dark. Single cool-neutral hue, controlled elevation
      ramp (page < sidebar < content < panel < control/head), subtle borders,
      desaturated accent. No blue cast, no neon, no pure black. */
-  --app-bg: #0C0D10;
-  --app-panel-bg: #17191F;
-  --app-content-bg: #101115;
-  --app-sidebar-bg: #0E0F13;
-  --app-border: #25272E;
-  --app-heading: #ECEEF1;
-  --app-text: #A8ADB7;
-  --app-muted: #6A6F79;
-  --app-accent: #5E9BF0;
-  --app-accent-strong: #3B82F6;
-  --app-accent-soft: rgba(94, 155, 240, 0.12);
+  /* Material 3 dark surfaces — tonal elevation ramp (bg < content < panel). */
+  --app-bg: #121317;
+  --app-panel-bg: #1E2025;
+  --app-content-bg: #17181C;
+  --app-sidebar-bg: #1A1B20;
+  --app-sidebar-border: #44474E;
+  --app-sidebar-heading: #E4E2E6;
+  --app-sidebar-fg: #C6C6D0;
+  --app-sidebar-muted: #8F909A;
+  --app-sidebar-hover: rgba(255, 255, 255, 0.06);
+  --app-sidebar-accent: #AEC6FF;
+  --app-sidebar-accent-soft: #404659;
+  --app-sidebar-control-bg: #2A2C31;
+  --app-cta: #EF4444;
+  --app-cta-hover: #DC2626;
+  --app-border: #45474E;
+  --app-heading: #E4E2E6;
+  --app-text: #C6C6D0;
+  --app-muted: #8F909A;
+  --app-accent: #AEC6FF;
+  --app-accent-strong: #84A9FF;
+  --app-accent-soft: rgba(174, 198, 255, 0.14);
+  --app-on-accent: #06306F;
+  --app-secondary-container: #404659;
+  --app-on-secondary-container: #DCE2F4;
+  --app-petal: #C77E97;
   --app-accent-gradient: linear-gradient(135deg, #3B82F6 0%, #5E9BF0 100%);
-  --app-table-head-bg: #1C1E25;
-  --app-row-border: #21232A;
-  --app-row-hover: #1B1D23;
-  --app-control-bg: #1C1E25;
-  --app-control-hover: #24262E;
+  --app-table-head-bg: #24262C;
+  --app-row-border: #2A2C32;
+  --app-row-hover: #1F2127;
+  --app-control-bg: #2A2C31;
+  --app-control-hover: #303239;
   --app-success: #34D399;
   --app-warning: #FBBF24;
   --app-danger-bg: rgba(239, 68, 68, 0.13);
@@ -119,6 +169,48 @@
   animation: riseIn 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+/* Calming ambient — slow-falling sakura petals behind the workspace.
+   Pure CSS; PetalField randomizes per-petal vars. Hidden on reduced-motion. */
+.petal-field { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+/* Layered wind motion (one transform per element, so nest):
+   .petal falls vertically · .petal-gust sways horizontally (gust) ·
+   .petal-spin flutters (spin + edge-on rotateY tumble). Vars inherit from .petal. */
+.petal {
+  position: absolute;
+  top: -8%;
+  width: var(--ps, 12px);
+  height: calc(var(--ps, 12px) * 1.25);
+  opacity: 0;
+  will-change: transform, opacity;
+  animation: petalFall var(--pd, 16s) linear var(--pdelay, 0s) infinite;
+}
+.petal-gust {
+  display: block; width: 100%; height: 100%; will-change: transform;
+  animation: petalGust var(--pg, 6s) ease-in-out var(--pdelay, 0s) infinite alternate;
+}
+.petal-spin {
+  display: block; width: 100%; height: 100%; will-change: transform;
+  animation: petalSpin var(--pt, 3s) linear var(--pdelay, 0s) infinite;
+}
+.petal svg { display: block; width: 100%; height: 100%; }
+
+@keyframes petalFall {
+  0%   { transform: translateY(-8vh); opacity: 0; }
+  10%  { opacity: var(--po, 0.4); }
+  90%  { opacity: var(--po, 0.4); }
+  100% { transform: translateY(112vh); opacity: 0; }
+}
+@keyframes petalGust {
+  0%   { transform: translateX(calc(var(--psway, 40px) * -0.7)); }
+  100% { transform: translateX(var(--psway, 40px)); }
+}
+@keyframes petalSpin {
+  0%   { transform: perspective(500px) rotateZ(0deg) rotateY(0deg); }
+  50%  { transform: perspective(500px) rotateZ(180deg) rotateY(180deg); }
+  100% { transform: perspective(500px) rotateZ(360deg) rotateY(360deg); }
+}
+@media (prefers-reduced-motion: reduce) { .petal { display: none; } }
+
 /* Subtle grid pattern overlay used by the shell */
 .app-grid-bg {
   background-image:
@@ -157,12 +249,11 @@
   background: var(--app-accent);
 }
 
-/* Glass card surface */
+/* Flat ERP panel surface — was glassmorphic; blur dropped (guide bans glass).
+   Solid panel + thin border so every legacy `glass-surface` reads flat. */
 .glass-surface {
   background-color: var(--app-panel-bg);
   border: 1px solid var(--app-border);
-  backdrop-filter: saturate(140%) blur(14px);
-  -webkit-backdrop-filter: saturate(140%) blur(14px);
 }
 
 /* Focus ring used on inputs/buttons */
@@ -170,6 +261,108 @@
   outline: 2px solid var(--app-accent);
   outline-offset: 2px;
 }
+
+/* ──────────────────────────────────────────────────────────────
+   Material 3 — SCOPED to .m3-scope only (Manual Voucher Entry page).
+   Defines its own --m3-* roles + component classes so it never
+   touches the ERP-flat --app-* system used everywhere else.
+   Primary kept on the brand blue so it reads on-brand.
+   ────────────────────────────────────────────────────────────── */
+.m3-scope {
+  --m3-primary: #2563EB;
+  --m3-on-primary: #FFFFFF;
+  --m3-primary-container: #DBE4FF;
+  --m3-on-primary-container: #0A1A52;
+  --m3-secondary-container: #DCE2F4;
+  --m3-on-secondary-container: #161B2C;
+  --m3-tertiary-container: #FCE7A6;
+  --m3-on-tertiary-container: #4A3600;
+  --m3-surface: #FBF8FE;
+  --m3-surface-container-low: #F4F2F7;
+  --m3-surface-container: #EEEDF1;
+  --m3-surface-container-high: #E8E6EC;
+  --m3-on-surface: #1A1B20;
+  --m3-on-surface-variant: #45474E;
+  --m3-outline: #75777F;
+  --m3-outline-variant: #C5C6D0;
+  --m3-error: #BA1A1A;
+  --m3-on-error: #FFFFFF;
+  --m3-success: #146C2E;
+  --m3-r-xs: 4px;
+  --m3-r-sm: 8px;
+  --m3-r-md: 12px;
+  --m3-r-lg: 16px;
+  --m3-r-full: 999px;
+  --m3-e1: 0 1px 2px rgba(0,0,0,.20), 0 1px 3px 1px rgba(0,0,0,.10);
+  --m3-e2: 0 1px 2px rgba(0,0,0,.20), 0 2px 6px 2px rgba(0,0,0,.12);
+  color: var(--m3-on-surface);
+}
+.dark .m3-scope {
+  --m3-primary: #AEC6FF;
+  --m3-on-primary: #06306F;
+  --m3-primary-container: #284777;
+  --m3-on-primary-container: #D8E2FF;
+  --m3-secondary-container: #404659;
+  --m3-on-secondary-container: #DCE2F4;
+  --m3-tertiary-container: #5B4300;
+  --m3-on-tertiary-container: #FFDF9E;
+  --m3-surface: #121317;
+  --m3-surface-container-low: #1A1B20;
+  --m3-surface-container: #1E2025;
+  --m3-surface-container-high: #292A2F;
+  --m3-on-surface: #E3E2E6;
+  --m3-on-surface-variant: #C5C6D0;
+  --m3-outline: #8F9099;
+  --m3-outline-variant: #44474E;
+  --m3-error: #FFB4AB;
+  --m3-on-error: #690005;
+  --m3-success: #7CDB8A;
+}
+
+.m3-scope .m3-card { background: var(--m3-surface-container-low); border: 1px solid var(--m3-outline-variant); border-radius: var(--m3-r-md); }
+.m3-scope .m3-card-elev { background: var(--m3-surface); border-radius: var(--m3-r-md); box-shadow: var(--m3-e1); }
+
+.m3-scope .m3-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 0 20px; border-radius: var(--m3-r-full); font-weight: 600; font-size: 13px; letter-spacing: .01em; transition: box-shadow .15s, background .15s, opacity .15s; cursor: pointer; border: none; white-space: nowrap; }
+.m3-scope .m3-btn:disabled { opacity: .5; pointer-events: none; }
+.m3-scope .m3-btn--filled { background: var(--m3-primary); color: var(--m3-on-primary); }
+.m3-scope .m3-btn--filled:hover { box-shadow: var(--m3-e1); }
+.m3-scope .m3-btn--tonal { background: var(--m3-tertiary-container); color: var(--m3-on-tertiary-container); }
+.m3-scope .m3-btn--tonal:hover { box-shadow: var(--m3-e1); }
+.m3-scope .m3-btn--outlined { background: transparent; border: 1px solid var(--m3-outline); color: var(--m3-primary); }
+.m3-scope .m3-btn--outlined:hover { background: color-mix(in srgb, var(--m3-primary) 8%, transparent); }
+.m3-scope .m3-btn--text { background: transparent; color: var(--m3-primary); padding: 0 12px; }
+.m3-scope .m3-btn--text:hover { background: color-mix(in srgb, var(--m3-primary) 8%, transparent); }
+.m3-scope .m3-icon-btn { display: inline-flex; align-items: center; justify-content: center; height: 36px; width: 36px; border-radius: var(--m3-r-full); color: var(--m3-on-surface-variant); background: transparent; cursor: pointer; transition: background .15s; }
+.m3-scope .m3-icon-btn:hover { background: color-mix(in srgb, var(--m3-on-surface) 8%, transparent); }
+
+.m3-scope .m3-seg { display: inline-flex; border: 1px solid var(--m3-outline); border-radius: var(--m3-r-full); overflow: hidden; height: 36px; }
+.m3-scope .m3-seg button { height: 100%; padding: 0 16px; font-size: 12px; font-weight: 600; color: var(--m3-on-surface-variant); background: transparent; cursor: pointer; transition: background .15s; display: inline-flex; align-items: center; gap: 6px; }
+.m3-scope .m3-seg button + button { border-left: 1px solid var(--m3-outline); }
+.m3-scope .m3-seg button[aria-pressed="true"] { background: var(--m3-secondary-container); color: var(--m3-on-secondary-container); }
+
+.m3-scope .m3-chip { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: var(--m3-r-sm); border: 1px solid var(--m3-outline-variant); background: var(--m3-surface-container); font-size: 11px; color: var(--m3-on-surface-variant); }
+.m3-scope .m3-chip b { color: var(--m3-on-surface); font-weight: 700; }
+.m3-scope .m3-chip--primary { background: var(--m3-primary); border-color: var(--m3-primary); color: var(--m3-on-primary); }
+.m3-scope .m3-chip--primary b { color: var(--m3-on-primary); }
+
+/* M3 filled text field (used by the form-body cards in later phases). */
+.m3-scope .m3-field { position: relative; display: flex; flex-direction: column; }
+.m3-scope .m3-field > span { position: absolute; left: 12px; top: 5px; font-size: 10px; font-weight: 600; letter-spacing: .03em; text-transform: uppercase; color: var(--m3-on-surface-variant); pointer-events: none; z-index: 1; }
+.m3-scope .m3-field input, .m3-scope .m3-field select { width: 100%; height: 46px; padding: 18px 12px 5px; background: var(--m3-surface-container-high); border: none; border-bottom: 1px solid var(--m3-outline); border-radius: var(--m3-r-xs) var(--m3-r-xs) 0 0; color: var(--m3-on-surface); font-size: 13px; font-weight: 500; outline: none; transition: border-color .15s, background .15s; }
+.m3-scope .m3-field input:focus, .m3-scope .m3-field select:focus { border-bottom: 2px solid var(--m3-primary); background: color-mix(in srgb, var(--m3-primary) 6%, var(--m3-surface-container-high)); }
+.m3-scope .m3-field input::placeholder { color: var(--m3-on-surface-variant); opacity: .6; }
+
+/* M3 state layer + ripple. currentColor overlay = invisible over text (same
+   color), tints only the surface → correct M3. Add `m3-interactive` to ANY
+   button (incl. raw ones) for hover/press state; ui/Button also fires a
+   click-point ripple by setting --m3-rx/--m3-ry + toggling .m3-rippling. */
+.m3-interactive { position: relative; overflow: hidden; }
+.m3-interactive::after { content: ''; position: absolute; inset: 0; background: currentColor; opacity: 0; transition: opacity .12s ease; pointer-events: none; }
+.m3-interactive:hover::after { opacity: .08; }
+.m3-interactive:active::after { opacity: .14; }
+.m3-interactive::before { content: ''; position: absolute; left: var(--m3-rx, 50%); top: var(--m3-ry, 50%); width: 0; height: 0; border-radius: 9999px; background: currentColor; opacity: 0; transform: translate(-50%, -50%); pointer-events: none; }
+.m3-interactive.m3-rippling::before { animation: m3ripple .5s ease-out; }
+@keyframes m3ripple { 0% { width: 0; height: 0; opacity: .18; } 100% { width: 250%; height: 250%; opacity: 0; } }
 
 /* Soft chip */
 .chip {

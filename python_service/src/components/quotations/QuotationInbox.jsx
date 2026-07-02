@@ -26,23 +26,23 @@ const QuotationInbox = ({ isDark, onAdd }) => {
           <div className="flex gap-2">
             <button 
               onClick={onAdd}
-              className="p-2 rounded-full border-none flex items-center justify-center transition hover:scale-110 active:scale-95 shadow-[0_4px_10px_rgba(0,0,0,0.1)] text-white" 
+              className="p-2 rounded-full border-none flex items-center justify-center transition shadow-[0_4px_10px_rgba(0,0,0,0.1)] text-white" 
               style={{ background: 'var(--app-accent-gradient)' }}>
               <Plus size={18} strokeWidth={3} />
             </button>
-            <button className="p-1.5 rounded-full border flex items-center justify-center transition hover:scale-105" 
+            <button className="p-1.5 rounded-full border flex items-center justify-center transition" 
               style={{ borderColor: 'var(--app-border)', color: 'var(--app-text)', backgroundColor: isDark ? 'var(--app-control-bg)' : '#fff' }}>
               <Download size={16} />
             </button>
-            <button className="p-1.5 rounded-full border flex items-center justify-center transition hover:scale-105" 
+            <button className="p-1.5 rounded-full border flex items-center justify-center transition" 
               style={{ borderColor: 'var(--app-border)', color: 'var(--app-text)', backgroundColor: isDark ? 'var(--app-control-bg)' : '#fff' }}>
               <RefreshCw size={16} />
             </button>
-            <button className="p-1.5 rounded-full border flex items-center justify-center transition hover:scale-105" 
+            <button className="p-1.5 rounded-full border flex items-center justify-center transition" 
               style={{ borderColor: '#ef4444', color: '#ef4444', backgroundColor: isDark ? 'var(--app-control-bg)' : '#fff' }}>
               <Trash2 size={16} />
             </button>
-            <button className="p-1.5 rounded-full border flex items-center justify-center transition hover:scale-105" 
+            <button className="p-1.5 rounded-full border flex items-center justify-center transition" 
               style={{ borderColor: 'var(--app-border)', color: 'var(--app-text)', backgroundColor: isDark ? 'var(--app-control-bg)' : '#fff' }}>
               <Settings size={16} />
             </button>

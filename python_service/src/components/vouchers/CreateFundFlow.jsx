@@ -670,16 +670,16 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
 
     bg: 'var(--app-content-bg)',
     panel: 'var(--app-panel-bg)',
-    border: isDark ? '#334155' : '#cbd5e1',
+    border: 'var(--app-border)',
     headerBg: 'var(--app-table-head-bg)',
-    text: isDark ? '#f8fafc' : '#0f172a',
+    text: 'var(--app-heading)',
     inputBg: 'var(--app-control-bg)',
-    mutedText: isDark ? '#94a3b8' : '#475569',
+    mutedText: 'var(--app-muted)',
     accent: 'var(--app-accent)',
     accentSoft: 'var(--app-accent-soft)',
     accentGradient: 'var(--app-accent-gradient)',
-    scrollbarThumb: isDark ? 'rgba(9, 182, 185, 0.3)' : '#cbd5e1',
-    scrollbarTrack: isDark ? 'transparent' : '#f1f5f9'
+    scrollbarThumb: 'var(--app-border)',
+    scrollbarTrack: 'transparent'
   };
 
   // --- Voucher type labels ---
@@ -732,7 +732,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
       const destClosing = destBal + receivedAmt;
 
       return (
-        <div className="rounded-xl border p-2 shadow-sm" style={{ borderColor: theme.border, backgroundColor: theme.panel }}>
+        <div className="rounded-xl border p-2 shadow-sm" style={{ borderColor: 'var(--m3-outline-variant)', backgroundColor: 'var(--m3-surface-container-low)' }}>
           <h3 className="text-[10px] font-black uppercase tracking-wider text-[var(--app-muted)] mb-2 flex items-center gap-1">
             <Wallet size={10} /> Live Balance Panel (Contra)
           </h3>
@@ -773,7 +773,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
     }
 
     return (
-      <div className="rounded-xl border p-2 shadow-sm" style={{ borderColor: theme.border, backgroundColor: theme.panel }}>
+      <div className="rounded-xl border p-2 shadow-sm" style={{ borderColor: 'var(--m3-outline-variant)', backgroundColor: 'var(--m3-surface-container-low)' }}>
         <h3 className="text-[10px] font-black uppercase tracking-wider text-[var(--app-muted)] mb-2 flex items-center gap-1">
           <Wallet size={10} /> Live Balance Panel ({isBank ? 'Bank' : 'Cash'})
         </h3>
@@ -818,7 +818,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
     }
 
     return (
-      <div className="rounded-xl border p-2 shadow-sm" style={{ borderColor: theme.border, backgroundColor: theme.panel }}>
+      <div className="rounded-xl border p-2 shadow-sm" style={{ borderColor: 'var(--m3-outline-variant)', backgroundColor: 'var(--m3-surface-container-low)' }}>
         <h3 className="text-[10px] font-black uppercase tracking-wider text-[var(--app-muted)] mb-2 flex items-center gap-1">
           <ArrowRightLeft size={10} /> Accounting Entry Preview
         </h3>
@@ -871,7 +871,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
     const formatCur = (val) => `₹ ${val.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
     return (
-      <div className="rounded-xl border p-3 shadow-sm animate-in fade-in duration-200" style={{ borderColor: theme.border, backgroundColor: theme.panel }}>
+      <div className="rounded-xl border p-3 shadow-sm animate-in fade-in duration-200" style={{ borderColor: 'var(--m3-outline-variant)', backgroundColor: 'var(--m3-surface-container-low)' }}>
         <h3 className="text-[10px] font-black uppercase tracking-wider text-[var(--app-muted)] mb-2.5 flex items-center gap-1">
           <BookText size={10} /> Voucher Summary
         </h3>
@@ -931,7 +931,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
 
   return (
     <ThemeContext.Provider value={{ isDark, theme }}>
-      <div className="flex flex-col h-full overflow-hidden" style={{ backgroundColor: theme.bg }}>
+      <div className="m3-scope flex flex-col h-full overflow-hidden" style={{ backgroundColor: 'var(--m3-surface)' }}>
         <style>{`
           .themed-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
           .themed-scrollbar::-webkit-scrollbar-track { background: ${theme.scrollbarTrack}; }
@@ -941,64 +941,25 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
         `}</style>
 
         {/* Top Header Row (Same style as Purchase) */}
-        <div className="flex items-center justify-between px-4 py-1.5 bg-[var(--app-panel-bg)] border-b shrink-0" style={{ borderColor: theme.border }}>
+        <div className="flex items-center justify-between px-4 py-2.5 border-b shrink-0" style={{ borderColor: 'var(--m3-outline-variant)', backgroundColor: 'var(--m3-surface-container-low)' }}>
           <div className="flex items-center gap-2">
-            <h1 className="text-[12px] md:text-[13px] font-black uppercase tracking-tight text-[var(--app-heading)]">
-              {activeType === 'cash_payment' ? 'CREATE PAYMENT VOUCHER' :
-                activeType === 'bank_payment' ? 'CREATE RECEIPT VOUCHER' : 'CREATE CONTRA VOUCHER'}
+            <h1 className="text-[15px] font-semibold tracking-tight" style={{ color: 'var(--m3-on-surface)' }}>
+              {activeType === 'cash_payment' ? 'Create Payment Voucher' :
+                activeType === 'bank_payment' ? 'Create Receipt Voucher' : 'Create Contra Voucher'}
             </h1>
           </div>
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={handleSaveDraft}
-              disabled={loading.save}
-              className="px-3 py-1 rounded-lg border text-[11px] font-black transition-all hover:bg-[var(--app-content-bg)] shadow-sm uppercase tracking-wider text-[var(--app-heading)] flex items-center gap-1"
-              style={{ borderColor: theme.border, backgroundColor: theme.inputBg }}
-            >
-              Draft
-            </button>
-            <button
-              onClick={handlePushToReview}
-              disabled={loading.save || isUnbalanced}
-              className={`px-3 py-1 rounded-lg text-[11px] font-black transition-all shadow-sm uppercase tracking-wider flex items-center gap-1 ${(loading.save || isUnbalanced)
-                  ? 'bg-[var(--app-border)] text-[var(--app-muted)] cursor-not-allowed opacity-50'
-                  : 'hover:scale-[1.02] text-[var(--app-heading)] bg-[#FCD34D] hover:bg-[#FBBF24]'
-                }`}
-            >
-              Review
-            </button>
-            <button
-              onClick={handlePostToTally}
-              disabled={isUnbalanced}
-              className={`px-3 py-1 rounded-lg text-[11px] font-black shadow-sm transition-all uppercase tracking-wider ${isUnbalanced
-                  ? 'bg-[var(--app-border)] text-[var(--app-muted)] cursor-not-allowed opacity-50'
-                  : 'hover:scale-[1.02] text-white bg-[var(--app-accent)] hover:opacity-90'
-                }`}
-            >
-              Post Tally
-            </button>
-            <button
-              onClick={handleCancel}
-              className="px-3 py-1 rounded-lg border text-[11px] font-black hover:bg-red-50 hover:text-red-500 transition-all uppercase tracking-wider text-[var(--app-muted)]"
-              style={{ borderColor: theme.border }}
-            >
-              Cancel
-            </button>
-            <button className="p-1.5 rounded-lg border text-[var(--app-muted)] hover:text-[var(--app-accent)] transition-all" style={{ borderColor: theme.border }}>
-              <Settings size={12} />
-            </button>
-            <button
-              onClick={handleCancel}
-              className="p-1.5 rounded-lg border text-[var(--app-muted)] hover:text-red-500 transition-all hover:bg-red-50"
-              style={{ borderColor: theme.border, backgroundColor: theme.inputBg }}
-            >
-              <X size={12} strokeWidth={3} />
-            </button>
+          <div className="flex items-center gap-2">
+            <button onClick={handleSaveDraft} disabled={loading.save} className="m3-btn m3-btn--outlined">Draft</button>
+            <button onClick={handlePushToReview} disabled={loading.save || isUnbalanced} className="m3-btn m3-btn--tonal">Review</button>
+            <button onClick={handlePostToTally} disabled={isUnbalanced} className="m3-btn m3-btn--filled">Post Tally</button>
+            <button onClick={handleCancel} className="m3-btn m3-btn--text">Cancel</button>
+            <button className="m3-icon-btn" title="Settings" aria-label="Settings"><Settings size={16} /></button>
+            <button onClick={handleCancel} className="m3-icon-btn" title="Close Form" aria-label="Close Form"><X size={16} strokeWidth={2.5} /></button>
           </div>
         </div>
 
         {/* Voucher Types & Summary Row (Same style as Purchase) */}
-        <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-0.75 bg-[var(--app-panel-bg)] border-b shrink-0" style={{ borderColor: theme.border }}>
+        <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-2 border-b shrink-0" style={{ borderColor: 'var(--m3-outline-variant)', backgroundColor: 'var(--m3-surface-container-low)' }}>
           {/* Voucher Types Switcher */}
           {!onSaveSuccess && (
             <div className="flex gap-1.5 overflow-x-auto no-scrollbar py-0.5">
@@ -1040,13 +1001,13 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
 
             return (
               <div className="flex items-center flex-wrap gap-1 text-[11px]">
-                <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[var(--app-content-bg)] border border-[var(--app-border)]">
+                <div className="m3-chip">
                   <span className="text-[var(--app-muted)] font-bold uppercase tracking-wider text-[7.5px]">TOTAL LEDGER AMOUNT (₹):</span>
                   <span className="font-black text-[var(--app-heading)]">
                     ₹ {totalLedgerAmountVal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </span>
                 </div>
-                <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[var(--app-content-bg)] border border-[var(--app-border)]">
+                <div className="m3-chip">
                   <span className="text-[var(--app-muted)] font-bold uppercase tracking-wider text-[7.5px]">
                     {activeType === 'cash_payment' ? 'TOTAL BILL AMOUNT (₹):' : 'TOTAL INVOICE AMOUNT (₹):'}
                   </span>
@@ -1054,13 +1015,13 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                     ₹ {totalBillAmountVal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </span>
                 </div>
-                <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[var(--app-content-bg)] border border-[var(--app-border)]">
+                <div className="m3-chip">
                   <span className="text-[var(--app-muted)] font-bold uppercase tracking-wider text-[7.5px]">TOTAL ALLOCATED AMOUNT (₹):</span>
                   <span className="font-black text-[var(--app-heading)]">
                     ₹ {totalAllocatedVal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </span>
                 </div>
-                <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[var(--app-content-bg)] border border-[var(--app-border)]">
+                <div className="m3-chip">
                   <span className="text-[var(--app-muted)] font-bold uppercase tracking-wider text-[7.5px]">REMAINING UNALLOCATED (₹):</span>
                   <span className="font-black text-emerald-500 dark:text-emerald-400">
                     ₹ {totalUnallocatedVal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
@@ -1080,24 +1041,9 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
             );
           })() : (
             <div className="flex items-center flex-wrap gap-1 text-[11px]">
-              <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[var(--app-content-bg)] border border-[var(--app-border)]">
-                <span className="text-[var(--app-muted)] font-bold uppercase tracking-wider text-[7.5px]">Total Debit:</span>
-                <span className="font-black text-[var(--app-heading)]">
-                  ₹ {(form.totalDebit || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                </span>
-              </div>
-              <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[var(--app-content-bg)] border border-[var(--app-border)]">
-                <span className="text-[var(--app-muted)] font-bold uppercase tracking-wider text-[7.5px]">Total Credit:</span>
-                <span className="font-black text-[var(--app-heading)]">
-                  ₹ {(form.totalCredit || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                </span>
-              </div>
-              <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[var(--app-content-bg)] border border-[var(--app-border)]">
-                <span className="text-[var(--app-muted)] font-bold uppercase tracking-wider text-[7.5px]">Difference:</span>
-                <span className="font-black text-[var(--app-heading)]">
-                  ₹ {(form.difference || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                </span>
-              </div>
+              <span className="m3-chip"><span>Total Debit</span> <b>₹ {(form.totalDebit || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</b></span>
+              <span className="m3-chip"><span>Total Credit</span> <b>₹ {(form.totalCredit || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</b></span>
+              <span className="m3-chip"><span>Difference</span> <b>₹ {(form.difference || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</b></span>
               <div className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg shadow-md text-white ${form.difference === 0 ? 'bg-emerald-600' : 'bg-rose-600'}`}>
                 <span className="text-[7.5px] font-black uppercase tracking-wider opacity-85">Status:</span>
                 <span className="font-black text-[10px]">
@@ -1152,7 +1098,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                         />
                       </div>
                       <div className="col-span-12 md:col-span-3 relative">
-                        <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 text-[var(--app-heading)]" style={{ backgroundColor: isDark ? '#12161a' : '#fff' }}>
+                        <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 text-[var(--app-heading)]" style={{ backgroundColor: 'var(--app-panel-bg)' }}>
                           3. Voucher Reference Number
                         </label>
                         <select
@@ -1318,7 +1264,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                         setActiveAllocationRowIndex(idx);
                                         setShowBillAllocation(true);
                                       }}
-                                      className="text-[10px] font-black text-[var(--app-accent)] dark:text-[var(--app-accent)] hover:underline hover:scale-105 transition-all"
+                                      className="text-[10px] font-black text-[var(--app-accent)] dark:text-[var(--app-accent)] hover:underline transition-all"
                                     >
                                       {activeType === 'cash_payment' ? 'View Bills' : 'View Invoices'} ({pendingBillsCount})
                                     </button>
@@ -1899,9 +1845,9 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                 value={row.ledgerName || ''}
                                 onChange={e => updateLedgerRow(idx, 'ledgerName', e.target.value)}
                                 className="w-full h-7 px-2 border text-[11px] font-bold outline-none rounded-lg"
-                                style={{ borderColor: isDark ? '#475569' : '#94a3b8', color: theme.text, backgroundColor: theme.inputBg }}
+                                style={{ borderColor: 'var(--app-border)', color: theme.text, backgroundColor: theme.inputBg }}
                               >
-                                <option value="" disabled style={{ color: '#94a3b8' }}>Select Ledger...</option>
+                                <option value="" disabled style={{ color: 'var(--app-muted)' }}>Select Ledger...</option>
                                 {ledgersRaw.map((l, i) => {
                                   const name = typeof l === 'string' ? l : l.name;
                                   return <option key={i} value={name}>{name}</option>;
@@ -1915,7 +1861,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                 value={row.description || ''}
                                 onChange={e => updateLedgerRow(idx, 'description', e.target.value)}
                                 className="w-full h-7 px-2 border text-[11px] font-bold outline-none rounded-lg"
-                                style={{ borderColor: isDark ? '#475569' : '#94a3b8', color: theme.text, backgroundColor: theme.inputBg }}
+                                style={{ borderColor: 'var(--app-border)', color: theme.text, backgroundColor: theme.inputBg }}
                               />
                             </td>
                             <td className="p-1 border text-right" style={{ borderColor: theme.border }}>
@@ -1925,7 +1871,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                 value={row.amount || ''}
                                 onChange={e => updateLedgerRow(idx, 'amount', e.target.value)}
                                 className="w-full h-7 px-2 border text-[11px] font-black outline-none rounded-lg text-right"
-                                style={{ borderColor: isDark ? '#475569' : '#94a3b8', color: theme.text, backgroundColor: theme.inputBg }}
+                                style={{ borderColor: 'var(--app-border)', color: theme.text, backgroundColor: theme.inputBg }}
                               />
                             </td>
                             <td className="p-1 border" style={{ borderColor: theme.border }}>
@@ -1933,7 +1879,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                 value={row.costCenter || ''}
                                 onChange={e => updateLedgerRow(idx, 'costCenter', e.target.value)}
                                 className="w-full h-7 px-2 border text-[11px] font-bold outline-none rounded-lg"
-                                style={{ borderColor: isDark ? '#475569' : '#94a3b8', color: theme.text, backgroundColor: theme.inputBg }}
+                                style={{ borderColor: 'var(--app-border)', color: theme.text, backgroundColor: theme.inputBg }}
                               >
                                 <option value="">Select...</option>
                                 {(masterData?.costCenters || []).map((cc, i) => (
@@ -2020,7 +1966,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                         onChange={e => handleAllocationChange(idx, e.target.value)}
                                         className="w-full h-8 px-2 border text-[11px] font-black outline-none rounded-lg text-right"
                                         style={{
-                                          borderColor: isDark ? '#475569' : '#94a3b8',
+                                          borderColor: 'var(--app-border)',
                                           color: theme.text,
                                           backgroundColor: theme.inputBg
                                         }}
@@ -2049,12 +1995,12 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                 onChange={e => setFormValue('excessOption', e.target.value)}
                                 className="h-8 px-2 border text-[11px] font-black outline-none rounded-lg w-48"
                                 style={{
-                                  borderColor: isDark ? '#475569' : '#cbd5e1',
+                                  borderColor: 'var(--app-border)',
                                   color: theme.text,
                                   backgroundColor: theme.inputBg
                                 }}
                               >
-                                <option value="" disabled style={{ color: '#94a3b8' }}>Select option...</option>
+                                <option value="" disabled style={{ color: 'var(--app-muted)' }}>Select option...</option>
                                 <option value="advance">Keep As Advance</option>
                                 <option value="on_account">On Account Receipt</option>
                                 <option value="refund">Refund Later</option>
@@ -2155,7 +2101,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                         onChange={e => handleAllocationChange(idx, e.target.value)}
                                         className="w-full h-8 px-2 border text-[11px] font-black outline-none rounded-lg text-right"
                                         style={{
-                                          borderColor: isDark ? '#475569' : '#94a3b8',
+                                          borderColor: 'var(--app-border)',
                                           color: theme.text,
                                           backgroundColor: theme.inputBg
                                         }}
@@ -2779,7 +2725,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                           : (selectedPartyDetails.outstandingBalance || 0);
                         return (
                           <div className="p-2.5 rounded-lg border flex flex-col gap-1.5 text-xs font-bold animate-in fade-in slide-in-from-top-1 duration-200"
-                            style={{ backgroundColor: isDark ? 'rgba(9, 182, 185, 0.03)' : '#f0f9fa', borderColor: isDark ? 'rgba(9, 182, 185, 0.1)' : '#cffafe' }}>
+                            style={{ backgroundColor: 'var(--app-accent-soft)', borderColor: 'var(--app-border)' }}>
                             <div className="flex justify-between items-center text-[10px]">
                               <div className="flex gap-1.5 items-center">
                                 <span className="text-[11px] font-black uppercase text-[var(--app-accent)] tracking-wider">Group:</span>
@@ -2792,7 +2738,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                 </span>
                               </div>
                             </div>
-                            <div className="flex justify-between items-center border-t pt-1" style={{ borderColor: isDark ? 'rgba(9, 182, 185, 0.08)' : '#cffafe' }}>
+                            <div className="flex justify-between items-center border-t pt-1" style={{ borderColor: 'var(--app-border)' }}>
                               <span className="text-[11px] font-black uppercase text-[var(--app-accent)] tracking-wider">Party Outstanding:</span>
                               <span className="text-[11.5px] font-black text-[var(--app-accent)] dark:text-[var(--app-accent)]">
                                 ₹ {partyOutstanding.toLocaleString('en-IN')}
@@ -3064,7 +3010,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                         updateBillRow(idx, 'pendingAmount', 0);
                                       }}
                                       className="w-full h-7.5 px-1.5 rounded-lg border text-[11px] font-bold outline-none"
-                                      style={{ borderColor: theme.border, color: theme.text, backgroundColor: theme.panel }}
+                                      style={{ borderColor: 'var(--m3-outline-variant)', color: 'var(--m3-on-surface)', backgroundColor: 'var(--m3-surface-container-high)' }}
                                     >
                                       <option value="Against Ref">Against Reference</option>
                                       <option value="Advance">Advance</option>
@@ -3081,9 +3027,9 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                             value={row.billNo || ''}
                                             onChange={e => handleBillRefChange(idx, e.target.value)}
                                             className="w-full h-7.5 px-1.5 rounded-lg border text-[11px] font-bold outline-none"
-                                            style={{ borderColor: theme.border, color: theme.text, backgroundColor: theme.panel }}
+                                            style={{ borderColor: 'var(--m3-outline-variant)', color: 'var(--m3-on-surface)', backgroundColor: 'var(--m3-surface-container-high)' }}
                                           >
-                                            <option value="" disabled style={{ color: '#94a3b8' }}>
+                                            <option value="" disabled style={{ color: 'var(--app-muted)' }}>
                                               Select Bill...
                                             </option>
                                             {pendingBills.map(b => (
@@ -3102,7 +3048,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                               updateBillRow(idx, 'billNo', e.target.value);
                                             }}
                                             className="w-full h-7.5 px-1.5 rounded-lg border text-[11px] font-bold outline-none"
-                                            style={{ borderColor: theme.border, color: theme.text, backgroundColor: theme.panel }}
+                                            style={{ borderColor: 'var(--m3-outline-variant)', color: 'var(--m3-on-surface)', backgroundColor: 'var(--m3-surface-container-high)' }}
                                           />
                                         )}
                                       </>
@@ -3218,7 +3164,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                       updateBillRow(idx, 'pendingAmount', 0);
                                     }}
                                     className="w-full h-7.5 px-1.5 rounded-lg border text-[11px] font-bold outline-none"
-                                    style={{ borderColor: theme.border, color: theme.text, backgroundColor: theme.panel }}
+                                    style={{ borderColor: 'var(--m3-outline-variant)', color: 'var(--m3-on-surface)', backgroundColor: 'var(--m3-surface-container-high)' }}
                                   >
                                     <option value="Against Ref">Against Reference</option>
                                     <option value="Advance">Advance</option>
@@ -3235,9 +3181,9 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                           value={row.billNo || ''}
                                           onChange={e => handleBillRefChange(idx, e.target.value)}
                                           className="w-full h-7.5 px-1.5 rounded-lg border text-[11px] font-bold outline-none"
-                                          style={{ borderColor: theme.border, color: theme.text, backgroundColor: theme.panel }}
+                                          style={{ borderColor: 'var(--m3-outline-variant)', color: 'var(--m3-on-surface)', backgroundColor: 'var(--m3-surface-container-high)' }}
                                         >
-                                          <option value="" disabled style={{ color: '#94a3b8' }}>
+                                          <option value="" disabled style={{ color: 'var(--app-muted)' }}>
                                             Select Bill...
                                           </option>
                                           {pendingBills.map(b => (
@@ -3256,7 +3202,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                             updateBillRow(idx, 'billNo', e.target.value);
                                           }}
                                           className="w-full h-7.5 px-1.5 rounded-lg border text-[11px] font-bold outline-none"
-                                          style={{ borderColor: theme.border, color: theme.text, backgroundColor: theme.panel }}
+                                          style={{ borderColor: 'var(--m3-outline-variant)', color: 'var(--m3-on-surface)', backgroundColor: 'var(--m3-surface-container-high)' }}
                                         />
                                       )}
                                     </>
@@ -3306,7 +3252,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                                       onChange={e => handleAllocationChange(idx, e.target.value)}
                                       placeholder="0.00"
                                       className="w-full h-7.5 px-1.5 rounded-lg border text-[11px] font-black outline-none focus:border-[var(--app-accent)] text-right"
-                                      style={{ borderColor: theme.border, color: theme.text, backgroundColor: theme.panel }}
+                                      style={{ borderColor: 'var(--m3-outline-variant)', color: 'var(--m3-on-surface)', backgroundColor: 'var(--m3-surface-container-high)' }}
                                     />
                                   </div>
                                   <div className="flex flex-col justify-end pb-1.5 text-right">
@@ -3570,7 +3516,7 @@ const FormSection = ({
   return (
     <div
       className={`p-2.5 border rounded-lg mb-0 shrink-0 flex flex-col gap-2 relative ${className}`}
-      style={{ borderColor: theme.border, backgroundColor: theme.panel, zIndex: isContentVisible ? zIndex : 1 }}
+      style={{ borderColor: 'var(--m3-outline-variant)', backgroundColor: 'var(--m3-surface-container-low)', zIndex: isContentVisible ? zIndex : 1 }}
     >
       <div className="flex items-center justify-between mb-0.5">
         <div className="flex items-center gap-2">
@@ -3635,7 +3581,7 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
   return (
     <div className="relative flex flex-col gap-1 w-full group" ref={dropdownRef} style={{ zIndex: isOpen ? 50 : 1 }}>
       {label && (
-        <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 text-[var(--app-heading)] group-focus-within:text-[var(--app-accent)] transition-colors" style={{ backgroundColor: theme.panel }}>
+        <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 group-focus-within:text-[var(--m3-primary)] transition-colors" style={{ backgroundColor: 'var(--m3-surface-container-low)', color: 'var(--m3-on-surface-variant)' }}>
           {label.startsWith('*') ? (
             <>
               <span className="text-red-500 mr-1">*</span>
@@ -3648,7 +3594,7 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
         <div
           onClick={() => setIsOpen(!isOpen)}
           className={`w-full ${compact ? 'h-7 px-1.5' : 'h-10 px-2'} rounded-lg border flex items-center justify-between cursor-pointer transition-all duration-300 group/input ${isOpen ? 'border-[var(--app-accent)]' : 'hover:border-[var(--app-accent)]'}`}
-          style={{ backgroundColor: theme.inputBg, borderColor: isOpen ? theme.accent : theme.border }}
+          style={{ backgroundColor: 'var(--m3-surface-container-high)', borderColor: isOpen ? 'var(--m3-primary)' : 'var(--m3-outline-variant)' }}
         >
           <span className={`${compact ? 'text-[10px]' : 'text-[11px]'} font-bold truncate transition-colors ${value ? (isDark ? 'text-[var(--app-accent)]' : 'text-[var(--app-accent)]') : 'text-[var(--app-muted)]'}`}>
             {value || placeholder}
@@ -3660,15 +3606,15 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
         </div>
 
         {isOpen && (
-          <div className="absolute top-full left-0 right-0 mt-1 rounded-lg border shadow-2xl z-50 overflow-hidden" style={{ backgroundColor: isDark ? '#1e293b' : '#fff', borderColor: theme.border }}>
+          <div className="absolute top-full left-0 right-0 mt-1 rounded-lg border z-50 overflow-hidden" style={{ backgroundColor: 'var(--m3-surface-container-high)', borderColor: 'var(--m3-outline-variant)', boxShadow: 'var(--m3-e2)' }}>
             <div className="p-1.5 border-b" style={{ borderColor: theme.border }}>
               <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--app-muted)]" size={11} />
                 <input
                   type="text" value={search} onChange={e => setSearch(e.target.value)}
                   placeholder="Search by Name, GSTIN, Phone..."
-                  className="w-full h-8 px-8 text-[11px] font-semibold outline-none transition-all border focus:border-[var(--app-accent)] rounded-lg"
-                  style={{ backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.text }}
+                  className="w-full h-8 px-8 text-[11px] font-semibold outline-none transition-all border focus:border-[var(--m3-primary)] rounded-lg"
+                  style={{ backgroundColor: 'var(--m3-surface-container-high)', borderColor: 'var(--m3-outline-variant)', color: 'var(--m3-on-surface)' }}
                   autoFocus
                 />
               </div>
@@ -3686,8 +3632,8 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
                 );
                 return (
                   <button key={i} onClick={() => { onChange && onChange(optVal); setIsOpen(false); setSearch(''); }}
-                    className="w-full text-left px-2 py-1 text-[11px] font-bold hover:bg-[var(--app-accent-soft)] transition-colors border-b last:border-0"
-                    style={{ color: theme.text, borderColor: theme.border }}
+                    className="w-full text-left px-2 py-1 text-[11px] font-bold hover:bg-[var(--m3-primary-container)] transition-colors border-b last:border-0"
+                    style={{ color: 'var(--m3-on-surface)', borderColor: 'var(--m3-outline-variant)' }}
                   >
                     {displayLabel}
                   </button>
@@ -3740,7 +3686,7 @@ const InputField = ({ label, placeholder, value, onChange, type = 'text', readOn
   return (
     <div className="relative flex flex-col gap-1 w-full group">
       {label && (
-        <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 text-[var(--app-heading)] group-focus-within:text-[var(--app-accent)] transition-colors" style={{ backgroundColor: theme.panel }}>
+        <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 group-focus-within:text-[var(--m3-primary)] transition-colors" style={{ backgroundColor: 'var(--m3-surface-container-low)', color: 'var(--m3-on-surface-variant)' }}>
           {label.startsWith('*') ? (
             <>
               <span className="text-red-500 mr-1">*</span>
@@ -3759,7 +3705,7 @@ const InputField = ({ label, placeholder, value, onChange, type = 'text', readOn
               placeholder="dd-mm-yyyy"
               readOnly={readOnly}
               className={`w-full ${compact ? 'h-7 px-1.5 text-[10px]' : 'h-10 px-2 text-[11px]'} rounded-lg border font-bold outline-none transition-all duration-300 focus:ring-0 ${isDark ? 'placeholder:text-white/10' : 'placeholder:text-[var(--app-muted)]'} ${align === 'right' ? 'text-right' : ''} ${readOnly ? (isDark ? 'cursor-not-allowed opacity-60 bg-slate-800/20' : 'cursor-not-allowed bg-[var(--app-content-bg)]/50') : 'hover:border-[var(--app-accent)]'}`}
-              style={{ backgroundColor: readOnly ? theme.headerBg : theme.inputBg, borderColor: theme.border, color: readOnly ? theme.accent : theme.text }}
+              style={{ backgroundColor: readOnly ? 'var(--m3-surface-container)' : 'var(--m3-surface-container-high)', borderColor: 'var(--m3-outline-variant)', color: readOnly ? 'var(--m3-primary)' : 'var(--m3-on-surface)' }}
             />
             {Icon && !readOnly && (
               <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center cursor-pointer">
@@ -3782,7 +3728,7 @@ const InputField = ({ label, placeholder, value, onChange, type = 'text', readOn
             readOnly={readOnly}
             placeholder={placeholder}
             className={`w-full ${compact ? 'h-7 px-1.5 text-[10px]' : 'h-10 px-2 text-[11px]'} rounded-lg border font-bold outline-none transition-all duration-300 focus:ring-0 ${isDark ? 'placeholder:text-white/10' : 'placeholder:text-[var(--app-muted)]'} ${align === 'right' ? 'text-right' : ''} ${readOnly ? (isDark ? 'cursor-not-allowed opacity-60 bg-slate-800/20' : 'cursor-not-allowed bg-[var(--app-content-bg)]/50') : 'hover:border-[var(--app-accent)]'}`}
-            style={{ backgroundColor: readOnly ? theme.headerBg : theme.inputBg, borderColor: theme.border, color: readOnly ? theme.accent : theme.text }}
+            style={{ backgroundColor: readOnly ? 'var(--m3-surface-container)' : 'var(--m3-surface-container-high)', borderColor: 'var(--m3-outline-variant)', color: readOnly ? 'var(--m3-primary)' : 'var(--m3-on-surface)' }}
           />
         )}
         {type !== 'date' && Icon && <Icon className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--app-muted)] group-focus-within:text-[var(--app-accent)] transition-colors" size={12} />}
