@@ -31,60 +31,11 @@ import DataTable from '../ui/DataTable';
 import Badge, { statusTone } from '../ui/Badge';
 import StatCard from '../ui/StatCard';
 import ObjectDoodle from '../ui/ObjectDoodle';
+import { useFundFlowStore } from '../../stores/useFundFlowStore';
+import fundflowApi from '../../services/fundflowApi';
 
-/* --- Dummy Data --- */
-const BANKS = ['HDFC Bank', 'ICICI Bank', 'State Bank of India', 'Axis Bank', 'Kotak Mahindra Bank', 'Punjab National Bank', 'HSBC', 'Standard Chartered', 'DBS Bank', 'Yes Bank'];
-const BANK_LEDGERS = ['HDFC Current Account', 'ICICI Business Savings', 'SBI OD Account', 'Axis Corporate Account', 'Kotak Mahindra Term Loan', 'PNB Overdraft', 'HSBC Global Wallet'];
-const LEDGER_GROUPS = ['Bank Accounts', 'Bank OD A/c', 'Cash-in-Hand', 'Current Assets', 'Loans (Liability)', 'Indirect Expenses', 'Indirect Incomes', 'Suspense Account'];
-const ACCOUNT_NUMBERS = ['50200040438661', '50100020219902', '332211004455', '9988776655', '445566778899', '112233445566'];
-const PAYMENT_MODES = ['NEFT', 'RTGS', 'IMPS', 'UPI', 'Cheque', 'Cash', 'Credit Card', 'Debit Card'];
-const TRANSACTION_TYPES = ['Payment', 'Receipt', 'Contra', 'Transfer'];
-const REPLACED_TYPES = ['Sales', 'Purchase', 'Expense', 'Salary', 'Rent', 'Tax Payment', 'Insurance'];
-const PARTY_LEDGERS = ['Aman', 'Rahul', 'Friends Grafix', 'Office Rent A/c', 'Electricity Bill', 'Zomato Ltd', 'Amazon Web Services', 'Google Cloud'];
-
-const MANAGE_BANK_DATA = [
-  { id: 1, bank: 'HDFC Bank', accountName: 'Aman', accountNumber: '50200040438661', ledger: 'HDFC BANK 50200040438661' },
-  { id: 2, bank: 'ICICI Bank', accountName: 'Rahul', accountNumber: '50100020219902', ledger: 'ICICI BANK 50100020219902' },
-  { id: 3, bank: 'Axis Bank', accountName: 'Friends Grafix', accountNumber: '332211004455', ledger: 'AXIS BANK 332211004455' },
-  { id: 4, bank: 'Kotak Mahindra Bank', accountName: 'Acme Traders', accountNumber: '9988776655', ledger: 'KOTAK 9988776655' },
-  { id: 5, bank: 'State Bank of India', accountName: 'Sunrise Exports', accountNumber: '445566778899', ledger: 'SBI 445566778899' },
-  { id: 6, bank: 'Yes Bank', accountName: 'Patel & Co', accountNumber: '112233445566', ledger: 'YES BANK 112233445566' },
-];
-
-const BANK_RULE_DATA = [
-  { id: 1, account: 'Aman', dateRange: '01-Apr-2024 to 30-Apr-2024', description: 'Monthly Rent', mode: 'NEFT', type: 'Payment', amount: '25,000', party: 'Office Rent A/c', replaced: 'Rent' },
-  { id: 2, account: 'Rahul', dateRange: '15-Apr-2024 to 15-Apr-2024', description: 'Interest Credit', mode: 'RTGS', type: 'Receipt', amount: '1,200', party: 'Bank Interest', replaced: 'Income' },
-  { id: 3, account: 'Acme Traders', dateRange: '01-Apr-2024 to 31-Mar-2025', description: 'AWS Cloud Bill', mode: 'UPI', type: 'Payment', amount: '12,400', party: 'Amazon Web Services', replaced: 'Expense' },
-  { id: 4, account: 'Sunrise Exports', dateRange: '05-Apr-2024 to 05-Apr-2024', description: 'Salary Disbursal', mode: 'IMPS', type: 'Payment', amount: '85,000', party: 'Salary A/c', replaced: 'Salary' },
-  { id: 5, account: 'Patel & Co', dateRange: '10-Apr-2024 to 10-Apr-2024', description: 'GST Payment', mode: 'NEFT', type: 'Payment', amount: '48,200', party: 'GST Payable', replaced: 'Tax Payment' },
-];
-
-const INBOX_DATA = [
-  { id: 1, date: '04-May-2026', description: 'UPI/7331/Payment to Zomato', amount: '450.00', type: 'Payment', party: 'Zomato Ltd' },
-  { id: 2, date: '03-May-2026', description: 'NEFT/HDFC/Salary Credit', amount: '85,000.00', type: 'Receipt', party: 'Salary A/c' },
-  { id: 3, date: '02-May-2026', description: 'ATM/Cash Withdrawal', amount: '5,000.00', type: 'Contra', party: 'Cash' },
-  { id: 4, date: '02-May-2026', description: 'IMPS/AWS/April Invoice', amount: '12,400.00', type: 'Payment', party: 'Amazon Web Services' },
-  { id: 5, date: '01-May-2026', description: 'NEFT/Client/Invoice 1042', amount: '1,18,000.00', type: 'Receipt', party: 'New Horizon Ltd' },
-  { id: 6, date: '30-Apr-2026', description: 'UPI/Electricity Bill', amount: '4,500.00', type: 'Payment', party: 'Electricity Bill' },
-  { id: 7, date: '29-Apr-2026', description: 'RTGS/Inter-account Transfer', amount: '2,00,000.00', type: 'Contra', party: 'ICICI → HDFC' },
-];
-
-const REVIEW_DATA = [
-  { id: 1, date: '01-May-2026', description: 'Amazon Web Services / April Bill', amount: '12,400.00', type: 'Payment', party: 'Amazon Web Services', status: 'Pending' },
-  { id: 2, date: '30-Apr-2026', description: 'Google Cloud Platform / Storage', amount: '2,100.00', type: 'Payment', party: 'Google Cloud', status: 'Pending' },
-  { id: 3, date: '29-Apr-2026', description: 'Client Receipt / Invoice 1041', amount: '64,500.00', type: 'Receipt', party: 'Greenline Ventures', status: 'Pending' },
-  { id: 4, date: '28-Apr-2026', description: 'Office Supplies / Staples', amount: '3,250.00', type: 'Payment', party: 'Staples India', status: 'Pending' },
-  { id: 5, date: '27-Apr-2026', description: 'Bank Charges / Q1', amount: '590.00', type: 'Payment', party: 'Bank Charges', status: 'Pending' },
-];
-
-const ARCHIVE_DATA = [
-  { id: 1, date: '15-Mar-2026', description: 'Electricity Bill / March', amount: '4,500.00', type: 'Payment', party: 'Electricity Bill', status: 'Approved' },
-  { id: 2, date: '10-Mar-2026', description: 'Office Rent / March', amount: '25,000.00', type: 'Payment', party: 'Office Rent A/c', status: 'Approved' },
-  { id: 3, date: '08-Mar-2026', description: 'Client Receipt / Invoice 1039', amount: '92,000.00', type: 'Receipt', party: 'Apex Holdings', status: 'Approved' },
-  { id: 4, date: '05-Mar-2026', description: 'GST Payment / Feb', amount: '48,200.00', type: 'Payment', party: 'GST Payable', status: 'Approved' },
-  { id: 5, date: '02-Mar-2026', description: 'Salary Disbursal / Feb', amount: '3,40,000.00', type: 'Payment', party: 'Salary A/c', status: 'Approved' },
-  { id: 6, date: '01-Mar-2026', description: 'Interest Credit / Q4', amount: '1,180.00', type: 'Receipt', party: 'Bank Interest', status: 'Approved' },
-];
+// All dropdown data is fetched dynamically from the database via useFundFlowStore.
+// No hardcoded arrays — see BankPanel component body for dynamic derivations.
 
 const TAB_META = {
   'Manage Bank': { title: 'Bank Main', subtitle: 'Manage linked bank accounts and their Tally ledgers.' },
@@ -99,6 +50,9 @@ const BankPanel = ({ mode: propMode, isDark }) => {
   const [selectedBank, setSelectedBank] = useState('');
   const [bankSearch, setBankSearch] = useState('');
   const [selectedRows, setSelectedRows] = useState([]);
+  const [selectedBankRow, setSelectedBankRow] = useState(null);
+  const [bankDetails, setBankDetails] = useState(null);
+  const [bankDetailsLoading, setBankDetailsLoading] = useState(false);
 
   // Modals for Bank Main
   const [isAddBankOpen, setIsAddBankOpen] = useState(false);
@@ -115,6 +69,182 @@ const BankPanel = ({ mode: propMode, isDark }) => {
   // Modals for Inbox/Review/Archive
   const [isColumnConfigOpen, setIsColumnConfigOpen] = useState(false);
   const [isInboxFilterOpen, setIsInboxFilterOpen] = useState(false);
+
+  const fundFlowStore = useFundFlowStore();
+
+  useEffect(() => {
+    fundFlowStore.fetchMasterData();
+    fundFlowStore.setFilter('voucherType', '');
+    fundFlowStore.setFilter('search', '');
+    fundFlowStore.fetchTransactions();
+  }, []);
+
+  const dbBankLedgers = (fundFlowStore.masterData?.ledgers || []).filter(l => {
+    const g = l.groupName ? l.groupName.toLowerCase().trim() : '';
+    const name = (l.ledgerName || l.name || '').toLowerCase();
+    return g.includes('bank') || name.includes('bank') || g === 'bank accounts' || g === 'bank od a/c';
+  });
+
+  const detectBankName = (ledgerName) => {
+    if (!ledgerName) return '';
+    const lower = ledgerName.toLowerCase();
+    if (lower.includes('hdfc')) return 'HDFC Bank';
+    if (lower.includes('icici')) return 'ICICI Bank';
+    if (lower.includes('axis')) return 'Axis Bank';
+    if (lower.includes('kotak')) return 'Kotak Mahindra Bank';
+    if (lower.includes('sbi') || lower.includes('state bank')) return 'State Bank of India';
+    if (lower.includes('pnb') || lower.includes('punjab national')) return 'Punjab National Bank';
+    if (lower.includes('yes')) return 'Yes Bank';
+    if (lower.includes('hsbc')) return 'HSBC';
+    if (lower.includes('standard chartered')) return 'Standard Chartered';
+    if (lower.includes('dbs')) return 'DBS Bank';
+    return '';
+  };
+
+  const detectAccountNumber = (ledgerName) => {
+    if (!ledgerName) return '';
+    const match = ledgerName.match(/\d{9,18}/);
+    return match ? match[0] : '';
+  };
+
+  const [bankBalances, setBankBalances] = useState({});
+
+  const dbBankAccounts = dbBankLedgers.length > 0
+    ? dbBankLedgers.map((l, i) => {
+        const ledgerName = l.ledgerName || l.name || '';
+        return {
+          id: l.id || l._id || String(i + 1),
+          bank: ledgerName,
+          accountName: l.companyName || 'Primary Account',
+          accountNumber: detectAccountNumber(ledgerName) || '—',
+          ledger: ledgerName
+        };
+      })
+    : [];
+
+  useEffect(() => {
+    if (dbBankAccounts.length === 0) return;
+    const fetched = new Set();
+    const fetchBalances = async () => {
+      for (const acc of dbBankAccounts) {
+        if (acc.ledger && !fetched.has(acc.ledger) && bankBalances[acc.ledger] === undefined) {
+          fetched.add(acc.ledger);
+          try {
+            const res = await fundflowApi.getPartyDetails(acc.ledger);
+            if (res.success && res.data) {
+              setBankBalances(prev => ({ ...prev, [acc.ledger]: res.data.outstandingBalance || 0 }));
+            }
+          } catch (e) {
+            console.error("Failed to fetch balance for ledger: " + acc.ledger, e);
+          }
+        }
+      }
+    };
+    fetchBalances();
+  }, [dbBankLedgers.length]);
+
+  // Fetch full ledger details when a bank row is selected
+  useEffect(() => {
+    if (!selectedBankRow?.ledger) { setBankDetails(null); return; }
+    setBankDetailsLoading(true);
+    fundflowApi.getPartyDetails(selectedBankRow.ledger)
+      .then(res => {
+        if (res.success && res.data) setBankDetails(res.data);
+        else setBankDetails(null);
+      })
+      .catch(() => setBankDetails(null))
+      .finally(() => setBankDetailsLoading(false));
+  }, [selectedBankRow?.ledger]);
+
+  const allTransactions = fundFlowStore.transactions || [];
+
+  const inboxData = allTransactions.length > 0
+    ? allTransactions
+        .filter(tx => tx.status === 'draft' || tx.status === 'failed_tally')
+        .map(tx => {
+          const partyNames = (tx.ledgerRows || []).map(r => r.ledgerName).filter(Boolean).join(', ') || tx.partyLedger || '—';
+          return {
+            id: tx._id,
+            date: tx.voucherDate ? new Date(tx.voucherDate).toLocaleDateString('en-IN') : '—',
+            description: tx.narration || `Manual Entry Voucher ${tx.voucherNumber}`,
+            amount: (parseFloat(tx.amount) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }),
+            type: tx.voucherType === 'cash_payment' ? 'Payment' : 'Receipt',
+            party: partyNames
+          };
+        })
+    : [];
+
+  const reviewData = allTransactions.length > 0
+    ? allTransactions
+        .filter(tx => tx.status === 'pending_approval')
+        .map(tx => {
+          const partyNames = (tx.ledgerRows || []).map(r => r.ledgerName).filter(Boolean).join(', ') || tx.partyLedger || '—';
+          return {
+            id: tx._id,
+            date: tx.voucherDate ? new Date(tx.voucherDate).toLocaleDateString('en-IN') : '—',
+            description: tx.narration || `Voucher ${tx.voucherNumber}`,
+            amount: (parseFloat(tx.amount) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }),
+            type: tx.voucherType === 'cash_payment' ? 'Payment' : 'Receipt',
+            party: partyNames,
+            status: 'Pending'
+          };
+        })
+    : [];
+
+  const archiveData = allTransactions.length > 0
+    ? allTransactions
+        .filter(tx => tx.status === 'approved' || tx.status === 'posted_to_tally')
+        .map(tx => {
+          const partyNames = (tx.ledgerRows || []).map(r => r.ledgerName).filter(Boolean).join(', ') || tx.partyLedger || '—';
+          return {
+            id: tx._id,
+            date: tx.voucherDate ? new Date(tx.voucherDate).toLocaleDateString('en-IN') : '—',
+            description: tx.narration || `Posted Voucher ${tx.voucherNumber}`,
+            amount: (parseFloat(tx.amount) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }),
+            type: tx.voucherType === 'cash_payment' ? 'Payment' : 'Receipt',
+            party: partyNames,
+            status: 'Approved'
+          };
+        })
+    : [];
+
+  const fallbackBanks = ['HDFC Bank', 'ICICI Bank', 'State Bank of India', 'Axis Bank', 'Kotak Mahindra Bank', 'Punjab National Bank', 'HSBC', 'Standard Chartered', 'DBS Bank', 'Yes Bank'];
+  const dynamicBanks = Array.from(new Set([...dbBankAccounts.map(a => a.bank), ...fallbackBanks])).filter(Boolean);
+  const dynamicBankLedgers = dbBankAccounts.map(a => a.ledger).filter(Boolean);
+
+  const fallbackLedgerGroups = ['Bank Accounts', 'Bank OD A/c', 'Cash-in-Hand', 'Current Assets', 'Loans (Liability)', 'Indirect Expenses', 'Indirect Incomes', 'Suspense Account'];
+  const dynamicLedgerGroups = Array.from(new Set((fundFlowStore.masterData?.ledgers || []).map(l => l.groupName).filter(Boolean)));
+  const finalLedgerGroups = dynamicLedgerGroups.length > 0 ? dynamicLedgerGroups : fallbackLedgerGroups;
+
+  const dynamicAccountNumbers = dbBankAccounts.map(a => a.accountNumber).filter(num => num && num !== '—');
+
+  const fallbackPaymentModes = ['NEFT', 'RTGS', 'IMPS', 'UPI', 'Cheque', 'Cash', 'Credit Card', 'Debit Card'];
+  const dynamicPaymentModes = Array.from(new Set(
+    allTransactions.map(tx => tx.instType || tx.paymentMode).filter(Boolean)
+  ));
+  const finalPaymentModes = dynamicPaymentModes.length > 0 ? dynamicPaymentModes : fallbackPaymentModes;
+
+  const fallbackTransactionTypes = ['Payment', 'Receipt', 'Contra', 'Transfer'];
+  const dynamicTransactionTypes = Array.from(new Set(
+    (fundFlowStore.masterData?.voucherTypesFull || []).map(vt => vt.parent || vt.name).filter(Boolean)
+  ));
+  const finalTransactionTypes = dynamicTransactionTypes.length > 0 ? dynamicTransactionTypes : fallbackTransactionTypes;
+
+  const fallbackReplacedTypes = ['Sales', 'Purchase', 'Expense', 'Salary', 'Rent', 'Tax Payment', 'Insurance'];
+  const dynamicReplacedTypesObj = Array.from(new Set(
+    (fundFlowStore.masterData?.ledgers || []).map(l => l.groupName).filter(Boolean)
+  ));
+  const dynamicReplacedTypes = dynamicReplacedTypesObj.length > 0 ? dynamicReplacedTypesObj : fallbackReplacedTypes;
+
+  const dynamicPartyLedgers = Array.from(new Set(
+    (fundFlowStore.masterData?.ledgers || [])
+      .filter(l => {
+        const g = l.groupName ? l.groupName.toLowerCase().trim() : '';
+        return g !== 'bank accounts' && g !== 'bank od a/c' && g !== 'cash-in-hand';
+      })
+      .map(l => l.ledgerName || l.name)
+      .filter(Boolean)
+  ));
 
   useEffect(() => {
     if (propMode) {
@@ -203,6 +333,24 @@ const BankPanel = ({ mode: propMode, isDark }) => {
       { key: 'accountName', header: 'Account Name', sortable: true, render: (r) => <span className="font-semibold">{r.accountName}</span> },
       { key: 'accountNumber', header: 'Account Number', sortable: true, render: (r) => <span className="font-mono font-semibold">{r.accountNumber}</span> },
       { key: 'ledger', header: 'Bank Ledger', render: (r) => <span className="font-semibold">{r.ledger}</span> },
+      {
+        key: 'balance',
+        header: 'Bank Balance',
+        align: 'right',
+        render: (r) => {
+          const bal = bankBalances[r.ledger];
+          if (bal === undefined) {
+            return <span className="text-gray-400 italic">Loading...</span>;
+          }
+          const isCr = bal < 0;
+          const absBal = Math.abs(bal);
+          return (
+            <span className="font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
+              ₹ {absBal.toLocaleString('en-IN', { minimumFractionDigits: 2 })} {isCr ? 'Cr' : 'Dr'}
+            </span>
+          );
+        }
+      },
       { key: 'act', header: 'Action', align: 'center', width: '150px', render: () => <div className="flex items-center justify-center gap-1"><RowAct icon={Upload} /><RowAct icon={Edit3} /><RowAct icon={RefreshCw} tone="hover:text-emerald-500" /><RowAct icon={Trash2} tone="hover:text-rose-500" /></div> },
     ],
     'Manage Rule': [
@@ -237,7 +385,14 @@ const BankPanel = ({ mode: propMode, isDark }) => {
       { key: 'act', header: '', align: 'center', width: '60px', render: () => <Info size={14} className="mx-auto" style={{ color: 'var(--app-muted)' }} /> },
     ],
   };
-  const DATA = { 'Manage Bank': MANAGE_BANK_DATA, 'Manage Rule': BANK_RULE_DATA, 'Inbox': INBOX_DATA, 'Review': REVIEW_DATA, 'Archive': ARCHIVE_DATA };
+  const bankRuleData = [];
+  const DATA = {
+    'Manage Bank': dbBankAccounts,
+    'Manage Rule': bankRuleData,
+    'Inbox': inboxData,
+    'Review': reviewData,
+    'Archive': archiveData
+  };
 
   // ── KPI cards per segment (benchmark hallmark) ───────────────────────
   const uniq = (arr, k) => new Set(arr.map((r) => r[k])).size;
@@ -247,33 +402,33 @@ const BankPanel = ({ mode: propMode, isDark }) => {
     switch (activeTab) {
       case 'Manage Bank':
         return [
-          { label: 'Bank Accounts', value: MANAGE_BANK_DATA.length, icon: Landmark },
-          { label: 'Banks Linked', value: uniq(MANAGE_BANK_DATA, 'bank'), icon: FileText },
-          { label: 'Account Holders', value: uniq(MANAGE_BANK_DATA, 'accountName'), icon: CheckCircle2 },
+          { label: 'Bank Accounts', value: dbBankAccounts.length, icon: Landmark },
+          { label: 'Banks Linked', value: uniq(dbBankAccounts, 'bank'), icon: FileText },
+          { label: 'Account Holders', value: uniq(dbBankAccounts, 'accountName'), icon: CheckCircle2 },
         ];
       case 'Manage Rule':
         return [
-          { label: 'Active Rules', value: BANK_RULE_DATA.length, icon: ClipboardList },
-          { label: 'Mapped Parties', value: uniq(BANK_RULE_DATA, 'party'), icon: FileText },
-          { label: 'Auto-Replace Types', value: uniq(BANK_RULE_DATA, 'replaced'), icon: RefreshCw },
+          { label: 'Active Rules', value: bankRuleData.length, icon: ClipboardList },
+          { label: 'Mapped Parties', value: uniq(bankRuleData, 'party'), icon: FileText },
+          { label: 'Auto-Replace Types', value: uniq(bankRuleData, 'replaced'), icon: RefreshCw },
         ];
       case 'Inbox':
         return [
-          { label: 'Unreconciled', value: INBOX_DATA.length, icon: Info },
-          { label: 'Receipts', value: INBOX_DATA.filter((r) => r.type === 'Receipt').length, icon: Download },
-          { label: 'Inbox Value', value: inr(sumAmt(INBOX_DATA)), icon: Landmark },
+          { label: 'Unreconciled', value: inboxData.length, icon: Info },
+          { label: 'Receipts', value: inboxData.filter((r) => r.type === 'Receipt').length, icon: Download },
+          { label: 'Inbox Value', value: inr(sumAmt(inboxData)), icon: Landmark },
         ];
       case 'Review':
         return [
-          { label: 'Pending Review', value: REVIEW_DATA.length, icon: Info },
-          { label: 'Awaiting Value', value: inr(sumAmt(REVIEW_DATA)), icon: Landmark },
-          { label: 'Payments', value: REVIEW_DATA.filter((r) => r.type === 'Payment').length, icon: Upload },
+          { label: 'Pending Review', value: reviewData.length, icon: Info },
+          { label: 'Awaiting Value', value: inr(sumAmt(reviewData)), icon: Landmark },
+          { label: 'Payments', value: reviewData.filter((r) => r.type === 'Payment').length, icon: Upload },
         ];
       case 'Archive':
         return [
-          { label: 'Approved', value: ARCHIVE_DATA.length, icon: CheckCircle2 },
-          { label: 'Archived Value', value: inr(sumAmt(ARCHIVE_DATA)), icon: Landmark },
-          { label: 'Receipts', value: ARCHIVE_DATA.filter((r) => r.type === 'Receipt').length, icon: Download },
+          { label: 'Approved', value: archiveData.length, icon: CheckCircle2 },
+          { label: 'Archived Value', value: inr(sumAmt(archiveData)), icon: Landmark },
+          { label: 'Receipts', value: archiveData.filter((r) => r.type === 'Receipt').length, icon: Download },
         ];
       default:
         return [];
@@ -291,16 +446,39 @@ const BankPanel = ({ mode: propMode, isDark }) => {
         columns={columns}
         data={rows}
         rowKey={(r) => r.id}
+        loading={fundFlowStore.loading.list || fundFlowStore.masterData.loading}
         emptyText="No bank transactions found."
-        minWidth={activeTab === 'Manage Rule' ? '1200px' : '900px'}
+        minWidth={activeTab === 'Manage Rule' ? '1200px' : (activeTab === 'Manage Bank' && selectedBankRow ? '700px' : '900px')}
         selectable
         selectedKeys={selectedRows}
         onToggleRow={(id) => setSelectedRows((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]))}
         onToggleAll={(c) => setSelectedRows(c ? rows.map((r) => r.id) : [])}
         search={{ value: bankSearch, onChange: setBankSearch, placeholder: 'Search transactions…' }}
+        onRowClick={activeTab === 'Manage Bank' ? (row) => setSelectedBankRow(prev => prev?.id === row.id ? null : row) : undefined}
+        rowClassName={activeTab === 'Manage Bank' ? (row) => row.id === selectedBankRow?.id ? 'bg-[var(--app-accent-soft)] border-l-2 border-[var(--app-accent)]' : '' : undefined}
       />
     );
   };
+
+  if (activeTab === 'Manage Bank' && selectedBankRow) {
+    const bankTransactions = allTransactions.filter(tx => 
+      tx.againstLedger === selectedBankRow.ledger || 
+      tx.bankLedger === selectedBankRow.ledger ||
+      (tx.ledgerRows || []).some(r => r.ledgerName === selectedBankRow.ledger)
+    );
+
+    return (
+      <BankDetailsPage
+        row={selectedBankRow}
+        details={bankDetails}
+        loading={bankDetailsLoading}
+        balance={bankBalances[selectedBankRow.ledger]}
+        transactions={bankTransactions}
+        isDark={isDark}
+        onClose={() => setSelectedBankRow(null)}
+      />
+    );
+  }
 
   return (
     <motion.div
@@ -315,33 +493,40 @@ const BankPanel = ({ mode: propMode, isDark }) => {
       `}</style>
 
       {/* Popups for Bank Main */}
-      {isAddBankOpen && <AddBankModal onClose={() => setIsAddBankOpen(false)} />}
-      {isUploadStatementOpen && <UploadStatementModal onClose={() => setIsUploadStatementOpen(false)} />}
+      {isAddBankOpen && <AddBankModal onClose={() => setIsAddBankOpen(false)} BANKS={dynamicBanks} BANK_LEDGERS={dynamicBankLedgers} />}
+      {isUploadStatementOpen && <UploadStatementModal onClose={() => setIsUploadStatementOpen(false)} BANKS={dynamicBanks} />}
       {isBankFilterOpen && <FilterDrawer title="Filter" onClose={() => setIsBankFilterOpen(false)}>
         <input type="text" placeholder="Bank Name" className="w-full h-8 border rounded-lg px-3 text-[11px] font-bold outline-none focus:border-[var(--app-accent)] shadow-sm" style={{ borderColor: 'var(--app-border)' }} />
-        <SearchableDropdown placeholder="Bank Ledger" items={BANK_LEDGERS} isSmall />
+        <SearchableDropdown placeholder="Bank Ledger" items={dynamicBankLedgers} isSmall />
       </FilterDrawer>}
-      {isAddBankLedgerOpen && <AddLedgerModal title="Add Bank Ledger" type="Bank" onClose={() => setIsAddBankLedgerOpen(false)} />}
+      {isAddBankLedgerOpen && <AddLedgerModal title="Add Bank Ledger" type="Bank" onClose={() => setIsAddBankLedgerOpen(false)} LEDGER_GROUPS={finalLedgerGroups} />}
 
       {/* Popups for Bank Rule */}
-      {isAddRuleOpen && <AddRuleModal onClose={() => setIsAddRuleOpen(false)} />}
+      {isAddRuleOpen && <AddRuleModal
+        onClose={() => setIsAddRuleOpen(false)}
+        ACCOUNT_NUMBERS={dynamicAccountNumbers}
+        PARTY_LEDGERS={dynamicPartyLedgers}
+        PAYMENT_MODES={finalPaymentModes}
+        TRANSACTION_TYPES={finalTransactionTypes}
+        REPLACED_TYPES={dynamicReplacedTypes}
+      />}
       {isBulkUploadRulesOpen && <BulkUploadRulesModal onClose={() => setIsBulkUploadRulesOpen(false)} />}
       {isRuleFilterOpen && <FilterDrawer title="Filter" onClose={() => setIsRuleFilterOpen(false)}>
-        <SearchableDropdown placeholder="Account Number" items={ACCOUNT_NUMBERS} isSmall />
+        <SearchableDropdown placeholder="Account Number" items={dynamicAccountNumbers} isSmall />
         <div className="flex gap-2">
           <div className="flex-1 relative"><input type="text" placeholder="From Date" className="w-full h-8 border rounded-lg px-3 text-[11px] font-bold outline-none focus:border-[var(--app-accent)]" style={{ borderColor: 'var(--app-border)' }} /><Calendar className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--app-muted)]" size={12} /></div>
           <div className="flex-1 relative"><input type="text" placeholder="To Date" className="w-full h-8 border rounded-lg px-3 text-[11px] font-bold outline-none focus:border-[var(--app-accent)]" style={{ borderColor: 'var(--app-border)' }} /><Calendar className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--app-muted)]" size={12} /></div>
         </div>
         <input type="text" placeholder="Description" className="w-full h-8 border rounded-lg px-3 text-[11px] font-bold outline-none focus:border-[var(--app-accent)]" style={{ borderColor: 'var(--app-border)' }} />
-        <SearchableDropdown placeholder="Payment Mode" items={PAYMENT_MODES} isSmall />
-        <SearchableDropdown placeholder="Type" items={TRANSACTION_TYPES} isSmall />
+        <SearchableDropdown placeholder="Payment Mode" items={finalPaymentModes} isSmall />
+        <SearchableDropdown placeholder="Type" items={finalTransactionTypes} isSmall />
         <div className="flex gap-2">
           <input type="text" placeholder="From Amount" className="flex-1 h-8 border rounded-lg px-3 text-[11px] font-bold outline-none focus:border-[var(--app-accent)]" style={{ borderColor: 'var(--app-border)' }} />
           <input type="text" placeholder="To Amount" className="flex-1 h-8 border rounded-lg px-3 text-[11px] font-bold outline-none focus:border-[var(--app-accent)]" style={{ borderColor: 'var(--app-border)' }} />
         </div>
-        <SearchableDropdown placeholder="Party Ledger" items={PARTY_LEDGERS} isSmall />
+        <SearchableDropdown placeholder="Party Ledger" items={dynamicPartyLedgers} isSmall />
       </FilterDrawer>}
-      {isAddPartyLedgerOpen && <AddLedgerModal title="Add Party Ledger" type="Party" onClose={() => setIsAddPartyLedgerOpen(false)} />}
+      {isAddPartyLedgerOpen && <AddLedgerModal title="Add Party Ledger" type="Party" onClose={() => setIsAddPartyLedgerOpen(false)} LEDGER_GROUPS={finalLedgerGroups} />}
 
       {/* Shared Modals */}
       {isColumnConfigOpen && <ColumnConfigPopup onClose={() => setIsColumnConfigOpen(false)} activeTab={activeTab} />}
@@ -391,7 +576,7 @@ const BankPanel = ({ mode: propMode, isDark }) => {
                     onChange={(e) => setSelectedBank(e.target.value)}
                   >
                     <option value="">Select Bank</option>
-                    {BANKS.map(b => <option key={b} value={b}>{b}</option>)}
+                    {dynamicBanks.map(b => <option key={b} value={b}>{b}</option>)}
                   </select>
                   <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--app-muted)' }} size={14} />
                 </div>
@@ -401,7 +586,7 @@ const BankPanel = ({ mode: propMode, isDark }) => {
                     style={{ borderColor: 'var(--app-border)', color: 'var(--app-heading)', backgroundColor: 'var(--app-control-bg)' }}
                   >
                     <option value="">Select Bank Statement</option>
-                    {BANK_LEDGERS.map(l => <option key={l} value={l}>{l}</option>)}
+                    {dynamicBankLedgers.map(l => <option key={l} value={l}>{l}</option>)}
                   </select>
                   <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--app-muted)' }} size={14} />
                 </div>
@@ -465,9 +650,181 @@ const BankPanel = ({ mode: propMode, isDark }) => {
         ))}
       </div>
 
-      <div className="flex-1 overflow-hidden">
-        {renderActive()}
+      <div className="flex-1 overflow-hidden flex gap-3">
+        <div className={`transition-all duration-300 overflow-hidden ${activeTab === 'Manage Bank' && selectedBankRow ? 'flex-[3]' : 'flex-1'}`}>
+          {renderActive()}
+        </div>
+        {activeTab === 'Manage Bank' && (
+          <div className={`transition-all duration-300 overflow-hidden ${selectedBankRow ? 'w-[320px]' : 'w-0'}`}>
+            {selectedBankRow && (
+              <BankDetailsPanel
+                row={selectedBankRow}
+                details={bankDetails}
+                loading={bankDetailsLoading}
+                balance={bankBalances[selectedBankRow.ledger]}
+                onClose={() => setSelectedBankRow(null)}
+              />
+            )}
+          </div>
+        )}
       </div>
+    </motion.div>
+  );
+};
+
+/* --- Bank Details Panel --- */
+
+const BankDetailsPanel = ({ row, details, loading, balance, onClose }) => {
+  const maskAccount = (num) => {
+    if (!num || num === '—') return '—';
+    const s = String(num).replace(/\s/g, '');
+    if (s.length <= 4) return s;
+    return 'XXXX XXXX ' + s.slice(-4);
+  };
+
+  const fmtBalance = (bal) => {
+    if (bal === undefined || bal === null) return null;
+    const isCr = bal < 0;
+    const abs = Math.abs(bal);
+    return { text: `₹ ${abs.toLocaleString('en-IN', { minimumFractionDigits: 2 })} ${isCr ? 'Cr' : 'Dr'}`, isCr };
+  };
+
+  const balFmt = fmtBalance(balance);
+  const detailsBal = details?.outstandingBalance !== undefined ? fmtBalance(details.outstandingBalance) : balFmt;
+
+  const SectionHead = ({ title }) => (
+    <div className="flex items-center gap-2 mb-3">
+      <span className="text-[10px] font-black uppercase tracking-[0.12em]" style={{ color: 'var(--app-accent)' }}>{title}</span>
+      <div className="flex-1 h-px" style={{ backgroundColor: 'var(--app-border)' }} />
+    </div>
+  );
+
+  const Field = ({ label, value, mono, valueStyle }) => (
+    <div className="flex flex-col gap-0.5">
+      <span className="text-[9.5px] font-bold uppercase tracking-wider" style={{ color: 'var(--app-muted)' }}>{label}</span>
+      <span className={`text-[12px] font-bold leading-tight ${mono ? 'font-mono' : ''}`} style={{ color: 'var(--app-heading)', ...valueStyle }}>{value || '—'}</span>
+    </div>
+  );
+
+  const lastTx = details?.lastTransaction || details?.lastVoucherDate;
+  const lastVoucher = details?.lastVoucherNumber || details?.voucherNumber;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: 20 }}
+      transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+      className="h-full flex flex-col rounded-xl border overflow-hidden"
+      style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-panel-bg)' }}
+    >
+      {/* Panel Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b shrink-0" style={{ borderColor: 'var(--app-border)', background: 'var(--app-accent-gradient)' }}>
+        <div className="flex items-center gap-2">
+          <Landmark size={15} strokeWidth={2.2} className="text-white/90" />
+          <span className="text-[13px] font-black text-white tracking-tight">Bank Details</span>
+        </div>
+        <button
+          onClick={onClose}
+          className="p-1 rounded-md text-white/70 hover:text-white hover:bg-white/15 transition-colors"
+          title="Close"
+        >
+          <X size={15} />
+        </button>
+      </div>
+
+      {/* Loading state */}
+      {loading && (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-8 h-8 rounded-full border-2 border-[var(--app-accent)] border-t-transparent animate-spin" />
+            <span className="text-[11px] font-semibold" style={{ color: 'var(--app-muted)' }}>Loading details…</span>
+          </div>
+        </div>
+      )}
+
+      {/* Content */}
+      {!loading && (
+        <div className="flex-1 overflow-y-auto p-4 space-y-5 no-scrollbar">
+
+          {/* Basic Information */}
+          <div>
+            <SectionHead title="Basic Information" />
+            <div className="space-y-3">
+              <Field label="Bank Name" value={row.bank} />
+              <Field label="Ledger Name" value={row.ledger} />
+              <Field label="Account Holder" value={row.accountName || details?.companyName} />
+              <Field label="Account Number" value={maskAccount(row.accountNumber)} mono />
+              <Field label="Account Type" value={details?.accountType || 'Current Account'} />
+            </div>
+          </div>
+
+          {/* Balance */}
+          <div>
+            <SectionHead title="Balance" />
+            <div className="rounded-xl p-3 space-y-2.5" style={{ backgroundColor: 'var(--app-content-bg)' }}>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[9.5px] font-bold uppercase tracking-wider" style={{ color: 'var(--app-muted)' }}>Current Balance</span>
+                {detailsBal ? (
+                  <span className="text-[15px] font-black tabular-nums" style={{ color: detailsBal.isCr ? '#ef4444' : '#10b981' }}>
+                    {detailsBal.text}
+                  </span>
+                ) : (
+                  <span className="text-[13px] font-bold text-gray-400 italic">Not available</span>
+                )}
+              </div>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[9.5px] font-bold uppercase tracking-wider" style={{ color: 'var(--app-muted)' }}>Status</span>
+                <span className="text-[12px] font-bold flex items-center gap-1.5" style={{ color: 'var(--app-heading)' }}>
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
+                  Active
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Banking Details */}
+          {(details?.ifscCode || details?.branch) && (
+            <div>
+              <SectionHead title="Banking Details" />
+              <div className="space-y-3">
+                {details.ifscCode && <Field label="IFSC Code" value={details.ifscCode} mono />}
+                {details.branch && <Field label="Branch" value={details.branch} />}
+              </div>
+            </div>
+          )}
+
+          {/* Accounting Details */}
+          <div>
+            <SectionHead title="Accounting Details" />
+            <div className="space-y-3">
+              <Field label="Ledger Group" value={details?.groupName || 'Bank Accounts'} />
+              {details?.openingBalance !== undefined && (
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[9.5px] font-bold uppercase tracking-wider" style={{ color: 'var(--app-muted)' }}>Opening Balance</span>
+                  <span className="text-[12px] font-bold tabular-nums" style={{ color: details.openingBalance < 0 ? '#ef4444' : '#10b981' }}>
+                    {fmtBalance(details.openingBalance)?.text || '—'}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Recent Activity */}
+          {(lastTx || lastVoucher) && (
+            <div>
+              <SectionHead title="Recent Activity" />
+              <div className="space-y-3">
+                {lastTx && (
+                  <Field label="Last Transaction" value={new Date(lastTx).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })} />
+                )}
+                {lastVoucher && <Field label="Last Voucher" value={lastVoucher} mono />}
+              </div>
+            </div>
+          )}
+
+        </div>
+      )}
     </motion.div>
   );
 };
@@ -577,9 +934,61 @@ const FilterDrawer = ({ title, onClose, children }) => {
 
 /* --- Specialized Bank Popups --- */
 
-const AddBankModal = ({ onClose }) => {
+const AddBankModal = ({ onClose, BANKS: propBanks, BANK_LEDGERS: propLedgers }) => {
+  const { masterData, fetchMasterData } = useFundFlowStore();
+
+  useEffect(() => {
+    fetchMasterData();
+  }, [fetchMasterData]);
+
+  const dbBankLedgers = (masterData?.ledgers || []).filter(l => {
+    const g = l.groupName ? l.groupName.toLowerCase().trim() : '';
+    const name = (l.ledgerName || l.name || '').toLowerCase();
+    return g.includes('bank') || name.includes('bank') || g === 'bank accounts' || g === 'bank od a/c';
+  });
+
+  const bankLedgerNames = propLedgers && propLedgers.length > 0
+    ? propLedgers
+    : (dbBankLedgers.length > 0 
+      ? dbBankLedgers.map(l => l.ledgerName || l.name).filter(Boolean)
+      : []);
+
+  const modalBanks = propBanks && propBanks.length > 0 ? propBanks : [];
+
   const [bank, setBank] = useState('');
   const [ledger, setLedger] = useState('');
+  const [accountName, setAccountName] = useState('');
+  const [accountNumber, setAccountNumber] = useState('');
+
+  const detectBankName = (ledgerName) => {
+    if (!ledgerName) return '';
+    const lower = ledgerName.toLowerCase();
+    if (lower.includes('hdfc')) return 'HDFC Bank';
+    if (lower.includes('icici')) return 'ICICI Bank';
+    if (lower.includes('axis')) return 'Axis Bank';
+    if (lower.includes('kotak')) return 'Kotak Mahindra Bank';
+    if (lower.includes('sbi') || lower.includes('state bank')) return 'State Bank of India';
+    if (lower.includes('pnb') || lower.includes('punjab national')) return 'Punjab National Bank';
+    if (lower.includes('yes')) return 'Yes Bank';
+    if (lower.includes('hsbc')) return 'HSBC';
+    if (lower.includes('standard chartered')) return 'Standard Chartered';
+    if (lower.includes('dbs')) return 'DBS Bank';
+    return '';
+  };
+
+  const detectAccountNumber = (ledgerName) => {
+    if (!ledgerName) return '';
+    const match = ledgerName.match(/\d{9,18}/);
+    return match ? match[0] : '';
+  };
+
+  const handleLedgerChange = (val) => {
+    setLedger(val);
+    const detectedBank = detectBankName(val);
+    if (detectedBank) setBank(detectedBank);
+    const detectedAcc = detectAccountNumber(val);
+    if (detectedAcc) setAccountNumber(detectedAcc);
+  };
 
   return (
     <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 animate-in fade-in duration-300">
@@ -601,10 +1010,10 @@ const AddBankModal = ({ onClose }) => {
           </div>
 
           <div className="grid grid-cols-2 gap-x-6 gap-y-5">
-            <SearchableDropdown placeholder="Bank" items={BANKS} value={bank} onChange={setBank} />
-            <SearchableDropdown placeholder="Bank Ledger" items={BANK_LEDGERS} value={ledger} onChange={setLedger} />
-            <input type="text" placeholder="Account Name" className="h-11 border rounded-xl px-4 text-[13px] font-bold outline-none focus:border-[var(--app-accent)] shadow-sm bg-[var(--app-content-bg)]/40 text-[var(--app-heading)] hover:border-[var(--app-border)] transition-colors" style={{ borderColor: 'var(--app-border)' }} />
-            <input type="text" placeholder="Account Number" className="h-11 border rounded-xl px-4 text-[13px] font-bold outline-none focus:border-[var(--app-accent)] shadow-sm bg-[var(--app-content-bg)]/40 text-[var(--app-heading)] hover:border-[var(--app-border)] transition-colors" style={{ borderColor: 'var(--app-border)' }} />
+            <SearchableDropdown placeholder="Bank" items={modalBanks} value={bank} onChange={setBank} />
+            <SearchableDropdown placeholder="Bank Ledger" items={bankLedgerNames} value={ledger} onChange={handleLedgerChange} />
+            <input type="text" placeholder="Account Name" value={accountName} onChange={(e) => setAccountName(e.target.value)} className="h-11 border rounded-xl px-4 text-[13px] font-bold outline-none focus:border-[var(--app-accent)] shadow-sm bg-[var(--app-content-bg)]/40 text-[var(--app-heading)] hover:border-[var(--app-border)] transition-colors" style={{ borderColor: 'var(--app-border)' }} />
+            <input type="text" placeholder="Account Number" value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} className="h-11 border rounded-xl px-4 text-[13px] font-bold outline-none focus:border-[var(--app-accent)] shadow-sm bg-[var(--app-content-bg)]/40 text-[var(--app-heading)] hover:border-[var(--app-border)] transition-colors" style={{ borderColor: 'var(--app-border)' }} />
           </div>
 
           <div className="flex justify-center">
@@ -618,7 +1027,8 @@ const AddBankModal = ({ onClose }) => {
   );
 };
 
-const UploadStatementModal = ({ onClose }) => {
+const UploadStatementModal = ({ onClose, BANKS: propBanks }) => {
+  const modalBanks = propBanks && propBanks.length > 0 ? propBanks : [];
   const [bank, setBank] = useState('');
 
   return (
@@ -632,7 +1042,7 @@ const UploadStatementModal = ({ onClose }) => {
 
         <div className="p-8 space-y-6">
           <div className="space-y-4">
-            <SearchableDropdown label="Bank *" items={BANKS} value={bank} onChange={setBank} />
+            <SearchableDropdown label="Bank *" items={modalBanks} value={bank} onChange={setBank} />
 
             <div className="relative">
               <input type="text" placeholder="Date Range" className="w-full h-12 border rounded-xl px-4 text-[13px] font-bold outline-none focus:border-[var(--app-accent)] shadow-sm bg-[var(--app-content-bg)]/40 text-[var(--app-heading)] hover:border-[var(--app-border)] transition-colors" style={{ borderColor: 'var(--app-border)' }} />
@@ -668,7 +1078,13 @@ const UploadStatementModal = ({ onClose }) => {
 };
 
 /* --- Rule Related Popups --- */
-const AddRuleModal = ({ onClose }) => {
+const AddRuleModal = ({ onClose, ACCOUNT_NUMBERS: propAccNumbers, PARTY_LEDGERS: propPartyLedgers, PAYMENT_MODES: propPayModes, TRANSACTION_TYPES: propTxTypes, REPLACED_TYPES: propReplacedTypes }) => {
+  const modalAccNumbers = propAccNumbers || [];
+  const modalPartyLedgers = propPartyLedgers || [];
+  const modalPayModes = propPayModes || [];
+  const modalTxTypes = propTxTypes || [];
+  const modalReplacedTypes = propReplacedTypes || [];
+
   const [account, setAccount] = useState('');
   const [payMode, setPayMode] = useState('');
   const [type, setType] = useState('');
@@ -693,14 +1109,14 @@ const AddRuleModal = ({ onClose }) => {
             <div>
               <h3 className="text-[13px] font-black text-[var(--app-accent)] uppercase tracking-widest mb-4">Conditional Field</h3>
               <div className="grid grid-cols-3 gap-4">
-                <SearchableDropdown placeholder="Account Number" items={ACCOUNT_NUMBERS} value={account} onChange={setAccount} />
+                <SearchableDropdown placeholder="Account Number" items={modalAccNumbers} value={account} onChange={setAccount} />
                 <div className="relative">
                   <input type="text" placeholder="Voucher Date" className="w-full h-11 border rounded-xl px-4 text-[13px] font-bold outline-none focus:border-[var(--app-accent)] shadow-sm bg-[var(--app-content-bg)]/40 text-[var(--app-heading)] hover:border-[var(--app-border)] transition-colors" style={{ borderColor: 'var(--app-border)' }} />
                   <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--app-muted)]" size={16} />
                 </div>
                 <input type="text" placeholder="Description" className="h-11 border rounded-xl px-4 text-[13px] font-bold outline-none focus:border-[var(--app-accent)] shadow-sm bg-[var(--app-content-bg)]/40 text-[var(--app-heading)] hover:border-[var(--app-border)] transition-colors" style={{ borderColor: 'var(--app-border)' }} />
-                <SearchableDropdown placeholder="Payment Mode" items={PAYMENT_MODES} value={payMode} onChange={setPayMode} />
-                <SearchableDropdown placeholder="Type" items={TRANSACTION_TYPES} value={type} onChange={setType} />
+                <SearchableDropdown placeholder="Payment Mode" items={modalPayModes} value={payMode} onChange={setPayMode} />
+                <SearchableDropdown placeholder="Type" items={modalTxTypes} value={type} onChange={setType} />
                 <input type="text" placeholder="Amount(Min)" className="h-11 border rounded-xl px-4 text-[13px] font-bold outline-none focus:border-[var(--app-accent)] shadow-sm bg-[var(--app-content-bg)]/40 text-[var(--app-heading)] hover:border-[var(--app-border)] transition-colors" style={{ borderColor: 'var(--app-border)' }} />
                 <input type="text" placeholder="Amount(Max)" className="h-11 border rounded-xl px-4 text-[13px] font-bold outline-none focus:border-[var(--app-accent)] shadow-sm bg-[var(--app-content-bg)]/40 text-[var(--app-heading)] hover:border-[var(--app-border)] transition-colors" style={{ borderColor: 'var(--app-border)' }} />
               </div>
@@ -709,8 +1125,8 @@ const AddRuleModal = ({ onClose }) => {
             <div>
               <h3 className="text-[13px] font-black text-[var(--app-accent)] uppercase tracking-widest mb-4 border-t pt-4" style={{ borderColor: 'var(--app-row-border)' }}>Action Field</h3>
               <div className="grid grid-cols-2 gap-4">
-                <SearchableDropdown placeholder="Replaced Type" items={REPLACED_TYPES} value={replacedType} onChange={setReplacedType} />
-                <SearchableDropdown placeholder="Party Ledger" items={PARTY_LEDGERS} value={partyLedger} onChange={setPartyLedger} />
+                <SearchableDropdown placeholder="Replaced Type" items={modalReplacedTypes} value={replacedType} onChange={setReplacedType} />
+                <SearchableDropdown placeholder="Party Ledger" items={modalPartyLedgers} value={partyLedger} onChange={setPartyLedger} />
               </div>
             </div>
           </div>
@@ -763,7 +1179,8 @@ const BulkUploadRulesModal = ({ onClose }) => {
   );
 };
 
-const AddLedgerModal = ({ title, type, onClose }) => {
+const AddLedgerModal = ({ title, type, onClose, LEDGER_GROUPS: propGroups }) => {
+  const modalGroups = propGroups && propGroups.length > 0 ? propGroups : [];
   const [ledgerGroup, setLedgerGroup] = useState('');
 
   return (
@@ -786,7 +1203,7 @@ const AddLedgerModal = ({ title, type, onClose }) => {
               />
             </div>
             <div className="flex-1">
-              <SearchableDropdown placeholder="Ledger Group" items={LEDGER_GROUPS} value={ledgerGroup} onChange={setLedgerGroup} />
+              <SearchableDropdown placeholder="Ledger Group" items={modalGroups} value={ledgerGroup} onChange={setLedgerGroup} />
             </div>
           </div>
 
@@ -815,6 +1232,230 @@ const AddLedgerModal = ({ title, type, onClose }) => {
         </div>
       </div>
     </div>
+  );
+};
+
+/* --- Bank Details Page --- */
+
+const BankDetailsPage = ({ row, details, loading, balance, transactions, isDark, onClose }) => {
+  const maskAccount = (num) => {
+    if (!num || num === '—') return '—';
+    const s = String(num).replace(/\s/g, '');
+    if (s.length <= 4) return s;
+    return 'XXXX XXXX ' + s.slice(-4);
+  };
+
+  const fmtBalance = (bal) => {
+    if (bal === undefined || bal === null) return '₹ 0.00 Dr';
+    const isCr = bal < 0;
+    const abs = Math.abs(bal);
+    return `₹ ${abs.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${isCr ? 'Cr' : 'Dr'}`;
+  };
+
+  const currentBal = details?.outstandingBalance !== undefined ? details.outstandingBalance : balance;
+  const openingBal = details?.openingBalance ?? 0;
+  const totalTxCount = transactions.length;
+  const pendingTxCount = transactions.filter(t => t.status === 'pending_approval').length;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -20 }}
+      transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+      className="flex flex-col gap-4 h-full overflow-hidden bg-[var(--app-panel-bg)] rounded-xl border p-4"
+      style={{ borderColor: 'var(--app-border)' }}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between pb-3 border-b" style={{ borderColor: 'var(--app-border)' }}>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onClose}
+            className="flex items-center gap-1.5 px-3 py-1.5 border rounded-lg text-[11px] font-black uppercase tracking-wider hover:bg-[var(--app-control-hover)] transition-colors"
+            style={{ borderColor: 'var(--app-border)', color: 'var(--app-muted)', backgroundColor: 'var(--app-control-bg)' }}
+          >
+            ← Back to List
+          </button>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-[17px] font-extrabold text-[var(--app-heading)] tracking-tight">
+                {row.bank} ({row.ledger})
+              </h1>
+              <span className="px-2 py-0.5 rounded text-[9.5px] font-extrabold uppercase tracking-wider bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                Active
+              </span>
+            </div>
+            <p className="text-[10px] text-[var(--app-muted)] mt-0.5">
+              Account Holder: {row.accountName || details?.companyName || 'Primary Account'}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Loading state */}
+      {loading ? (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-8 h-8 rounded-full border-2 border-[var(--app-accent)] border-t-transparent animate-spin" />
+            <span className="text-[11px] font-semibold text-[var(--app-muted)]">Loading bank information…</span>
+          </div>
+        </div>
+      ) : (
+        <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+          {/* KPI Row */}
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+            <div className="rounded-xl border p-3 bg-[var(--app-control-bg)] shadow-sm" style={{ borderColor: 'var(--app-border)' }}>
+              <span className="text-[9px] font-bold text-[var(--app-muted)] uppercase tracking-wider">Current Balance</span>
+              <div className="text-[16px] font-black mt-1 text-emerald-600 dark:text-emerald-400">
+                {fmtBalance(currentBal)}
+              </div>
+            </div>
+            <div className="rounded-xl border p-3 bg-[var(--app-control-bg)] shadow-sm" style={{ borderColor: 'var(--app-border)' }}>
+              <span className="text-[9px] font-bold text-[var(--app-muted)] uppercase tracking-wider">Opening Balance</span>
+              <div className="text-[16px] font-black mt-1 text-[var(--app-heading)]">
+                {fmtBalance(openingBal)}
+              </div>
+            </div>
+            <div className="rounded-xl border p-3 bg-[var(--app-control-bg)] shadow-sm" style={{ borderColor: 'var(--app-border)' }}>
+              <span className="text-[9px] font-bold text-[var(--app-muted)] uppercase tracking-wider">Total Vouchers</span>
+              <div className="text-[16px] font-black mt-1 text-[var(--app-heading)]">
+                {totalTxCount}
+              </div>
+            </div>
+            <div className="rounded-xl border p-3 bg-[var(--app-control-bg)] shadow-sm" style={{ borderColor: 'var(--app-border)' }}>
+              <span className="text-[9px] font-bold text-[var(--app-muted)] uppercase tracking-wider">Pending Review</span>
+              <div className="text-[16px] font-black mt-1 text-amber-500">
+                {pendingTxCount}
+              </div>
+            </div>
+          </div>
+
+          {/* Details & Transactions Section */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+            {/* Left Column: Bank Info Card */}
+            <div className="lg:col-span-1 space-y-4">
+              <div className="rounded-xl border p-4 bg-[var(--app-control-bg)] shadow-sm" style={{ borderColor: 'var(--app-border)' }}>
+                <h3 className="text-[10px] font-black uppercase tracking-wider text-[var(--app-accent)] border-b pb-2 mb-3" style={{ borderColor: 'var(--app-border)' }}>
+                  Bank Information
+                </h3>
+                <div className="space-y-3">
+                  <div className="flex flex-col">
+                    <span className="text-[9px] font-bold text-[var(--app-muted)] uppercase tracking-wider">Bank Name</span>
+                    <span className="text-[12px] font-bold text-[var(--app-heading)]">{row.bank}</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[9px] font-bold text-[var(--app-muted)] uppercase tracking-wider">Ledger Name</span>
+                    <span className="text-[12px] font-bold text-[var(--app-heading)]">{row.ledger}</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[9px] font-bold text-[var(--app-muted)] uppercase tracking-wider">Account Number</span>
+                    <span className="text-[12px] font-bold text-[var(--app-heading)] font-mono">{maskAccount(row.accountNumber)}</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[9px] font-bold text-[var(--app-muted)] uppercase tracking-wider">IFSC Code</span>
+                    <span className="text-[12px] font-bold text-[var(--app-heading)] font-mono">{details?.ifscCode || '—'}</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[9px] font-bold text-[var(--app-muted)] uppercase tracking-wider">Branch</span>
+                    <span className="text-[12px] font-bold text-[var(--app-heading)]">{details?.branch || '—'}</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[9px] font-bold text-[var(--app-muted)] uppercase tracking-wider">Ledger Group</span>
+                    <span className="text-[12px] font-bold text-[var(--app-heading)]">{details?.groupName || 'Bank Accounts'}</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[9px] font-bold text-[var(--app-muted)] uppercase tracking-wider">Status</span>
+                    <span className="text-[12px] font-bold text-emerald-500 flex items-center gap-1.5 mt-0.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Active
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column: Transaction History Card */}
+            <div className="lg:col-span-2 space-y-3">
+              <div className="rounded-xl border p-4 bg-[var(--app-control-bg)] shadow-sm" style={{ borderColor: 'var(--app-border)' }}>
+                <h3 className="text-[10px] font-black uppercase tracking-wider text-[var(--app-accent)] border-b pb-2 mb-3" style={{ borderColor: 'var(--app-border)' }}>
+                  Transaction History
+                </h3>
+                <div className="overflow-x-auto animate-in fade-in duration-300">
+                  {transactions.length > 0 ? (
+                    <table className="w-full text-left border-collapse text-[11px]">
+                      <thead>
+                        <tr className="border-b" style={{ borderColor: 'var(--app-border)' }}>
+                          <th className="py-2 font-black text-[var(--app-muted)] uppercase tracking-wider">Date</th>
+                          <th className="py-2 font-black text-[var(--app-muted)] uppercase tracking-wider">Voucher No</th>
+                          <th className="py-2 font-black text-[var(--app-muted)] uppercase tracking-wider">Type</th>
+                          <th className="py-2 font-black text-[var(--app-muted)] uppercase tracking-wider">Party/Ledger</th>
+                          <th className="py-2 font-black text-[var(--app-muted)] uppercase tracking-wider text-right">Amount</th>
+                          <th className="py-2 font-black text-[var(--app-muted)] uppercase tracking-wider text-center">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {transactions.map((tx, idx) => {
+                          const dateStr = tx.voucherDate ? new Date(tx.voucherDate).toLocaleDateString('en-IN') : '—';
+                          const partyNames = (tx.ledgerRows || []).map(r => r.ledgerName).filter(Boolean).join(', ') || tx.partyLedger || '—';
+                          const type = tx.voucherType === 'cash_payment' ? 'Payment' : tx.voucherType === 'bank_payment' ? 'Receipt' : 'Contra';
+                          const isReceipt = tx.voucherType === 'bank_payment';
+                          const txAmount = parseFloat(tx.amount) || 0;
+                          
+                          // Format status labels/tones
+                          let statusLabel = 'Draft';
+                          let statusTone = 'neutral';
+                          if (tx.status === 'pending_approval') {
+                            statusLabel = 'Pending';
+                            statusTone = 'warning';
+                          } else if (tx.status === 'approved' || tx.status === 'posted_to_tally') {
+                            statusLabel = 'Approved';
+                            statusTone = 'success';
+                          } else if (tx.status === 'failed_tally') {
+                            statusLabel = 'Failed';
+                            statusTone = 'danger';
+                          }
+
+                          return (
+                            <tr key={tx._id || idx} className="border-b last:border-0 hover:bg-[var(--app-content-bg)]/50 transition-colors" style={{ borderColor: 'var(--app-border)' }}>
+                              <td className="py-2 font-semibold text-[var(--app-heading)]">{dateStr}</td>
+                              <td className="py-2 font-bold text-[var(--app-heading)]">{tx.voucherNumber || '—'}</td>
+                              <td className="py-2 font-bold">
+                                <span className={`px-2 py-0.5 rounded text-[9.5px] uppercase font-black tracking-wider ${
+                                  type === 'Receipt' ? 'bg-emerald-500/10 text-emerald-500' :
+                                  type === 'Payment' ? 'bg-amber-500/10 text-amber-500' : 'bg-blue-500/10 text-blue-500'
+                                }`}>
+                                  {type}
+                                </span>
+                              </td>
+                              <td className="py-2 font-semibold text-[var(--app-heading)] max-w-[150px] truncate" title={partyNames}>{partyNames}</td>
+                              <td className={`py-2 font-bold text-right ${isReceipt ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                ₹ {txAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                              </td>
+                              <td className="py-2 text-center">
+                                <span className={`px-2 py-0.5 rounded text-[9.5px] uppercase font-black tracking-wider ${
+                                  statusTone === 'success' ? 'bg-emerald-500/10 text-emerald-500' :
+                                  statusTone === 'warning' ? 'bg-amber-500/10 text-amber-500' :
+                                  statusTone === 'danger' ? 'bg-rose-500/10 text-rose-500' : 'bg-slate-500/10 text-slate-500'
+                                }`}>
+                                  {statusLabel}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <div className="py-8 text-center text-[var(--app-muted)] font-semibold">
+                      No transactions recorded for this bank account.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </motion.div>
   );
 };
 

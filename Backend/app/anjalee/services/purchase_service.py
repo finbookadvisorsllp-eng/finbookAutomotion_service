@@ -5,6 +5,7 @@ from app.anjalee.schemas.purchase_schemas import PurchaseVoucherCreate, StatusUp
 from app.anjalee.utils.serialization import serialize_doc
 from app.anjalee.constants.business_constants import PURCHASE_PREFIXES
 from app.anjalee.exceptions.custom_exceptions import TransactionNotFoundException
+from app.anjalee.utils.gst_calculator import calculate_taxes
 
 class PurchaseService:
     def __init__(self, repo: PurchaseRepository):
@@ -66,10 +67,71 @@ class PurchaseService:
             "total": total
         }
 
+    def _calculate_and_apply_taxes(self, doc_data: Dict[str, Any], payload: PurchaseVoucherCreate) -> None:
+        sales_entries_dict = payload.purchaseLines or []
+        sales_entries_dict = [e.model_dump() if hasattr(e, 'model_dump') else e for e in sales_entries_dict]
+        inventory_entries_dict = payload.productLines or []
+        inventory_entries_dict = [e.model_dump() if hasattr(e, 'model_dump') else e for e in inventory_entries_dict]
+        
+        # Calculate company/party state to determine intra/interstate
+        company_state = "Madhya Pradesh"
+        comp_doc = self.repo.db["companies"].find_one()
+        if comp_doc and "gstDetails" in comp_doc:
+            gstin = (comp_doc["gstDetails"].get("gstin") or "").strip()
+            if len(gstin) >= 2:
+                from app.anjalee.repositories.sales_repo import STATE_CODES
+                company_state = STATE_CODES.get(gstin[:2], "Madhya Pradesh")
+            else:
+                company_state = comp_doc["gstDetails"].get("gstState") or "Madhya Pradesh"
+                
+        party_state = company_state
+        if payload.partyLedger:
+            ledger_doc = self.repo.db["ledgers"].find_one({"ledgerName": payload.partyLedger})
+            if ledger_doc:
+                pd = ledger_doc.get("partyDetails") or {}
+                gst_state = pd.get("gstState") or ""
+                gstin = pd.get("gstin") or ledger_doc.get("gstin") or ""
+                if not gst_state and gstin and len(gstin) >= 2:
+                    from app.anjalee.repositories.sales_repo import STATE_CODES
+                    gst_state = STATE_CODES.get(gstin[:2], "")
+                if gst_state:
+                    party_state = gst_state
+
+        tcs_amount = sum(float(item.get("amount") or 0.0) for item in payload.tcsDetails) if payload.tcsDetails else 0.0
+        tds_amount = sum(float(item.get("amount") or 0.0) for item in payload.tdsDetails) if payload.tdsDetails else 0.0
+        
+        payload_dict = payload.model_dump()
+        round_off_amount = float(payload_dict.get("roundOffAmount") or 0.0)
+
+        tax_results = calculate_taxes(
+            company_state=company_state,
+            party_state=party_state,
+            sales_entries=sales_entries_dict,
+            inventory_entries=inventory_entries_dict,
+            tcs_amount=tcs_amount,
+            round_off_amount=round_off_amount,
+            additional_charges=payload.additionalCharges,
+            tds_amount=tds_amount,
+            voucher_type=payload.voucherType
+        )
+
+        doc_data["isIntraState"] = tax_results["isIntraState"]
+        doc_data["taxType"] = tax_results["taxType"]
+        doc_data["baseAmount"] = tax_results["baseAmount"]
+        doc_data["cgstAmount"] = tax_results["cgstAmount"]
+        doc_data["sgstAmount"] = tax_results["sgstAmount"]
+        doc_data["igstAmount"] = tax_results["igstAmount"]
+        doc_data["cessAmount"] = tax_results.get("cessAmount", 0.0)
+        doc_data["grandTotal"] = tax_results["grandTotal"]
+        doc_data["gstSummary"] = tax_results["gstSummary"]
+
     def create_transaction(self, payload: PurchaseVoucherCreate) -> Dict[str, Any]:
         doc_data = payload.model_dump()
         doc_data["createdAt"] = datetime.now()
         doc_data["updatedAt"] = datetime.now()
+        
+        # Calculate and apply taxes
+        self._calculate_and_apply_taxes(doc_data, payload)
         
         if not doc_data.get("voucherNumber"):
             voucher_type = doc_data["voucherType"]
@@ -131,6 +193,9 @@ class PurchaseService:
     def update_transaction(self, tx_id: str, payload: PurchaseVoucherCreate) -> Dict[str, Any]:
         update_data = payload.model_dump()
         update_data["updatedAt"] = datetime.now()
+        
+        # Calculate and apply taxes
+        self._calculate_and_apply_taxes(update_data, payload)
         
         success = self.repo.update_transaction(tx_id, update_data)
         if not success:

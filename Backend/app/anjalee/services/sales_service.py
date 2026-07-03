@@ -57,7 +57,8 @@ class SalesVoucherService:
             tcs_amount=tcs_amount,
             round_off_amount=payload.roundOffAmount,
             additional_charges=payload.additionalCharges,
-            tds_amount=tds_amount
+            tds_amount=tds_amount,
+            voucher_type=payload.voucherType or "sales_invoice"
         )
 
         # 6. Map to MongoDB schema
@@ -84,6 +85,7 @@ class SalesVoucherService:
             "cgstAmount": tax_results["cgstAmount"],
             "sgstAmount": tax_results["sgstAmount"],
             "igstAmount": tax_results["igstAmount"],
+            "cessAmount": tax_results.get("cessAmount", 0.0),
             "tcsAmount": tcs_amount,
             "roundOffAmount": payload.roundOffAmount,
             "grandTotal": tax_results["grandTotal"],
@@ -234,7 +236,8 @@ class SalesVoucherService:
             tcs_amount=tcs_amount,
             round_off_amount=merged_doc.get("roundOffAmount") or 0.0,
             additional_charges=merged_doc.get("additionalCharges"),
-            tds_amount=tds_amount
+            tds_amount=tds_amount,
+            voucher_type=merged_doc.get("voucherType") or "sales_invoice"
         )
 
         # Fields to set in update
@@ -260,6 +263,7 @@ class SalesVoucherService:
             "cgstAmount": tax_results["cgstAmount"],
             "sgstAmount": tax_results["sgstAmount"],
             "igstAmount": tax_results["igstAmount"],
+            "cessAmount": tax_results.get("cessAmount", 0.0),
             "tcsAmount": tcs_amount,
             "roundOffAmount": merged_doc.get("roundOffAmount") or 0.0,
             "grandTotal": tax_results["grandTotal"],

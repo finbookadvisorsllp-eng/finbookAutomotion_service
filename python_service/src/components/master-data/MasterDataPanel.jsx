@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, RefreshCw, Plus, X, BookOpen, Package, User, Users, Percent, IndianRupee, Info, AlertTriangle, CheckCircle2, Coins } from 'lucide-react';
+import { Search, RefreshCw, Plus, X, BookOpen, Package, User, Users, Percent, IndianRupee, Info, AlertTriangle, CheckCircle2, Coins, ShieldCheck, FileSpreadsheet, ClipboardList, Settings, Landmark } from 'lucide-react';
 import { toast } from 'sonner';
+import { motion } from 'motion/react';
 import DataTable from '../ui/DataTable';
 import StatCard from '../ui/StatCard';
 import Badge from '../ui/Badge';
@@ -14,6 +15,19 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
   const [onlyUnsynced, setOnlyUnsynced] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // Dynamic Tabs State
+  const [openTabs, setOpenTabs] = useState(() => {
+    const isStockMode = propMode === 'Stock Ledger' || propMode === 'Item Master';
+    const targetId = isStockMode ? 'Stock Ledger' : 'Party Ledger';
+    return [
+      { id: targetId, title: targetId, type: 'list', isStock: isStockMode }
+    ];
+  });
+
+  const currentTabObj = openTabs.find(t => t.id === activeTab) || openTabs[0];
+  const isStock = currentTabObj?.isStock ?? (activeTab === 'Stock Ledger' || activeTab === 'Item Master');
+  const isDetailView = currentTabObj?.type === 'detail';
+
   const fetchMasterData = async () => {
     setLoading(true);
     try {
@@ -25,6 +39,7 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
       // Map Ledgers
       const rawLedgers = ledgersRes.data?.ledgers || [];
       const mappedLedgers = rawLedgers.map((l, index) => ({
+        ...l,
         sr: index + 1,
         ledger: l.ledgerName || l.name || '',
         parentGroup: l.groupName || 'Sundry Debtors',
@@ -43,6 +58,7 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
       // Map Stock Items
       const rawStock = stockRes.data || [];
       const mappedStock = rawStock.map((s, index) => ({
+        ...s,
         sr: index + 1,
         name: s.name || '',
         group: s.group || 'General',
@@ -65,10 +81,47 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
 
   useEffect(() => {
     if (propMode) {
-      setActiveTab(propMode);
+      const isStockMode = propMode === 'Stock Ledger' || propMode === 'Item Master';
+      const targetId = isStockMode ? 'Stock Ledger' : 'Party Ledger';
+      setOpenTabs([
+        { id: targetId, title: targetId, type: 'list', isStock: isStockMode }
+      ]);
+      setActiveTab(targetId);
     }
     fetchMasterData();
   }, [propMode]);
+
+  const handleRowClick = (row) => {
+    const tabId = isStock ? `stock-${row.sr}` : `ledger-${row.ledger}`;
+    const tabTitle = isStock ? row.name : row.ledger;
+    
+    // Check if tab already exists
+    const exists = openTabs.find(t => t.id === tabId);
+    if (!exists) {
+      const newTab = {
+        id: tabId,
+        title: tabTitle,
+        type: 'detail',
+        isStock,
+        row,
+      };
+      setOpenTabs(prev => [...prev, newTab]);
+    }
+    setActiveTab(tabId);
+  };
+
+  const handleCloseTab = (e, tabId) => {
+    e.stopPropagation();
+    const tabIndex = openTabs.findIndex(t => t.id === tabId);
+    const newTabs = openTabs.filter(t => t.id !== tabId);
+    setOpenTabs(newTabs);
+    
+    // If the closed tab was active, switch to another tab
+    if (activeTab === tabId) {
+      const fallbackTab = newTabs[tabIndex - 1] || newTabs[0];
+      setActiveTab(fallbackTab.id);
+    }
+  };
 
   // Form states
   const [ledgerForm, setLedgerForm] = useState({
@@ -209,7 +262,6 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
     toast.success('Stock Item created successfully!');
   };
 
-  const isStock = activeTab === 'Stock Ledger' || activeTab === 'Item Master';
 
   // Statistics Display Config
   const ledgerStats = [
@@ -300,36 +352,83 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
         </button>
       </div>
 
-      {/* KPI cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 shrink-0">
-        {activeStats.map((s, i) => (
-          <StatCard key={s.label} index={i} label={s.label} value={s.value} icon={s.icon} />
-        ))}
+      {/* Tab Bar */}
+      <div className="flex items-center gap-1 border-b shrink-0 px-1 mt-1" style={{ borderColor: 'var(--app-border)' }}>
+        {openTabs.map((t) => {
+          const isActive = activeTab === t.id;
+          return (
+            <div
+              key={t.id}
+              onClick={() => setActiveTab(t.id)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 border-t border-x rounded-t-xl text-[12px] font-bold cursor-pointer transition-all select-none ${
+                isActive
+                  ? 'bg-[var(--app-panel-bg)] border-[var(--app-border)] text-[var(--app-accent)] border-b-transparent z-10'
+                  : 'bg-[var(--app-content-bg)]/40 border-transparent text-[var(--app-muted)] hover:bg-[var(--app-content-bg)]/80 hover:text-[var(--app-text)]'
+              }`}
+              style={{
+                marginBottom: '-1px',
+                borderColor: isActive ? 'var(--app-border)' : 'transparent',
+                borderBottomColor: isActive ? 'var(--app-panel-bg)' : 'transparent',
+              }}
+            >
+              {t.isStock ? <Package size={13} /> : <BookOpen size={13} />}
+              <span className="truncate max-w-[120px]">{t.title}</span>
+              {t.type === 'detail' && (
+                <button
+                  onClick={(e) => handleCloseTab(e, t.id)}
+                  className="p-0.5 rounded-full hover:bg-[var(--app-control-hover)] hover:text-red-500 transition-colors ml-1"
+                >
+                  <X size={10} />
+                </button>
+              )}
+            </div>
+          );
+        })}
       </div>
 
-      {/* Master table */}
-      <div className="flex-1 min-h-0">
-        <DataTable
-          minWidth={isStock ? '1000px' : '1400px'}
-          data={rows}
-          rowKey={(r) => r.sr}
-          loading={loading}
-          emptyText={isStock ? 'No stock items found.' : 'No party ledgers found.'}
-          columns={isStock ? stockColumns : ledgerColumns}
-          search={{ value: searchQuery, onChange: setSearchQuery, placeholder: isStock ? 'Search stock items…' : 'Search party ledgers…' }}
-          filters={
-            <>
-              <label className="flex items-center gap-1.5 cursor-pointer select-none px-1">
-                <input type="checkbox" checked={onlyUnsynced} onChange={(e) => setOnlyUnsynced(e.target.checked)} className="w-3.5 h-3.5 rounded accent-[var(--app-accent)] cursor-pointer" />
-                <span className="text-[11px] font-semibold whitespace-nowrap" style={{ color: 'var(--app-muted)' }}>Unsynced Only</span>
-              </label>
-              <button type="button" title="Refresh" aria-label="Refresh" onClick={() => { setSearchQuery(''); setOnlyUnsynced(false); fetchMasterData(); toast.info('Lists refreshed from Tally cache'); }} className="h-8 w-8 flex items-center justify-center border rounded-lg text-[var(--app-muted)] border-[var(--app-border)] hover:bg-[var(--app-control-hover)] transition-colors">
-                <RefreshCw size={13} />
-              </button>
-            </>
-          }
-        />
-      </div>
+      {!isDetailView ? (
+        <>
+          {/* KPI cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 shrink-0">
+            {activeStats.map((s, i) => (
+              <StatCard key={s.label} index={i} label={s.label} value={s.value} icon={s.icon} />
+            ))}
+          </div>
+
+          {/* Master table */}
+          <div className="flex-1 min-h-0">
+            <DataTable
+              minWidth={isStock ? '1000px' : '1400px'}
+              data={rows}
+              rowKey={(r) => r.sr}
+              loading={loading}
+              emptyText={isStock ? 'No stock items found.' : 'No party ledgers found.'}
+              columns={isStock ? stockColumns : ledgerColumns}
+              search={{ value: searchQuery, onChange: setSearchQuery, placeholder: isStock ? 'Search stock items…' : 'Search party ledgers…' }}
+              onRowClick={(row) => handleRowClick(row)}
+              filters={
+                <>
+                  <label className="flex items-center gap-1.5 cursor-pointer select-none px-1">
+                    <input type="checkbox" checked={onlyUnsynced} onChange={(e) => setOnlyUnsynced(e.target.checked)} className="w-3.5 h-3.5 rounded accent-[var(--app-accent)] cursor-pointer" />
+                    <span className="text-[11px] font-semibold whitespace-nowrap" style={{ color: 'var(--app-muted)' }}>Unsynced Only</span>
+                  </label>
+                  <button type="button" title="Refresh" aria-label="Refresh" onClick={() => { setSearchQuery(''); setOnlyUnsynced(false); fetchMasterData(); toast.info('Lists refreshed from Tally cache'); }} className="h-8 w-8 flex items-center justify-center border rounded-lg text-[var(--app-muted)] border-[var(--app-border)] hover:bg-[var(--app-control-hover)] transition-colors">
+                    <RefreshCw size={13} />
+                  </button>
+                </>
+              }
+            />
+          </div>
+        </>
+      ) : (
+        <div className="flex-1 min-h-0">
+          <MasterDetailsView
+            isStock={isStock}
+            row={currentTabObj.row}
+            onClose={(e) => handleCloseTab(e, currentTabObj.id)}
+          />
+        </div>
+      )}
 
       {/* Create modals */}
       <div className="contents">
@@ -1020,4 +1119,286 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
   );
 };
 
+/* --- Master Details View --- */
+
+const MasterDetailsView = ({ isStock, row, onClose }) => {
+  const [activeSubTab, setActiveSubTab] = useState('profile');
+  const [details, setDetails] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (isStock || !row?.ledger) return;
+    setLoading(true);
+    fundflowApi.getPartyDetails(row.ledger)
+      .then(res => {
+        if (res.success && res.data) setDetails(res.data);
+        else setDetails(null);
+      })
+      .catch(() => setDetails(null))
+      .finally(() => setLoading(false));
+  }, [row?.ledger, isStock]);
+
+  const SectionHead = ({ title }) => (
+    <div className="flex items-center gap-2 mb-3">
+      <span className="text-[10px] font-black uppercase tracking-[0.12em]" style={{ color: 'var(--app-accent)' }}>{title}</span>
+      <div className="flex-1 h-px" style={{ backgroundColor: 'var(--app-border)' }} />
+    </div>
+  );
+
+  const Field = ({ label, value, mono }) => (
+    <div className="flex flex-col gap-0.5">
+      <span className="text-[9.5px] font-bold uppercase tracking-wider" style={{ color: 'var(--app-muted)' }}>{label}</span>
+      <span className={`text-[12.5px] font-bold leading-tight ${mono ? 'font-mono' : ''}`} style={{ color: 'var(--app-heading)' }}>{value || '—'}</span>
+    </div>
+  );
+
+  const fmtBalance = (bal) => {
+    if (bal === undefined || bal === null) return '₹ 0.00 Dr';
+    const isCr = bal < 0;
+    const abs = Math.abs(bal);
+    return `₹ ${abs.toLocaleString('en-IN', { minimumFractionDigits: 2 })} ${isCr ? 'Cr' : 'Dr'}`;
+  };
+
+  const syncTone = row.isSynced ? 'success' : 'warning';
+  const syncLabel = row.isSynced ? 'Synced' : 'Pending';
+
+  // Calculate Voucher stats if available
+  const pendingBillsList = details?.pendingBills || [];
+  const totalVouchersCount = pendingBillsList.length;
+  const totalBillVal = pendingBillsList.reduce((sum, b) => sum + (parseFloat(b.billAmount) || 0), 0);
+  const totalPaidVal = pendingBillsList.reduce((sum, b) => sum + (parseFloat(b.paidAmount) || 0), 0);
+  const totalPendingVal = pendingBillsList.reduce((sum, b) => sum + (parseFloat(b.pendingAmount) || 0), 0);
+
+  const pendingBillsColumns = [
+    { key: 'date', header: 'Date', render: (b) => <span className="font-semibold" style={{ color: 'var(--app-muted)' }}>{b.date || '—'}</span> },
+    { key: 'billNo', header: 'Voucher / Bill No', render: (b) => <span className="font-bold" style={{ color: 'var(--app-heading)' }}>{b.billNo || '—'}</span> },
+    { key: 'source', header: 'Source / Type', render: (b) => <Badge tone="neutral">{b.source ? b.source.replace(/_/g, ' ') : 'Voucher'}</Badge> },
+    { key: 'billAmount', header: 'Bill Value', align: 'right', render: (b) => <span className="font-bold">₹ {b.billAmount ? b.billAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 }) : '—'}</span> },
+    { key: 'paidAmount', header: 'Paid Amount', align: 'right', render: (b) => <span className="font-semibold" style={{ color: 'var(--app-muted)' }}>₹ {b.paidAmount ? b.paidAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 }) : '—'}</span> },
+    { key: 'pendingAmount', header: 'Outstanding Amount', align: 'right', render: (b) => <span className="font-bold text-red-500">₹ {b.pendingAmount ? b.pendingAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 }) : '—'}</span> },
+    { key: 'dueDate', header: 'Due Date', render: (b) => <span className="font-semibold" style={{ color: 'var(--app-muted)' }}>{b.dueDate || '—'}</span> },
+  ];
+
+  return (
+    <div className="h-full flex flex-col rounded-xl border bg-[var(--app-panel-bg)] border-[var(--app-border)] shadow-sm animate-in fade-in duration-300">
+      
+      {/* Header */}
+      <div className="px-4 py-3 border-b flex items-center justify-between shrink-0 bg-[var(--app-content-bg)]/40" style={{ borderColor: 'var(--app-border)' }}>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onClose}
+            className="px-2.5 py-1.5 border rounded-lg text-[11px] font-bold uppercase tracking-wider hover:bg-[var(--app-control-hover)] transition-colors"
+            style={{ borderColor: 'var(--app-border)', color: 'var(--app-muted)' }}
+          >
+            ← Back
+          </button>
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-[15px] font-extrabold text-[var(--app-heading)] tracking-tight">
+                {isStock ? row.name : row.ledger}
+              </h2>
+              <Badge tone={syncTone}>{syncLabel}</Badge>
+            </div>
+            <p className="text-[10px] text-[var(--app-muted)] mt-0.5">
+              {isStock ? `Stock Item Group: ${row.group}` : `Ledger Group: ${row.parentGroup}`}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Sub Tabs */}
+      <div className="flex items-center gap-4 px-4 py-2 border-b shrink-0 bg-[var(--app-panel-bg)]" style={{ borderColor: 'var(--app-border)' }}>
+        <button
+          onClick={() => setActiveSubTab('profile')}
+          className={`pb-1 text-[12px] font-extrabold tracking-tight border-b-2 transition-all ${
+            activeSubTab === 'profile' ? 'border-[var(--app-accent)] text-[var(--app-accent)]' : 'border-transparent text-[var(--app-muted)]'
+          }`}
+        >
+          {isStock ? 'Item Overview' : 'Profile & Settings'}
+        </button>
+        <button
+          onClick={() => setActiveSubTab('vouchers')}
+          className={`pb-1 text-[12px] font-extrabold tracking-tight border-b-2 transition-all ${
+            activeSubTab === 'vouchers' ? 'border-[var(--app-accent)] text-[var(--app-accent)]' : 'border-transparent text-[var(--app-muted)]'
+          }`}
+        >
+          {isStock ? 'Inventory & Pricing' : 'Transactions & Vouchers'}
+        </button>
+      </div>
+
+      {/* Scrollable details container */}
+      <div className="flex-1 overflow-y-auto p-5 no-scrollbar">
+
+        {loading ? (
+          <div className="h-full flex items-center justify-center py-20">
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-8 h-8 rounded-full border-2 border-[var(--app-accent)] border-t-transparent animate-spin" />
+              <span className="text-[11px] font-semibold" style={{ color: 'var(--app-muted)' }}>Fetching live database logs…</span>
+            </div>
+          </div>
+        ) : (
+          <>
+            {activeSubTab === 'profile' && !isStock && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                
+                {/* Left Column */}
+                <div className="space-y-5">
+                  <div>
+                    <SectionHead title="Basic Information" />
+                    <div className="grid grid-cols-2 gap-4">
+                      <Field label="Ledger Name" value={row.ledger} />
+                      <Field label="Parent Group" value={row.parentGroup} />
+                      <Field label="Sub Group" value={row.subGroup} />
+                      <Field label="Registration Type" value={row.type} />
+                    </div>
+                  </div>
+
+                  <div>
+                    <SectionHead title="Tax Information" />
+                    <div className="grid grid-cols-2 gap-4">
+                      <Field label="GSTIN" value={row.gst} mono />
+                      <Field label="Place of Supply" value={row.pos} />
+                    </div>
+                  </div>
+
+                  <div>
+                    <SectionHead title="Mailing & Address" />
+                    <div className="space-y-3">
+                      <Field label="Mailing Name" value={row.name} />
+                      {(row.add1 && row.add1 !== '—') && (
+                        <Field label="Address" value={`${row.add1} ${row.add2 && row.add2 !== '—' ? row.add2 : ''}`} />
+                      )}
+                      {(row.city && row.city !== '—') && <Field label="City" value={row.city} />}
+                      {(row.emailAddress || row.email) && (
+                        <Field label="Email" value={row.emailAddress || row.email} />
+                      )}
+                      {(row.mobileNumber || row.phone) && (
+                        <Field label="Mobile Number" value={row.mobileNumber || row.phone} />
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Column */}
+                <div className="space-y-5">
+                  <div>
+                    <SectionHead title="Tally Accounting Profile" />
+                    <div className="grid grid-cols-2 gap-4">
+                      <Field label="Opening Balance" value={fmtBalance(row.openingBalance || details?.openingBalance)} />
+                      <Field label="Current Outstanding" value={fmtBalance(details?.outstandingBalance ?? 0)} />
+                      <Field label="Maintain Bill-wise" value={row.maintainBillWise ? 'Yes' : 'No'} />
+                      {row.creditPeriod && <Field label="Credit Period" value={`${row.creditPeriod} days`} />}
+                      {row.creditLimit && <Field label="Credit Limit" value={`₹ ${parseFloat(row.creditLimit).toLocaleString('en-IN')}`} />}
+                    </div>
+                  </div>
+
+                  {(row.bankName || row.accountNumber || details?.bankName || details?.accountNumber) && (
+                    <div>
+                      <SectionHead title="Linked Bank Account" />
+                      <div className="grid grid-cols-2 gap-4">
+                        <Field label="Bank Name" value={row.bankName || details?.bankName} />
+                        <Field label="Account Number" value={row.accountNumber || details?.accountNumber} mono />
+                        {(row.ifscCode || details?.ifscCode) && (
+                          <Field label="IFSC Code" value={row.ifscCode || details?.ifscCode} mono />
+                        )}
+                        {(row.branch || details?.branch) && (
+                          <Field label="Branch" value={row.branch || details?.branch} />
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+              </div>
+            )}
+
+            {activeSubTab === 'vouchers' && !isStock && (
+              <div className="space-y-5">
+                
+                {/* Transaction Stats */}
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 shrink-0">
+                  <StatCard label="Pending Vouchers" value={totalVouchersCount} icon={ClipboardList} index={0} />
+                  <StatCard label="Total Bill Value" value={`₹ ${totalBillVal.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`} icon={IndianRupee} index={1} />
+                  <StatCard label="Total Paid Amount" value={`₹ ${totalPaidVal.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`} icon={CheckCircle2} index={2} />
+                  <StatCard label="Outstanding Amount" value={`₹ ${totalPendingVal.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`} icon={AlertTriangle} index={3} />
+                </div>
+
+                {/* Vouchers Table */}
+                <div className="border rounded-xl overflow-hidden" style={{ borderColor: 'var(--app-border)' }}>
+                  <DataTable
+                    columns={pendingBillsColumns}
+                    data={pendingBillsList}
+                    loading={false}
+                    emptyText="No pending vouchers or transaction logs found for this ledger in the active financial year."
+                    minWidth="800px"
+                  />
+                </div>
+              </div>
+            )}
+
+            {activeSubTab === 'profile' && isStock && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                {/* Left Column */}
+                <div>
+                  <SectionHead title="Basic Specifications" />
+                  <div className="grid grid-cols-2 gap-4">
+                    <Field label="Item Name" value={row.name} />
+                    <Field label="Stock Group" value={row.group} />
+                    {row.brand && <Field label="Brand" value={row.brand} />}
+                    <Field label="Unit of Measure" value={row.uom} />
+                  </div>
+                </div>
+
+                {/* Right Column */}
+                <div>
+                  <SectionHead title="Tax Classification" />
+                  <div className="grid grid-cols-2 gap-4">
+                    <Field label="HSN / SAC Code" value={row.hsn} mono />
+                    <Field label="GST Rate" value={row.gstRate} />
+                    {row.taxabilityType && <Field label="Taxability Type" value={row.taxabilityType} />}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeSubTab === 'vouchers' && isStock && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                {/* Left Column */}
+                <div>
+                  <SectionHead title="Stock Inventory Profile" />
+                  <div className="grid grid-cols-2 gap-4">
+                    <Field label="Opening Quantity" value={row.qty ? `${row.qty} ${row.uom}` : `0 ${row.uom}`} />
+                    <Field label="Purchase Cost / Rate" value={row.rate ? `₹ ${row.rate.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '—'} mono />
+                    <Field label="Opening Stock Value" value={row.value ? `₹ ${row.value.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '—'} mono />
+                    {row.sku && <Field label="SKU / Barcode" value={row.sku} mono />}
+                  </div>
+                </div>
+
+                {/* Right Column */}
+                <div>
+                  <SectionHead title="Pricing & Description" />
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-4">
+                      {row.salesPrice && (
+                        <Field label="Standard Sales Price" value={`₹ ${row.salesPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`} mono />
+                      )}
+                      {row.mrp && (
+                        <Field label="Maximum Retail Price (MRP)" value={`₹ ${row.mrp.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`} mono />
+                      )}
+                    </div>
+                    {row.description && <Field label="Item Description" value={row.description} />}
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+      </div>
+
+    </div>
+  );
+};
+
 export default MasterDataPanel;
+

@@ -29,9 +29,11 @@ export default function DataTable({
   search,
   // selection (controlled, optional)
   selectable = false, selectedKeys = [], onToggleRow, onToggleAll,
+  // row interaction
+  onRowClick,
+  rowClassName,
   // pagination (controlled, optional)
   pagination,
-  rowClassName,
   minWidth = '900px',
 }) {
   const [sort, setSort] = useState({ key: null, dir: 'asc' })
@@ -175,7 +177,8 @@ export default function DataTable({
                   return (
                     <tr
                       key={key}
-                      className={`transition-colors text-[11.5px] border-b ${selected ? '' : 'even:bg-[var(--app-table-head-bg)]'} hover:bg-[var(--app-row-hover)] ${rowClassName ? rowClassName(row) : ''}`}
+                      onClick={onRowClick ? () => onRowClick(row) : undefined}
+                      className={`transition-colors text-[11.5px] border-b ${selected ? '' : 'even:bg-[var(--app-table-head-bg)]'} hover:bg-[var(--app-row-hover)] ${onRowClick ? 'cursor-pointer' : ''} ${rowClassName ? rowClassName(row) : ''}`}
                       style={{ borderColor: 'var(--app-row-border)', color: 'var(--app-text)', backgroundColor: selected ? 'var(--app-accent-soft)' : undefined }}
                     >
                       {selectable && (

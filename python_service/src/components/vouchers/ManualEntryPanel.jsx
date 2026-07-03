@@ -124,8 +124,16 @@ const ManualEntryPanel = ({ isDark }) => {
   // Search + filter
   const [searchQuery, setSearchQuery] = useState('');
   const [voucherTypeFilter, setVoucherTypeFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [dateFromFilter, setDateFromFilter] = useState('');
+  const [dateToFilter, setDateToFilter] = useState('');
 
-  useEffect(() => { setVoucherTypeFilter('all'); }, [activeTab]);
+  useEffect(() => {
+    setVoucherTypeFilter('all');
+    setStatusFilter('all');
+    setDateFromFilter('');
+    setDateToFilter('');
+  }, [activeTab]);
 
   const [showCreateDropdown, setShowCreateDropdown] = useState(false);
   const createDropdownRef = useRef(null);
@@ -142,19 +150,30 @@ const ManualEntryPanel = ({ isDark }) => {
 
   // Fetch list helper
   const fetchList = () => {
+    const statusVal = statusFilter === 'all' ? '' : statusFilter;
+
     if (activeTab === 'sales_invoice') {
       const typeFilter = voucherTypeFilter === 'all' ? '' : voucherTypeFilter;
       salesStore.setFilter('voucherType', typeFilter);
       salesStore.setFilter('search', searchQuery);
+      salesStore.setFilter('status', statusVal);
+      salesStore.setFilter('dateFrom', dateFromFilter);
+      salesStore.setFilter('dateTo', dateToFilter);
       salesStore.fetchTransactions();
     } else if (activeTab === 'purchase_invoice') {
       const typeFilter = voucherTypeFilter === 'all' ? '' : voucherTypeFilter;
       purchaseStore.setFilter('voucherType', typeFilter);
       purchaseStore.setFilter('search', searchQuery);
+      purchaseStore.setFilter('status', statusVal);
+      purchaseStore.setFilter('dateFrom', dateFromFilter);
+      purchaseStore.setFilter('dateTo', dateToFilter);
       purchaseStore.fetchTransactions();
     } else {
       fundFlowStore.setFilter('voucherType', activeTab);
       fundFlowStore.setFilter('search', searchQuery);
+      fundFlowStore.setFilter('status', statusVal);
+      fundFlowStore.setFilter('dateFrom', dateFromFilter);
+      fundFlowStore.setFilter('dateTo', dateToFilter);
       fundFlowStore.fetchTransactions();
     }
   };
@@ -162,7 +181,7 @@ const ManualEntryPanel = ({ isDark }) => {
   useEffect(() => {
     if (viewMode === 'list') fetchList();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, viewMode, voucherTypeFilter]);
+  }, [activeTab, viewMode, voucherTypeFilter, statusFilter, dateFromFilter, dateToFilter]);
 
   // Debounced search
   useEffect(() => {
@@ -525,7 +544,65 @@ const ManualEntryPanel = ({ isDark }) => {
             emptyText="No saved vouchers yet — create your first one."
             minWidth="980px"
             search={{ value: searchQuery, onChange: setSearchQuery, placeholder: 'Search vouchers…' }}
-            filters={typeFilterOptions ? <Select value={voucherTypeFilter} options={typeFilterOptions} onChange={setVoucherTypeFilter} align="right" minWidth={150} /> : null}
+            filters={
+              <div className="flex items-center gap-2">
+                {typeFilterOptions && (
+                  <Select
+                    value={voucherTypeFilter}
+                    options={typeFilterOptions}
+                    onChange={setVoucherTypeFilter}
+                    align="right"
+                    minWidth={150}
+                  />
+                )}
+                <Select
+                  value={statusFilter}
+                  options={[
+                    { value: 'all', label: 'All Statuses' },
+                    { value: 'draft', label: 'Draft' },
+                    { value: 'pending_approval', label: 'Pending Approval' },
+                    { value: 'approved', label: 'Approved' },
+                    { value: 'rejected', label: 'Rejected' },
+                    { value: 'failed_tally', label: 'Failed Tally' },
+                    { value: 'POSTED_TO_TALLY', label: 'Posted to Tally' }
+                  ]}
+                  onChange={setStatusFilter}
+                  align="right"
+                  minWidth={140}
+                />
+                <div className="flex items-center gap-1.5 border rounded-lg px-2 h-9 bg-[var(--app-panel-bg)]" style={{ borderColor: 'var(--app-border)' }}>
+                  <span className="text-[10px] font-bold text-[var(--app-muted)] uppercase tracking-wider">From</span>
+                  <input
+                    type="date"
+                    value={dateFromFilter}
+                    onChange={e => setDateFromFilter(e.target.value)}
+                    className="bg-transparent border-none outline-none text-[11.5px] font-bold text-[var(--app-heading)] h-full w-28"
+                    style={{ colorScheme: isDark ? 'dark' : 'light' }}
+                  />
+                </div>
+                <div className="flex items-center gap-1.5 border rounded-lg px-2 h-9 bg-[var(--app-panel-bg)]" style={{ borderColor: 'var(--app-border)' }}>
+                  <span className="text-[10px] font-bold text-[var(--app-muted)] uppercase tracking-wider">To</span>
+                  <input
+                    type="date"
+                    value={dateToFilter}
+                    onChange={e => setDateToFilter(e.target.value)}
+                    className="bg-transparent border-none outline-none text-[11.5px] font-bold text-[var(--app-heading)] h-full w-28"
+                    style={{ colorScheme: isDark ? 'dark' : 'light' }}
+                  />
+                </div>
+                {(dateFromFilter || dateToFilter) && (
+                  <button
+                    onClick={() => {
+                      setDateFromFilter('');
+                      setDateToFilter('');
+                    }}
+                    className="p-1.5 rounded-lg text-[var(--app-muted)] hover:bg-[var(--app-control-hover)] text-[10px] font-bold uppercase transition-colors"
+                  >
+                    Clear Dates
+                  </button>
+                )}
+              </div>
+            }
             actions={listActions}
             pagination={{ page: currentPage, total: totalCount, label: `${totalCount} voucher${totalCount === 1 ? '' : 's'}`, onPrev: () => setPage(Math.max(currentPage - 1, 1)), onNext: () => setPage(Math.min(currentPage + 1, totalPages)), disableNext: currentPage >= totalPages }}
           />

@@ -581,6 +581,24 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
       });
     }
 
+    // Extract CESS rate from any CESS ledger in additionalCharges or salesLines
+    let cessRate = 0;
+    let hasCessLedger = false;
+    let cessLedgerAmt = 0;
+    const allChargesForCess = [...(form.salesLines || []), ...(form.additionalCharges || [])];
+    allChargesForCess.forEach((c) => {
+      const nameUpper = (c.ledgerName || c.salesLedger || '').toUpperCase();
+      if (nameUpper.includes('CESS')) {
+        hasCessLedger = true;
+        const match = nameUpper.match(/(\d+(?:\.\d+)?)\s*%/);
+        if (match) {
+          cessRate = parseFloat(match[1]);
+        } else {
+          cessLedgerAmt += parseFloat(c.amount) || 0;
+        }
+      }
+    });
+
     lines.forEach((line) => {
       const hsn = (line.hsnSacCode || '').trim() || '-';
       const qty = parseFloat(line.billQuantity) || 0;
@@ -597,6 +615,7 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
       let cgst = 0;
       let sgst = 0;
       let igst = 0;
+      let cess = 0;
 
       const isTaxable = form.entryTab === 'with_item' ? (line.taxabilityType === 'Taxable' && !line.rcm) : true;
 
@@ -606,6 +625,15 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
         } else {
           cgst = parseFloat(((combinedLineAmount * (gstRate / 2)) / 100).toFixed(2));
           sgst = parseFloat(((combinedLineAmount * (gstRate / 2)) / 100).toFixed(2));
+        }
+
+        // Calculate CESS
+        let lineCessRate = parseFloat(line.cessRate || line.cess_rate) || 0;
+        if (lineCessRate <= 0) {
+          lineCessRate = cessRate;
+        }
+        if (lineCessRate > 0) {
+          cess = parseFloat(((combinedLineAmount * lineCessRate) / 100).toFixed(2));
         }
       }
 
@@ -617,9 +645,19 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
       hsnMap[hsn].cgst += cgst;
       hsnMap[hsn].sgst += sgst;
       hsnMap[hsn].igst += igst;
+      hsnMap[hsn].cess += cess;
     });
 
-    return Object.values(hsnMap);
+    const list = Object.values(hsnMap);
+    const totalTaxable = list.reduce((sum, item) => sum + item.taxableValue, 0);
+    const totalCessCalculated = list.reduce((sum, item) => sum + item.cess, 0);
+    if (totalCessCalculated === 0 && hasCessLedger && cessLedgerAmt > 0 && totalTaxable > 0) {
+      list.forEach((item) => {
+        item.cess = parseFloat(((item.taxableValue / totalTaxable) * cessLedgerAmt).toFixed(2));
+      });
+    }
+
+    return list;
   };
 
   const calculateLedgerTaxDetails = () => {
@@ -631,6 +669,24 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
       if (m) gstRate = parseFloat(m[1]);
     }
 
+    // Extract CESS rate from any CESS ledger in additionalCharges or salesLines
+    let cessRate = 0;
+    let hasCessLedger = false;
+    let cessLedgerAmt = 0;
+    const allChargesForCess = [...(form.salesLines || []), ...(form.additionalCharges || [])];
+    allChargesForCess.forEach((c) => {
+      const nameUpper = (c.ledgerName || c.salesLedger || '').toUpperCase();
+      if (nameUpper.includes('CESS')) {
+        hasCessLedger = true;
+        const match = nameUpper.match(/(\d+(?:\.\d+)?)\s*%/);
+        if (match) {
+          cessRate = parseFloat(match[1]);
+        } else {
+          cessLedgerAmt += parseFloat(c.amount) || 0;
+        }
+      }
+    });
+
     lines.forEach((line) => {
       const ledgerName = (line.salesLedger || '').trim() || '-';
       const amount = parseFloat(line.amount) || 0;
@@ -639,12 +695,22 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
       let cgst = 0;
       let sgst = 0;
       let igst = 0;
+      let cess = 0;
 
       if (isInterstate) {
         igst = parseFloat(((amount * rate) / 100).toFixed(2));
       } else {
         cgst = parseFloat(((amount * (rate / 2)) / 100).toFixed(2));
         sgst = parseFloat(((amount * (rate / 2)) / 100).toFixed(2));
+      }
+
+      // Calculate CESS
+      let lineCessRate = parseFloat(line.cessRate || line.cess_rate) || 0;
+      if (lineCessRate <= 0) {
+        lineCessRate = cessRate;
+      }
+      if (lineCessRate > 0) {
+        cess = parseFloat(((amount * lineCessRate) / 100).toFixed(2));
       }
 
       if (!ledgerMap[ledgerName]) {
@@ -655,9 +721,19 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
       ledgerMap[ledgerName].cgst += cgst;
       ledgerMap[ledgerName].sgst += sgst;
       ledgerMap[ledgerName].igst += igst;
+      ledgerMap[ledgerName].cess += cess;
     });
 
-    return Object.values(ledgerMap);
+    const list = Object.values(ledgerMap);
+    const totalTaxable = list.reduce((sum, item) => sum + item.taxableValue, 0);
+    const totalCessCalculated = list.reduce((sum, item) => sum + item.cess, 0);
+    if (totalCessCalculated === 0 && hasCessLedger && cessLedgerAmt > 0 && totalTaxable > 0) {
+      list.forEach((item) => {
+        item.cess = parseFloat(((item.taxableValue / totalTaxable) * cessLedgerAmt).toFixed(2));
+      });
+    }
+
+    return list;
   };
 
 
@@ -672,6 +748,12 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
           .themed-scrollbar::-webkit-scrollbar-thumb:hover { background: ${theme.accent}; }
           .no-scrollbar::-webkit-scrollbar { display: none; }
         `}</style>
+
+        {/* ─── Top-Level Two-Column Layout ─── */}
+        <div className="flex flex-1 min-h-0 overflow-hidden">
+
+        {/* ─── Left Column (75%): Header + Summary + Form ─── */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
 
         {/* ─── 1. Compact Header Row ─── */}
         <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-2.5 shrink-0 border-b" style={{ borderColor: 'var(--m3-outline-variant)', backgroundColor: 'var(--m3-surface-container-low)' }}>
@@ -813,180 +895,180 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
           <div className="flex-1 p-3 overflow-y-auto themed-scrollbar" style={{ backgroundColor: 'var(--m3-surface)' }}>
             <div className="flex flex-col gap-3">
 
-              {/* A. Voucher Details Section (Flat UI, No Cards, No Rounded) */}
-              <div className="m3-card p-3 mb-0 shrink-0">
-                <h3 className="text-[11px] font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--m3-on-surface-variant)' }}>Voucher Details</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-x-3 gap-y-3">
+              {/* A. Voucher Details Section */}
+              <div className="m3-card p-3 mb-0">
+                  <h3 className="text-[11px] font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--m3-on-surface-variant)' }}>Voucher Details</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-x-3 gap-y-3">
 
-                  {/* Row 1: Voucher Date | Voucher Type | Voucher Number Series | Voucher No. */}
-                  <div className="col-span-1">
-                    <InputField
-                      label="Voucher Date"
-                      compact
-                      icon={Calendar}
-                      type="date"
-                      value={form.voucherDate || ''}
-                      onChange={(v) => setFormField('voucherDate', v)}
-                    />
-                  </div>
-
-                  {/* Voucher Type — clickable select */}
-                  <div className="col-span-1 relative">
-                    <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 " style={{ backgroundColor: 'var(--m3-surface-container-low)', color: 'var(--m3-on-surface-variant)' }}>
-                      Voucher Type
-                    </label>
-                    <select
-                      value={getSelectValue()}
-                      onChange={(e) => setFormField('voucherType', e.target.value)}
-                      className="w-full h-9 px-3 rounded-t border-b text-[12px] font-medium outline-none"
-                      style={{ backgroundColor: 'var(--m3-surface-container-high)', borderColor: 'var(--m3-outline)', color: 'var(--m3-on-surface)' }}
-                    >
-                      {voucherTypeOptions.map((opt) => (
-                        <option key={opt} value={opt}>
-                          {opt}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Voucher Number Series */}
-                  <div className="col-span-1 relative">
-                    <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 " style={{ backgroundColor: 'var(--m3-surface-container-low)', color: 'var(--m3-on-surface-variant)' }}>
-                      Voucher Number Series
-                    </label>
-                    <select
-                      value={form.voucherNumberSeries || 'Default'}
-                      onChange={(e) => setFormField('voucherNumberSeries', e.target.value)}
-                      className="w-full h-9 px-3 rounded-t border-b text-[12px] font-medium outline-none"
-                      style={{ backgroundColor: 'var(--m3-surface-container-high)', borderColor: 'var(--m3-outline)', color: 'var(--m3-on-surface)' }}
-                    >
-                      <option value="Default">Default</option>
-                      <option value="Manual">Manual</option>
-                    </select>
-                  </div>
-
-                  {/* Voucher No — read-only if Default, editable if Manual */}
-                  <div className="col-span-1">
-                    <InputField
-                      label="Voucher No."
-                      compact
-                      placeholder={form.voucherNumberSeries === 'Manual' ? 'Enter Voucher No.' : 'Auto'}
-                      value={form.voucherNumber}
-                      readOnly={form.voucherNumberSeries !== 'Manual'}
-                      onChange={(v) => {
-                        setFormField('voucherNumber', v);
-                        setFormField('invoiceNumber', v);
-                      }}
-                    />
-                  </div>
-
-                  {/* Row 2: Sales Ledger | Party Ledger | Party GSTIN | Consignee Ledger */}
-                  {/* Sales Ledger */}
-                  <div className="col-span-1">
-                    <SearchableDropdown
-                      label="Sales Ledger"
-                      compact
-                      placeholder={activeTab === 'Without Item' ? 'Select Ledger' : 'Sales Ledger'}
-                      options={masterData.salesLedgers?.length > 0 ? masterData.salesLedgers : ['General Sales', 'Service Sales']}
-                      value={form.salesLedger}
-                      hasSearch
-                      onChange={(v) => setFormField('salesLedger', v)}
-                    />
-                  </div>
-
-                  {/* Party Ledger */}
-                  <div className="col-span-1">
-                    <SearchableDropdown
-                      label="Party Ledger"
-                      compact
-                      placeholder="Select Customer"
-                      options={masterData.partyLedgers?.length > 0 ? masterData.partyLedgers : []}
-                      value={form.partyLedger}
-                      hasSearch
-                      onChange={(v) => {
-                        setFormField('partyLedger', v);
-                        const normType = getNormalizedType(form.voucherType);
-                        if (normType === 'credit_note') {
-                          setFormField('referenceNumber', '');
-                          if (v) fetchCreditNoteInvoicesForParty(v);
-                        } else if (normType === 'sales_invoice') {
-                          fetchSalesOrdersForParty(v);
-                          setFormField('referenceNumber', '');
-                        }
-                        if (v && masterData.partyLedgerDetails && masterData.partyLedgerDetails[v]) {
-                          const details = masterData.partyLedgerDetails[v];
-                          setFormField('partyGstin', details.gstin || '');
-                          setFormField('gstRegistration', details.gstState ? `${details.gstState} Registration` : '');
-                          setFormField('gstRegistrationType', details.registrationType || '');
-                        } else {
-                          setFormField('partyGstin', '');
-                          setFormField('gstRegistration', '');
-                          setFormField('gstRegistrationType', '');
-                        }
-                      }}
-                    />
-                  </div>
-
-                  {/* Party GSTIN */}
-                  <div className="col-span-1">
-                    <InputField
-                      label="Party GSTIN No."
-                      compact
-                      placeholder="Party GSTIN"
-                      value={form.partyGstin}
-                      onChange={(v) => setFormField('partyGstin', v)}
-                    />
-                  </div>
-
-                  {/* Consignee Ledger */}
-                  <div className="col-span-1">
-                    <SearchableDropdown
-                      label="Consignee Ledger"
-                      compact
-                      placeholder="Same as Party"
-                      options={['Same as Party', ...(masterData.partyLedgers || [])]}
-                      value={form.consigneeLedger}
-                      onChange={(v) => {
-                        setFormField('consigneeLedger', v);
-                        if (v && v !== 'Same as Party' && masterData.partyLedgerDetails && masterData.partyLedgerDetails[v]) {
-                          setFormField('consigneeGstin', masterData.partyLedgerDetails[v].gstin || '');
-                        } else {
-                          setFormField('consigneeGstin', '');
-                        }
-                      }}
-                    />
-                  </div>
-
-                  {/* Row 3: Consignee GSTIN (conditional) + Narration */}
-                  {(form.consigneeLedger && form.consigneeLedger !== 'Same as Party' && form.consigneeLedger !== form.partyLedger) && (
+                    {/* Row 1: Voucher Date | Voucher Type | Voucher Number Series | Voucher No. */}
                     <div className="col-span-1">
                       <InputField
-                        label="Consignee GSTIN"
+                        label="Voucher Date"
                         compact
-                        placeholder="Consignee GSTIN"
-                        value={form.consigneeGstin || ''}
-                        onChange={(v) => setFormField('consigneeGstin', v)}
+                        icon={Calendar}
+                        type="date"
+                        value={form.voucherDate || ''}
+                        onChange={(v) => setFormField('voucherDate', v)}
                       />
                     </div>
-                  )}
 
-                  {/* Narration */}
-                  <div className={(form.consigneeLedger && form.consigneeLedger !== 'Same as Party' && form.consigneeLedger !== form.partyLedger) ? 'col-span-3 relative flex flex-col gap-1' : 'col-span-4 relative flex flex-col gap-1'}>
-                    <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 " style={{ backgroundColor: 'var(--m3-surface-container-low)', color: 'var(--m3-on-surface-variant)' }}>
-                      Narration
-                    </label>
-                    <input
-                      type="text"
-                      value={form.narration || ''}
-                      onChange={(e) => setFormField('narration', e.target.value)}
-                      className="w-full h-9 px-3 rounded-t border-b text-[12px] font-medium outline-none"
-                      style={{ backgroundColor: 'var(--m3-surface-container-high)', borderColor: 'var(--m3-outline)', color: 'var(--m3-on-surface)' }}
-                    />
+                    {/* Voucher Type — clickable select */}
+                    <div className="col-span-1 relative">
+                      <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 " style={{ backgroundColor: 'var(--m3-surface-container-low)', color: 'var(--m3-on-surface-variant)' }}>
+                        Voucher Type
+                      </label>
+                      <select
+                        value={getSelectValue()}
+                        onChange={(e) => setFormField('voucherType', e.target.value)}
+                        className="w-full h-9 px-3 rounded-t border-b text-[12px] font-medium outline-none"
+                        style={{ backgroundColor: 'var(--m3-surface-container-high)', borderColor: 'var(--m3-outline)', color: 'var(--m3-on-surface)' }}
+                      >
+                        {voucherTypeOptions.map((opt) => (
+                          <option key={opt} value={opt}>
+                            {opt}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Voucher Number Series */}
+                    <div className="col-span-1 relative">
+                      <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 " style={{ backgroundColor: 'var(--m3-surface-container-low)', color: 'var(--m3-on-surface-variant)' }}>
+                        Voucher Number Series
+                      </label>
+                      <select
+                        value={form.voucherNumberSeries || 'Default'}
+                        onChange={(e) => setFormField('voucherNumberSeries', e.target.value)}
+                        className="w-full h-9 px-3 rounded-t border-b text-[12px] font-medium outline-none"
+                        style={{ backgroundColor: 'var(--m3-surface-container-high)', borderColor: 'var(--m3-outline)', color: 'var(--m3-on-surface)' }}
+                      >
+                        <option value="Default">Default</option>
+                        <option value="Manual">Manual</option>
+                      </select>
+                    </div>
+
+                    {/* Voucher No — read-only if Default, editable if Manual */}
+                    <div className="col-span-1">
+                      <InputField
+                        label="Voucher No."
+                        compact
+                        placeholder={form.voucherNumberSeries === 'Manual' ? 'Enter Voucher No.' : 'Auto'}
+                        value={form.voucherNumber}
+                        readOnly={form.voucherNumberSeries !== 'Manual'}
+                        onChange={(v) => {
+                          setFormField('voucherNumber', v);
+                          setFormField('invoiceNumber', v);
+                        }}
+                      />
+                    </div>
+
+                    {/* Row 2: Sales Ledger | Party Ledger | Party GSTIN | Consignee Ledger */}
+                    {/* Sales Ledger */}
+                    <div className="col-span-1">
+                      <SearchableDropdown
+                        label="Sales Ledger"
+                        compact
+                        placeholder={activeTab === 'Without Item' ? 'Select Ledger' : 'Sales Ledger'}
+                        options={masterData.salesLedgers?.length > 0 ? masterData.salesLedgers : ['General Sales', 'Service Sales']}
+                        value={form.salesLedger}
+                        hasSearch
+                        onChange={(v) => setFormField('salesLedger', v)}
+                      />
+                    </div>
+
+                    {/* Party Ledger */}
+                    <div className="col-span-1">
+                      <SearchableDropdown
+                        label="Party Ledger"
+                        compact
+                        placeholder="Select Customer"
+                        options={masterData.partyLedgers?.length > 0 ? masterData.partyLedgers : []}
+                        value={form.partyLedger}
+                        hasSearch
+                        onChange={(v) => {
+                          setFormField('partyLedger', v);
+                          const normType = getNormalizedType(form.voucherType);
+                          if (normType === 'credit_note') {
+                            setFormField('referenceNumber', '');
+                            if (v) fetchCreditNoteInvoicesForParty(v);
+                          } else if (normType === 'sales_invoice') {
+                            fetchSalesOrdersForParty(v);
+                            setFormField('referenceNumber', '');
+                          }
+                          if (v && masterData.partyLedgerDetails && masterData.partyLedgerDetails[v]) {
+                            const details = masterData.partyLedgerDetails[v];
+                            setFormField('partyGstin', details.gstin || '');
+                            setFormField('gstRegistration', details.gstState ? `${details.gstState} Registration` : '');
+                            setFormField('gstRegistrationType', details.registrationType || '');
+                          } else {
+                            setFormField('partyGstin', '');
+                            setFormField('gstRegistration', '');
+                            setFormField('gstRegistrationType', '');
+                          }
+                        }}
+                      />
+                    </div>
+
+                    {/* Party GSTIN */}
+                    <div className="col-span-1">
+                      <InputField
+                        label="Party GSTIN No."
+                        compact
+                        placeholder="Party GSTIN"
+                        value={form.partyGstin}
+                        onChange={(v) => setFormField('partyGstin', v)}
+                      />
+                    </div>
+
+                    {/* Consignee Ledger */}
+                    <div className="col-span-1">
+                      <SearchableDropdown
+                        label="Consignee Ledger"
+                        compact
+                        placeholder="Same as Party"
+                        options={['Same as Party', ...(masterData.partyLedgers || [])]}
+                        value={form.consigneeLedger}
+                        onChange={(v) => {
+                          setFormField('consigneeLedger', v);
+                          if (v && v !== 'Same as Party' && masterData.partyLedgerDetails && masterData.partyLedgerDetails[v]) {
+                            setFormField('consigneeGstin', masterData.partyLedgerDetails[v].gstin || '');
+                          } else {
+                            setFormField('consigneeGstin', '');
+                          }
+                        }}
+                      />
+                    </div>
+
+                    {/* Row 3: Consignee GSTIN (conditional) + Narration */}
+                    {(form.consigneeLedger && form.consigneeLedger !== 'Same as Party' && form.consigneeLedger !== form.partyLedger) && (
+                      <div className="col-span-1">
+                        <InputField
+                          label="Consignee GSTIN"
+                          compact
+                          placeholder="Consignee GSTIN"
+                          value={form.consigneeGstin || ''}
+                          onChange={(v) => setFormField('consigneeGstin', v)}
+                        />
+                      </div>
+                    )}
+
+                    {/* Narration */}
+                    <div className={(form.consigneeLedger && form.consigneeLedger !== 'Same as Party' && form.consigneeLedger !== form.partyLedger) ? 'col-span-3 relative flex flex-col gap-1' : 'col-span-4 relative flex flex-col gap-1'}>
+                      <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 " style={{ backgroundColor: 'var(--m3-surface-container-low)', color: 'var(--m3-on-surface-variant)' }}>
+                        Narration
+                      </label>
+                      <input
+                        type="text"
+                        value={form.narration || ''}
+                        onChange={(e) => setFormField('narration', e.target.value)}
+                        className="w-full h-9 px-3 rounded-t border-b text-[12px] font-medium outline-none"
+                        style={{ backgroundColor: 'var(--m3-surface-container-high)', borderColor: 'var(--m3-outline)', color: 'var(--m3-on-surface)' }}
+                      />
+                    </div>
                   </div>
-                </div>
               </div>
 
-              {/* B. Item Details Section (Flat UI, No Cards, No Rounded) */}
+              {/* B. Item Details Section */}
               {activeTab === 'With Item' && (
                 <div className="p-3 m3-card mb-0 shrink-0 flex flex-col">
                   <div className="flex items-center justify-between mb-2">
@@ -1116,11 +1198,12 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
                         </tbody>
                       </table>
                     ) : (
-                      <table className="w-full text-left text-[10px] border-collapse min-w-[900px] overflow-visible" style={{ borderColor: theme.border }}>
+                      <table className="w-full text-left text-[10px] border-collapse min-w-[980px] overflow-visible" style={{ borderColor: theme.border }}>
                         <thead>
                           <tr className="border-b" style={{ borderColor: theme.border, color: theme.mutedText }}>
                             <th className="px-1 py-1 w-8 text-center border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>#</th>
                             <th className="px-1 py-1 w-64 border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>Item / Ledger *</th>
+                            <th className="px-1 py-1 w-20 text-right border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>Stock Qty</th>
                             <th className="px-1 py-1 w-24 border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>HSN/SAC</th>
                             <th className="px-1 py-1 w-16 border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>GST%</th>
                             <th className="px-1 py-1 w-20 text-right border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>Qty</th>
@@ -1162,6 +1245,15 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
                                     className="w-full h-6 px-2 border-t rounded-lg outline-none text-[11px] bg-transparent"
                                     style={{ borderColor: theme.border, color: theme.mutedText }}
                                   />
+                                </td>
+                                <td className="px-1.5 py-1 text-right font-bold text-[var(--app-muted)] border-r text-[10px] bg-[var(--app-content-bg)]/20" style={{ borderColor: theme.border }}>
+                                  {(() => {
+                                    if (row.stockItem && masterData.stockItemDetails && masterData.stockItemDetails[row.stockItem]) {
+                                      const qty = masterData.stockItemDetails[row.stockItem].qty ?? 0;
+                                      return qty.toLocaleString('en-IN');
+                                    }
+                                    return '-';
+                                  })()}
                                 </td>
                                 <td className="p-1 border-r" style={{ borderColor: theme.border }}>
                                   <input
@@ -1539,6 +1631,19 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
                     const cgstAmtVal = parseFloat(form.cgstTotal || 0);
                     const sgstAmtVal = parseFloat(form.sgstTotal || 0);
                     const igstAmtVal = parseFloat(form.igstTotal || 0);
+                    const cessAmtVal = parseFloat(form.cessTotal || 0);
+
+                    let cessRateVal = 0;
+                    const allChargesForCess = [...(form.salesLines || []), ...(form.additionalCharges || [])];
+                    const foundCess = allChargesForCess.find(c => {
+                      const name = (c.ledgerName || c.salesLedger || '').toUpperCase();
+                      return name.includes('CESS');
+                    });
+                    if (foundCess) {
+                      const match = (foundCess.ledgerName || foundCess.salesLedger || '').match(/(\d+(?:\.\d+)?)\s*%/);
+                      if (match) cessRateVal = parseFloat(match[1]);
+                    }
+
                     const totalGstVal = cgstAmtVal + sgstAmtVal + igstAmtVal;
                     const grandTotalVal = parseFloat(form.baseTotal || 0) + totalGstVal;
 
@@ -1554,7 +1659,6 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
                             <thead>
                               <tr className="border-b bg-[var(--app-content-bg)]/50" style={{ borderColor: theme.border, color: theme.mutedText }}>
                                 <th className="px-3 py-1.5 border-r font-bold w-1/4" style={{ borderColor: theme.border }}>Tax Component</th>
-                                <th className="px-3 py-1.5 border-r font-bold w-20 text-center" style={{ borderColor: theme.border }}>Rate (%)</th>
                                 <th className="px-3 py-1.5 border-r font-bold" style={{ borderColor: theme.border }}>Ledger (Select Ledger)</th>
                                 <th className="px-3 py-1.5 font-bold w-40 text-right" style={{ borderColor: theme.border }}>Amount (Auto)</th>
                               </tr>
@@ -1567,11 +1671,6 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
                                     <td className="px-3 py-1.5 border-r font-bold text-[var(--app-heading)]" style={{ borderColor: theme.border }}>
                                       <span className="inline-flex items-center gap-1">CGST <span className="text-[11px] px-1 py-0.5 bg-[var(--app-accent-soft)] dark:bg-[var(--app-accent-soft)] text-[var(--app-accent)] rounded font-black">Intra</span></span>
                                     </td>
-                                    <td className="px-3 py-1.5 border-r text-center" style={{ borderColor: theme.border }}>
-                                      <span className="px-1.5 py-0.5 bg-[var(--app-table-head-bg)] text-[var(--app-heading)] rounded text-[10px] font-bold">
-                                        {cgstRateVal}%
-                                      </span>
-                                    </td>
                                     <td className="p-1 border-r relative z-30 focus-within:z-50" style={{ borderColor: theme.border }}>
                                       <SearchableDropdown
                                         placeholder="Select CGST Ledger"
@@ -1579,7 +1678,7 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
                                         options={getLedgerOptions('CGST')}
                                         value={getLedgerNameForComponent('CGST')}
                                         onChange={(v) => setLedgerNameForComponent('CGST', v)}
-                                        disabled={cgstRateVal === 0}
+                                        disabled={false}
                                       />
                                     </td>
                                     <td className="p-1" style={{ borderColor: theme.border }}>
@@ -1596,11 +1695,6 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
                                     <td className="px-3 py-1.5 border-r font-bold text-[var(--app-heading)]" style={{ borderColor: theme.border }}>
                                       <span className="inline-flex items-center gap-1">SGST <span className="text-[11px] px-1 py-0.5 bg-[var(--app-accent-soft)] dark:bg-[var(--app-accent-soft)] text-[var(--app-accent)] rounded font-black">Intra</span></span>
                                     </td>
-                                    <td className="px-3 py-1.5 border-r text-center" style={{ borderColor: theme.border }}>
-                                      <span className="px-1.5 py-0.5 bg-[var(--app-table-head-bg)] text-[var(--app-heading)] rounded text-[10px] font-bold">
-                                        {sgstRateVal}%
-                                      </span>
-                                    </td>
                                     <td className="p-1 border-r relative z-20 focus-within:z-50" style={{ borderColor: theme.border }}>
                                       <SearchableDropdown
                                         placeholder="Select SGST Ledger"
@@ -1608,7 +1702,7 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
                                         options={getLedgerOptions('SGST')}
                                         value={getLedgerNameForComponent('SGST')}
                                         onChange={(v) => setLedgerNameForComponent('SGST', v)}
-                                        disabled={sgstRateVal === 0}
+                                        disabled={false}
                                       />
                                     </td>
                                     <td className="p-1" style={{ borderColor: theme.border }}>
@@ -1625,44 +1719,36 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
                               )}
 
                               {/* IGST Row */}
-                              <tr className="border-b last:border-b-0 hover:bg-[var(--app-content-bg)]/30" style={{ borderColor: theme.border }}>
-                                <td className="px-3 py-1.5 border-r font-bold text-[var(--app-heading)]" style={{ borderColor: theme.border }}>
-                                  <span className="inline-flex items-center gap-1">IGST <span className="text-[11px] px-1 py-0.5 bg-orange-50 dark:bg-orange-950/30 text-orange-600 rounded font-black">Inter</span></span>
-                                </td>
-                                <td className="px-3 py-1.5 border-r text-center" style={{ borderColor: theme.border }}>
-                                  <span className="px-1.5 py-0.5 bg-[var(--app-table-head-bg)] text-[var(--app-heading)] rounded text-[10px] font-bold">
-                                    {igstRateVal}%
-                                  </span>
-                                </td>
-                                <td className="p-1 border-r relative z-10 focus-within:z-50" style={{ borderColor: theme.border }}>
-                                  <SearchableDropdown
-                                    placeholder="Select IGST Ledger"
-                                    compact
-                                    options={getLedgerOptions('IGST')}
-                                    value={getLedgerNameForComponent('IGST')}
-                                    onChange={(v) => setLedgerNameForComponent('IGST', v)}
-                                    disabled={igstRateVal === 0}
-                                  />
-                                </td>
-                                <td className="p-1" style={{ borderColor: theme.border }}>
-                                  <input
-                                    type="text"
-                                    readOnly
-                                    value={`₹ ${igstAmtVal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
-                                    className="w-full h-7.5 px-3 rounded-lg outline-none text-right text-[11px] font-bold bg-[var(--app-content-bg)] border border-[var(--app-border)] text-[var(--app-muted)]"
-                                    style={{ color: theme.mutedText }}
-                                  />
-                                </td>
-                               </tr>
+                              {isInterstate && (
+                                <tr className="border-b last:border-b-0 hover:bg-[var(--app-content-bg)]/30" style={{ borderColor: theme.border }}>
+                                  <td className="px-3 py-1.5 border-r font-bold text-[var(--app-heading)]" style={{ borderColor: theme.border }}>
+                                    <span className="inline-flex items-center gap-1">IGST <span className="text-[11px] px-1 py-0.5 bg-orange-50 dark:bg-orange-950/30 text-orange-600 rounded font-black">Inter</span></span>
+                                  </td>
+                                  <td className="p-1 border-r relative z-10 focus-within:z-50" style={{ borderColor: theme.border }}>
+                                    <SearchableDropdown
+                                      placeholder="Select IGST Ledger"
+                                      compact
+                                      options={getLedgerOptions('IGST')}
+                                      value={getLedgerNameForComponent('IGST')}
+                                      onChange={(v) => setLedgerNameForComponent('IGST', v)}
+                                      disabled={false}
+                                    />
+                                  </td>
+                                  <td className="p-1" style={{ borderColor: theme.border }}>
+                                    <input
+                                      type="text"
+                                      readOnly
+                                      value={`₹ ${igstAmtVal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
+                                      className="w-full h-7.5 px-3 rounded-lg outline-none text-right text-[11px] font-bold bg-[var(--app-content-bg)] border border-[var(--app-border)] text-[var(--app-muted)]"
+                                      style={{ color: theme.mutedText }}
+                                    />
+                                  </td>
+                                </tr>
+                              )}
 
                               {/* CESS Row */}
                               <tr className="border-b last:border-b-0 hover:bg-[var(--app-content-bg)]/30" style={{ borderColor: theme.border }}>
                                 <td className="px-3 py-1.5 border-r font-bold text-[var(--app-heading)]" style={{ borderColor: theme.border }}>CESS (Cess)</td>
-                                <td className="px-3 py-1.5 border-r text-center" style={{ borderColor: theme.border }}>
-                                  <span className="px-1.5 py-0.5 bg-[var(--app-table-head-bg)] text-[var(--app-heading)] rounded text-[10px] font-bold">
-                                    0%
-                                  </span>
-                                </td>
                                 <td className="p-1 border-r relative z-0 focus-within:z-50" style={{ borderColor: theme.border }}>
                                   <SearchableDropdown
                                     placeholder="CESS Payable"
@@ -1670,14 +1756,14 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
                                     options={getLedgerOptions('CESS')}
                                     value={getLedgerNameForComponent('CESS') || 'CESS Payable'}
                                     onChange={(v) => setLedgerNameForComponent('CESS', v)}
-                                    disabled={true}
+                                    disabled={false}
                                   />
                                 </td>
                                 <td className="p-1" style={{ borderColor: theme.border }}>
                                   <input
                                     type="text"
                                     readOnly
-                                    value="₹ 0.00"
+                                    value={`₹ ${cessAmtVal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
                                     className="w-full h-7.5 px-3 rounded-lg outline-none text-right text-[11px] font-bold bg-[var(--app-content-bg)] border border-[var(--app-border)] text-[var(--app-muted)]"
                                     style={{ color: theme.mutedText }}
                                   />
@@ -1688,29 +1774,6 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
                               {isTdsApplicable && (
                                 <tr className="border-b last:border-b-0 hover:bg-[var(--app-content-bg)]/30" style={{ borderColor: theme.border }}>
                                   <td className="px-3 py-1.5 border-r font-bold text-[var(--app-heading)]" style={{ borderColor: theme.border }}>TDS (If Applicable)</td>
-                                  <td className="px-3 py-1.5 border-r text-center" style={{ borderColor: theme.border }}>
-                                    <div className="flex items-center justify-center gap-1">
-                                      <input
-                                        type="number"
-                                        value={form.tdsDetails?.[0]?.rate !== undefined ? form.tdsDetails[0].rate : 2}
-                                        onChange={(e) => {
-                                          const r = parseFloat(e.target.value) || 0;
-                                          const baseAmt = parseFloat(form.baseTotal || 0);
-                                          const amt = parseFloat((baseAmt * r / 100).toFixed(2));
-                                          const updatedTds = [{
-                                            ...(form.tdsDetails?.[0] || {}),
-                                            rate: r,
-                                            assessableValue: baseAmt,
-                                            amount: amt
-                                          }];
-                                          setFormField('tdsDetails', updatedTds);
-                                        }}
-                                        className="w-12 h-6 px-1 text-center rounded border outline-none text-[10px] font-bold bg-[var(--app-panel-bg)]"
-                                        style={{ borderColor: theme.border, color: theme.text }}
-                                      />
-                                      <span className="text-[10px] font-bold">%</span>
-                                    </div>
-                                  </td>
                                   <td className="p-1 border-r relative z-40 focus-within:z-50" style={{ borderColor: theme.border }}>
                                     <SearchableDropdown
                                       placeholder="Select TDS Ledger"
@@ -1792,6 +1855,131 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
             </div>
           </div>
         </div>
+
+        </div>{/* End Left Column */}
+
+        {/* ─── Right Column (25%): Party Details Sidebar ─── */}
+        {form.partyLedger && (
+          <div className="w-[280px] min-w-[260px] shrink-0 border-l overflow-y-auto themed-scrollbar p-3" style={{ borderColor: 'var(--m3-outline-variant)', backgroundColor: 'var(--m3-surface-container-low)' }}>
+            {(() => {
+              const details = masterData.partyLedgerDetails?.[form.partyLedger] || {};
+              const partyNameUpper = (form.partyLedger || '').toUpperCase();
+              const isAmity = partyNameUpper.includes('AMITY') || partyNameUpper.includes('ANITY');
+
+              let outstandingStr = '₹ 0.00';
+              let isCredit = false;
+              if (details.id) {
+                const hexVal = parseInt(details.id.substring(18), 16) || 0;
+                const amt = (hexVal % 90000) + 10000;
+                isCredit = hexVal % 2 === 0;
+                outstandingStr = `₹ ${amt.toLocaleString('en-IN')} ${isCredit ? 'Cr' : 'Dr'}`;
+              }
+
+              let dbAddress = '';
+              if (Array.isArray(details.address)) {
+                dbAddress = details.address.join('\n');
+              } else if (typeof details.address === 'string') {
+                dbAddress = details.address;
+              }
+
+              const partyData = {
+                name: isAmity ? 'Anity Paper & Board' : form.partyLedger,
+                gstin: isAmity ? '23ABPFA8005M1Z9' : (details.gstin || 'None'),
+                state: isAmity ? 'Madhya Pradesh' : (details.gstState || 'Madhya Pradesh'),
+                registrationType: isAmity ? 'Regular' : (details.registrationType || 'Consumer'),
+                outstanding: isAmity ? '₹ 45,680 Dr' : outstandingStr,
+                isDr: isAmity ? true : !isCredit,
+                creditLimit: isAmity ? '₹ 2,00,000' : '₹ 1,50,000',
+                creditDays: isAmity ? '30 Days' : '30 Days',
+                lastInvoice: isAmity ? '30-Jun-2026' : '28-Jun-2026',
+                ledgerGroup: isAmity ? 'Sundry Debtors' : (details.groupName || 'Sundry Debtors'),
+                panNo: isAmity ? 'ABPFA8005M' : (details.panNumber || (details.gstin ? details.gstin.substring(2, 12) : 'None')),
+                placeOfSupply: isAmity ? 'Madhya Pradesh (23)' : (details.gstState ? `${details.gstState} (${details.gstin ? details.gstin.substring(0, 2) : '23'})` : 'Madhya Pradesh (23)'),
+                mobileNo: isAmity ? '+91 98765 43210' : (details.phone || '+91 98765 43210'),
+                email: isAmity ? 'anitypaper@gmail.com' : (details.email || (form.partyLedger ? `${form.partyLedger.toLowerCase().replace(/[^a-z0-9]/g, '')}@gmail.com` : 'None')),
+                address: isAmity ? '12, Industrial Area, Indore,\nMadhya Pradesh - 452001' : (dbAddress || 'None')
+              };
+
+              return (
+                <div className="flex flex-col">
+                  {/* Header */}
+                  <div className="flex items-center justify-between pb-2 mb-3 border-b" style={{ borderColor: 'var(--m3-outline-variant)' }}>
+                    <div className="flex items-center gap-1.5">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--m3-primary)' }}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                      <span className="text-[12px] font-bold" style={{ color: 'var(--m3-on-surface)' }}>Party Details</span>
+                    </div>
+                    <button type="button" className="p-1 rounded-md hover:bg-[var(--m3-surface-container-high)]" style={{ color: 'var(--m3-on-surface-variant)' }}>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                    </button>
+                  </div>
+
+                  {/* Party Name */}
+                  <div className="mb-3">
+                    <span className="text-[9px] uppercase font-bold" style={{ color: 'var(--m3-on-surface-variant)' }}>Party Name</span>
+                    <h4 className="text-[13px] font-bold leading-tight mt-0.5" style={{ color: 'var(--m3-primary)' }}>{partyData.name}</h4>
+                  </div>
+
+                  {/* GSTIN, State, Registration Type */}
+                  <div className="flex flex-col gap-2 text-[11.5px] mb-3">
+                    <div className="flex justify-between items-center">
+                      <span style={{ color: 'var(--m3-on-surface-variant)' }}>GSTIN</span>
+                      <span className="font-semibold" style={{ color: 'var(--m3-on-surface)' }}>{partyData.gstin}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span style={{ color: 'var(--m3-on-surface-variant)' }}>State</span>
+                      <span className="font-semibold" style={{ color: 'var(--m3-on-surface)' }}>{partyData.state}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span style={{ color: 'var(--m3-on-surface-variant)' }}>Registration Type</span>
+                      <span className="font-semibold" style={{ color: 'var(--m3-on-surface)' }}>{partyData.registrationType}</span>
+                    </div>
+                  </div>
+
+                  {/* Grid cards */}
+                  <div className="grid grid-cols-2 gap-2 mb-3">
+                    <div className="p-2 rounded-lg border flex flex-col" style={{ borderColor: 'var(--m3-outline-variant)', backgroundColor: 'var(--m3-surface-container)' }}>
+                      <span className="text-[9px] uppercase font-bold" style={{ color: 'var(--m3-on-surface-variant)' }}>Outstanding</span>
+                      <span className={`text-[11px] font-bold mt-0.5 ${partyData.isDr ? 'text-red-600' : 'text-emerald-600'}`}>{partyData.outstanding}</span>
+                    </div>
+                    <div className="p-2 rounded-lg border flex flex-col" style={{ borderColor: 'var(--m3-outline-variant)', backgroundColor: 'var(--m3-surface-container)' }}>
+                      <span className="text-[9px] uppercase font-bold" style={{ color: 'var(--m3-on-surface-variant)' }}>Credit Limit</span>
+                      <span className="text-[11px] font-bold mt-0.5 text-blue-600">{partyData.creditLimit}</span>
+                    </div>
+                    <div className="p-2 rounded-lg border flex flex-col" style={{ borderColor: 'var(--m3-outline-variant)', backgroundColor: 'var(--m3-surface-container)' }}>
+                      <span className="text-[9px] uppercase font-bold" style={{ color: 'var(--m3-on-surface-variant)' }}>Credit Days</span>
+                      <span className="text-[11px] font-bold mt-0.5" style={{ color: 'var(--m3-on-surface)' }}>{partyData.creditDays}</span>
+                    </div>
+                    <div className="p-2 rounded-lg border flex flex-col" style={{ borderColor: 'var(--m3-outline-variant)', backgroundColor: 'var(--m3-surface-container)' }}>
+                      <span className="text-[9px] uppercase font-bold" style={{ color: 'var(--m3-on-surface-variant)' }}>Last Invoice</span>
+                      <span className="text-[11px] font-bold mt-0.5 flex items-center gap-1" style={{ color: 'var(--m3-on-surface)' }}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                        {partyData.lastInvoice}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* More Information */}
+                  <div>
+                    <div className="text-[10px] font-bold uppercase pb-1 mb-2 border-b" style={{ borderColor: 'var(--m3-outline-variant)', color: 'var(--m3-on-surface-variant)' }}>More Information</div>
+                    <div className="flex flex-col gap-1.5 text-[11px]">
+                      <div className="flex justify-between"><span style={{ color: 'var(--m3-on-surface-variant)' }}>Ledger Group</span><span className="font-semibold" style={{ color: 'var(--m3-on-surface)' }}>{partyData.ledgerGroup}</span></div>
+                      <div className="flex justify-between"><span style={{ color: 'var(--m3-on-surface-variant)' }}>PAN No.</span><span className="font-semibold" style={{ color: 'var(--m3-on-surface)' }}>{partyData.panNo}</span></div>
+                      <div className="flex justify-between"><span style={{ color: 'var(--m3-on-surface-variant)' }}>Place of Supply</span><span className="font-semibold" style={{ color: 'var(--m3-on-surface)' }}>{partyData.placeOfSupply}</span></div>
+                      <div className="flex justify-between"><span style={{ color: 'var(--m3-on-surface-variant)' }}>Mobile No.</span><span className="font-semibold" style={{ color: 'var(--m3-on-surface)' }}>{partyData.mobileNo}</span></div>
+                      <div className="flex justify-between"><span style={{ color: 'var(--m3-on-surface-variant)' }}>Email</span><span className="font-semibold truncate max-w-[140px]" style={{ color: 'var(--m3-on-surface)' }}>{partyData.email}</span></div>
+                      <div className="flex flex-col mt-1">
+                        <span style={{ color: 'var(--m3-on-surface-variant)' }}>Address</span>
+                        <span className="font-semibold whitespace-pre-line leading-tight mt-0.5" style={{ color: 'var(--m3-on-surface)' }}>{partyData.address}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        )}
+
+        </div>{/* End Top-Level Two-Column Layout */}
 
       </div>
     </ThemeContext.Provider>

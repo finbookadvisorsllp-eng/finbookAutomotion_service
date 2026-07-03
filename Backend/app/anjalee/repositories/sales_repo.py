@@ -284,13 +284,19 @@ class SalesVoucherRepository:
                 prefix = gstin[:2]
                 gst_state = STATE_CODES.get(prefix, "")
                 
+            pd_full = l.get("partyDetails") or {}
             results.append({
                 "id": str(l["_id"]),
                 "name": ledger_name,
                 "ledgerName": ledger_name,
                 "gstin": gstin,
                 "gstState": gst_state,
-                "registrationType": registration_type
+                "registrationType": registration_type,
+                "address": pd_full.get("address") or [],
+                "email": pd_full.get("email") or "",
+                "phone": pd_full.get("phone") or "",
+                "panNumber": pd_full.get("panNumber") or l.get("panNumber") or pd_full.get("panNo") or "",
+                "groupName": l.get("groupName") or ""
             })
         return results
 
