@@ -11,7 +11,8 @@ import Modal from '../components/Modal'
 import Pagination from '../components/Pagination'
 import { formatINR } from '../data/mockData'
 import { useDateRange } from '../context/DateContext'
-import { useApi } from '../hooks/useApi'
+import { useApiQuery } from '../hooks/useApiQuery'
+import { CACHE_TIMES } from '../queryClient'
 import { getDashboard, getCurrentCompany } from '../api'
 
 // Presentation-only metadata for each KPI (variant/icon/label/route). Every
@@ -61,20 +62,24 @@ export default function Dashboard() {
 
   // One round-trip drives the whole command center; it is company-aware (the
   // x-company-id header) and re-fetches whenever the financial year changes.
-  const { data, loading, error } = useApi(() => getDashboard(fy), [fy], { skip: !fy })
-  const { data: company } = useApi(() => getCurrentCompany(), [])
+  // Cached: re-visiting the dashboard serves instantly from cache while a fresh
+  // copy revalidates in the background (stale-while-revalidate).
+  const { data, loading, error } = useApiQuery(['dashboard', fy], () => getDashboard(fy), { enabled: !!fy, ...CACHE_TIMES.dashboard })
+  const { data: company } = useApiQuery(['current-company'], () => getCurrentCompany(), CACHE_TIMES.master)
 
-  const kpis = data?.kpis || {}
-  const monthlyTrend = data?.monthlyTrend || []
-  const receivablesAging = data?.receivablesAging || {}
+  // Stable references (data is stable between renders from the query cache) so the
+  // useMemo blocks below don't recompute on unrelated re-renders.
+  const kpis = useMemo(() => data?.kpis || {}, [data])
+  const monthlyTrend = useMemo(() => data?.monthlyTrend || [], [data])
+  const receivablesAging = useMemo(() => data?.receivablesAging || {}, [data])
+  const recentVouchers = useMemo(() => data?.recentVouchers || [], [data])
   const cashFlow = data?.cashFlow || {}
   const topCustomers = data?.topCustomers || []
   const topItems = data?.topItems || []
-  const recentVouchers = data?.recentVouchers || []
   const alerts = data?.alerts || []
 
   // ── KPI cards (ordered, presentation merged with backend numbers) ──
-  const kpiCards = KPI_ORDER.filter(k => kpis[k]).map(k => {
+  const kpiCards = useMemo(() => KPI_ORDER.filter(k => kpis[k]).map(k => {
     const v = kpis[k]
     const meta = KPI_META[k]
     return {
@@ -82,24 +87,34 @@ export default function Dashboard() {
       current: v.current, change: v.change ?? 0, trend: v.trend || 'up',
       subtitle: k === 'netProfit' ? `${v.margin ?? 0}% margin` : 'vs last FY',
     }
-  })
+  }), [kpis])
 
   // ── Revenue vs Expense (P&L lens) + footer totals derived from the same series ──
-  const totRevenue = monthlyTrend.reduce((s, p) => s + (p.revenue || 0), 0)
-  const totExpense = monthlyTrend.reduce((s, p) => s + (p.expense || 0), 0)
-  const totProfit = totRevenue - totExpense
-  const expenseRatio = totRevenue ? Math.round((totExpense / totRevenue) * 100) : 0
-  const profitMargin = totRevenue ? Math.round((totProfit / totRevenue) * 100) : 0
+  const { totRevenue, totExpense, totProfit, expenseRatio, profitMargin } = useMemo(() => {
+    const rev = monthlyTrend.reduce((s, p) => s + (p.revenue || 0), 0)
+    const exp = monthlyTrend.reduce((s, p) => s + (p.expense || 0), 0)
+    const prof = rev - exp
+    return {
+      totRevenue: rev, totExpense: exp, totProfit: prof,
+      expenseRatio: rev ? Math.round((exp / rev) * 100) : 0,
+      profitMargin: rev ? Math.round((prof / rev) * 100) : 0,
+    }
+  }, [monthlyTrend])
 
   // ── Receivables aging (consumed from Outstanding Reports; honest when unsynced) ──
-  const agingObj = receivablesAging.aging || { available: false, buckets: [], reason: '' }
-  const agingBuckets = (agingObj.buckets || []).map((b, i) => ({ ...b, color: AGING_COLORS[i % AGING_COLORS.length] }))
-  const agingAvailable = !!agingObj.available
-  const agingTotal = receivablesAging.summary?.total || 0
-  const agingPartyCount = receivablesAging.summary?.partyCount || 0
-  const agingBills = agingBuckets.reduce((s, b) => s + (b.count || 0), 0)
-  const safeBucket = agingBuckets[0]
-  const riskAmt = agingBuckets.filter(b => (b.from ?? 0) >= 61).reduce((s, b) => s + (b.amount || 0), 0)
+  const { agingBuckets, agingAvailable, agingTotal, agingPartyCount, agingBills, safeBucket, riskAmt } = useMemo(() => {
+    const obj = receivablesAging.aging || { available: false, buckets: [], reason: '' }
+    const buckets = (obj.buckets || []).map((b, i) => ({ ...b, color: AGING_COLORS[i % AGING_COLORS.length] }))
+    return {
+      agingBuckets: buckets,
+      agingAvailable: !!obj.available,
+      agingTotal: receivablesAging.summary?.total || 0,
+      agingPartyCount: receivablesAging.summary?.partyCount || 0,
+      agingBills: buckets.reduce((s, b) => s + (b.count || 0), 0),
+      safeBucket: buckets[0],
+      riskAmt: buckets.filter(b => (b.from ?? 0) >= 61).reduce((s, b) => s + (b.amount || 0), 0),
+    }
+  }, [receivablesAging])
 
   // ── Cash flow (consumed from the Cash Flow statement) ──
   const cfSeries = cashFlow.series || []

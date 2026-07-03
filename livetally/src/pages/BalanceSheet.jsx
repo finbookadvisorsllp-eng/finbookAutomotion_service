@@ -4,7 +4,8 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
 import { Download, ChevronDown, ChevronRight, Activity, LayoutGrid, Rows, ChevronLeft, Wallet, Building2, TrendingDown, TrendingUp, AlertTriangle } from 'lucide-react';
 import { formatINR } from '../data/mockData';
 import { useDateRange } from '../context/DateContext';
-import { useApi } from '../hooks/useApi';
+import { useApiQuery } from '../hooks/useApiQuery';
+import { CACHE_TIMES } from '../queryClient';
 import { getBalanceSheet } from '../api';
 
 // Colours are presentation only (never data). Sliced by index.
@@ -103,7 +104,7 @@ export default function BalanceSheet() {
   const [viewType, setViewType] = useState('horizontal');
   const [expanded, setExpanded] = useState(new Set());
 
-  const { data: bs, loading, error } = useApi(() => getBalanceSheet(fy), [fy], { skip: !fy });
+  const { data: bs, loading, error } = useApiQuery(['balance-sheet', fy], () => getBalanceSheet(fy), { enabled: !!fy, ...CACHE_TIMES.statement });
 
   const currentIndex = years.findIndex((y) => y.id === fy);
   const currentYear = years[currentIndex] || { id: fy, label: '' };

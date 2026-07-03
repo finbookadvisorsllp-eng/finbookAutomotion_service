@@ -7,6 +7,8 @@ imports here; pure functions + Mongo reads via repositories.
 import re
 from dataclasses import dataclass, field
 
+from app.aman.config import aman_settings
+from app.aman.core.cache import report_cache, cache_key
 from app.aman.core.serializers import money
 from app.aman.repositories import group_repo, ledger_repo, voucher_repo
 
@@ -130,7 +132,30 @@ def stock_in_hand_from_books(balances: dict, groups: dict) -> tuple[float, float
 
 def compute_ledger_balances(db, fy: str | None = None, include_opening: bool = True,
                             include_stock: bool = True, date_match: dict | None = None) -> dict[str, LedgerBalance]:
-    """Build per-ledger balances for the period.
+    """Build per-ledger balances for the period (cached).
+
+    This is the single most expensive primitive in the stack — the dashboard alone
+    calls it 6+ times per load, and P&L / BS / TB each call it too. Memoise the
+    result per (tenant DB, fy, flags, date range) for CACHE_TTL so those repeat
+    calls collapse to one aggregation. The returned balances are read-only for
+    every caller (all mutation happens inside the impl below), so sharing is safe.
+    Honours CACHE_ENABLED.
+    """
+    if not aman_settings.CACHE_ENABLED:
+        return _compute_ledger_balances_impl(db, fy, include_opening, include_stock, date_match)
+    key = cache_key(getattr(db, "name", "default"), "ledger-balances",
+                    fy=fy, io=include_opening, ist=include_stock, dm=date_match)
+    hit = report_cache.get(key)
+    if hit is not None:
+        return hit
+    val = _compute_ledger_balances_impl(db, fy, include_opening, include_stock, date_match)
+    report_cache.set(key, val)
+    return val
+
+
+def _compute_ledger_balances_impl(db, fy: str | None = None, include_opening: bool = True,
+                                  include_stock: bool = True, date_match: dict | None = None) -> dict[str, LedgerBalance]:
+    """Actual per-ledger balance computation (see cached wrapper above).
 
     Merges the ledger master (opening balance + group mapping) with the period
     movement aggregated from vouchers. Ledger names that appear in vouchers but

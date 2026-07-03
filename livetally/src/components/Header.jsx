@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Menu, Bell, Download, Plug, Calendar, ChevronDown, CheckCircle2, Moon, Sun } from 'lucide-react'
 import { company, notifications } from '../data/mockData'
 import { useDateRange } from '../context/DateContext'
 import { getAllCompanies } from '../api'
 import { getCompanyId, setCompanyId } from '../api/client'
+import { CACHE_TIMES } from '../queryClient'
 
 export default function Header({ collapsed, onToggleSidebar, isDarkMode, toggleTheme }) {
   const [notifOpen, setNotifOpen] = useState(false)
@@ -12,9 +14,14 @@ export default function Header({ collapsed, onToggleSidebar, isDarkMode, toggleT
   const { selectedDateRange, setSelectedDateRange } = useDateRange()
 
   // Real company switcher — lists every tenant company, switches the active one.
-  const [companies, setCompanies] = useState([])
+  // Company list is master data: cached (was re-fetched on every Header render).
+  const { data: companiesData } = useQuery({
+    queryKey: ['all-companies'],
+    queryFn: () => getAllCompanies().catch(() => []),
+    ...CACHE_TIMES.master,
+  })
+  const companies = companiesData || []
   const currentId = getCompanyId()
-  useEffect(() => { getAllCompanies().then((c) => setCompanies(c || [])).catch(() => {}) }, [])
   const currentCompany = companies.find((c) => c.id === currentId)
   const currentName = currentCompany?.name || 'Select Company'
   const initials = (currentName || 'C').replace(/[^A-Za-z ]/g, '').trim().slice(0, 2).toUpperCase() || 'CO'
@@ -22,9 +29,12 @@ export default function Header({ collapsed, onToggleSidebar, isDarkMode, toggleT
     setCompanyOpen(false)
     if (id === currentId) return
     setCompanyId(id)        // persists to localStorage; x-company-id header uses it
-    window.location.reload()  // re-fetch every report fresh for the new company
+    // Full reload clears both the React tree and the query cache so every page
+    // (migrated to TanStack Query or not) reloads fresh for the new company. Once
+    // all pages use useApiQuery this can become queryClient.clear() + re-render.
+    window.location.reload()
   }
-  
+
   const dateRanges = [
     "Today (29th May '26)",
     "Yesterday (28th May '26)",
@@ -40,7 +50,7 @@ export default function Header({ collapsed, onToggleSidebar, isDarkMode, toggleT
   const unreadCount = notifications.filter(n => !n.read).length
 
   const syncTimeAgo = () => {
-    const now  = new Date()
+    const now = new Date()
     const sync = new Date(company.lastSync)
     const diffH = Math.round((now - sync) / 36e5)
     if (diffH < 1) return 'Just now'
@@ -173,11 +183,11 @@ export default function Header({ collapsed, onToggleSidebar, isDarkMode, toggleT
             >
               <div className="max-h-[60vh] overflow-y-auto">
                 {dateRanges.map((range, idx) => (
-                  <button 
-                    key={idx} 
+                  <button
+                    key={idx}
                     onClick={() => { setSelectedDateRange(range); setDateRangeOpen(false) }}
                     className="w-full flex items-center px-4 py-2 transition-colors text-left"
-                    style={{ 
+                    style={{
                       color: selectedDateRange === range ? '#1E7BFF' : 'var(--theme-text-main)',
                       background: selectedDateRange === range ? 'rgba(30, 123, 255, 0.08)' : 'transparent',
                       borderBottom: idx < dateRanges.length - 1 ? '1px solid var(--theme-card-border)' : 'none'

@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { formatINR } from '../data/mockData';
 import { useDateRange } from '../context/DateContext';
-import { useApi } from '../hooks/useApi';
+import { useApiQuery } from '../hooks/useApiQuery';
+import { CACHE_TIMES } from '../queryClient';
 import {
     getProfitLoss,
     getPlLedgerVouchers,
@@ -117,39 +118,39 @@ export default function ProfitLoss() {
         setDebouncedSearch('');
     }, [ledgerId, fy, selectedDateRange]);
 
-    // 1. Fetch main Profit & Loss report (L1 & L2)
-    const { data: apiData, loading: plLoading, error: plError } = useApi(
+    // 1. Fetch main Profit & Loss report (L1 & L2) — cached per FY + date range.
+    const { data: apiData, loading: plLoading, error: plError } = useApiQuery(
+        ['profit-loss', fy, selectedDateRange],
         () => getProfitLoss(fy, apiParams),
-        [fy, selectedDateRange],
-        { skip: !fy }
+        { enabled: !!fy, ...CACHE_TIMES.statement }
     );
 
     // 2. Fetch vouchers list for selected ledger (L3) — server-side paginated
-    const { data: voucherRes, loading: vouchersLoading } = useApi(
+    const { data: voucherRes, loading: vouchersLoading } = useApiQuery(
+        ['pl-ledger-vouchers', ledgerId, fy, selectedDateRange, voucherPage, voucherPageSize, debouncedSearch],
         () => getPlLedgerVouchers(ledgerId, fy, voucherPage, voucherPageSize, { ...apiParams, search: debouncedSearch }),
-        [ledgerId, fy, selectedDateRange, voucherPage, voucherPageSize, debouncedSearch],
-        { skip: !ledgerId || ledgerId === 'stock-hand-closing' }
+        { enabled: !!ledgerId && ledgerId !== 'stock-hand-closing', ...CACHE_TIMES.drilldown }
     );
 
     // 3. Fetch closing stock items list (L3 Closing Stock)
-    const { data: stockItemsRes, loading: stockItemsLoading } = useApi(
+    const { data: stockItemsRes, loading: stockItemsLoading } = useApiQuery(
+        ['pl-stock-items', fy, selectedDateRange],
         () => getPlStockItems(fy, apiParams),
-        [fy, selectedDateRange],
-        { skip: ledgerId !== 'stock-hand-closing' || !fy }
+        { enabled: ledgerId === 'stock-hand-closing' && !!fy, ...CACHE_TIMES.statement }
     );
 
     // 4. Fetch stock item performance ledger (L4 Stock Item Ledger)
-    const { data: itemPerformanceRes, loading: itemPerformanceLoading } = useApi(
+    const { data: itemPerformanceRes, loading: itemPerformanceLoading } = useApiQuery(
+        ['pl-stock-item-ledger', stockItemId, fy, selectedDateRange],
         () => getPlStockItemLedger(stockItemId, fy, apiParams),
-        [stockItemId, fy, selectedDateRange],
-        { skip: !stockItemId || !fy }
+        { enabled: !!stockItemId && !!fy, ...CACHE_TIMES.drilldown }
     );
 
     // 5. Fetch single voucher detail (L4 Voucher Detail / L5 Stock Customer Voucher Detail)
-    const { data: voucherDetailRes, loading: voucherDetailLoading } = useApi(
+    const { data: voucherDetailRes, loading: voucherDetailLoading } = useApiQuery(
+        ['voucher', voucherId],
         () => getVoucher(voucherId),
-        [voucherId],
-        { skip: !voucherId }
+        { enabled: !!voucherId, ...CACHE_TIMES.drilldown }
     );
 
     const [comparePeriod, setComparePeriod] = useState(null);

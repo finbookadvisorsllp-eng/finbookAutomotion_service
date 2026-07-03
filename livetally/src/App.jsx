@@ -1,53 +1,63 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { DateProvider } from './context/DateContext'
 
-// Layout
+// Layout — always mounted, kept eager.
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
 
-// Pages
+// Login gates the whole app (rendered before the router), so it stays eager.
 import Login from './pages/Login'
-import Dashboard from './pages/Dashboard'
-import ProfitLoss from './pages/ProfitLoss'
-import OpeningStockSummary from './pages/OpeningStockSummary'
-import BalanceSheet from './pages/BalanceSheet'
-import CashFlow from './pages/CashFlow'
-import Receivables from './pages/Receivables'
-import Payables from './pages/Payables'
-import SalesRegister from './pages/SalesRegister/SalesRegisterReport'
-import PurchaseRegister from './pages/PurchaseRegister'
-import Inventory from './pages/Inventory'
-import GSTReports from './pages/GSTReports'
-import Analytics from './pages/Analytics'
-import Customers from './pages/Customers'
-import Vendors from './pages/Vendors'
 
-// New Pages
-import SalesOrder from './pages/SalesOrder'
-import CreditNote from './pages/CreditNote'
-import DeliveryNote from './pages/DeliveryNote'
-import PurchaseOrder from './pages/PurchaseOrder'
-import DebitNote from './pages/DebitNote'
-import ReceiptNote from './pages/ReceiptNote'
-import Alerts from './pages/Alerts'
-import Notifications from './pages/Notifications'
-import TrialBalance from './pages/TrialBalance'
-import DayBook from './pages/DayBook'
-import OutstandingReports from './pages/OutstandingReports'
-import SalesAnalysis from './pages/SalesAnalysis'
-import CreditLimit from './pages/CreditLimit'
-import BillsDue from './pages/BillsDue'
-import PurchaseTrends from './pages/PurchaseTrends'
-import SlowMoving from './pages/SlowMoving'
-import FastMoving from './pages/FastMoving'
-import StockValuation from './pages/StockValuation'
-import StockAlerts from './pages/StockAlerts'
-import ItemPerformance from './pages/ItemPerformance'
-import GenericReport from './pages/GenericReport'
-import CashBankModule from './pages/CashBankModule'
+// Pages — lazy-loaded so each route's JS (and its heavy deps like recharts) is
+// only downloaded when that page is first visited, shrinking the initial bundle.
+const Dashboard = lazy(() => import('./pages/Dashboard'))
+const ProfitLoss = lazy(() => import('./pages/ProfitLoss'))
+const OpeningStockSummary = lazy(() => import('./pages/OpeningStockSummary'))
+const BalanceSheet = lazy(() => import('./pages/BalanceSheet'))
+const CashFlow = lazy(() => import('./pages/CashFlow'))
+const Receivables = lazy(() => import('./pages/Receivables'))
+const Payables = lazy(() => import('./pages/Payables'))
+const SalesRegister = lazy(() => import('./pages/SalesRegister/SalesRegisterReport'))
+const PurchaseRegister = lazy(() => import('./pages/PurchaseRegister'))
+const Inventory = lazy(() => import('./pages/Inventory'))
+const GSTReports = lazy(() => import('./pages/GSTReports'))
+const Analytics = lazy(() => import('./pages/Analytics'))
+const Customers = lazy(() => import('./pages/Customers'))
+const Vendors = lazy(() => import('./pages/Vendors'))
+const SalesOrder = lazy(() => import('./pages/SalesOrder'))
+const CreditNote = lazy(() => import('./pages/CreditNote'))
+const DeliveryNote = lazy(() => import('./pages/DeliveryNote'))
+const PurchaseOrder = lazy(() => import('./pages/PurchaseOrder'))
+const DebitNote = lazy(() => import('./pages/DebitNote'))
+const ReceiptNote = lazy(() => import('./pages/ReceiptNote'))
+const Alerts = lazy(() => import('./pages/Alerts'))
+const Notifications = lazy(() => import('./pages/Notifications'))
+const TrialBalance = lazy(() => import('./pages/TrialBalance'))
+const DayBook = lazy(() => import('./pages/DayBook'))
+const OutstandingReports = lazy(() => import('./pages/OutstandingReports'))
+const SalesAnalysis = lazy(() => import('./pages/SalesAnalysis'))
+const CreditLimit = lazy(() => import('./pages/CreditLimit'))
+const BillsDue = lazy(() => import('./pages/BillsDue'))
+const PurchaseTrends = lazy(() => import('./pages/PurchaseTrends'))
+const SlowMoving = lazy(() => import('./pages/SlowMoving'))
+const FastMoving = lazy(() => import('./pages/FastMoving'))
+const StockValuation = lazy(() => import('./pages/StockValuation'))
+const StockAlerts = lazy(() => import('./pages/StockAlerts'))
+const ItemPerformance = lazy(() => import('./pages/ItemPerformance'))
+const GenericReport = lazy(() => import('./pages/GenericReport'))
+const CashBankModule = lazy(() => import('./pages/CashBankModule'))
 
 import "./index.css"
+
+// Lightweight fallback shown while a lazy route chunk loads.
+function RouteFallback() {
+  return (
+    <div className="flex items-center justify-center py-20 text-[12px] font-semibold text-slate-400 animate-pulse">
+      Loading…
+    </div>
+  )
+}
 
 // ── App Shell (Sidebar + Header + Content) ──────────
 function AppShell({ children }) {
@@ -97,7 +107,9 @@ function AppShell({ children }) {
           toggleTheme={() => setIsDarkMode(!isDarkMode)}
         />
         <main className="content-area">
-          {children}
+          <Suspense fallback={<RouteFallback />}>
+            {children}
+          </Suspense>
         </main>
       </div>
     </div>

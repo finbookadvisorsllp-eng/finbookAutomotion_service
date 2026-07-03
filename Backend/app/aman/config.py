@@ -33,8 +33,16 @@ class AmanSettings:
     USERS_COLLECTION: str = os.getenv("AMAN_USERS_COLLECTION", "users")
 
     # ─── Caching ───
-    CACHE_ENABLED: bool = False
+    # On by default; set AMAN_CACHE_ENABLED=false to bypass the whole report cache
+    # (route-level cached_report, ledger-balance memo and group-master memo all
+    # honour this single switch).
+    CACHE_ENABLED: bool = os.getenv("AMAN_CACHE_ENABLED", "true").lower() in ("1", "true", "yes", "on")
     CACHE_TTL_SECONDS: int = int(os.getenv("AMAN_CACHE_TTL", "600"))  # 10 min
+
+    # ─── Indexes ───
+    # Lazily create the vouchers/ledgers/groups indexes on first access to each
+    # tenant DB. Set AMAN_ENSURE_INDEXES=false to disable (e.g. read-only replica).
+    ENSURE_INDEXES: bool = os.getenv("AMAN_ENSURE_INDEXES", "true").lower() in ("1", "true", "yes", "on")
 
     # ─── Accounting / GST ───
     GST_RATE_SLABS = [5, 12, 18, 28]

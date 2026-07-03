@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, ChevronDown, AlertTriangle } from 'lucide-react'
 import { formatINR } from '../data/mockData'
 import { useDateRange } from '../context/DateContext'
-import { useApi } from '../hooks/useApi'
+import { useApiQuery } from '../hooks/useApiQuery'
+import { CACHE_TIMES } from '../queryClient'
 import { getTrialBalance } from '../api'
 
 export default function TrialBalance() {
@@ -11,7 +12,7 @@ export default function TrialBalance() {
   const { fy, years, selectFy } = useDateRange()
   const [expandedRows, setExpandedRows] = useState(new Set())
 
-  const { data: tb, loading, error } = useApi(() => getTrialBalance(fy), [fy], { skip: !fy })
+  const { data: tb, loading, error } = useApiQuery(['trial-balance', fy], () => getTrialBalance(fy), { enabled: !!fy, ...CACHE_TIMES.statement })
 
   const currentIndex = years.findIndex((y) => y.id === fy)
   const currentYear = years[currentIndex] || { id: fy, label: '' }

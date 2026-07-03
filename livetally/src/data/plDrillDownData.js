@@ -10,32 +10,44 @@ export const plDrillDownData = {
         net: 977503.99,
       },
       particulars: [
-        { id: 'sales-accounts', name: 'Sales Accounts', sign: '+', amount: 3543977.97, ledgers: [
-          { id: 'gst-sales-12', name: 'GST Sales 12%', debit: 0, credit: 3500000.97 },
-          { id: 'gst-sales-18', name: 'GST Sales 18%', debit: 0, credit: 43977.00 },
-          { id: 'igst-sales-18', name: 'IGST Sales 18%', debit: 0, credit: 56936.00 }
-        ]},
-        { id: 'opening-stock', name: 'Opening Stock', sign: '-', amount: 6839263.71, ledgers: [
-          { id: 'stock-hand', name: 'Stock in Hand', debit: 6839263.71, credit: 0 }
-        ]},
-        { id: 'purchase-accounts', name: 'Purchase Accounts', sign: '-', amount: 1698249.60, ledgers: [
-          { id: 'gst-inward-service-18', name: 'GST Inward Service 18%', debit: 265229.00, credit: 0 },
-          { id: 'gst-purchase-12', name: 'GST Purchase 12%', debit: 1118186.60, credit: 0 },
-          { id: 'gst-purchase-18', name: 'GST Purchase 18%', debit: 187966.00, credit: 0 },
-          { id: 'gst-service-12', name: 'Gst Service @ 12%', debit: 14168.00, credit: 0 },
-          { id: 'purchase', name: 'Purchase', debit: 112700.00, credit: 0 }
-        ]},
-        { id: 'closing-stock', name: 'Less: Closing Stock', sign: '+', amount: 2457200.75, ledgers: [
-          { id: 'stock-hand-closing', name: 'Closing Stock', debit: 2457200.75, credit: 0 }
-        ]},
-        { id: 'direct-expenses', name: 'Direct Expenses', sign: '-', amount: 349012.80, ledgers: [
-          { id: 'electricity', name: 'Electricity', debit: 349012.80, credit: 0 }
-        ]},
-        { id: 'indirect-incomes', name: 'Indirect Incomes', sign: '+', amount: 0, ledgers: []},
-        { id: 'indirect-expenses', name: 'Indirect Expenses', sign: '-', amount: 92156.60, ledgers: [
-          { id: 'audit-fees', name: 'Audit Fees', debit: 30000.00, credit: 0 },
-          { id: 'bank-charges', name: 'Bank Charges', debit: 92156.60, credit: 0 }
-        ]}
+        {
+          id: 'sales-accounts', name: 'Sales Accounts', sign: '+', amount: 3543977.97, ledgers: [
+            { id: 'gst-sales-12', name: 'GST Sales 12%', debit: 0, credit: 3500000.97 },
+            { id: 'gst-sales-18', name: 'GST Sales 18%', debit: 0, credit: 43977.00 },
+            { id: 'igst-sales-18', name: 'IGST Sales 18%', debit: 0, credit: 56936.00 }
+          ]
+        },
+        {
+          id: 'opening-stock', name: 'Opening Stock', sign: '-', amount: 6839263.71, ledgers: [
+            { id: 'stock-hand', name: 'Stock in Hand', debit: 6839263.71, credit: 0 }
+          ]
+        },
+        {
+          id: 'purchase-accounts', name: 'Purchase Accounts', sign: '-', amount: 1698249.60, ledgers: [
+            { id: 'gst-inward-service-18', name: 'GST Inward Service 18%', debit: 265229.00, credit: 0 },
+            { id: 'gst-purchase-12', name: 'GST Purchase 12%', debit: 1118186.60, credit: 0 },
+            { id: 'gst-purchase-18', name: 'GST Purchase 18%', debit: 187966.00, credit: 0 },
+            { id: 'gst-service-12', name: 'Gst Service @ 12%', debit: 14168.00, credit: 0 },
+            { id: 'purchase', name: 'Purchase', debit: 112700.00, credit: 0 }
+          ]
+        },
+        {
+          id: 'closing-stock', name: 'Less: Closing Stock', sign: '+', amount: 2457200.75, ledgers: [
+            { id: 'stock-hand-closing', name: 'Closing Stock', debit: 2457200.75, credit: 0 }
+          ]
+        },
+        {
+          id: 'direct-expenses', name: 'Direct Expenses', sign: '-', amount: 349012.80, ledgers: [
+            { id: 'electricity', name: 'Electricity', debit: 349012.80, credit: 0 }
+          ]
+        },
+        { id: 'indirect-incomes', name: 'Indirect Incomes', sign: '+', amount: 0, ledgers: [] },
+        {
+          id: 'indirect-expenses', name: 'Indirect Expenses', sign: '-', amount: 92156.60, ledgers: [
+            { id: 'audit-fees', name: 'Audit Fees', debit: 30000.00, credit: 0 },
+            { id: 'bank-charges', name: 'Bank Charges', debit: 92156.60, credit: 0 }
+          ]
+        }
       ]
     },
     {
@@ -48,29 +60,43 @@ export const plDrillDownData = {
         net: 223620.24,
       },
       particulars: [
-        { id: 'sales-accounts', name: 'Sales Accounts', sign: '+', amount: 15622762.35, ledgers: [
-          { id: 'gst-sales-12', name: 'GST Sales 12%', debit: 0, credit: 11500000.00 },
-          { id: 'gst-sales-18', name: 'GST Sales 18%', debit: 0, credit: 4122762.35 },
-          { id: 'sales', name: 'Sales', debit: 0, credit: 312.00 }
-        ]},
-        { id: 'opening-stock', name: 'Opening Stock', sign: '-', amount: 5530690.11, ledgers: [
-          { id: 'stock-hand', name: 'Stock in Hand', debit: 5530690.11, credit: 0 }
-        ]},
-        { id: 'purchase-accounts', name: 'Purchase Accounts', sign: '-', amount: 12966670.35, ledgers: [
-          { id: 'purchase-12', name: 'GST Purchase 12%', debit: 12966670.35, credit: 0 }
-        ]},
-        { id: 'closing-stock', name: 'Less: Closing Stock', sign: '+', amount: 6839263.71, ledgers: [
-          { id: 'stock-hand-closing', name: 'Closing Stock', debit: 6839263.71, credit: 0 }
-        ]},
-        { id: 'direct-expenses', name: 'Direct Expenses', sign: '-', amount: 2004759.60, ledgers: [
-          { id: 'electricity', name: 'Electricity', debit: 2004759.60, credit: 0 }
-        ]},
-        { id: 'indirect-incomes', name: 'Indirect Incomes', sign: '+', amount: 3362.00, ledgers: [
-          { id: 'discount-rx', name: 'Discount Received', debit: 0, credit: 3362.00 }
-        ]},
-        { id: 'indirect-expenses', name: 'Indirect Expenses', sign: '-', amount: 1739647.76, ledgers: [
-          { id: 'salary-wages', name: 'Salary & Wages', debit: 1739647.76, credit: 0 }
-        ]}
+        {
+          id: 'sales-accounts', name: 'Sales Accounts', sign: '+', amount: 15622762.35, ledgers: [
+            { id: 'gst-sales-12', name: 'GST Sales 12%', debit: 0, credit: 11500000.00 },
+            { id: 'gst-sales-18', name: 'GST Sales 18%', debit: 0, credit: 4122762.35 },
+            { id: 'sales', name: 'Sales', debit: 0, credit: 312.00 }
+          ]
+        },
+        {
+          id: 'opening-stock', name: 'Opening Stock', sign: '-', amount: 5530690.11, ledgers: [
+            { id: 'stock-hand', name: 'Stock in Hand', debit: 5530690.11, credit: 0 }
+          ]
+        },
+        {
+          id: 'purchase-accounts', name: 'Purchase Accounts', sign: '-', amount: 12966670.35, ledgers: [
+            { id: 'purchase-12', name: 'GST Purchase 12%', debit: 12966670.35, credit: 0 }
+          ]
+        },
+        {
+          id: 'closing-stock', name: 'Less: Closing Stock', sign: '+', amount: 6839263.71, ledgers: [
+            { id: 'stock-hand-closing', name: 'Closing Stock', debit: 6839263.71, credit: 0 }
+          ]
+        },
+        {
+          id: 'direct-expenses', name: 'Direct Expenses', sign: '-', amount: 2004759.60, ledgers: [
+            { id: 'electricity', name: 'Electricity', debit: 2004759.60, credit: 0 }
+          ]
+        },
+        {
+          id: 'indirect-incomes', name: 'Indirect Incomes', sign: '+', amount: 3362.00, ledgers: [
+            { id: 'discount-rx', name: 'Discount Received', debit: 0, credit: 3362.00 }
+          ]
+        },
+        {
+          id: 'indirect-expenses', name: 'Indirect Expenses', sign: '-', amount: 1739647.76, ledgers: [
+            { id: 'salary-wages', name: 'Salary & Wages', debit: 1739647.76, credit: 0 }
+          ]
+        }
       ]
     },
     {
@@ -83,33 +109,45 @@ export const plDrillDownData = {
         net: 1977503.99,
       },
       particulars: [
-        { id: 'sales-accounts', name: 'Sales Accounts', sign: '+', amount: 4543977.97, ledgers: [
-          { id: 'gst-sales-12', name: 'GST Sales 12%', debit: 0, credit: 4590538.97 },
-          { id: 'gst-sales-18', name: 'GST Sales 18%', debit: 0, credit: 11032.00 },
-          { id: 'sales', name: 'Sales', debit: 0, credit: 642.00 },
-          { id: 'gst-sales-return-18', name: 'GST Sales Return 18%', debit: 58235.00, credit: 0 },
-          { id: 'igst-sales-18', name: 'IGST Sales 18%', debit: 0, credit: 125430.00 }
-        ]},
-        { id: 'opening-stock', name: 'Opening Stock', sign: '-', amount: 6839263.71, ledgers: [
-          { id: 'stock-hand', name: 'Stock in Hand', debit: 6839263.71, credit: 0 }
-        ]},
-        { id: 'purchase-accounts', name: 'Purchase Accounts', sign: '-', amount: 1698249.60, ledgers: [
-          { id: 'gst-inward-service-18', name: 'GST Inward Service 18%', debit: 265229.00, credit: 0 },
-          { id: 'gst-purchase-12', name: 'GST Purchase 12%', debit: 1118186.60, credit: 0 },
-          { id: 'gst-purchase-18', name: 'GST Purchase 18%', debit: 187966.00, credit: 0 },
-          { id: 'gst-service-12', name: 'Gst Service @ 12%', debit: 14168.00, credit: 0 },
-          { id: 'purchase', name: 'Purchase', debit: 112700.00, credit: 0 }
-        ]},
-        { id: 'closing-stock', name: 'Less: Closing Stock', sign: '+', amount: 2457200.75, ledgers: [
-          { id: 'stock-hand-closing', name: 'Closing Stock', debit: 2457200.75, credit: 0 }
-        ]},
-        { id: 'direct-expenses', name: 'Direct Expenses', sign: '-', amount: 349012.80, ledgers: [
-          { id: 'electricity', name: 'Electricity', debit: 349012.80, credit: 0 }
-        ]},
-        { id: 'indirect-incomes', name: 'Indirect Incomes', sign: '+', amount: 0, ledgers: []},
-        { id: 'indirect-expenses', name: 'Indirect Expenses', sign: '-', amount: 92156.60, ledgers: [
-          { id: 'bank-charges', name: 'Bank Charges', debit: 92156.60, credit: 0 }
-        ]}
+        {
+          id: 'sales-accounts', name: 'Sales Accounts', sign: '+', amount: 4543977.97, ledgers: [
+            { id: 'gst-sales-12', name: 'GST Sales 12%', debit: 0, credit: 4590538.97 },
+            { id: 'gst-sales-18', name: 'GST Sales 18%', debit: 0, credit: 11032.00 },
+            { id: 'sales', name: 'Sales', debit: 0, credit: 642.00 },
+            { id: 'gst-sales-return-18', name: 'GST Sales Return 18%', debit: 58235.00, credit: 0 },
+            { id: 'igst-sales-18', name: 'IGST Sales 18%', debit: 0, credit: 125430.00 }
+          ]
+        },
+        {
+          id: 'opening-stock', name: 'Opening Stock', sign: '-', amount: 6839263.71, ledgers: [
+            { id: 'stock-hand', name: 'Stock in Hand', debit: 6839263.71, credit: 0 }
+          ]
+        },
+        {
+          id: 'purchase-accounts', name: 'Purchase Accounts', sign: '-', amount: 1698249.60, ledgers: [
+            { id: 'gst-inward-service-18', name: 'GST Inward Service 18%', debit: 265229.00, credit: 0 },
+            { id: 'gst-purchase-12', name: 'GST Purchase 12%', debit: 1118186.60, credit: 0 },
+            { id: 'gst-purchase-18', name: 'GST Purchase 18%', debit: 187966.00, credit: 0 },
+            { id: 'gst-service-12', name: 'Gst Service @ 12%', debit: 14168.00, credit: 0 },
+            { id: 'purchase', name: 'Purchase', debit: 112700.00, credit: 0 }
+          ]
+        },
+        {
+          id: 'closing-stock', name: 'Less: Closing Stock', sign: '+', amount: 2457200.75, ledgers: [
+            { id: 'stock-hand-closing', name: 'Closing Stock', debit: 2457200.75, credit: 0 }
+          ]
+        },
+        {
+          id: 'direct-expenses', name: 'Direct Expenses', sign: '-', amount: 349012.80, ledgers: [
+            { id: 'electricity', name: 'Electricity', debit: 349012.80, credit: 0 }
+          ]
+        },
+        { id: 'indirect-incomes', name: 'Indirect Incomes', sign: '+', amount: 0, ledgers: [] },
+        {
+          id: 'indirect-expenses', name: 'Indirect Expenses', sign: '-', amount: 92156.60, ledgers: [
+            { id: 'bank-charges', name: 'Bank Charges', debit: 92156.60, credit: 0 }
+          ]
+        }
       ]
     }
   ],

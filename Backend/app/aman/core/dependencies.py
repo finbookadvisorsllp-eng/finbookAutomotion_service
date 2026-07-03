@@ -96,16 +96,30 @@ def get_db(request: Request, companyId: Optional[str] = Query(None)):
     if db_name not in _origin_healed:
         _origin_healed.add(db_name)
         threading.Thread(target=_heal_voucher_origin, args=(db, db_name), daemon=True).start()
+    # Ensure the report indexes exist for this tenant (once per process, in the
+    # background). Idempotent and safe for normally-indexed tenants.
+    if aman_settings.ENSURE_INDEXES and db_name not in _indexes_ensured:
+        _indexes_ensured.add(db_name)
+        threading.Thread(target=_ensure_indexes_bg, args=(db,), daemon=True).start()
     return db
 
 
 _origin_healed: set[str] = set()
+_indexes_ensured: set[str] = set()
 
 
 def _heal_voucher_origin(db, db_name: str) -> None:
     try:
         from app.aman.services.tenant_normalize import ensure_voucher_origin
         ensure_voucher_origin(db, db_name)
+    except Exception:
+        pass
+
+
+def _ensure_indexes_bg(db) -> None:
+    try:
+        from app.aman.core.indexes import ensure_indexes
+        ensure_indexes(db)
     except Exception:
         pass
 
