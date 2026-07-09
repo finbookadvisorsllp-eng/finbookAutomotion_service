@@ -1,6 +1,6 @@
 // Typed API surface mirroring the LiveTally data exports — every function maps
 // to a /api/v3 endpoint. `fy` is the financial year id, e.g. "2025-2026".
-import { apiGet, apiGetFull, apiPost, apiPut, apiDelete, apiDownload, auth, setCompanyId } from './client'
+import { apiGet, apiGetFull, apiPost, apiPut, apiDelete, apiDownload, apiStream, auth, setCompanyId } from './client'
 
 // ─── Auth ───
 export const login = (email, password) => apiPost('/auth/login', { email, password })
@@ -148,5 +148,27 @@ export const getItemPerformance = (item, params = {}) =>
 export const getJournal = (fy, params = {}) => apiGetFull('/accounting/journal', { fy, ...params })
 export const getPaymentRegister = (fy, params = {}) => apiGetFull('/accounting/payment', { fy, ...params })
 export const getReceiptRegister = (fy, params = {}) => apiGetFull('/accounting/receipt', { fy, ...params })
+
+// ─── AI CFO ─── (virtual CFO chat + deterministic insights; grounded on the
+// report services above, so every figure reconciles with its report page.)
+export const aiCfoHealth = () => apiGet('/ai-cfo/health')
+export const aiCfoChat = (message, sessionId, fy) =>
+  apiPost('/ai-cfo/chat', { message, sessionId, fy })
+// Streaming chat — onEvent(name, data) fires for 'meta' | 'token' | 'done' | 'error'.
+export const aiCfoChatStream = (message, sessionId, fy, onEvent, signal) =>
+  apiStream('/ai-cfo/chat/stream', { message, sessionId, fy }, { onEvent, signal })
+export const aiCfoSessions = (limit = 50) => apiGet('/ai-cfo/history', { limit })
+export const aiCfoMessages = (sessionId, limit = 200) => apiGet('/ai-cfo/history', { sessionId, limit })
+export const aiCfoSuggestions = (fy) => apiGet('/ai-cfo/suggestions', { fy })
+export const aiCfoDeleteConversation = (sessionId) => apiDelete('/ai-cfo/conversation', { sessionId })
+export const aiCfoInsights = (fy) => apiGet('/ai-cfo/insights', { fy })
+export const aiCfoHealthScore = (fy) => apiGet('/ai-cfo/health-score', { fy })
+export const aiCfoRecommendations = (fy) => apiGet('/ai-cfo/recommendations', { fy })
+export const aiCfoWarnings = (fy) => apiGet('/ai-cfo/warnings', { fy })
+export const aiCfoAlerts = (fy) => apiGet('/ai-cfo/alerts', { fy })
+export const aiCfoGetMemory = () => apiGet('/ai-cfo/memory')
+export const aiCfoSetMemory = (key, value, category = 'general') =>
+  apiPost('/ai-cfo/memory', { key, value, category })
+export const aiCfoDeleteMemory = (key) => apiDelete('/ai-cfo/memory', { key })
 
 export { auth, setCompanyId }

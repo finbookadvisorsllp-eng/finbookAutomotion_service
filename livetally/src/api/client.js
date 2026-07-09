@@ -76,6 +76,51 @@ export async function apiDelete(path, params) {
   return r?.data ?? r
 }
 
+// Stream a Server-Sent-Events endpoint (POST). Parses `event:`/`data:` frames and
+// invokes `onEvent(eventName, dataObject)` for each. Used by the AI CFO chat so
+// answers render token-by-token in real time. Resolves when the stream ends.
+export async function apiStream(path, body, { onEvent, signal } = {}) {
+  const headers = { 'Content-Type': 'application/json', 'x-company-id': getCompanyId() }
+  const token = auth.getToken()
+  if (token) headers['Authorization'] = `Bearer ${token}`
+
+  const res = await fetch(BASE_URL + path, {
+    method: 'POST', headers, body: JSON.stringify(body), signal,
+  })
+  if (!res.ok || !res.body) {
+    let detail
+    try { detail = (await res.json())?.detail } catch { /* not json */ }
+    const err = new Error(detail || `Stream failed (${res.status})`)
+    err.status = res.status
+    throw err
+  }
+
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  for (;;) {
+    const { value, done } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    let sep
+    while ((sep = buffer.indexOf('\n\n')) !== -1) {
+      const frame = buffer.slice(0, sep)
+      buffer = buffer.slice(sep + 2)
+      let event = 'message'
+      let data = ''
+      for (const line of frame.split('\n')) {
+        if (line.startsWith('event:')) event = line.slice(6).trim()
+        else if (line.startsWith('data:')) data += line.slice(5).trim()
+      }
+      if (data) {
+        let parsed
+        try { parsed = JSON.parse(data) } catch { parsed = null }
+        if (parsed !== null) onEvent?.(event, parsed)
+      }
+    }
+  }
+}
+
 // Download a binary file (PDF/Excel/CSV) from an endpoint that returns raw bytes.
 // Sends the same auth + tenant headers, honours the server Content-Disposition
 // filename, and triggers a browser save. Used by the report export buttons.

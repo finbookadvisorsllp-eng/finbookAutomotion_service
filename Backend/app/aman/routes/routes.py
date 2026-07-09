@@ -14,6 +14,9 @@ from . import (
     reports_cashflow, daybook, outstanding, sales, purchase, parties,
     cashbank, inventory, accounting, analytics, alerts, dashboard, export,
 )
+# AI CFO lives in its own package (app.aman.ai_cfo) so it stays easy to evolve
+# and test in isolation. It is subscription-gated like every other data route.
+from app.aman.ai_cfo.routes import router as ai_cfo_router
 
 aman_api_router = APIRouter(prefix="/api/v3")
 
@@ -37,5 +40,8 @@ for _module in (
     cashbank, inventory, accounting, analytics, alerts, export,
 ):
     _protected.include_router(_module.router)
+
+# AI CFO router (imported directly from its own package).
+_protected.include_router(ai_cfo_router)
 
 aman_api_router.include_router(_protected)

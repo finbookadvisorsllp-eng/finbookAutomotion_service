@@ -7,6 +7,7 @@ import {
 import { Info, Plug, Download, ArrowRight, Activity, ChevronRight, Search } from 'lucide-react'
 import KPICard from '../components/KPICard'
 import AlertsPanel from '../components/AlertsPanel'
+import AICFOWidget from '../components/AICFOWidget'
 import Modal from '../components/Modal'
 import Pagination from '../components/Pagination'
 import { formatINR } from '../data/mockData'
@@ -21,8 +22,8 @@ import { getDashboard, getCurrentCompany } from '../api'
 const KPI_META = {
   sales: { variant: 'sales', icon: '📈', label: 'Total Sales', route: '/sales' },
   purchase: { variant: 'purchase', icon: '🛒', label: 'Total Purchase', route: '/purchase' },
-  receivables: { variant: 'receivables', icon: '💸', label: 'Receivables', route: '/sales/receivables' },
-  payables: { variant: 'payables', icon: '🧾', label: 'Payables', route: '/purchase/payables' },
+  receivables: { variant: 'receivables', icon: '💸', label: 'Receivables', route: '/reports/outstanding' },
+  payables: { variant: 'payables', icon: '🧾', label: 'Payables', route: '/reports/outstanding' },
   cashBank: { variant: 'cash', icon: '🏦', label: 'Cash & Bank Balance', route: '/cash-bank' },
   netProfit: { variant: 'profit', icon: '💰', label: 'Net Profit', route: '/reports/pl' },
 }
@@ -208,6 +209,9 @@ export default function Dashboard() {
             <KPICard key={kpi.key} data={kpi} onClick={() => navigate(kpi.route)} />
           ))}
       </div>
+
+      {/* ── AI CFO summary (health score + top insight → full chat) ── */}
+      <AICFOWidget fy={fy} />
 
       {/* ── Row 2: Revenue Chart + Receivables Aging ── */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-2.5 items-stretch">

@@ -46,6 +46,26 @@ def money(value: Any) -> float:
         return 0.0
 
 
+def inr(value: Any) -> str:
+    """Human ₹ display with thousands separators, e.g. -1990887.38 -> '₹-19,90,887.38'
+    using the Indian numbering system. Single source of truth for currency display."""
+    try:
+        n = float(value or 0)
+    except (TypeError, ValueError):
+        return f"₹{value}"
+    sign = "-" if n < 0 else ""
+    whole, frac = f"{abs(n):.2f}".split(".")
+    # Indian grouping: last 3 digits, then groups of 2.
+    if len(whole) > 3:
+        head, tail = whole[:-3], whole[-3:]
+        import re as _re
+        head = _re.sub(r"(\d)(?=(\d\d)+$)", r"\1,", head)
+        grouped = f"{head},{tail}"
+    else:
+        grouped = whole
+    return f"₹{sign}{grouped}.{frac}"
+
+
 def fmt_date(value: Any) -> str:
     """Display format used across the LiveTally UI, e.g. '01 Apr 2025'."""
     if value is None:

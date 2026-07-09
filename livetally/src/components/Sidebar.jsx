@@ -6,7 +6,7 @@ import {
   BookOpen, Calendar, AlertTriangle, ReceiptText, Clock, ShoppingCart, Package,
   Snail, Rocket, CircleDollarSign, FileEdit, CreditCard, Search, PieChart,
   UsersRound, ShieldCheck, PlugZap, FolderKanban, HeadphonesIcon, ChevronDown, Landmark,
-  ClipboardList, FileMinus, Truck, ClipboardCheck, FilePlus, Inbox
+  ClipboardList, FileMinus, Truck, ClipboardCheck, FilePlus, Inbox, Bot
 } from 'lucide-react'
 
 const navGroups = [
@@ -14,6 +14,7 @@ const navGroups = [
     id: 'overview', label: 'Overview',
     items: [
       { id: 'dashboard', label: 'Dashboard', path: '/', icon: LayoutDashboard, badge: null },
+      { id: 'ai-cfo', label: 'AI CFO', path: '/ai-cfo', icon: Bot, badge: 'AI' },
       { id: 'alerts-notif', label: 'Alerts & Notifications', path: '/alerts', icon: Bell, badge: 7 },
     ],
   },

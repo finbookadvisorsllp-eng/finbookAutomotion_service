@@ -5,6 +5,7 @@ import { DateProvider } from './context/DateContext'
 // Layout — always mounted, kept eager.
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
+import AICFOLauncher from './components/AICFOLauncher'
 
 // Login gates the whole app (rendered before the router), so it stays eager.
 import Login from './pages/Login'
@@ -47,6 +48,7 @@ const StockAlerts = lazy(() => import('./pages/StockAlerts'))
 const ItemPerformance = lazy(() => import('./pages/ItemPerformance'))
 const GenericReport = lazy(() => import('./pages/GenericReport'))
 const CashBankModule = lazy(() => import('./pages/CashBankModule'))
+const AICFO = lazy(() => import('./pages/AICFO/AICFO'))
 
 import "./index.css"
 
@@ -112,6 +114,9 @@ function AppShell({ children }) {
           </Suspense>
         </main>
       </div>
+
+      {/* Global AI CFO launcher — fixed bottom-right, on every page. */}
+      <AICFOLauncher />
     </div>
   )
 }
@@ -139,6 +144,7 @@ export default function App() {
           <Routes>
             {/* ── Overview ── */}
             <Route path="/" element={<Dashboard />} />
+            <Route path="/ai-cfo" element={<AICFO />} />
             <Route path="/summary" element={<GenericReport title="Business Summary" description="Overview of your entire business performance." />} />
             <Route path="/alerts" element={<Alerts />} />
             <Route path="/notif" element={<Notifications />} />
