@@ -33,7 +33,7 @@ function Dashboard() {
   const approvalCenterView = useAppStore((s) => s.approvalCenterView)
 
   const isApprovalDetail = location.pathname.startsWith('/automation/approval-center') && approvalCenterView === 'detail'
-  const isCompactHeader = isApprovalDetail || location.pathname === '/sales/new' || location.pathname === '/' || location.pathname === '/automation/ai-processing'
+  const isCompactHeader = isApprovalDetail || location.pathname === '/sales/new' || location.pathname === '/' || location.pathname === '/automation/ai-processing' || location.pathname === '/automation/text-to-entry'
 
   // Dynamically load company list from the database
   useEffect(() => {
@@ -115,7 +115,7 @@ function Dashboard() {
           />
 
           <main
-            className={`relative flex-1 flex flex-col overflow-hidden ${location.pathname === '/automation/ai-processing' ? 'p-0' : isCompactHeader ? 'p-2 pb-0.5' : 'p-3 sm:p-4 md:p-5'}`}
+            className={`relative flex-1 flex flex-col overflow-hidden ${['/automation/ai-processing', '/automation/text-to-entry'].includes(location.pathname) ? 'p-0' : isCompactHeader ? 'p-2 pb-0.5' : 'p-3 sm:p-4 md:p-5'}`}
             style={{ backgroundColor: 'var(--app-content-bg)' }}
           >
             <PetalField />

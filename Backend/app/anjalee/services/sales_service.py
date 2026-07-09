@@ -96,29 +96,43 @@ class SalesVoucherService:
             "bulkMetadata": payload.bulkMetadata,
             "salesEntries": [
                 {
-                    "ledgerId": ObjectId(entry.ledgerId) if entry.ledgerId else None,
-                    "ledgerName": entry.ledgerName,
-                    "description": entry.description or "",
-                    "hsnSacCode": entry.hsnSacCode or "",
-                    "gstRate": entry.gstRate,
-                    "amount": entry.amount
-                } for entry in payload.salesEntries
+                    "ledgerId": ObjectId(entry.get("ledgerId")) if entry.get("ledgerId") else None,
+                    "ledgerName": entry.get("ledgerName"),
+                    "description": entry.get("description") or "",
+                    "hsnSacCode": entry.get("hsnSacCode") or "",
+                    "gstRate": entry.get("gstRate") or 0.0,
+                    "amount": entry.get("amount") or 0.0,
+                    "taxableAmount": entry.get("taxableAmount") or entry.get("amount") or 0.0,
+                    "cgst": entry.get("cgst") or 0.0,
+                    "sgst": entry.get("sgst") or 0.0,
+                    "igst": entry.get("igst") or 0.0,
+                    "cess": entry.get("cess") or 0.0,
+                    "totalTax": entry.get("totalTax") or 0.0
+                } for entry in tax_results["salesEntries"]
             ],
             "inventoryEntries": [
                 {
-                    "stockItemId": ObjectId(entry.stockItemId) if entry.stockItemId else None,
-                    "stockItem": entry.stockItem,
-                    "description": entry.description or "",
-                    "hsnSacCode": entry.hsnSacCode or "",
-                    "billQuantity": entry.billQuantity,
-                    "billRate": entry.billRate,
-                    "discountPercent": entry.discountPercent,
-                    "amount": entry.amount,
-                    "rcm": entry.rcm,
-                    "taxabilityType": entry.taxabilityType,
-                    "gstRate": entry.gstRate
-                } for entry in payload.inventoryEntries
-            ] if payload.inventoryEntries else [],
+                    "stockItemId": ObjectId(entry.get("stockItemId")) if entry.get("stockItemId") else None,
+                    "stockItem": entry.get("stockItem"),
+                    "description": entry.get("description") or "",
+                    "hsnSacCode": entry.get("hsnSacCode") or "",
+                    "billQuantity": entry.get("billQuantity") or 0.0,
+                    "billRate": entry.get("billRate") or 0.0,
+                    "discountPercent": entry.get("discountPercent") or 0.0,
+                    "amount": entry.get("amount") or 0.0,
+                    "rcm": entry.get("rcm") or False,
+                    "taxabilityType": entry.get("taxabilityType") or "Taxable",
+                    "gstRate": entry.get("gstRate") or 0.0,
+                    "ratio": entry.get("ratio") or 0.0,
+                    "distributedCharge": entry.get("distributedCharge") or 0.0,
+                    "taxableAmount": entry.get("taxableAmount") or 0.0,
+                    "cgst": entry.get("cgst") or 0.0,
+                    "sgst": entry.get("sgst") or 0.0,
+                    "igst": entry.get("igst") or 0.0,
+                    "cess": entry.get("cess") or 0.0,
+                    "totalTax": entry.get("totalTax") or 0.0
+                } for entry in tax_results["inventoryEntries"]
+            ] if tax_results["inventoryEntries"] else [],
             "additionalCharges": payload.additionalCharges or [],
             "tcsDetails": payload.tcsDetails or [],
             "tdsDetails": payload.tdsDetails or [],
@@ -274,18 +288,24 @@ class SalesVoucherService:
             "bulkMetadata": merged_doc.get("bulkMetadata"),
             "salesEntries": [
                 {
-                    "ledgerId": ObjectId(entry["ledgerId"]) if entry.get("ledgerId") else None,
-                    "ledgerName": entry["ledgerName"],
+                    "ledgerId": ObjectId(entry.get("ledgerId")) if entry.get("ledgerId") else None,
+                    "ledgerName": entry.get("ledgerName"),
                     "description": entry.get("description") or "",
                     "hsnSacCode": entry.get("hsnSacCode") or "",
                     "gstRate": entry.get("gstRate") or 0.0,
-                    "amount": entry.get("amount") or 0.0
-                } for entry in sales_entries_dict
+                    "amount": entry.get("amount") or 0.0,
+                    "taxableAmount": entry.get("taxableAmount") or entry.get("amount") or 0.0,
+                    "cgst": entry.get("cgst") or 0.0,
+                    "sgst": entry.get("sgst") or 0.0,
+                    "igst": entry.get("igst") or 0.0,
+                    "cess": entry.get("cess") or 0.0,
+                    "totalTax": entry.get("totalTax") or 0.0
+                } for entry in tax_results["salesEntries"]
             ],
             "inventoryEntries": [
                 {
-                    "stockItemId": ObjectId(entry["stockItemId"]) if entry.get("stockItemId") else None,
-                    "stockItem": entry["stockItem"],
+                    "stockItemId": ObjectId(entry.get("stockItemId")) if entry.get("stockItemId") else None,
+                    "stockItem": entry.get("stockItem"),
                     "description": entry.get("description") or "",
                     "hsnSacCode": entry.get("hsnSacCode") or "",
                     "billQuantity": entry.get("billQuantity") or 0.0,
@@ -294,9 +314,17 @@ class SalesVoucherService:
                     "amount": entry.get("amount") or 0.0,
                     "rcm": entry.get("rcm") or False,
                     "taxabilityType": entry.get("taxabilityType") or "Taxable",
-                    "gstRate": entry.get("gstRate") or 0.0
-                } for entry in inventory_entries_dict
-            ] if inventory_entries_dict else [],
+                    "gstRate": entry.get("gstRate") or 0.0,
+                    "ratio": entry.get("ratio") or 0.0,
+                    "distributedCharge": entry.get("distributedCharge") or 0.0,
+                    "taxableAmount": entry.get("taxableAmount") or 0.0,
+                    "cgst": entry.get("cgst") or 0.0,
+                    "sgst": entry.get("sgst") or 0.0,
+                    "igst": entry.get("igst") or 0.0,
+                    "cess": entry.get("cess") or 0.0,
+                    "totalTax": entry.get("totalTax") or 0.0
+                } for entry in tax_results["inventoryEntries"]
+            ] if tax_results["inventoryEntries"] else [],
             "additionalCharges": merged_doc.get("additionalCharges") or [],
             "tcsDetails": merged_doc.get("tcsDetails") or [],
             "tdsDetails": merged_doc.get("tdsDetails") or [],

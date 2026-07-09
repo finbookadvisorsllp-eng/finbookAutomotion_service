@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import List, Optional, Dict, Any
+from bson import ObjectId
 from app.anjalee.repositories.purchase_repo import PurchaseRepository
 from app.anjalee.schemas.purchase_schemas import PurchaseVoucherCreate, StatusUpdate, CommentRequest
 from app.anjalee.utils.serialization import serialize_doc
@@ -124,6 +125,8 @@ class PurchaseService:
         doc_data["cessAmount"] = tax_results.get("cessAmount", 0.0)
         doc_data["grandTotal"] = tax_results["grandTotal"]
         doc_data["gstSummary"] = tax_results["gstSummary"]
+        doc_data["productLines"] = tax_results["inventoryEntries"]
+        doc_data["purchaseLines"] = tax_results["salesEntries"]
 
     def create_transaction(self, payload: PurchaseVoucherCreate) -> Dict[str, Any]:
         doc_data = payload.model_dump()

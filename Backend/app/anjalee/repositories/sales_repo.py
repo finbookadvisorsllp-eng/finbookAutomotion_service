@@ -85,16 +85,14 @@ class SalesVoucherRepository:
         return current_seq + 1
 
     async def get_dynamic_next_sequence(self, voucher_type: str, prefix: str, consume: bool = False) -> int:
-        # Resolve voucher type matching (similar to list_vouchers)
         types = [voucher_type, voucher_type.replace("_", " "), voucher_type.replace(" ", "_")]
         types = list(set(types))
         regex_pattern = "^(" + "|".join(types) + ")$"
         
-        # Query matching vouchers
+        # Query matching vouchers (including soft-deleted vouchers)
         query = {
             "voucherType": {"$regex": regex_pattern, "$options": "i"},
-            "voucherNumber": {"$regex": f"^{prefix}-"},
-            "isDeleted": {"$ne": True}
+            "voucherNumber": {"$regex": f"^{prefix}-"}
         }
         cursor = self.db[SALES_VOUCHERS_COLLECTION].find(query, {"voucherNumber": 1})
         docs = await cursor.to_list(length=1000)
@@ -105,32 +103,29 @@ class SalesVoucherRepository:
             parts = v_num.split("-")
             if len(parts) >= 3:
                 try:
-                    # The last part is the sequence number
                     seq_val = int(parts[-1])
                     if seq_val > max_seq:
                         max_seq = seq_val
                 except ValueError:
                     pass
-                    
-        next_seq = max_seq + 1
+
+        # Get current counter value
+        counter = await self.db[COUNTERS_COLLECTION].find_one({"_id": prefix})
+        current_seq = counter["seq"] if counter else 0
         
-        # If no documents are found, fallback to the database counter
-        if max_seq == 0:
-            counter = await self.db[COUNTERS_COLLECTION].find_one({"_id": prefix})
-            if counter:
-                next_seq = counter["seq"] + 1
-            else:
-                next_seq = 1
-                
+        # Take the maximum of existing docs and the counter
+        actual_seq = max(current_seq, max_seq)
+        
         if consume:
-            # Sync/update the counter in COUNTERS_COLLECTION
+            next_seq = actual_seq + 1
             await self.db[COUNTERS_COLLECTION].update_one(
                 {"_id": prefix},
                 {"$set": {"seq": next_seq}},
                 upsert=True
             )
-            
-        return next_seq
+            return next_seq
+        else:
+            return actual_seq + 1
 
     async def get_company_state(self) -> str:
         # Lookup first company doc

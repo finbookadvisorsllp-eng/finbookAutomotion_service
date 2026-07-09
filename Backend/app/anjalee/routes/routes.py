@@ -27,4 +27,14 @@ api_router.include_router(fundflow.router)
 
 # Change by Anjalee: Register new Sales Voucher router
 from . import sales
-api_router.include_router(sales.router)
+api_router.include_router(sales.router)
+
+# AI Chat router
+from . import ai_chat
+api_router.include_router(ai_chat.router)
+
+# Voucher router
+from . import voucher
+api_router.include_router(voucher.router)
+
+

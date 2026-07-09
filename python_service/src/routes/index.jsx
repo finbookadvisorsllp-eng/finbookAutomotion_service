@@ -32,6 +32,7 @@ const MasterDataPanel = lazy(() => import('../components/master-data/MasterDataP
 const BulkUploadPanel = lazy(() => import('../components/bulk-upload/BulkUploadPanel'))
 const AiProcessingCenter = lazy(() => import('../components/automation/AiProcessingCenter'))
 const ApprovalCenter = lazy(() => import('../components/automation/ApprovalCenter'))
+const TextToEntry = lazy(() => import('../components/automation/TextToEntry'))
 const TallyConnectorPanel = lazy(() => import('../components/tally/TallyConnectorPanel'))
 const DocumentArchivePanel = lazy(() => import('../components/documents/DocumentArchivePanel'))
 const ClientManagementPanel = lazy(() => import('../components/companies/ClientManagementPanel'))
@@ -108,6 +109,7 @@ export const router = createBrowserRouter([
       // Automation
       { path: 'automation/ai-processing', element: <AiProcessingCenter /> },
       { path: 'automation/approval-center', element: <ApprovalCenter /> },
+      { path: 'automation/text-to-entry', element: <TextToEntry /> },
 
       // Tally Integration
       { path: 'tally/connector', element: <TallyConnectorPanel /> },

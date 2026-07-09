@@ -399,7 +399,13 @@ export default function BulkUploadPanel() {
         if (!hasVendor) return false;
       }
 
-      if (dateRange && !batch.uploadDate.includes(dateRange)) return false;
+      if (dateRange) {
+        const parts = dateRange.split('-');
+        if (parts.length === 3) {
+          const formattedDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
+          if (!batch.uploadDate.includes(formattedDate)) return false;
+        }
+      }
 
       if (search) {
         const query = search.toLowerCase();
@@ -1195,22 +1201,23 @@ export default function BulkUploadPanel() {
               ))}
             </select>
 
-            <div className="relative flex items-center">
-              <select
+            <div className="relative flex items-center border border-[var(--app-border)] rounded-lg bg-[var(--app-panel-bg)] h-7.5 px-2.5 w-[140px] cursor-pointer">
+              <span className="text-[11px] font-semibold text-[var(--app-heading)]">
+                {dateRange ? (() => {
+                  const parts = dateRange.split('-');
+                  return `${parts[2]}/${parts[1]}/${parts[0]}`;
+                })() : 'dd/mm/yyyy'}
+              </span>
+              <Calendar className="absolute right-2 text-[var(--app-muted)] pointer-events-none" size={12} />
+              <input
+                type="date"
                 value={dateRange}
                 onChange={(e) => {
                   setDateRange(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="h-7.5 rounded-lg border pl-2.5 pr-7 text-[11px] outline-none bg-[var(--app-panel-bg)] text-[var(--app-heading)] border-[var(--app-border)] font-semibold w-[130px] appearance-none cursor-pointer"
-              >
-                <option value="">Upload Date</option>
-                <option value="23-06-2026">23-06-2026</option>
-                <option value="22-06-2026">22-06-2026</option>
-                <option value="21-06-2026">21-06-2026</option>
-                <option value="20-06-2026">20-06-2026</option>
-              </select>
-              <Calendar className="absolute right-2.5 pointer-events-none text-[var(--app-muted)]" size={12} />
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              />
             </div>
 
             <button

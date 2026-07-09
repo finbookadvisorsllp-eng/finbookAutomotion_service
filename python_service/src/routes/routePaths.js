@@ -56,6 +56,7 @@ export const LABEL_TO_PATH = {
   // Automation
   'OCR Upload': '/automation/ai-processing',
   'Approval Center': '/automation/approval-center',
+  'Text to Entry': '/automation/text-to-entry',
 
   // Tally Integration
   'Tally Connector': '/tally/connector',

@@ -16,7 +16,7 @@ const NAV = [
   { label: 'Dashboard', icon: LayoutDashboard },
   {
     label: 'Voucher Entry', icon: FileText, children: [
-      'Manual Voucher Entry', 'Bulk Upload', 'OCR Upload', 'Approval Center',
+      'Manual Voucher Entry', 'Bulk Upload', 'OCR Upload', 'Text to Entry','Approval Center', 
     ],
   },
   {
@@ -46,7 +46,7 @@ const NAV = [
 
 // Per-leaf icon (replaces the dot bullet). Keyed by leaf label.
 const LEAF_ICONS = {
-  'Manual Voucher Entry': PenLine, 'Bulk Upload': Upload, 'OCR Upload': ScanLine, 'Approval Center': CheckCheck,
+  'Manual Voucher Entry': PenLine, 'Bulk Upload': Upload, 'OCR Upload': ScanLine, 'Text to Entry': FileText, 'Approval Center': CheckCheck, 
   'Sales Inbox': Inbox, 'Sales Review': Eye, 'Sales Archive': Archive, 'Sales Order': ClipboardList, 'Sales Invoice': ReceiptText, 'Credit Note (Sales Return)': FileMinus,
   'Purchase Inbox': Inbox, 'Purchase Review': Eye, 'Purchase Archive': Archive, 'Purchase Order': ClipboardList, 'Purchase Invoice': ReceiptText, 'Debit Note (Purchase Return)': FileMinus,
   'Payment': ArrowUpRight, 'Receipt': ArrowDownLeft, 'Contra': ArrowLeftRight, 'Fund Flow Review': Eye, 'Fund Flow Archive': Archive,

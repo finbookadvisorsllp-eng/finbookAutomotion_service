@@ -22,6 +22,14 @@ class SalesVoucherInventoryEntry(BaseModel):
     rcm: bool = False
     taxabilityType: str = "Taxable"
     gstRate: float = 0.0
+    ratio: Optional[float] = 0.0
+    distributedCharge: Optional[float] = 0.0
+    taxableAmount: Optional[float] = 0.0
+    cgst: Optional[float] = 0.0
+    sgst: Optional[float] = 0.0
+    igst: Optional[float] = 0.0
+    cess: Optional[float] = 0.0
+    totalTax: Optional[float] = 0.0
 
 class GstSummary(BaseModel):
     taxableValue: float = 0.0

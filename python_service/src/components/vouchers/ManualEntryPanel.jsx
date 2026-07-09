@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Plus, RefreshCw, Edit3, Trash2, Send, CheckCircle2,
-  FileText, BookText, ArrowLeftRight, AlertCircle, Copy, ChevronDown,
+  FileText, BookText, ArrowLeftRight, AlertCircle, Copy, ChevronDown, Download,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
@@ -479,8 +479,69 @@ const ManualEntryPanel = ({ isDark }) => {
     },
   ];
 
+  const handleDownloadCsv = () => {
+    if (!unifiedList || unifiedList.length === 0) {
+      toast.error("No data to download.");
+      return;
+    }
+    
+    // Header row
+    const headers = [
+      "Voucher No",
+      "Date",
+      "Type",
+      ["cash_payment", "bank_payment"].includes(activeTab) ? "Payment Account" : "Party / Ledger",
+      "Amount",
+      "Status",
+      "Created By",
+      "Sync"
+    ];
+    
+    const rows = unifiedList.map(tx => [
+      tx.voucherNo,
+      tx.date ? new Date(tx.date).toLocaleDateString('en-IN') : '—',
+      tx.type,
+      tx.party,
+      tx.amount,
+      tx.status,
+      tx.createdBy,
+      tx.syncStatus
+    ]);
+    
+    // Helper to escape values for CSV
+    const escapeCsvValue = (val) => {
+      if (val === null || val === undefined) return '';
+      const str = String(val).replace(/"/g, '""');
+      if (str.includes(',') || str.includes('\n') || str.includes('"')) {
+        return `"${str}"`;
+      }
+      return str;
+    };
+    
+    const csvContent = [
+      headers.map(escapeCsvValue).join(','),
+      ...rows.map(row => row.map(escapeCsvValue).join(','))
+    ].join('\n');
+    
+    // Create Blob and download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    
+    const tabName = VOUCHER_TABS.find(t => t.id === activeTab)?.label || 'Vouchers';
+    const timestamp = new Date().toISOString().split('T')[0];
+    link.setAttribute('download', `${tabName.replace(/\s+/g, '_')}_${timestamp}.csv`);
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("CSV file downloaded successfully.");
+  };
+
   const listActions = (
     <>
+      <Button icon={Download} iconOnly onClick={handleDownloadCsv} title="Download CSV" />
       <Button icon={RefreshCw} iconOnly onClick={fetchList} />
       <div className="relative" ref={createDropdownRef}>
         <Button variant="primary" icon={Plus} onClick={() => (createOptions ? setShowCreateDropdown((p) => !p) : handleCreateVoucher())}>

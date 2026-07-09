@@ -82,16 +82,14 @@ class PurchaseRepository(BaseRepository):
         return current_seq + 1
 
     def get_dynamic_next_sequence(self, voucher_type: str, prefix: str, consume: bool = False) -> int:
-        # Resolve voucher type matching
         types = [voucher_type, voucher_type.replace("_", " "), voucher_type.replace(" ", "_")]
         types = list(set(types))
         regex_pattern = "^(" + "|".join(types) + ")$"
         
-        # Query matching vouchers
+        # Query matching vouchers (including soft-deleted vouchers)
         query = {
             "voucherType": {"$regex": regex_pattern, "$options": "i"},
-            "voucherNumber": {"$regex": f"^{prefix}-"},
-            "isDeleted": {"$ne": True}
+            "voucherNumber": {"$regex": f"^{prefix}-"}
         }
         cursor = self.db[PURCHASE_COLLECTION].find(query, {"voucherNumber": 1})
         docs = list(cursor)
@@ -107,26 +105,24 @@ class PurchaseRepository(BaseRepository):
                         max_seq = seq_val
                 except ValueError:
                     pass
-                    
-        next_seq = max_seq + 1
+
+        # Get current counter value
+        counter = self.db[COUNTERS_COLLECTION].find_one({"_id": prefix})
+        current_seq = counter["seq"] if counter else 0
         
-        # If no documents are found, fallback to the database counter
-        if max_seq == 0:
-            counter = self.db[COUNTERS_COLLECTION].find_one({"_id": prefix})
-            if counter:
-                next_seq = counter["seq"] + 1
-            else:
-                next_seq = 1
-                
+        # Take the maximum of existing docs and the counter
+        actual_seq = max(current_seq, max_seq)
+        
         if consume:
-            # Sync/update the counter in COUNTERS_COLLECTION
+            next_seq = actual_seq + 1
             self.db[COUNTERS_COLLECTION].update_one(
                 {"_id": prefix},
                 {"$set": {"seq": next_seq}},
                 upsert=True
             )
-            
-        return next_seq
+            return next_seq
+        else:
+            return actual_seq + 1
 
 
     def get_party_ledgers(self, company_id: Optional[str] = None) -> List[Dict[str, Any]]:
