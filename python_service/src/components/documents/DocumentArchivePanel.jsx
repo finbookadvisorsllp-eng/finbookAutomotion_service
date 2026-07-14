@@ -117,9 +117,39 @@ export default function DocumentArchivePanel() {
         });
       }
 
+      // Fetch individual Bulk Upload files
+      const savedBulkDocs = localStorage.getItem('fb_bulk_upload_documents');
+      if (savedBulkDocs) {
+        try {
+          const parsedBulkDocs = JSON.parse(savedBulkDocs);
+          parsedBulkDocs.forEach(doc => {
+            let st = (doc.status || 'Pending Approval').toLowerCase();
+            if (st === 'under review' || st === 'ready for review') st = 'pending_approval';
+            else if (st.includes('post') || st.includes('sync') || st === 'posted') st = 'posted_to_tally';
+            else if (st.includes('approved')) st = 'approved';
+            else if (st.includes('reject') || st.includes('fail')) st = 'rejected';
+            else st = 'pending_approval';
+
+            mappedBulk.push({
+              id: doc.id,
+              name: doc.name || doc.filename || 'bulk_document.xlsx',
+              category: 'Bulk Upload',
+              type: doc.category || 'Bulk Document',
+              linkedVoucher: doc.docNo || doc.id,
+              date: doc.docDate || doc.uploadDate || '—',
+              uploadedBy: 'Admin Operator',
+              status: st,
+              size: doc.size || '1.5 MB'
+            });
+          });
+        } catch (e) {
+          console.error('Error loading bulk upload documents in archive', e);
+        }
+      }
+
       // 3. Fetch OCR Entries from localStorage
       let mappedOcr = [];
-      const savedOcr = localStorage.getItem('fb_bulk_documents');
+      const savedOcr = localStorage.getItem('fb_ocr_documents');
       if (savedOcr) {
         const parsedOcr = JSON.parse(savedOcr);
         mappedOcr = parsedOcr.map(doc => {

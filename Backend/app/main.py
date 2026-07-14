@@ -16,9 +16,16 @@ def startup_event():
 
 # ─── CORS Configuration ───
 # Allow access from localhost frontend development servers
+# NOTE: allow_origins=["*"] cannot be used with allow_credentials=True (CORS spec restriction).
+# Explicitly list dev origins instead.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # For dev simplicity, allow all origins
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -4,8 +4,12 @@ import re
 import threading
 from app.config import settings
 
+# Module-level constants exported for use by other modules (e.g. bulk_upload background worker)
+MONGO_URI: str = settings.MONGO_URI
+DB_NAME: str = settings.DEFAULT_DB_NAME
+
 # Initialize MongoClient
-client = MongoClient(settings.MONGO_URI, serverSelectionTimeoutMS=5000)
+client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
 
 # In-memory cache for resolving company references to database names.
 # Pre-populate with default company mapping to avoid blocking first requests/refresh.
@@ -35,6 +39,11 @@ def ensure_db_indexes(db):
         ("fund_flow_vouchers", [("createdAt", -1)], {}),
         ("ledgers", [("groupName", 1)], {}),
         ("ledgers", [("ledgerName", 1)], {}),
+        ("ocr_data", [("document_id", 1)], {}),
+        ("layouts", [("document_id", 1)], {}),
+        ("ai_extractions", [("document_id", 1)], {}),
+        ("validations", [("document_id", 1)], {}),
+        ("reviews", [("document_id", 1)], {}),
     ]
 
     for coll_name, keys, options in configs:

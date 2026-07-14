@@ -428,7 +428,7 @@ export default function ApprovalCenter() {
 
       // 3. Fetch OCR Upload Documents
       let ocrEntries = [];
-      const savedOcr = localStorage.getItem('fb_bulk_documents');
+      const savedOcr = localStorage.getItem('fb_ocr_documents');
       if (savedOcr) {
         try {
           const parsed = JSON.parse(savedOcr);
@@ -508,7 +508,7 @@ export default function ApprovalCenter() {
 
   const handleSaveOcrForm = () => {
     try {
-      const savedOcr = localStorage.getItem('fb_bulk_documents');
+      const savedOcr = localStorage.getItem('fb_ocr_documents');
       let docs = [];
       if (savedOcr) {
         docs = JSON.parse(savedOcr);
@@ -532,7 +532,7 @@ export default function ApprovalCenter() {
         return doc;
       });
 
-      localStorage.setItem('fb_bulk_documents', JSON.stringify(updatedDocs));
+      localStorage.setItem('fb_ocr_documents', JSON.stringify(updatedDocs));
       toast.success('OCR document details updated successfully!');
       loadAllData();
     } catch (e) {
@@ -577,11 +577,11 @@ export default function ApprovalCenter() {
       toast.success(`Batch ${target.voucherNumber} approved successfully`);
       loadAllData();
     } else if (target.source === 'OCR Upload') {
-      const saved = localStorage.getItem('fb_bulk_documents');
+      const saved = localStorage.getItem('fb_ocr_documents');
       if (saved) {
         const parsed = JSON.parse(saved);
         const updated = parsed.map(d => d.id === id ? { ...d, status: 'Approved' } : d);
-        localStorage.setItem('fb_bulk_documents', JSON.stringify(updated));
+        localStorage.setItem('fb_ocr_documents', JSON.stringify(updated));
       }
       toast.success(`OCR Document ${target.voucherNumber} approved successfully`);
       loadAllData();
@@ -620,11 +620,11 @@ export default function ApprovalCenter() {
       toast.warning(`Batch ${target.voucherNumber} Rejected`);
       loadAllData();
     } else if (target.source === 'OCR Upload') {
-      const saved = localStorage.getItem('fb_bulk_documents');
+      const saved = localStorage.getItem('fb_ocr_documents');
       if (saved) {
         const parsed = JSON.parse(saved);
         const updated = parsed.map(d => d.id === id ? { ...d, status: 'Rejected' } : d);
-        localStorage.setItem('fb_bulk_documents', JSON.stringify(updated));
+        localStorage.setItem('fb_ocr_documents', JSON.stringify(updated));
       }
       toast.warning(`OCR Document ${target.voucherNumber} Rejected`);
       loadAllData();
@@ -683,11 +683,11 @@ export default function ApprovalCenter() {
             }
             resolve();
           } else if (target.source === 'OCR Upload') {
-            const saved = localStorage.getItem('fb_bulk_documents');
+            const saved = localStorage.getItem('fb_ocr_documents');
             if (saved) {
               const parsed = JSON.parse(saved);
               const updated = parsed.map(d => d.id === id ? { ...d, status: 'Posted To Tally' } : d);
-              localStorage.setItem('fb_bulk_documents', JSON.stringify(updated));
+              localStorage.setItem('fb_ocr_documents', JSON.stringify(updated));
             }
             resolve();
           }

@@ -29,6 +29,9 @@ api_router.include_router(fundflow.router)
 from . import sales
 api_router.include_router(sales.router)
 
+from . import bulk_upload
+api_router.include_router(bulk_upload.router)
+
 # AI Chat router
 from . import ai_chat
 api_router.include_router(ai_chat.router)

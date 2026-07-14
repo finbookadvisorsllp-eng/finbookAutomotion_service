@@ -352,4 +352,675 @@ ERP Capabilities Metadata:
             logger.error(f"Error calling LLM API for capability answer: {str(e)}", exc_info=True)
             return "I am capable of helping you record Sales, Purchase, Payment, Receipt, and Contra vouchers. What would you like to create?"
 
+    def extract_document_fields(self, ocr_text: str) -> Dict[str, Any]:
+        """
+        Extracts structured financial fields from raw OCR text of an invoice / bill of supply.
+        Returns a dict with keys: vendorName, invoiceNumber, invoiceDate, gstin,
+        taxableValue, taxAmount, totalAmount.
+        Values are null when the field cannot be determined from the text.
+        """
+        system_prompt = """You are a precise document parsing AI. You will receive raw OCR text extracted from a financial document (invoice, bill of supply, purchase bill, etc.).
+
+Your task: extract ONLY the following fields and return them as a single JSON object. Do NOT add any extra text, markdown, or explanation — output ONLY the JSON object.
+
+JSON Schema:
+{
+  "vendorName": "string or null",
+  "invoiceNumber": "string or null",
+  "invoiceDate": "YYYY-MM-DD string or null",
+  "gstin": "string (15-char GST number of the SUPPLIER/VENDOR) or null",
+  "taxableValue": number or null,
+  "taxAmount": number or null,
+  "totalAmount": number or null
+}
+
+Rules:
+1. vendorName: The name of the company/person who ISSUED the document (supplier/vendor), NOT the buyer.
+2. invoiceNumber: The invoice number, bill number, or document reference number.
+3. invoiceDate: The date of the invoice/bill. Convert to YYYY-MM-DD format. If year is missing, assume current year.
+4. gstin: The 15-character GST Identification Number of the issuing vendor/supplier. Ignore the buyer's GSTIN.
+5. taxableValue: The taxable amount BEFORE tax (subtotal excluding GST/tax). Extract the numeric value only.
+6. taxAmount: The total GST/tax amount (sum of CGST + SGST + IGST). Extract the numeric value only.
+7. totalAmount: The grand total / final amount payable including all taxes. Extract the numeric value only.
+8. If a field is not clearly present in the text, set it to null. DO NOT guess or fabricate values.
+9. Remove currency symbols (₹, Rs., INR) from numeric values.
+10. Output ONLY valid JSON. No markdown, no explanation."""
+
+        user_prompt = f"OCR Text:\n\n{ocr_text[:6000]}"  # Limit to 6000 chars to stay within token budget
+
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ]
+
+        logger.info("LLM extract_document_fields request")
+        try:
+            completion = self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                temperature=0.0,
+                max_tokens=256
+            )
+            raw_response = completion.choices[0].message.content
+            logger.info(f"LLM document extraction raw response: {raw_response}")
+            cleaned_json = self._clean_json_string(raw_response)
+            parsed = json.loads(cleaned_json)
+            return parsed
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse JSON from LLM document extraction: {e}")
+            return {}
+        except Exception as e:
+            logger.error(f"Error calling LLM for document extraction: {e}", exc_info=True)
+            return {}
+
+
 llm_service = LLMService()
+
+# ─── Phase 3 & 4 Document AI Methods ─────────────────────────────────────────
+
+# Supported document types for classification
+DOCUMENT_TYPES = [
+    "Sales Invoice", "Purchase Invoice", "Expense Bill", "Retail Invoice",
+    "Tax Invoice", "Credit Note", "Debit Note", "Receipt Voucher",
+    "Payment Voucher", "Bank Statement", "Journal Voucher", "Contra Voucher",
+    "Quotation", "Delivery Challan", "Purchase Order", "Sales Order",
+    "Bill of Supply", "Unknown Document"
+]
+
+
+class DocumentAIService:
+    """
+    Dedicated AI service for the Bulk Upload OCR pipeline.
+    Handles Phase 3 (classification) and Phase 4 (full accounting data extraction).
+    """
+
+    def __init__(self):
+        if not settings.NVIDIA_API_KEY:
+            logger.warning("NVIDIA_API_KEY not configured. DocumentAI calls will fail.")
+        self.client = OpenAI(
+            base_url=settings.NVIDIA_BASE_URL,
+            api_key=settings.NVIDIA_API_KEY
+        )
+        self.model = settings.LLM_MODEL
+
+    def _clean_json(self, content: str) -> str:
+        content = content.strip()
+        # Remove markdown code fences
+        content = re.sub(r"^```(?:json)?\s*", "", content)
+        content = re.sub(r"\s*```$", "", content)
+        match = re.search(r"(\{.*\})", content, re.DOTALL)
+        if match:
+            return match.group(1)
+        return content
+
+    # ── Phase 3 ───────────────────────────────────────────────────────────────
+
+    def classify_document(self, ocr_text: str) -> dict:
+        """
+        Phase 3: Classifies the document type from OCR text.
+        Returns: { document_type, confidence, reasoning }
+        """
+        types_str = ", ".join(DOCUMENT_TYPES)
+        system_prompt = f"""You are a financial document classification expert specializing in Indian business documents.
+
+Classify the given OCR text into exactly ONE of these document types:
+{types_str}
+
+Analyze the document's title, headings, labels, and overall structure to determine its type.
+
+Output ONLY a valid JSON object — no markdown, no extra text:
+{{
+  "document_type": "<exact type from the list above>",
+  "confidence": <integer 0-100>,
+  "reasoning": "<one concise sentence explaining the classification>"
+}}"""
+
+        user_prompt = f"Document OCR Text:\n\n{ocr_text[:5000]}"
+
+        try:
+            logger.info("DocumentAI.classify_document: sending request")
+            completion = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                temperature=0.0,
+                max_tokens=200
+            )
+            raw = completion.choices[0].message.content
+            logger.info(f"DocumentAI.classify_document raw: {raw}")
+            cleaned = self._clean_json(raw)
+            result = json.loads(cleaned)
+            # Validate document_type is in our list
+            if result.get("document_type") not in DOCUMENT_TYPES:
+                result["document_type"] = "Unknown Document"
+            return result
+        except json.JSONDecodeError as e:
+            logger.error(f"classify_document JSON parse error: {e}")
+            return {"document_type": "Unknown Document", "confidence": 0, "reasoning": "Classification failed."}
+        except Exception as e:
+            logger.error(f"classify_document error: {e}", exc_info=True)
+            return {"document_type": "Unknown Document", "confidence": 0, "reasoning": str(e)}
+
+    # ── Phase 4 ───────────────────────────────────────────────────────────────
+
+    def extract_full_accounting_data(self, ocr_text: str, document_type: str) -> dict:
+        """
+        Phase 4: Extracts ALL structured accounting data from the document.
+        Content/heading-driven: reads every labeled field present in the actual
+        document and maps to the standard schema. Extra fields go to additionalFields.
+        Returns a rich JSON with per-field confidence scores and AI suggestions.
+        """
+        system_prompt = f"""You are an expert AI for extracting structured accounting data from Indian financial documents.
+
+You are analyzing a [{document_type}] document.
+
+YOUR TASK:
+1. Read the COMPLETE OCR text carefully — every heading, label, value, and table row.
+2. Extract ALL labeled data fields you find in the document. Do NOT skip any labeled data.
+3. Map extracted data to the standard schema fields listed below where applicable.
+4. For ANY additional labeled data NOT in the standard schema (e.g. license numbers, batch codes, transport details, schemes, approval numbers), add them to "additionalFields".
+5. Assign confidence scores per field: 95-100=clearly visible, 80-95=visible, 60-80=inferred, 0-60=uncertain/missing.
+6. Generate 3-8 intelligent AI validation suggestions about the document.
+
+OUTPUT — a single JSON object only (NO markdown, NO explanation):
+{{
+  "header": {{
+    "values": {{
+      "invoiceNumber": null,
+      "invoiceDate": null,
+      "supplierName": null,
+      "customerName": null,
+      "supplierGSTIN": null,
+      "customerGSTIN": null,
+      "PAN": null,
+      "supplierAddress": null,
+      "customerAddress": null,
+      "state": null,
+      "stateCode": null,
+      "invoiceType": null,
+      "paymentTerms": null,
+      "dueDate": null,
+      "currency": "INR",
+      "referenceNumber": null,
+      "purchaseOrderNumber": null,
+      "transportDetails": null,
+      "vehicleNumber": null,
+      "eWayBill": null,
+      "narration": null
+    }},
+    "confidence": {{
+      "invoiceNumber": 0, "invoiceDate": 0, "supplierName": 0, "customerName": 0,
+      "supplierGSTIN": 0, "customerGSTIN": 0, "PAN": 0, "supplierAddress": 0,
+      "customerAddress": 0, "state": 0, "stateCode": 0, "invoiceType": 0,
+      "paymentTerms": 0, "dueDate": 0, "currency": 95, "referenceNumber": 0,
+      "purchaseOrderNumber": 0, "transportDetails": 0, "vehicleNumber": 0,
+      "eWayBill": 0, "narration": 0
+    }}
+  }},
+  "items": [
+    {{
+      "values": {{
+        "itemName": null, "description": null, "hsnCode": null,
+        "quantity": null, "unit": null, "rate": null, "discount": 0,
+        "taxableAmount": null, "cgst": 0, "sgst": 0, "igst": 0, "cess": 0,
+        "taxPercent": 0, "lineTotal": null
+      }},
+      "confidence": {{
+        "itemName": 0, "description": 0, "hsnCode": 0, "quantity": 0,
+        "unit": 0, "rate": 0, "discount": 0, "taxableAmount": 0,
+        "cgst": 0, "sgst": 0, "igst": 0, "cess": 0, "taxPercent": 0, "lineTotal": 0
+      }}
+    }}
+  ],
+  "totals": {{
+    "values": {{
+      "subtotal": null, "discount": 0, "cgstTotal": 0, "sgstTotal": 0,
+      "igstTotal": 0, "cessTotal": 0, "roundOff": 0,
+      "grandTotal": null, "paidAmount": null, "balanceAmount": null
+    }},
+    "confidence": {{
+      "subtotal": 0, "discount": 0, "cgstTotal": 0, "sgstTotal": 0,
+      "igstTotal": 0, "cessTotal": 0, "roundOff": 0,
+      "grandTotal": 0, "paidAmount": 0, "balanceAmount": 0
+    }}
+  }},
+  "additionalFields": {{
+    "values": {{}},
+    "confidence": {{}}
+  }},
+  "suggestions": [
+    {{"type": "success", "message": "example suggestion"}},
+    {{"type": "warning", "message": "example warning"}}
+  ],
+  "overallConfidence": 0
+}}
+
+CRITICAL RULES:
+- Extract EVERY item row from the items table — one JSON object per row.
+- For GSTIN: must be 15-character alphanumeric. Mark confidence 0 if not 15 chars.
+- For dates: convert to YYYY-MM-DD format.
+- For numbers: remove currency symbols (₹, Rs., INR). Return as numbers, not strings.
+- For suggestions: type must be one of "success", "warning", "error", "info".
+- additionalFields MUST capture any extra labeled fields from the document (license numbers, batch numbers, scheme names, etc.).
+- If the document is a Bill of Supply: set all GST values to 0 with confidence=95 (exempt).
+- Output ONLY the JSON. No text before or after it."""
+
+        # Limit input to control token usage while keeping all pages
+        text_input = ocr_text[:9000]
+        user_prompt = f"Document OCR Text:\n\n{text_input}"
+
+        try:
+            logger.info(f"DocumentAI.extract_full_accounting_data: model={self.model}, doc_type={document_type}")
+            completion = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                temperature=0.0,
+                max_tokens=3500
+            )
+            raw = completion.choices[0].message.content
+            logger.info(f"DocumentAI.extract_full_accounting_data raw length: {len(raw)}")
+            cleaned = self._clean_json(raw)
+            result = json.loads(cleaned)
+            return result
+        except json.JSONDecodeError as e:
+            logger.error(f"extract_full_accounting_data JSON parse error: {e}. Raw: {raw[:500] if 'raw' in dir() else 'N/A'}")
+            return _empty_extraction_result()
+        except Exception as e:
+            logger.error(f"extract_full_accounting_data error: {e}", exc_info=True)
+            return _empty_extraction_result()
+
+
+
+
+def _empty_extraction_result() -> dict:
+    """Returns a safe empty extraction result when LLM fails."""
+    return {
+        "header": {
+            "values": {k: None for k in [
+                "invoiceNumber", "invoiceDate", "supplierName", "customerName",
+                "supplierGSTIN", "customerGSTIN", "PAN", "supplierAddress",
+                "customerAddress", "state", "stateCode", "invoiceType",
+                "paymentTerms", "dueDate", "currency", "referenceNumber",
+                "purchaseOrderNumber", "transportDetails", "vehicleNumber",
+                "eWayBill", "narration"
+            ]},
+            "confidence": {}
+        },
+        "items": [],
+        "totals": {
+            "values": {k: None for k in [
+                "subtotal", "discount", "cgstTotal", "sgstTotal", "igstTotal",
+                "cessTotal", "roundOff", "grandTotal", "paidAmount", "balanceAmount"
+            ]},
+            "confidence": {}
+        },
+        "additionalFields": {"values": {}, "confidence": {}},
+        "suggestions": [
+            {"type": "error", "message": "AI extraction failed. Please fill fields manually or re-run."}
+        ],
+        "overallConfidence": 0
+    }
+
+
+def _empty_dynamic_schema(reason: str = "AI analysis failed") -> dict:
+    """Returns a safe empty dynamic schema when LLM fails."""
+    return {
+        "document_type": "Unknown Document",
+        "confidence": 0,
+        "reasoning": reason,
+        "sections": [
+            {
+                "id": "fallback",
+                "title": "Document Fields",
+                "order": 1,
+                "fields": [
+                    {
+                        "id": "raw_text",
+                        "label": "Extracted Text",
+                        "type": "textarea",
+                        "value": "",
+                        "confidence": 0,
+                        "required": False,
+                        "editable": True,
+                        "page": 1,
+                        "bbox": None,
+                        "placeholder": "No data could be extracted automatically"
+                    }
+                ]
+            }
+        ],
+        "suggestions": [{"type": "error", "message": reason}],
+        "overall_confidence": 0
+    }
+
+
+document_ai_service = DocumentAIService()
+
+
+# ─── Dynamic Document Understanding Engine ────────────────────────────────────
+
+class DynamicDocumentAI:
+    """
+    The main AI engine for the Dynamic Document Understanding system.
+
+    Single responsibility: Given OCR text from any business document,
+    produce a complete dynamic form schema that the frontend renders verbatim.
+
+    No hardcoded field names. The AI decides ALL sections, fields, and types
+    based entirely on what it reads in the document.
+    """
+
+    def __init__(self):
+        if not settings.NVIDIA_API_KEY:
+            logger.warning("NVIDIA_API_KEY not configured. DynamicDocumentAI calls will fail.")
+        self.client = OpenAI(
+            base_url=settings.NVIDIA_BASE_URL,
+            api_key=settings.NVIDIA_API_KEY
+        )
+        self.model = settings.LLM_MODEL
+
+    def _clean_json(self, content: str) -> str:
+        content = content.strip()
+        content = re.sub(r"^```(?:json)?\s*", "", content)
+        content = re.sub(r"\s*```$", "", content)
+        match = re.search(r"(\{.*\})", content, re.DOTALL)
+        if match:
+            return match.group(1)
+        return content
+
+    def generate_dynamic_schema(self, ocr_text: str, our_company_name: str = "", our_company_gstin: str = "", filename: str = "") -> dict:
+        """
+        THE CORE AI METHOD.
+
+        Single LLM call that does classification and dynamic schema extraction.
+        """
+        import re
+        clean_name = re.sub(r'\s+FY\s+\d{4}-\d{2}', '', our_company_name, flags=re.IGNORECASE).strip()
+        company_desc = f"{our_company_name} (commonly listed as \"{clean_name}\" or similar)" if clean_name and clean_name != our_company_name else our_company_name
+
+        system_prompt = """You are an expert Indian accounting document parser. Extract structured data from OCR text and output a strict JSON schema for Tally ERP voucher creation.
+
+OUR COMPANY:
+- Name: {OUR_COMPANY_NAME}
+- GSTIN: {OUR_COMPANY_GSTIN}
+
+STEP 1 — CLASSIFY THE DOCUMENT:
+- Check the filename hint. If it contains 'sales' (case-insensitive), classify as 'Sales Invoice'. If it contains 'purchase' or 'expense' (case-insensitive), classify as 'Purchase Invoice'.
+- Otherwise, check issuer, receiver and content indicators:
+  - SALES INVOICE: If our company ({OUR_COMPANY_NAME} or {OUR_COMPANY_GSTIN}) is the issuer/sender of the invoice (listed at the top, or as the supplier/seller/bill from party), and the other company is the buyer/recipient/customer, classify as "Sales Invoice".
+  - PURCHASE INVOICE: If another company is the issuer/sender (listed at the top, or as the supplier/seller/bill from party), and our company ({OUR_COMPANY_NAME} or {OUR_COMPANY_GSTIN}) is the buyer/recipient/customer (listed under "Buyer", "Bill To", "Consignee", or "Ship To"), classify as "Purchase Invoice".
+  - CONTRA VOUCHER: If the document represents a fund transfer between bank/cash accounts (e.g. transfer between cash and a bank account, cash deposits, or cash withdrawals).
+  - PAYMENT VOUCHER: If it is a payment advice, cash/bank payment voucher, or transaction receipt showing money going out from our company to a vendor/party.
+  - RECEIPT VOUCHER: If it is a receipt note, receipt voucher, or transaction receipt showing money coming into our company from a customer/party.
+- If neither: classify based on standard document headers.
+
+STEP 2 — EXTRACT ALL DATA into the required schema sections based on the classified type.
+
+CRITICAL RULES FOR LINE ITEMS TABLE (Only applicable to Sales/Purchase Invoices):
+- The "Line Items" section MUST contain EXACTLY ONE field with id="line_items" and type="table"
+- ALL product/service rows from the invoice go into the "rows" array of that single field
+- Do NOT create separate fields for each column (item_name, qty, rate, etc.)
+- Do NOT include Total, Subtotal, Tax, or Round Off rows as line item rows
+- CRITICAL QUANTITY AND RATE MATCHING:
+  - For each line item row, you must ensure that qty * rate = amount (or total amount for the row before tax).
+  - If the OCR text has misplaced decimal points or swapped columns for quantity and rate due to formatting, you MUST correct them to their true logical values so they satisfy: qty * rate = amount.
+- CRITICAL TABLE ALIGNMENT: In the OCR text, columns might be stacked vertically instead of horizontally. The columns for the line items are: item_name, amount, gst_rate. If quantity, rate, or unit are not explicitly listed for an item, leave them blank or null; do NOT populate them with tax ledger names or tax values.
+
+CRITICAL RULES FOR CALCULATION SUMMARY (Only applicable to Sales/Purchase Invoices):
+- taxable_value = sum of all line item amounts (before tax)
+- cgst_total, sgst_total, igst_total = actual tax amounts from the invoice
+- round_off = small rounding correction (must be less than ±5.0, e.g. 0.20 or -0.15). NOT a tax amount.
+- total_amount = grand total payable
+
+CRITICAL NUMBER FORMATTING RULES:
+- Numbers in Indian/US invoices use commas as thousands separators.
+- When extracting numeric values, REMOVE all commas and output clean numeric floats/integers (e.g. 39382.00, NOT 39.382; 3544.38, NOT 3.54438).
+- Never replace a thousands separator comma with a decimal point.
+
+OUTPUT EXACTLY THIS JSON STRUCTURE depending on the detected document type (fill actual extracted values):
+
+For a Sales Invoice / Purchase Invoice:
+{
+  "document_type": "Sales Invoice", // or "Purchase Invoice"
+  "confidence": 95,
+  "reasoning": "Brief reason for classification",
+  "sections": [
+    {
+      "id": "voucher_details",
+      "title": "Voucher Details",
+      "order": 1,
+      "visible": true,
+      "fields": [
+        {"id": "invoice_number", "key": "invoice_number", "label": "Invoice Number", "type": "text", "value": "INV-001", "confidence": 95, "required": true, "editable": true, "visible": true, "page": 1, "bbox": null, "placeholder": "Invoice Number"},
+        {"id": "invoice_date", "key": "invoice_date", "label": "Invoice Date", "type": "date", "value": "2024-04-01", "confidence": 95, "required": true, "editable": true, "visible": true, "page": 1, "bbox": null, "placeholder": "Invoice Date"},
+        {"id": "customer_name", "key": "customer_name", "label": "Customer Name", "type": "text", "value": "Customer Pvt Ltd", "confidence": 95, "required": true, "editable": true, "visible": true, "page": 1, "bbox": null, "placeholder": "Customer Name"}, // For Purchase Invoice, use label="Supplier Name" and id="supplier_name"
+        {"id": "customer_gstin", "key": "customer_gstin", "label": "Customer GSTIN", "type": "text", "value": "27XXXXX1234X1ZX", "confidence": 90, "required": true, "editable": true, "visible": true, "page": 1, "bbox": null, "placeholder": "Customer GSTIN"}, // For Purchase Invoice, use label="Supplier GSTIN" and id="supplier_gstin"
+        {"id": "state", "key": "state", "label": "State", "type": "text", "value": "Maharashtra", "confidence": 90, "required": true, "editable": true, "visible": true, "page": 1, "bbox": null, "placeholder": "State"}
+      ]
+    },
+    {
+      "id": "line_items",
+      "title": "Line Items",
+      "order": 2,
+      "visible": true,
+      "fields": [
+        {
+          "id": "line_items",
+          "label": "Line Items",
+          "type": "table",
+          "value": null,
+          "confidence": 90,
+          "required": true,
+          "editable": true,
+          "visible": true,
+          "page": 1,
+          "bbox": null,
+          "placeholder": "Line Items",
+          "columns": [
+            {"id": "item_name", "label": "Item Name"},
+            {"id": "hsn_code", "label": "HSN/SAC"},
+            {"id": "qty", "label": "Quantity"},
+            {"id": "unit", "label": "Unit"},
+            {"id": "rate", "label": "Rate"},
+            {"id": "amount", "label": "Amount"},
+            {"id": "gst_rate", "label": "GST %"},
+            {"id": "cgst_amount", "label": "CGST Amt"},
+            {"id": "sgst_amount", "label": "SGST Amt"},
+            {"id": "igst_amount", "label": "IGST Amt"}
+          ],
+          "rows": []
+        }
+      ]
+    },
+    {
+      "id": "calculation_summary",
+      "title": "Calculation Summary",
+      "order": 3,
+      "visible": true,
+      "fields": [
+        {"id": "taxable_value", "key": "taxable_value", "label": "Taxable Value", "type": "number", "value": 0.0, "confidence": 95, "required": true, "editable": true, "visible": true, "page": 1, "bbox": null, "placeholder": "Taxable Value"},
+        {"id": "cgst_total", "key": "cgst_total", "label": "CGST Total", "type": "number", "value": 0.0, "confidence": 95, "required": true, "editable": true, "visible": true, "page": 1, "bbox": null, "placeholder": "CGST Total"},
+        {"id": "sgst_total", "key": "sgst_total", "label": "SGST Total", "type": "number", "value": 0.0, "confidence": 95, "required": true, "editable": true, "visible": true, "page": 1, "bbox": null, "placeholder": "SGST Total"},
+        {"id": "igst_total", "key": "igst_total", "label": "IGST Total", "type": "number", "value": 0.0, "confidence": 95, "required": true, "editable": true, "visible": true, "page": 1, "bbox": null, "placeholder": "IGST Total"},
+        {"id": "round_off", "key": "round_off", "label": "Round Off", "type": "number", "value": 0.0, "confidence": 90, "required": false, "editable": true, "visible": true, "page": 1, "bbox": null, "placeholder": "Round Off"},
+        {"id": "total_amount", "key": "total_amount", "label": "Total Amount", "type": "number", "value": 0.0, "confidence": 95, "required": true, "editable": true, "visible": true, "page": 1, "bbox": null, "placeholder": "Total Amount"}
+      ]
+    }
+  ],
+  "suggestions": [{"type": "success", "message": "Document classified successfully."}],
+  "overall_confidence": 92
+}
+
+For a Contra Voucher:
+{
+  "document_type": "Contra Voucher",
+  "confidence": 95,
+  "reasoning": "Fund transfer between Cash and Bank",
+  "sections": [
+    {
+      "id": "voucher_details",
+      "title": "Voucher Details",
+      "order": 1,
+      "visible": true,
+      "fields": [
+        {"id": "voucher_number", "key": "voucher_number", "label": "Voucher Number", "type": "text", "value": "CONT-001", "confidence": 95, "required": true, "editable": true, "visible": true, "page": 1, "bbox": null, "placeholder": "Voucher Number"},
+        {"id": "voucher_date", "key": "voucher_date", "label": "Voucher Date", "type": "date", "value": "2024-04-01", "confidence": 95, "required": true, "editable": true, "visible": true, "page": 1, "bbox": null, "placeholder": "Voucher Date"},
+        {"id": "from_ledger", "key": "from_ledger", "label": "From Account (Source)", "type": "text", "value": "Cash", "confidence": 90, "required": true, "editable": true, "visible": true, "page": 1, "bbox": null, "placeholder": "Select Cash/Bank Ledger"},
+        {"id": "to_ledger", "key": "to_ledger", "label": "To Account (Destination)", "type": "text", "value": "SBI Bank", "confidence": 90, "required": true, "editable": true, "visible": true, "page": 1, "bbox": null, "placeholder": "Select Cash/Bank Ledger"}
+      ]
+    },
+    {
+      "id": "calculation_summary",
+      "title": "Contra Summary",
+      "order": 2,
+      "visible": true,
+      "fields": [
+        {"id": "transfer_amount", "key": "transfer_amount", "label": "Transfer Amount", "type": "number", "value": 15000.0, "confidence": 95, "required": true, "editable": true, "visible": true, "page": 1, "bbox": null, "placeholder": "Transfer Amount"},
+        {"id": "narration", "key": "narration", "label": "Narration", "type": "textarea", "value": "Cash deposited into SBI Bank", "confidence": 90, "required": false, "editable": true, "visible": true, "page": 1, "bbox": null, "placeholder": "Enter Narration"}
+      ]
+    }
+  ],
+  "suggestions": [{"type": "success", "message": "Contra voucher detected."}],
+  "overall_confidence": 92
+}
+
+For a Payment Voucher:
+{
+  "document_type": "Payment Voucher",
+  "confidence": 95,
+  "reasoning": "Payment transaction confirmation",
+  "sections": [
+    {
+      "id": "voucher_details",
+      "title": "Voucher Details",
+      "order": 1,
+      "visible": true,
+      "fields": [
+        {"id": "voucher_number", "key": "voucher_number", "label": "Voucher Number", "type": "text", "value": "PAY-001", "confidence": 95, "required": true, "editable": true, "visible": true, "page": 1, "bbox": null, "placeholder": "Voucher Number"},
+        {"id": "voucher_date", "key": "voucher_date", "label": "Voucher Date", "type": "date", "value": "2024-04-01", "confidence": 95, "required": true, "editable": true, "visible": true, "page": 1, "bbox": null, "placeholder": "Voucher Date"},
+        {"id": "party_ledger", "key": "party_ledger", "label": "Paid-To Party Ledger", "type": "text", "value": "Vendor Ledger A", "confidence": 90, "required": true, "editable": true, "visible": true, "page": 1, "bbox": null, "placeholder": "Select Party Ledger"},
+        {"id": "bank_cash_ledger", "key": "bank_cash_ledger", "label": "Paid-From Bank/Cash", "type": "text", "value": "SBI Bank", "confidence": 90, "required": true, "editable": true, "visible": true, "page": 1, "bbox": null, "placeholder": "Select Cash/Bank Ledger"}
+      ]
+    },
+    {
+      "id": "calculation_summary",
+      "title": "Payment Summary",
+      "order": 2,
+      "visible": true,
+      "fields": [
+        {"id": "total_amount", "key": "total_amount", "label": "Total Amount Paid", "type": "number", "value": 7500.0, "confidence": 95, "required": true, "editable": true, "visible": true, "page": 1, "bbox": null, "placeholder": "Total Paid Amount"},
+        {"id": "narration", "key": "narration", "label": "Narration", "type": "textarea", "value": "Payment made against bill 104", "confidence": 90, "required": false, "editable": true, "visible": true, "page": 1, "bbox": null, "placeholder": "Enter Narration"}
+      ]
+    }
+  ],
+  "suggestions": [{"type": "success", "message": "Payment voucher detected."}],
+  "overall_confidence": 92
+}
+
+For a Receipt Voucher:
+{
+  "document_type": "Receipt Voucher",
+  "confidence": 95,
+  "reasoning": "Receipt confirmation doc",
+  "sections": [
+    {
+      "id": "voucher_details",
+      "title": "Voucher Details",
+      "order": 1,
+      "visible": true,
+      "fields": [
+        {"id": "voucher_number", "key": "voucher_number", "label": "Voucher Number", "type": "text", "value": "REC-001", "confidence": 95, "required": true, "editable": true, "visible": true, "page": 1, "bbox": null, "placeholder": "Voucher Number"},
+        {"id": "voucher_date", "key": "voucher_date", "label": "Voucher Date", "type": "date", "value": "2024-04-01", "confidence": 95, "required": true, "editable": true, "visible": true, "page": 1, "bbox": null, "placeholder": "Voucher Date"},
+        {"id": "party_ledger", "key": "party_ledger", "label": "Received-From Party Ledger", "type": "text", "value": "Customer Ledger B", "confidence": 90, "required": true, "editable": true, "visible": true, "page": 1, "bbox": null, "placeholder": "Select Party Ledger"},
+        {"id": "bank_cash_ledger", "key": "bank_cash_ledger", "label": "Received-Into Bank/Cash", "type": "text", "value": "SBI Bank", "confidence": 90, "required": true, "editable": true, "visible": true, "page": 1, "bbox": null, "placeholder": "Select Cash/Bank Ledger"}
+      ]
+    },
+    {
+      "id": "calculation_summary",
+      "title": "Receipt Summary",
+      "order": 2,
+      "visible": true,
+      "fields": [
+        {"id": "total_amount", "key": "total_amount", "label": "Total Amount Received", "type": "number", "value": 12500.0, "confidence": 95, "required": true, "editable": true, "visible": true, "page": 1, "bbox": null, "placeholder": "Total Received Amount"},
+        {"id": "narration", "key": "narration", "label": "Narration", "type": "textarea", "value": "Amount received from Customer Ledger B", "confidence": 90, "required": false, "editable": true, "visible": true, "page": 1, "bbox": null, "placeholder": "Enter Narration"}
+      ]
+    }
+  ],
+  "suggestions": [{"type": "success", "message": "Receipt voucher detected."}],
+  "overall_confidence": 92
+}
+
+IMPORTANT: Replace ALL example values above with ACTUAL values extracted from the OCR text. Output ONLY the JSON. No markdown. No extra text.""".replace("{OUR_COMPANY_NAME}", company_desc or 'Friends Grafix').replace("{OUR_COMPANY_GSTIN}", our_company_gstin or '23AAFFF9731L1Z7')
+
+        user_prompt = f"Filename Hint: {filename}\n\nDocument OCR Text (analyze completely):\n\n{ocr_text[:10000]}"
+
+        try:
+            logger.info(f"DynamicDocumentAI.generate_dynamic_schema: model={self.model}, text_len={len(ocr_text)}, filename={filename}")
+            completion = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                temperature=0.0,
+                max_tokens=4096,
+                response_format={"type": "json_object"}
+            )
+            raw = completion.choices[0].message.content
+            logger.info(f"DynamicDocumentAI raw response length: {len(raw)}")
+            cleaned = self._clean_json(raw)
+            result = json.loads(cleaned)
+
+            # Validate structure
+            if "sections" not in result or not isinstance(result["sections"], list):
+                logger.error("DynamicDocumentAI: missing 'sections' in result")
+                return _empty_dynamic_schema("AI returned invalid schema structure")
+
+            # Ensure all required top-level keys exist
+            result.setdefault("document_type", "Unknown Document")
+            result.setdefault("confidence", 0)
+            result.setdefault("reasoning", "")
+            result.setdefault("suggestions", [])
+            result.setdefault("overall_confidence", 0)
+
+            # Ensure each section and field has all required keys with defaults from the Universal Schema spec
+            for section in result["sections"]:
+                section.setdefault("id", f"section_{section.get('order', 0)}")
+                section.setdefault("order", 99)
+                section.setdefault("visible", True)
+                for field in section.get("fields", []):
+                    # Set key equal to ID to conform with Universal Schema field interface
+                    if "key" not in field:
+                        field["key"] = field.get("id", "")
+                    field.setdefault("visible", True)
+                    field.setdefault("confidence", 0)
+                    field.setdefault("required", False)
+                    field.setdefault("editable", True)
+                    field.setdefault("page", 1)
+                    field.setdefault("bbox", None)
+                    field.setdefault("placeholder", "")
+                    field.setdefault("options", None)
+                    field.setdefault("columns", None)
+                    field.setdefault("rows", None)
+
+            logger.info(
+                f"DynamicDocumentAI success: doc_type={result['document_type']}, "
+                f"sections={len(result['sections'])}, confidence={result['overall_confidence']}"
+            )
+            return result
+
+        except json.JSONDecodeError as e:
+            logger.error(f"DynamicDocumentAI JSON parse error: {e}. Raw[:500]: {raw[:500] if 'raw' in dir() else 'N/A'}")
+            return _empty_dynamic_schema(f"JSON parse error: {str(e)}")
+        except Exception as e:
+            logger.error(f"DynamicDocumentAI error: {e}", exc_info=True)
+            return _empty_dynamic_schema(str(e))
+
+
+# Singleton
+dynamic_document_ai = DynamicDocumentAI()

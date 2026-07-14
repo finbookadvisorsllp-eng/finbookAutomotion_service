@@ -890,7 +890,7 @@ export default function AiProcessingCenter() {
 
   // Load and Sync LocalStorage State
   const [documents, setDocuments] = useState(() => {
-    const saved = localStorage.getItem('fb_bulk_documents');
+    const saved = localStorage.getItem('fb_ocr_documents');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -920,7 +920,7 @@ export default function AiProcessingCenter() {
 
   const syncDocuments = (updated) => {
     setDocuments(updated);
-    localStorage.setItem('fb_bulk_documents', JSON.stringify(updated));
+    localStorage.setItem('fb_ocr_documents', JSON.stringify(updated));
   };
 
   // --- Component States ---

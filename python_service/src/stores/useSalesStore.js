@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import salesApi, { salesVoucherApi } from '../services/salesApi';
+import bulkUploadApi from '../services/bulkUploadApi';
 
 
 /**
@@ -49,8 +50,30 @@ const calculateFormTotals = (form) => {
   let ledgerAmount = 0;
 
   // Compare first 2 chars of partyGstin and gstRegistration to determine if interstate
+  const getStateCode = (gstRegistration) => {
+    if (!gstRegistration) return '';
+    const numMatch = gstRegistration.match(/\b\d{2}\b/);
+    if (numMatch) return numMatch[0];
+    
+    const regLower = gstRegistration.toLowerCase();
+    const states = {
+      'jammu': '01', 'himachal': '02', 'punjab': '03', 'chandigarh': '04', 'uttarakhand': '05',
+      'haryana': '06', 'delhi': '07', 'rajasthan': '08', 'uttar pradesh': '09', 'bihar': '10',
+      'sikkim': '11', 'arunachal': '12', 'nagaland': '13', 'manipur': '14', 'mizoram': '15',
+      'tripura': '16', 'meghalaya': '17', 'assam': '18', 'west bengal': '19', 'jharkhand': '20',
+      'odisha': '21', 'chhattisgarh': '22', 'madhya pradesh': '23', 'gujarat': '24', 'daman': '25',
+      'dadra': '26', 'maharashtra': '27', 'andhra': '28', 'karnataka': '29', 'goa': '30',
+      'lakshadweep': '31', 'kerala': '32', 'tamil nadu': '33', 'puducherry': '34', 'andaman': '35',
+      'telangana': '36', 'ladakh': '38'
+    };
+    for (const [stateName, code] of Object.entries(states)) {
+      if (regLower.includes(stateName)) return code;
+    }
+    return '';
+  };
+
   const partyState = form.partyGstin?.trim().substring(0, 2);
-  const companyState = form.gstRegistration ? (form.gstRegistration.includes('Maharashtra') ? '27' : '23') : '';
+  const companyState = getStateCode(form.gstRegistration) || '23';
   const isInterstate = partyState && companyState && partyState !== companyState;
 
   // Extract CESS rate from any CESS ledger in additionalCharges or salesLines
@@ -95,15 +118,9 @@ const calculateFormTotals = (form) => {
       });
     }
 
-    if (Array.isArray(form.salesLines)) {
-      form.salesLines.forEach((line) => {
-        const nameUpper = (line.salesLedger || '').toUpperCase();
-        const isTaxLedger = nameUpper.includes('CGST') || nameUpper.includes('SGST') || nameUpper.includes('IGST') || nameUpper.includes('UTGST') || nameUpper.includes('CESS');
-        if (!isTaxLedger) {
-          totalAdditionalCharges += parseFloat(line.amount) || 0;
-        }
-      });
-    }
+    // NOTE: salesLines in 'with_item' mode represent sales ledger distribution accounts,
+    // NOT additional charges. Only the explicit additionalCharges array contributes here.
+    // (Previously this loop incorrectly doubled the taxable base for OCR-imported invoices.)
 
     // Step 3, 4, 5, 6: Distribute additional charges and calculate tax item-wise
     if (Array.isArray(form.productLines)) {
@@ -328,8 +345,12 @@ const calculateFormTotals = (form) => {
   }
   
   const beforeRound = subTotal + tcsTotal - tdsTotal;
-  grandTotal = Math.round(beforeRound);
-  roundOff = grandTotal - beforeRound;
+  let roundOffVal = form.roundOff !== undefined ? parseFloat(form.roundOff) : (Math.round(beforeRound) - beforeRound);
+  if (isNaN(roundOffVal)) {
+    roundOffVal = Math.round(beforeRound) - beforeRound;
+  }
+  grandTotal = Math.round(beforeRound + roundOffVal);
+  roundOff = roundOffVal;
 
   // Build GST breakup details
   const gstDetails = [];
@@ -1353,22 +1374,100 @@ export const useSalesStore = create((set, get) => ({
     }));
 
     try {
-      const res = await salesApi.extractOcr(ocr.file, (progress) => {
-        set((s) => ({ ocr: { ...s.ocr, uploadProgress: progress } }));
-      });
+      // 1. Upload file using bulk upload endpoint
+      const uploadRes = await bulkUploadApi.uploadFile(ocr.file, (progress) => {
+        set((s) => ({ ocr: { ...s.ocr, uploadProgress: Math.min(progress, 85) } }));
+      }, true);
 
-      set((s) => ({
-        ocr: { ...s.ocr, result: res.data, isExtracting: false, uploadProgress: 100 },
-      }));
+      const uploadId = uploadRes.upload_id;
 
-      // Auto-fill the form fields
-      if (res.data?.formFields) {
-        autofillFormFromOcr(res.data.formFields);
+      // 2. Process OCR and run AI extraction
+      const analyzeRes = await bulkUploadApi.analyzeDocument(uploadId, true);
+      const schema = analyzeRes.schema;
+
+      // 3. Map dynamic schema to formFields
+      const fields = {};
+      const productLines = [];
+      
+      const parseNumeric = (val) => {
+        if (typeof val === 'number') return val;
+        if (!val) return 0;
+        const cleaned = val.toString().replace(/,/g, '').match(/[-+]?[0-9]*\.?[0-9]+/);
+        return cleaned ? parseFloat(cleaned[0]) : 0;
+      };
+
+      for (const section of schema?.sections || []) {
+        for (const field of section.fields || []) {
+          if (field.type === 'table') {
+            if (field.id === 'line_items' || field.id === 'inventoryEntries') {
+              const rows = field.rows || field.value || [];
+              for (const row of rows) {
+                productLines.push({
+                  stockItem: row.item_name || row.stockItem || '',
+                  description: row.description || '',
+                  hsnSacCode: row.hsn_code || row.hsnSacCode || '',
+                  billQuantity: parseNumeric(row.qty || row.billQuantity || 0),
+                  billRate: parseNumeric(row.rate || row.billRate || 0),
+                  discountPercent: parseNumeric(row.discountPercent || 0),
+                  amount: parseNumeric(row.amount || 0),
+                  rcm: row.rcm === true || row.rcm === 'true',
+                  taxabilityType: row.taxabilityType || 'Taxable',
+                  gstRate: parseFloat((row.gst_rate || row.gstRate || 0).toString().replace(/%/g, '')),
+                });
+              }
+            }
+          } else {
+            if (['invoice_number', 'invoiceNumber', 'voucher_number'].includes(field.id)) {
+              fields.invoiceNumber = field.value || '';
+              fields.voucherNumber = field.value || '';
+            } else if (['invoice_date', 'invoiceDate', 'voucher_date'].includes(field.id)) {
+              fields.invoiceDate = field.value || '';
+              fields.voucherDate = field.value || '';
+            } else if (['party_ledger', 'party', 'customerName', 'supplierName', 'vendorName'].includes(field.id)) {
+              fields.partyLedger = field.value || '';
+            } else if (['gstin', 'gstRegistration', 'partyGstin', 'supplierGSTIN', 'customerGSTIN'].includes(field.id)) {
+              fields.partyGstin = field.value || '';
+            } else if (['state', 'companyState', 'gstState'].includes(field.id)) {
+              fields.gstRegistration = field.value ? `${field.value} Registration` : '';
+            } else if (['narration', 'narration_remarks'].includes(field.id)) {
+              fields.narration = field.value || '';
+            }
+          }
+        }
       }
 
-      return { success: true, data: res.data };
+      if (productLines.length === 0) {
+        productLines.push({ stockItem: '', description: '', hsnSacCode: '', billQuantity: 0, billRate: 0, discountPercent: 0, amount: 0, rcm: false, taxabilityType: 'Taxable', gstRate: 0 });
+      }
+
+      const salesLines = productLines.map((l) => ({
+        salesLedger: l.stockItem || '',
+        description: l.description || '',
+        hsnSacCode: l.hsnSacCode || '',
+        amount: l.amount || 0,
+        gstRate: l.gstRate || 0
+      }));
+
+      const formFields = {
+        ...fields,
+        productLines,
+        salesLines,
+        entryTab: productLines.some(l => l.stockItem) ? 'with_item' : 'without_item'
+      };
+
+      set((s) => ({
+        ocr: {
+          ...s.ocr,
+          result: { confidence: schema.overall_confidence || 90, formFields },
+          isExtracting: false,
+          uploadProgress: 100
+        }
+      }));
+
+      autofillFormFromOcr(formFields);
+      return { success: true, data: { confidence: schema.overall_confidence || 90 } };
     } catch (err) {
-      const message = err.response?.data?.message || 'OCR extraction failed';
+      const message = err.response?.data?.message || err.message || 'OCR extraction failed';
       set((s) => ({
         ocr: { ...s.ocr, isExtracting: false, error: message },
       }));
