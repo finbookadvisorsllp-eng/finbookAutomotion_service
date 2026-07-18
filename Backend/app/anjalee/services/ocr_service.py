@@ -2,14 +2,15 @@ import time
 import cv2
 import fitz  # PyMuPDF
 import numpy as np
-from paddleocr import PaddleOCR
+from rapidocr_onnxruntime import RapidOCR
+import pdfplumber
 import logging
 import threading
 import concurrent.futures
 
 logger = logging.getLogger("ocr_service")
 
-# Concurrency lock to prevent concurrent OCR engine calls crashing PaddlePaddle
+# Concurrency lock to prevent concurrent OCR engine calls
 ocr_lock = threading.Lock()
 
 class OcrService:
@@ -17,15 +18,14 @@ class OcrService:
 
     @classmethod
     def get_ocr_engine(cls):
-        """Lazy initialization of PaddleOCR instance as a singleton."""
+        """Lazy initialization of RapidOCR instance as a singleton."""
         if cls._ocr_instance is None:
-            logger.info("Initializing PaddleOCR engine...")
+            logger.info("Initializing RapidOCR engine...")
             try:
-                # use_angle_cls=True automatically handles orientation rotation (0, 90, 180, 270 degrees)
-                cls._ocr_instance = PaddleOCR(use_angle_cls=True, lang='en', enable_mkldnn=False)
-                logger.info("PaddleOCR engine initialized successfully.")
+                cls._ocr_instance = RapidOCR()
+                logger.info("RapidOCR engine initialized successfully.")
             except Exception as e:
-                logger.error(f"Failed to initialize PaddleOCR engine: {e}")
+                logger.error(f"Failed to initialize RapidOCR engine: {e}")
                 raise
         return cls._ocr_instance
 
@@ -64,7 +64,7 @@ class OcrService:
             
             if coords.size == 0:
                 return image
-
+ 
             angle = cv2.minAreaRect(coords)[-1]
             if angle < -45:
                 angle = -(90 + angle)
@@ -134,61 +134,34 @@ class OcrService:
 
         return img_bgr
 
-
     def process_page_worker(self, page_number: int, img_bgr: np.ndarray) -> dict:
-        """Preprocesses and runs OCR on a single page."""
+        """Preprocesses and runs RapidOCR on a single page."""
         preprocessed = self.preprocess_image(img_bgr)
-        img_rgb = cv2.cvtColor(preprocessed, cv2.COLOR_BGR2RGB)
 
         # Thread-safe model invocation
         with ocr_lock:
             ocr = self.get_ocr_engine()
-            result = ocr.ocr(img_rgb)
+            result, _ = ocr(preprocessed)
 
         extracted_text = []
         words = []
         confidences = []
 
-        if result and result[0]:
-            page_data = result[0]
-            # Handle both standard dictionary results (PaddleX / latest) and list-of-lists results (legacy)
-            if isinstance(page_data, dict) or hasattr(page_data, "keys"):
-                rec_texts = page_data.get("rec_texts", [])
-                rec_scores = page_data.get("rec_scores", [])
-                dt_polys = page_data.get("dt_polys", [])
-                for idx, text in enumerate(rec_texts):
-                    confidence = float(rec_scores[idx]) if idx < len(rec_scores) else 1.0
-                    box = dt_polys[idx] if idx < len(dt_polys) else [[0, 0], [0, 0], [0, 0], [0, 0]]
-                    if hasattr(box, "tolist"):
-                        box_list = box.tolist()
-                    else:
-                        box_list = list(box)
+        if result:
+            for line in result:
+                if not isinstance(line, (list, tuple)) or len(line) < 3:
+                    continue
+                box = line[0]
+                text = line[1]
+                confidence = float(line[2])
 
-                    extracted_text.append(text)
-                    words.append({
-                        "text": text,
-                        "confidence": round(confidence, 4),
-                        "box": [[int(coord[0]), int(coord[1])] for coord in box_list]
-                    })
-                    confidences.append(confidence)
-            else:
-                for line in page_data:
-                    if not isinstance(line, (list, tuple)) or len(line) < 2:
-                        continue
-                    box = line[0]
-                    text_info = line[1]
-                    if not isinstance(text_info, (list, tuple)) or len(text_info) < 2:
-                        continue
-                    text = text_info[0]
-                    confidence = float(text_info[1])
-
-                    extracted_text.append(text)
-                    words.append({
-                        "text": text,
-                        "confidence": round(confidence, 4),
-                        "box": [[int(coord[0]), int(coord[1])] for coord in box]
-                    })
-                    confidences.append(confidence)
+                extracted_text.append(text)
+                words.append({
+                    "text": text,
+                    "confidence": round(confidence, 4),
+                    "box": [[int(coord[0]), int(coord[1])] for coord in box]
+                })
+                confidences.append(confidence)
 
         avg_confidence = round(float(np.mean(confidences)), 4) if confidences else 0.0
         full_paragraph = "\n".join(extracted_text)
@@ -207,28 +180,107 @@ class OcrService:
 
         try:
             if file_type == 'pdf':
-                pages = self.pdf_to_images(file_path)
-                if not pages:
-                    raise ValueError("The PDF document contains zero pages or is corrupted.")
+                # Try direct text extraction using pdfplumber page-by-page first
+                pages_needing_ocr = []
+                
+                try:
+                    with pdfplumber.open(file_path) as pdf:
+                        for idx, page in enumerate(pdf.pages):
+                            p_num = idx + 1
+                            text = page.extract_text() or ""
+                            text_stripped = text.strip()
+                            
+                            # If the page has selectable text (using MIN_CHARS = 20 as threshold)
+                            if len(text_stripped) >= 20:
+                                logger.info(f"Direct text extraction successful for page {p_num} ({len(text_stripped)} chars)")
+                                
+                                words_list = []
+                                try:
+                                    pdf_words = page.extract_words()
+                                    for w_dict in pdf_words:
+                                        x0 = float(w_dict.get("x0", 0))
+                                        top = float(w_dict.get("top", 0))
+                                        x1 = float(w_dict.get("x1", 0))
+                                        bottom = float(w_dict.get("bottom", 0))
+                                        words_list.append({
+                                            "text": w_dict.get("text", ""),
+                                            "confidence": 1.0,
+                                            "box": [
+                                                [int(x0), int(top)],
+                                                [int(x1), int(top)],
+                                                [int(x1), int(bottom)],
+                                                [int(x0), int(bottom)]
+                                            ]
+                                        })
+                                except Exception as we:
+                                    logger.warning(f"Failed to extract words via pdfplumber for page {p_num}: {we}")
 
-                # Parallel page preprocessing (FastAPI runs in async loop, we offload to thread pool)
-                with concurrent.futures.ThreadPoolExecutor() as executor:
-                    futures = {executor.submit(self.process_page_worker, p_num, img): p_num for p_num, img in pages}
-                    for future in concurrent.futures.as_completed(futures):
-                        p_num = futures[future]
-                        try:
-                            page_result = future.result()
-                            pages_data.append(page_result)
-                        except Exception as e:
-                            logger.error(f"Error executing OCR on PDF page {p_num}: {e}")
-                            pages_data.append({
-                                "page_number": p_num,
-                                "text": "",
-                                "confidence": 0.0,
-                                "words": []
-                            })
+                                pages_data.append({
+                                    "page_number": p_num,
+                                    "text": text_stripped,
+                                    "confidence": 1.0,  # 100% confidence for direct text
+                                    "words": words_list
+                                })
+                            else:
+                                logger.info(f"Page {p_num} has selectable text length {len(text_stripped)} < 20. Needs OCR.")
+                                pages_needing_ocr.append(p_num)
+                except Exception as e:
+                    logger.warning(f"Direct text extraction failed: {e}. Running OCR on all pages.")
+                    pages_needing_ocr = []
+                    try:
+                        doc = fitz.open(file_path)
+                        pages_needing_ocr = list(range(1, len(doc) + 1))
+                        doc.close()
+                    except:
+                        pass
+                
+                # If there are pages needing OCR, convert them to images and process
+                if pages_needing_ocr:
+                    try:
+                        doc = fitz.open(file_path)
+                        ocr_pages = []
+                        for p_num in pages_needing_ocr:
+                            page_idx = p_num - 1
+                            if page_idx < len(doc):
+                                page = doc.load_page(page_idx)
+                                zoom = 200 / 72  # Render at 200 DPI
+                                mat = fitz.Matrix(zoom, zoom)
+                                pix = page.get_pixmap(matrix=mat)
+                                
+                                img_data = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.height, pix.width, pix.n)
+                                if pix.n == 4:
+                                    img_data = cv2.cvtColor(img_data, cv2.COLOR_BGRA2BGR)
+                                elif pix.n == 1:
+                                    img_data = cv2.cvtColor(img_data, cv2.COLOR_GRAY2BGR)
+                                else:
+                                    img_data = cv2.cvtColor(img_data, cv2.COLOR_RGB2BGR)
+                                
+                                ocr_pages.append((p_num, img_data))
+                        doc.close()
+                        
+                        # Run OCR in parallel for the pages needing it
+                        with concurrent.futures.ThreadPoolExecutor() as executor:
+                            futures = {executor.submit(self.process_page_worker, p_num, img): p_num for p_num, img in ocr_pages}
+                            for future in concurrent.futures.as_completed(futures):
+                                p_num = futures[future]
+                                try:
+                                    page_result = future.result()
+                                    pages_data.append(page_result)
+                                except Exception as e:
+                                    logger.error(f"Error executing OCR on PDF page {p_num}: {e}")
+                                    pages_data.append({
+                                        "page_number": p_num,
+                                        "text": "",
+                                        "confidence": 0.0,
+                                        "words": []
+                                    })
+                    except Exception as e:
+                        logger.error(f"Failed to process PDF pages with OCR: {e}")
+                
+                # Sort pages_data by page number
                 pages_data.sort(key=lambda x: x["page_number"])
             else:
+                # Non-PDF image file
                 img_bgr = cv2.imread(file_path)
                 if img_bgr is None:
                     raise ValueError("Failed to load or read the image file.")

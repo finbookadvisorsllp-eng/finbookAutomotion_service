@@ -1,8 +1,11 @@
-import os
+﻿import os
 import asyncio
 import uuid
 import logging
-from datetime import datetime
+import csv
+import io
+import openpyxl
+from datetime import datetime, date
 from concurrent.futures import ThreadPoolExecutor
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, status, BackgroundTasks, Form, Request
 from fastapi.responses import FileResponse
@@ -94,6 +97,15 @@ def _run_ocr_background(file_path: str, file_type: str, upload_id: str, mongo_ur
             for i, p in enumerate(pages)
             if p.get("text", "").strip()
         )
+
+        # Save raw OCR text to a .txt file alongside the uploaded document
+        try:
+            txt_path = os.path.splitext(file_path)[0] + "_ocr.txt"
+            with open(txt_path, "w", encoding="utf-8") as txt_file:
+                txt_file.write(full_text)
+            logger.info(f"[BG] OCR text saved to {txt_path}")
+        except Exception as txt_err:
+            logger.warning(f"[BG] Failed to save OCR text file (non-fatal): {txt_err}")
 
         # ── STAGE 3: Layout Analysis ───────────────────────────────────────────
         logger.info(f"[BG] Stage 3 — Layout analysis for upload_id={upload_id}")
@@ -299,6 +311,7 @@ async def upload_file(
     request: Request,
     file: UploadFile = File(...),
     force_replace: bool = Form(False),
+    source: str = Form("Manual Upload"),
     db = Depends(get_async_db)
 ):
     """
@@ -339,7 +352,39 @@ async def upload_file(
         existing = await db["bulk_uploads"].find_one({"file_hash": file_hash})
 
         if existing and not force_replace:
-            # Delete temp file since upload is flagged duplicate
+            # Check if the duplicate record has the new flat schema keys
+            dynamic_schema = existing.get("dynamic_schema") or {}
+            has_flat_keys = "voucherNumber" in dynamic_schema or "partyLedger" in dynamic_schema
+            
+            if not has_flat_keys:
+                logger.info(f"Duplicate file found but lacks flat schema keys. Triggering background re-run for upload_id={existing['_id']}")
+                await db["bulk_uploads"].update_one(
+                    {"_id": existing["_id"]},
+                    {"$set": {"status": "Processing", "pipeline_stage": "ocr_running", "pipeline_progress": 10}}
+                )
+                loop = asyncio.get_event_loop()
+                loop.run_in_executor(
+                    _ocr_executor,
+                    _run_ocr_background,
+                    existing["file_path"],
+                    existing["file_type"],
+                    str(existing["_id"]),
+                    MONGO_URI,
+                    DB_NAME
+                )
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                return {
+                    "success": True,
+                    "duplicate_found": False,
+                    "upload_id": str(existing["_id"]),
+                    "filename": existing["filename"],
+                    "file_type": existing["file_type"],
+                    "file_hash": file_hash,
+                    "quality_check": existing.get("quality_check"),
+                    "page_validation": existing.get("page_validation")
+                }
+
             if os.path.exists(file_path):
                 os.remove(file_path)
             return {
@@ -383,7 +428,8 @@ async def upload_file(
             "page_validation": val_res["pages"],
             "ocr_data": None,
             "ocr_error": None,
-            "company_id": company_id
+            "company_id": company_id,
+            "source": source
         }
 
         result = await db["bulk_uploads"].insert_one(doc_record)
@@ -976,13 +1022,18 @@ async def ai_analyze(
 
     # Return cached schema unless force_rerun
     if record.get("dynamic_schema") and not payload.force_rerun:
-        logger.info(f"ai_analyze: returning cached dynamic_schema for {upload_id}")
-        return {
-            "success": True,
-            "upload_id": upload_id,
-            "cached": True,
-            "schema": record["dynamic_schema"]
-        }
+        cached_schema = record["dynamic_schema"]
+        has_flat_keys = "voucherNumber" in cached_schema or "partyLedger" in cached_schema
+        if has_flat_keys:
+            logger.info(f"ai_analyze: returning cached dynamic_schema for {upload_id}")
+            return {
+                "success": True,
+                "upload_id": upload_id,
+                "cached": True,
+                "schema": record["dynamic_schema"]
+            }
+        else:
+            logger.info(f"ai_analyze: cached schema lacks flat keys. Re-running analysis for {upload_id}")
 
     # Ensure OCR is complete
     ocr_data = record.get("ocr_data")
@@ -1279,7 +1330,15 @@ async def delete_upload(
             logger.error(f"Failed to delete physical file {file_path}: {e}")
 
     await db["bulk_uploads"].delete_one({"_id": ObjectId(upload_id)})
-    logger.info(f"Deleted upload record: {upload_id}")
+    
+    # Delete related documents from other collections to maintain DB hygiene
+    for coll_name in ["ocr_data", "layouts", "ai_extractions", "validations"]:
+        try:
+            await db[coll_name].delete_many({"document_id": ObjectId(upload_id)})
+        except Exception as e:
+            logger.error(f"Failed to delete related documents from {coll_name} for upload_id {upload_id}: {e}")
+
+    logger.info(f"Deleted upload record: {upload_id} and related collection documents.")
     return {"success": True, "detail": "Upload deleted successfully."}
 
 
@@ -1305,3 +1364,121 @@ async def update_bulk_upload_status(
     return {"success": True, "upload_id": upload_id, "status": payload.status}
 
 
+@router.post("/analyze-spreadsheet", response_model=dict)
+async def analyze_spreadsheet(
+    file: UploadFile = File(...),
+    db = Depends(get_async_db)
+):
+    """
+    Full accounting-grade AI validation engine for bulk Excel/CSV uploads.
+
+    Parses the uploaded file, classifies the document type, maps all columns to
+    standard ERP fields, and runs 25+ validation categories against MongoDB master
+    records (ledgers, stock items, banks, HSN codes, voucher duplicates, company
+    financial year) using SpreadsheetValidationEngine.
+
+    Returns structured ValidationIssue objects with row/col indices, confidence
+    scores, suggested values, canAutoFix flags, and a complete validation summary.
+    """
+    from app.anjalee.services.spreadsheet_validator import SpreadsheetValidationEngine
+
+    filename = file.filename or "spreadsheet.xlsx"
+    contents = await file.read()
+    ext = filename.rsplit('.', 1)[-1].lower()
+
+    rows = []
+
+    if ext == 'csv':
+        try:
+            decoded = contents.decode('utf-8-sig', errors='ignore')
+            reader = csv.reader(io.StringIO(decoded))
+            rows = list(reader)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Failed to parse CSV file: {str(e)}")
+    elif ext in ('xlsx', 'xls'):
+        try:
+            wb = openpyxl.load_workbook(io.BytesIO(contents), data_only=True)
+            sheet = wb.active
+            for r in sheet.iter_rows(values_only=True):
+                row_vals = []
+                for x in r:
+                    if x is None:
+                        row_vals.append("")
+                    elif isinstance(x, (datetime, date)):
+                        row_vals.append(x)  # preserve datetime objects for accurate parsing
+                    else:
+                        row_vals.append(str(x))
+                rows.append(row_vals)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Failed to parse Excel file: {str(e)}")
+    else:
+        raise HTTPException(status_code=400, detail=f"Unsupported file format: .{ext}. Use .xlsx, .xls or .csv")
+
+    if not rows or len(rows) < 2:
+        raise HTTPException(status_code=400, detail="Spreadsheet has no data rows. Please ensure the file has a header row and at least one data row.")
+
+    # Normalize all rows to the same column count
+    max_cols = max(len(r) for r in rows) if rows else 10
+
+    def get_col_letter(index):
+        temp = ""
+        i = index
+        while i >= 0:
+            temp = chr((i % 26) + 65) + temp
+            i = (i // 26) - 1
+        return temp
+
+    alphabet_headers = [get_col_letter(i) for i in range(max_cols)]
+
+    normalized_rows = []
+    for r in rows:
+        row_vals = list(r)
+        if len(row_vals) < max_cols:
+            row_vals += [""] * (max_cols - len(row_vals))
+        elif len(row_vals) > max_cols:
+            row_vals = row_vals[:max_cols]
+        normalized_rows.append(row_vals)
+
+    # Build string grid for UI rendering (convert datetime → formatted string)
+    grid_rows = []
+    for r in normalized_rows:
+        row_vals = []
+        for x in r:
+            if isinstance(x, (datetime, date)):
+                row_vals.append(x.strftime('%d/%m/%Y'))
+            else:
+                row_vals.append(str(x))
+        grid_rows.append(row_vals)
+
+    excel_grid = [alphabet_headers] + grid_rows
+
+    # Run SpreadsheetValidationEngine
+    engine = SpreadsheetValidationEngine(db)
+    result = await engine.validate(normalized_rows, filename)
+
+    doc_type = result["doc_type"]
+    column_mapping = result["column_mapping"]
+    validation_results = result["validation_results"]
+    summary = result["validation_summary"]
+
+    confidence_score = min(98, 80 + int(summary["import_readiness_score"] * 0.18))
+
+    return {
+        "success": True,
+        "excel_grid": excel_grid,
+        "document_type": doc_type,
+        "ai_reasoning": (
+            f"Spreadsheet classified as {doc_type} with {len(column_mapping)} columns mapped. "
+            f"Found {summary['error_count']} errors, {summary['warning_count']} warnings across "
+            f"{summary['total_rows']} rows. Import readiness: {summary['import_readiness_score']}%."
+        ),
+        "column_mapping": column_mapping,
+        "confidence_score": confidence_score,
+        "import_readiness_score": summary["import_readiness_score"],
+        "master_matching_results": {
+            "party_status": "Perfect match" if not any(v["field"] == "Party Name" for v in validation_results if v["severity"] == "Error") else "Mismatch",
+            "items_status": "Perfect match" if not any(v["field"] == "Item Name" for v in validation_results if v["severity"] == "Error") else "Mismatch"
+        },
+        "validation_results": validation_results,
+        "validation_summary": summary,
+    }

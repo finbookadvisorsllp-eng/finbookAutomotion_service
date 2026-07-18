@@ -2,10 +2,11 @@ import apiClient from '../lib/apiClient';
 
 export const bulkUploadApi = {
   // ── Phase 2: Upload & OCR ──────────────────────────────────
-  uploadFile: (file, onProgress, forceReplace = false) => {
+  uploadFile: (file, onProgress, forceReplace = false, source = 'Manual Upload') => {
     const form = new FormData();
     form.append('file', file);
     form.append('force_replace', forceReplace);
+    form.append('source', source);
     return apiClient.post('/bulk-upload/upload', form, {
       headers: { 'Content-Type': 'multipart/form-data' },
       onUploadProgress: (evt) => {
@@ -100,6 +101,16 @@ export const bulkUploadApi = {
   },
 
   /**
+   * Re-runs only the AI analysis step (skips OCR, assumes OCR is already done).
+   * Used by the Re-run AI button in the review screen.
+   */
+  reAnalyzeOnly: (uploadId) =>
+    apiClient.post('/bulk-upload/ai/analyze', {
+      upload_id: uploadId,
+      force_rerun: true,
+    }, { timeout: 120000 }).then((r) => r.data),
+
+  /**
    * Saves user-edited dynamic form sections as a draft.
    * Never overwrites dynamic_schema or ocr_data.
    */
@@ -126,6 +137,14 @@ export const bulkUploadApi = {
   getProgress: (uploadId) =>
     apiClient.get(`/bulk-upload/ocr/progress/${uploadId}`).then((r) => r.data),
 
+  analyzeSpreadsheet: (file) => {
+    const form = new FormData();
+    form.append('file', file);
+    return apiClient.post('/bulk-upload/analyze-spreadsheet', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 120000
+    }).then((r) => r.data);
+  },
 };
 
 export default bulkUploadApi;

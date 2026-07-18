@@ -28,7 +28,8 @@ const displayToType = {
   Contra: 'contra'
 };
 
-const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSuccess }) => {
+const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSuccess, onVoucherTypeChange, initialData, isOcrMode }) => {
+  const [initialDataLoaded, setInitialDataLoaded] = useState(false);
   const {
     form,
     loading,
@@ -130,6 +131,17 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
     }
   }, [voucherType, resetForm, form._id]);
 
+  // Populate form with initialData if provided (e.g. from OCR)
+  useEffect(() => {
+    if (initialData && Object.keys(initialData).length > 0 && !initialDataLoaded) {
+      resetForm(voucherType);
+      Object.entries(initialData).forEach(([key, val]) => {
+        setFormValue(key, val);
+      });
+      setInitialDataLoaded(true);
+    }
+  }, [initialData, voucherType, resetForm, setFormValue, initialDataLoaded]);
+
   // Auto-fill Voucher Number series-wise on new entry only
   useEffect(() => {
     if (!form._id) {
@@ -207,12 +219,16 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
 
   const isUnbalanced = isPaymentOrReceipt && hasOutstandingBills && Math.abs(difference) > 0.01;
 
-  // Dynamically update showBillAllocation based on party Ledger selection
+  // Dynamically update showBillAllocation based on party Ledger selection and pending bills existence
   useEffect(() => {
     if (isPaymentOrReceipt) {
-      setShowBillAllocation(true);
+      const hasPartyWithBills = (form.ledgerRows || []).some(row => {
+        const cache = partyDetailsCache[row.ledgerName];
+        return cache && cache.pendingBills && cache.pendingBills.length > 0;
+      });
+      setShowBillAllocation(hasPartyWithBills);
     }
-  }, [isPaymentOrReceipt]);
+  }, [isPaymentOrReceipt, form.ledgerRows, partyDetailsCache]);
 
   // Ensure at least one row in ledgerRows (Transaction Details) by default
   useEffect(() => {
@@ -233,25 +249,42 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
   useEffect(() => {
     if (!isPaymentOrReceipt) return;
 
+    const currentBillRows = form.billRows || [];
     const newBillRows = [];
     let idxCounter = 0;
 
     (form.ledgerRows || []).forEach(row => {
       if (!row.ledgerName) return;
-      const cached = partyDetailsCache[row.ledgerName];
-      if (!cached) return;
 
-      const pendingBills = (cached.pendingBills || []).filter(b => (parseFloat(b.pendingAmount) || 0) > 0.01);
-      if (pendingBills.length > 0) {
+      // Find all existing bills for this ledger in form.billRows (from OCR or manual input)
+      const existingRowsForLedger = currentBillRows.filter(r => {
+        const rName = (r.ledgerName || '').toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+        const rowName = (row.ledgerName || '').toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+        return rName === rowName || !r.ledgerName || r.ledgerName === 'Select Ledger';
+      }).map(r => ({ ...r, ledgerName: row.ledgerName }));
+
+      // Start with all existing rows for this ledger
+      newBillRows.push(...existingRowsForLedger);
+
+      // Look at Tally pending bills cache — but ONLY in manual entry mode, not OCR mode
+      // In OCR mode, only bills extracted from the scanned document should appear
+      const cached = partyDetailsCache[row.ledgerName];
+      if (cached && existingRowsForLedger.length === 0 && !isOcrMode) {
+        const pendingBills = (cached.pendingBills || []).filter(b => (parseFloat(b.pendingAmount) || 0) > 0.01);
+        
+        // If there's only 1 pending bill in Tally, and we have NO existing OCR bills for this ledger,
+        // we can auto-allocate the ledger row amount to it!
+        const shouldAutoAllocate = pendingBills.length === 1 && existingRowsForLedger.length === 0;
+
         pendingBills.forEach(bill => {
-          // Check if we already have an entry for this bill in form.billRows
-          const existing = (form.billRows || []).find(r => r.billNo === bill.billNo && r.ledgerName === row.ledgerName);
-          if (existing) {
-            newBillRows.push(existing);
-          } else {
-            // Check if there is only 1 pending bill for this ledger, and if so, auto-allocate the ledger row amount to it!
+          // Check if this pending bill is already in the list
+          const alreadyAdded = newBillRows.some(
+            r => r.billNo === bill.billNo && r.ledgerName === row.ledgerName
+          );
+
+          if (!alreadyAdded) {
             const ledgerAmount = parseFloat(row.amount) || 0;
-            const targetAlloc = pendingBills.length === 1
+            const targetAlloc = shouldAutoAllocate
               ? (activeType === 'bank_payment' ? Math.min(ledgerAmount, bill.pendingAmount) : ledgerAmount)
               : 0;
 
@@ -273,14 +306,22 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
       }
     });
 
-    // Check if newBillRows is different from form.billRows before setting to avoid infinite loop
-    const isDifferent = JSON.stringify(newBillRows.map(r => ({ billNo: r.billNo, ledgerName: r.ledgerName, allocationAmount: r.allocationAmount }))) !==
-      JSON.stringify((form.billRows || []).map(r => ({ billNo: r.billNo, ledgerName: r.ledgerName, allocationAmount: r.allocationAmount })));
+    // RACE CONDITION GUARD (OCR mode):
+    // If the syncer computed an empty list BUT form.billRows already has OCR-extracted bills,
+    // preserve the existing bills. Zustand processes setFormValue calls sequentially, so the
+    // syncer may fire before billRows is populated from initialData.
+    const effectiveBillRows = (isOcrMode && newBillRows.length === 0 && currentBillRows.length > 0)
+      ? currentBillRows
+      : newBillRows;
+
+    // Check if effectiveBillRows is different from form.billRows before setting to avoid infinite loop
+    const isDifferent = JSON.stringify(effectiveBillRows.map(r => ({ billNo: r.billNo, ledgerName: r.ledgerName, allocationAmount: r.allocationAmount }))) !==
+      JSON.stringify(currentBillRows.map(r => ({ billNo: r.billNo, ledgerName: r.ledgerName, allocationAmount: r.allocationAmount })));
 
     if (isDifferent) {
-      setFormValue('billRows', newBillRows);
+      setFormValue('billRows', effectiveBillRows);
     }
-  }, [isPaymentOrReceipt, form.ledgerRows, partyDetailsCache, activeType]);
+  }, [isPaymentOrReceipt, form.ledgerRows, form.billRows, partyDetailsCache, activeType, isOcrMode]);
 
 
   const handlePaymentModeChange = (mode) => {
@@ -920,6 +961,10 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
   };
 
   const handleVoucherTypeSwitch = (typeId) => {
+    if (onVoucherTypeChange) {
+      onVoucherTypeChange(typeId);
+      return;
+    }
     if (['cash_payment', 'bank_payment', 'contra'].includes(typeId)) {
       resetForm(typeId);
     } else if (typeId === 'sales_invoice') {
@@ -941,6 +986,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
         `}</style>
 
         {/* Top Header Row (Same style as Purchase) */}
+        {!isOcrMode && (
         <div className="flex items-center justify-between px-4 py-2.5 border-b shrink-0" style={{ borderColor: 'var(--m3-outline-variant)', backgroundColor: 'var(--m3-surface-container-low)' }}>
           <div className="flex items-center gap-2">
             <h1 className="text-[15px] font-semibold tracking-tight" style={{ color: 'var(--m3-on-surface)' }}>
@@ -957,6 +1003,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
             <button onClick={handleCancel} className="m3-icon-btn" title="Close Form" aria-label="Close Form"><X size={16} strokeWidth={2.5} /></button>
           </div>
         </div>
+        )}
 
         {/* Voucher Types & Summary Row (Same style as Purchase) */}
         <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-2 border-b shrink-0" style={{ borderColor: 'var(--m3-outline-variant)', backgroundColor: 'var(--m3-surface-container-low)' }}>
@@ -1055,7 +1102,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
         </div>
 
         {/* Main Body Two-Column Grid Wrapper */}
-        <div className="flex-1 p-1.5 overflow-y-auto themed-scrollbar bg-[var(--app-panel-bg)]">
+        <div className="flex-1 p-3 overflow-y-auto themed-scrollbar bg-[var(--app-panel-bg)]">
           {isPaymentOrReceipt ? (() => {
             if (activeType === 'cash_payment' || activeType === 'bank_payment') {
               const totalLedgerAmountVal = (form.ledgerRows || []).reduce((acc, r) => acc + (parseFloat(r.amount) || 0), 0);
@@ -1077,12 +1124,12 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
               );
 
               return (
-                <div className="flex flex-col gap-2 pb-2 w-full text-[var(--app-heading)]">
+                <div className="flex flex-col gap-3 pb-2 w-full text-[var(--app-heading)]">
 
 
                   {/* Voucher Details Card */}
-                  <div className="rounded-lg border p-2.5 shadow-sm bg-[var(--app-panel-bg)]" style={{ borderColor: theme.border }}>
-                    <div className="grid grid-cols-12 gap-2">
+                  <div className="m3-card p-3 mb-0">
+                    <div className="grid grid-cols-12 gap-3">
                       <div className="col-span-12 md:col-span-3">
                         <InputField
                           label="1. Voucher Date *"
@@ -1103,8 +1150,8 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                           compact
                         />
                       </div>
-                      <div className="col-span-12 md:col-span-3 relative">
-                        <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 text-[var(--app-heading)]" style={{ backgroundColor: 'var(--app-panel-bg)' }}>
+                      <div className="col-span-12 md:col-span-3 relative group">
+                        <label className="text-[10px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 group-focus-within:text-indigo-600 text-slate-500 transition-colors" style={{ backgroundColor: 'var(--m3-surface-container-low)' }}>
                           3. Voucher Reference Number
                         </label>
                         <select
@@ -1116,8 +1163,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                               fetchNextVoucherNumber(activeType);
                             }
                           }}
-                          className="w-full h-7 px-2 rounded-lg border text-[10px] font-bold outline-none bg-[var(--app-panel-bg)]"
-                          style={{ borderColor: theme.border, color: theme.text }}
+                          className="w-full h-8 px-2.5 rounded-t border-b text-[11px] font-medium outline-none bg-slate-50 dark:bg-[var(--app-control-bg)] border-slate-300 dark:border-[var(--app-border)] text-slate-800 dark:text-[var(--app-text)] focus:border-indigo-500 hover:border-indigo-400 cursor-pointer"
                         >
                           <option value="Default">Auto (System Generated)</option>
                           <option value="Manual">Manual</option>
@@ -1170,7 +1216,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                   </div>
 
                   {/* Transaction Details Card */}
-                  <div className="rounded-lg border p-2.5 shadow-sm bg-[var(--app-panel-bg)]" style={{ borderColor: theme.border }}>
+                  <div className="m3-card p-3 mb-0">
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="text-xs font-black uppercase tracking-wider text-[var(--app-heading)]">
                         Transaction Details
@@ -1316,7 +1362,7 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
 
                   {/* Outstanding Bills Card */}
                   {showBillAllocation && (
-                    <div className="rounded-lg border p-2.5 shadow-sm bg-[var(--app-panel-bg)]" style={{ borderColor: theme.border }}>
+                    <div className="m3-card p-3 mb-0">
                       <div className="flex items-center justify-between mb-2">
                         <h3 className="text-xs font-black uppercase tracking-wider text-[var(--app-heading)]">
                           {activeType === 'cash_payment' ? 'Outstanding Bills Allocation' : 'Outstanding Sales Invoices Allocation'} (Auto Fetched)
@@ -1451,11 +1497,11 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
                   )}
 
                   {/* Instrument / Payment Details Card */}
-                  <div className="rounded-lg border p-2.5 shadow-sm bg-[var(--app-panel-bg)]" style={{ borderColor: theme.border }}>
+                  <div className="m3-card p-3 mb-0">
                     <h3 className="text-xs font-black uppercase tracking-wider text-[var(--app-heading)] mb-2">
                       {activeType === 'cash_payment' ? 'Instrument / Payment Details (Optional)' : 'Instrument / Receipt Details (Optional)'}
                     </h3>
-                    <div className="grid grid-cols-12 gap-2">
+                    <div className="grid grid-cols-12 gap-3">
                       <div className="col-span-12 md:col-span-2">
                         <SearchableDropdown
                           label={activeType === 'cash_payment' ? "Payment Mode" : "Receipt Mode"}
@@ -3487,10 +3533,10 @@ const FormSection = ({
 
   return (
     <div
-      className={`p-2.5 border rounded-lg mb-0 shrink-0 flex flex-col gap-2 relative ${className}`}
-      style={{ borderColor: 'var(--m3-outline-variant)', backgroundColor: 'var(--m3-surface-container-low)', zIndex: isContentVisible ? zIndex : 1 }}
+      className={`m3-card p-3 mb-0 shrink-0 flex flex-col gap-3 relative ${className}`}
+      style={{ zIndex: isContentVisible ? zIndex : 1 }}
     >
-      <div className="flex items-center justify-between mb-0.5">
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           {showCheckbox && (
             <input
@@ -3499,7 +3545,7 @@ const FormSection = ({
               onChange={(e) => {
                 onCheckboxChange && onCheckboxChange(e.target.checked);
               }}
-              className="w-3.5 h-3.5 rounded-lg accent-[var(--app-accent)] cursor-pointer"
+              className="w-3.5 h-3.5 rounded accent-[var(--app-accent)] cursor-pointer"
             />
           )}
           <h3 className="text-[10px] font-black uppercase tracking-wider text-[var(--app-heading)]">
@@ -3553,7 +3599,7 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
   return (
     <div className="relative flex flex-col gap-1 w-full group" ref={dropdownRef} style={{ zIndex: isOpen ? 50 : 1 }}>
       {label && (
-        <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 group-focus-within:text-[var(--m3-primary)] transition-colors" style={{ backgroundColor: 'var(--m3-surface-container-low)', color: 'var(--m3-on-surface-variant)' }}>
+        <label className="text-[10px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 group-focus-within:text-indigo-600 text-slate-500 transition-colors" style={{ backgroundColor: 'var(--m3-surface-container-low)' }}>
           {label.startsWith('*') ? (
             <>
               <span className="text-red-500 mr-1">*</span>
@@ -3565,8 +3611,7 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
       <div className="relative flex-1">
         <div
           onClick={() => setIsOpen(!isOpen)}
-          className={`w-full ${compact ? 'h-7 px-1.5' : 'h-10 px-2'} rounded-lg border flex items-center justify-between cursor-pointer transition-all duration-300 group/input ${isOpen ? 'border-[var(--app-accent)]' : 'hover:border-[var(--app-accent)]'}`}
-          style={{ backgroundColor: 'var(--m3-surface-container-high)', borderColor: isOpen ? 'var(--m3-primary)' : 'var(--m3-outline-variant)' }}
+          className={`w-full ${compact ? 'h-8 px-2.5' : 'h-9 px-2.5'} rounded-t border-b flex items-center justify-between cursor-pointer transition-all duration-300 bg-slate-50 dark:bg-[var(--app-control-bg)] border-slate-300 dark:border-[var(--app-border)] text-slate-800 dark:text-[var(--app-text)] ${isOpen ? 'border-indigo-500' : 'hover:border-indigo-400'}`}
         >
           <span className={`${compact ? 'text-[10px]' : 'text-[11px]'} font-bold truncate transition-colors ${value ? (isDark ? 'text-[var(--app-accent)]' : 'text-[var(--app-accent)]') : 'text-[var(--app-muted)]'}`}>
             {value || placeholder}
@@ -3658,7 +3703,7 @@ const InputField = ({ label, placeholder, value, onChange, type = 'text', readOn
   return (
     <div className="relative flex flex-col gap-1 w-full group">
       {label && (
-        <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 group-focus-within:text-[var(--m3-primary)] transition-colors" style={{ backgroundColor: 'var(--m3-surface-container-low)', color: 'var(--m3-on-surface-variant)' }}>
+        <label className="text-[10px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 group-focus-within:text-indigo-600 text-slate-500 transition-colors" style={{ backgroundColor: 'var(--m3-surface-container-low)' }}>
           {label.startsWith('*') ? (
             <>
               <span className="text-red-500 mr-1">*</span>
@@ -3676,8 +3721,7 @@ const InputField = ({ label, placeholder, value, onChange, type = 'text', readOn
               onChange={handleTextChange}
               placeholder="dd-mm-yyyy"
               readOnly={readOnly}
-              className={`w-full ${compact ? 'h-7 px-1.5 text-[10px]' : 'h-10 px-2 text-[11px]'} rounded-lg border font-bold outline-none transition-all duration-300 focus:ring-0 ${isDark ? 'placeholder:text-white/10' : 'placeholder:text-[var(--app-muted)]'} ${align === 'right' ? 'text-right' : ''} ${readOnly ? (isDark ? 'cursor-not-allowed opacity-60 bg-slate-800/20' : 'cursor-not-allowed bg-[var(--app-content-bg)]/50') : 'hover:border-[var(--app-accent)]'}`}
-              style={{ backgroundColor: readOnly ? 'var(--m3-surface-container)' : 'var(--m3-surface-container-high)', borderColor: 'var(--m3-outline-variant)', color: readOnly ? 'var(--m3-primary)' : 'var(--m3-on-surface)' }}
+              className={`w-full ${compact ? 'h-8 px-2.5 text-[11px]' : 'h-9 px-2.5 text-[11px]'} rounded-t border-b font-medium outline-none transition-all duration-300 focus:ring-0 ${align === 'right' ? 'text-right' : ''} ${readOnly ? 'cursor-not-allowed bg-indigo-50 dark:bg-indigo-950/20 border-indigo-300 dark:border-indigo-900/40 text-indigo-700 dark:text-indigo-400 font-bold' : 'bg-slate-50 dark:bg-[var(--app-control-bg)] border-slate-300 dark:border-[var(--app-border)] text-slate-800 dark:text-[var(--app-text)] hover:border-indigo-400 focus:border-indigo-500'}`}
             />
             {Icon && !readOnly && (
               <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center cursor-pointer">
@@ -3699,8 +3743,7 @@ const InputField = ({ label, placeholder, value, onChange, type = 'text', readOn
             onChange={(e) => onChange && onChange(e.target.value)}
             readOnly={readOnly}
             placeholder={placeholder}
-            className={`w-full ${compact ? 'h-7 px-1.5 text-[10px]' : 'h-10 px-2 text-[11px]'} rounded-lg border font-bold outline-none transition-all duration-300 focus:ring-0 ${isDark ? 'placeholder:text-white/10' : 'placeholder:text-[var(--app-muted)]'} ${align === 'right' ? 'text-right' : ''} ${readOnly ? (isDark ? 'cursor-not-allowed opacity-60 bg-slate-800/20' : 'cursor-not-allowed bg-[var(--app-content-bg)]/50') : 'hover:border-[var(--app-accent)]'}`}
-            style={{ backgroundColor: readOnly ? 'var(--m3-surface-container)' : 'var(--m3-surface-container-high)', borderColor: 'var(--m3-outline-variant)', color: readOnly ? 'var(--m3-primary)' : 'var(--m3-on-surface)' }}
+            className={`w-full ${compact ? 'h-8 px-2.5 text-[11px]' : 'h-9 px-2.5 text-[11px]'} rounded-t border-b font-medium outline-none transition-all duration-300 focus:ring-0 ${align === 'right' ? 'text-right' : ''} ${readOnly ? 'cursor-not-allowed bg-indigo-50 dark:bg-indigo-950/20 border-indigo-300 dark:border-indigo-900/40 text-indigo-700 dark:text-indigo-400 font-bold' : 'bg-slate-50 dark:bg-[var(--app-control-bg)] border-slate-300 dark:border-[var(--app-border)] text-slate-800 dark:text-[var(--app-text)] hover:border-indigo-400 focus:border-indigo-500'}`}
           />
         )}
         {type !== 'date' && Icon && <Icon className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--app-muted)] group-focus-within:text-[var(--app-accent)] transition-colors" size={12} />}

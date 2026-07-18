@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   UploadCloud, FileText, CheckCircle2, AlertCircle, Trash2, Send,
@@ -14,6 +14,7 @@ import * as XLSX from 'xlsx';
 import bulkUploadApi from '../../services/bulkUploadApi';
 import { OcrLoadingScreen, OcrLeftPanel, OcrRightPanel } from './OcrReviewPanel';
 import OcrManualReviewScreen from './OcrManualReviewScreen';
+import ExcelBulkUploadReview from './ExcelBulkUploadReview';
 import { useIsDark } from '../../stores/useAppStore';
 
 const initialDocuments = [];
@@ -58,7 +59,7 @@ const getColumnIndices = (headers) => {
   return indices;
 };
 
-export default function BulkUploadPanel() {
+export default function BulkUploadPanel({ ocrOnly = false }) {
   const navigate = useNavigate();
   const location = useLocation();
   const isDark = useIsDark();
@@ -78,10 +79,30 @@ export default function BulkUploadPanel() {
             if (idVal && (!fileUrl || fileUrl.startsWith('blob:'))) {
               fileUrl = `${baseUrl}/bulk-upload/file/${idVal}`;
             }
+            let type = doc.type || 'Unknown';
+            let category = doc.category || 'Unknown';
+            if (type === 'Unknown' || !type) {
+              const lowerName = (doc.name || doc.filename || '').toLowerCase();
+              if (lowerName.includes('sales')) {
+                type = 'Sales Invoice';
+                category = 'Financial';
+              } else if (lowerName.includes('purchase')) {
+                type = 'Purchase Invoice';
+                category = 'Financial';
+              } else if (lowerName.includes('payment')) {
+                type = 'Payment Voucher';
+                category = 'Financial';
+              } else if (lowerName.includes('contra')) {
+                type = 'Contra Voucher';
+                category = 'Financial';
+              }
+            }
             return {
               ...doc,
               name: doc.name || doc.filename || 'Unnamed Document',
-              fileUrl: fileUrl
+              fileUrl: fileUrl,
+              type: type,
+              category: category
             };
           });
         }
@@ -97,13 +118,13 @@ export default function BulkUploadPanel() {
   const [sourceFilter, setSourceFilter] = useState('All Sources');
   const [typeFilter, setTypeFilter] = useState('All Types');
   const [categoryFilter, setCategoryFilter] = useState('All Categories');
-  
+
   // Modals / Details side sheets
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [docToReject, setDocToReject] = useState(null);
   const [rejectReason, setRejectReason] = useState('Wrong Company');
   const [rejectOtherReason, setRejectOtherReason] = useState('');
-  
+
   const [showMissingInfoModal, setShowMissingInfoModal] = useState(false);
   const [docToEdit, setDocToEdit] = useState(null);
   const [missingFormData, setMissingFormData] = useState({
@@ -123,7 +144,7 @@ export default function BulkUploadPanel() {
   const [excelGridData, setExcelGridData] = useState([]);
   const [showAiRecs, setShowAiRecs] = useState(true);
   const [activePreviewTab, setActivePreviewTab] = useState('Preview Data');
-  
+
   // Premium Excel/CSV validation states
   const [tableSearchQuery, setTableSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All Rows');
@@ -131,7 +152,7 @@ export default function BulkUploadPanel() {
   const [resolvedWarnings, setResolvedWarnings] = useState(0);
   const [aiIssues, setAiIssues] = useState([]);
   const [ignoredIssueIds, setIgnoredIssueIds] = useState([]);
-  
+
   // OCR states
   const [ocrResult, setOcrResult] = useState(null);
   const [isOcrLoading, setIsOcrLoading] = useState(false);
@@ -151,6 +172,7 @@ export default function BulkUploadPanel() {
   const itemsPerPage = 8;
   const fileInputRef = useRef(null);
   const activePollRef = useRef(null);
+  const activeUploadsRef = useRef({});
 
   // Clear polling interval on unmount
   useEffect(() => {
@@ -175,25 +197,58 @@ export default function BulkUploadPanel() {
     }
   }, [previewDoc]);
 
+  const fetchDocuments = useCallback(async () => {
+    try {
+      const res = await bulkUploadApi.listUploads();
+      if (res.success && res.documents) {
+        const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5000/api/v2';
+        setDocuments(prevDocs => {
+          const backendDocs = res.documents.map(doc => {
+            const mappedUrl = doc.fileUrl.startsWith('/') ? `${baseUrl}${doc.fileUrl}` : doc.fileUrl;
+            const existing = prevDocs.find(d => d.id === doc.id || (doc.upload_id && d.id === doc.upload_id));
+            return {
+              ...doc,
+              fileUrl: mappedUrl,
+              excelData: existing?.excelData || doc.excelData || undefined,
+              extractedData: {
+                ...(doc.extractedData || {}),
+                ...(existing?.extractedData || {})
+              }
+            };
+          });
+
+          // Keep local-only excel files
+          const localOnlyDocs = prevDocs.filter(localDoc => 
+            !backendDocs.some(bDoc => bDoc.id === localDoc.id || (localDoc.uploadId && bDoc.id === localDoc.uploadId))
+          );
+
+          return [...localOnlyDocs, ...backendDocs];
+        });
+      }
+    } catch (err) {
+      console.error("Failed to load documents from backend", err);
+    }
+  }, []);
+
   // Fetch real uploads from backend on mount
   useEffect(() => {
-    const fetchDocuments = async () => {
-      try {
-        const res = await bulkUploadApi.listUploads();
-        if (res.success && res.documents) {
-          const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5000/api/v2';
-          const syncedDocs = res.documents.map(doc => ({
-            ...doc,
-            fileUrl: doc.fileUrl.startsWith('/') ? `${baseUrl}${doc.fileUrl}` : doc.fileUrl
-          }));
-          setDocuments(syncedDocs);
-        }
-      } catch (err) {
-        console.error("Failed to load documents from backend", err);
-      }
-    };
     fetchDocuments();
-  }, []);
+  }, [fetchDocuments]);
+
+  // Polling for processing uploads
+  useEffect(() => {
+    const hasProcessing = documents.some(d => 
+      d.status && ['processing', 'uploading', 'ocr_running', 'ocr done', 'ai_running', 'layout_running', 'layout_complete', 'processing...'].includes(d.status.toLowerCase())
+    );
+
+    if (!hasProcessing) return;
+
+    const interval = setInterval(() => {
+      fetchDocuments();
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [documents, fetchDocuments]);
 
   // Dynamic Validation Engine (0 hardcoded values)
   useEffect(() => {
@@ -354,7 +409,7 @@ export default function BulkUploadPanel() {
     const initialDoc = {
       id: tempId,
       name: file.name,
-      source: 'Manual Upload',
+      source: ocrOnly ? 'OCR Upload' : 'Manual Upload',
       type: 'Unknown',
       category: 'Unknown',
       uploadedBy: 'Anjal Singh (You)',
@@ -369,12 +424,23 @@ export default function BulkUploadPanel() {
       fileUrl: URL.createObjectURL(file),
       extractedData: {}
     };
+    activeUploadsRef.current[tempId] = true;
     setDocuments(prev => [initialDoc, ...prev]);
 
     try {
       const res = await bulkUploadApi.uploadFile(file, (progressPercent) => {
-        setDocuments(prev => prev.map(d => d.id === tempId ? { ...d, progress: progressPercent } : d));
-      }, true);
+        if (activeUploadsRef.current[tempId]) {
+          setDocuments(prev => prev.map(d => d.id === tempId ? { ...d, progress: progressPercent } : d));
+        }
+      }, true, ocrOnly ? 'OCR Upload' : 'Manual Upload');
+
+      if (!activeUploadsRef.current[tempId]) {
+        if (res.success && res.upload_id) {
+          bulkUploadApi.deleteDocument(res.upload_id).catch(() => {});
+        }
+        return;
+      }
+      delete activeUploadsRef.current[tempId];
 
       if (res.success) {
         const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5000/api/v2';
@@ -394,7 +460,7 @@ export default function BulkUploadPanel() {
           }
           return d;
         }));
-        
+
         // Kick off OCR in the background — fire and forget.
         bulkUploadApi.processOcr(res.upload_id).catch((err) => {
           console.error('Failed to start OCR for replaced file:', err);
@@ -403,8 +469,11 @@ export default function BulkUploadPanel() {
       }
     } catch (err) {
       console.error("Replacement upload error", err);
-      toast.error(`Failed to replace document: ${err.message || err}`);
-      setDocuments(prev => prev.filter(d => d.id !== tempId));
+      if (activeUploadsRef.current[tempId]) {
+        toast.error(`Failed to replace document: ${err.message || err}`);
+        setDocuments(prev => prev.filter(d => d.id !== tempId));
+      }
+      delete activeUploadsRef.current[tempId];
     }
   };
 
@@ -421,7 +490,18 @@ export default function BulkUploadPanel() {
 
   // Real backend file upload for documents, simulated for spreadsheets
   const handleUploadSimulated = async (filesList) => {
-    const list = Array.from(filesList);
+    let list = Array.from(filesList);
+    if (ocrOnly) {
+      const filteredList = list.filter(file => {
+        const ext = file.name.split('.').pop().toLowerCase();
+        return ['pdf', 'png', 'jpg', 'jpeg', 'tiff'].includes(ext);
+      });
+      if (filteredList.length < list.length) {
+        toast.error("Only PDF and Image files are allowed in OCR Upload mode.");
+      }
+      list = filteredList;
+    }
+    if (list.length === 0) return;
     toast.success(`Started uploading ${list.length} documents...`);
 
     for (const file of list) {
@@ -433,18 +513,30 @@ export default function BulkUploadPanel() {
       const fileSize = file.size > 1024 * 1024
         ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
         : `${(file.size / 1024).toFixed(0)} KB`;
-      
+
       const fileUrl = URL.createObjectURL(file);
 
       // Auto-detect format & type suggestions
       let type = 'Unknown';
       let category = 'Unknown';
       const lowerName = file.name.toLowerCase();
-      if (lowerName.includes('invoice') || lowerName.includes('inv')) {
+      if (lowerName.includes('sales')) {
+        type = 'Sales Invoice';
+        category = 'Financial';
+      } else if (lowerName.includes('purchase')) {
+        type = 'Purchase Invoice';
+        category = 'Financial';
+      } else if (lowerName.includes('payment')) {
+        type = 'Payment Voucher';
+        category = 'Financial';
+      } else if (lowerName.includes('contra')) {
+        type = 'Contra Voucher';
+        category = 'Financial';
+      } else if (lowerName.includes('invoice') || lowerName.includes('inv')) {
         type = 'Purchase Invoice';
         category = 'Financial';
       } else if (lowerName.includes('receipt')) {
-        type = 'Receipt';
+        type = 'Receipt Voucher';
         category = 'Financial';
       } else if (lowerName.includes('statement') || lowerName.includes('bank')) {
         type = 'Bank Statement';
@@ -457,7 +549,7 @@ export default function BulkUploadPanel() {
       const initialDoc = {
         id: tempId,
         name: file.name,
-        source: 'Manual Upload',
+        source: ocrOnly ? 'OCR Upload' : 'Manual Upload',
         type: type,
         category: category,
         uploadedBy: 'Anjal Singh (You)',
@@ -482,14 +574,25 @@ export default function BulkUploadPanel() {
       };
 
       // Add temporary document in state
+      activeUploadsRef.current[tempId] = true;
       setDocuments(prev => [initialDoc, ...prev]);
 
       if (isDoc) {
         // PDF/Image -> Call Real Backend Upload API!
         try {
           const res = await bulkUploadApi.uploadFile(file, (progressPercent) => {
-            setDocuments(prev => prev.map(d => d.id === tempId ? { ...d, progress: progressPercent } : d));
-          });
+            if (activeUploadsRef.current[tempId]) {
+              setDocuments(prev => prev.map(d => d.id === tempId ? { ...d, progress: progressPercent } : d));
+            }
+          }, false, ocrOnly ? 'OCR Upload' : 'Manual Upload');
+
+          if (!activeUploadsRef.current[tempId]) {
+            if (res.success && res.upload_id) {
+              bulkUploadApi.deleteDocument(res.upload_id).catch(() => {});
+            }
+            return;
+          }
+          delete activeUploadsRef.current[tempId];
 
           if (res.success && res.duplicate_found) {
             setDocuments(prev => prev.filter(d => d.id !== tempId));
@@ -520,7 +623,7 @@ export default function BulkUploadPanel() {
               }
               return d;
             }));
-            
+
             // Kick off OCR in the background — fire and forget.
             // OcrManualReviewScreen will poll /ocr/progress for live status.
             bulkUploadApi.processOcr(res.upload_id).catch((err) => {
@@ -530,94 +633,92 @@ export default function BulkUploadPanel() {
           }
         } catch (err) {
           console.error("Upload error", err);
-          toast.error(`Failed to upload ${file.name}`);
-          setDocuments(prev => prev.filter(d => d.id !== tempId));
+          if (activeUploadsRef.current[tempId]) {
+            toast.error(`Failed to upload ${file.name}`);
+            setDocuments(prev => prev.filter(d => d.id !== tempId));
+          }
+          delete activeUploadsRef.current[tempId];
         }
       } else {
-        // Excel/CSV -> Parse spreadsheet client-side
+        // Excel/CSV -> Parse spreadsheet via AI Backend!
         if (['xlsx', 'xls', 'csv'].includes(ext)) {
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            try {
-              const data = new Uint8Array(e.target.result);
-              const workbook = XLSX.read(data, { type: 'array' });
-              const firstSheetName = workbook.SheetNames[0];
-              const worksheet = workbook.Sheets[firstSheetName];
-              const jsonSheet = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-              
-              const maxCols = jsonSheet.reduce((acc, row) => Math.max(acc, row.length), 0) || 10;
-              
-              const formattedRows = jsonSheet.map(row => {
-                const formattedRow = Array(maxCols).fill('');
-                for (let i = 0; i < Math.min(row.length, maxCols); i++) {
-                  formattedRow[i] = row[i] !== undefined && row[i] !== null ? String(row[i]) : '';
-                }
-                return formattedRow;
-              });
-
-              while (formattedRows.length < 20) {
-                formattedRows.push(Array(maxCols).fill(''));
-              }
-
-              const getColLetter = (index) => {
-                let temp = '';
-                let i = index;
-                while (i >= 0) {
-                  temp = String.fromCharCode((i % 26) + 65) + temp;
-                  i = Math.floor(i / 26) - 1;
-                }
-                return temp;
-              };
-              const topHeaderLetters = Array(maxCols).fill('').map((_, i) => getColLetter(i));
-
-              const finalExcelData = [
-                topHeaderLetters,
-                ...formattedRows
-              ];
-
-              // Extract row 2 values dynamically
-              let extracted = { ...initialDoc.extractedData };
-              const cols = getColumnIndices(finalExcelData[1]);
-              const row2 = finalExcelData[2] || [];
-              if (row2.length > 0) {
-                const dateVal = cols.date !== -1 ? (row2[cols.date] || '') : '';
-                const voucherVal = cols.invoice !== -1 ? (row2[cols.invoice] || '') : '';
-                const partyVal = cols.party !== -1 ? (row2[cols.party] || '') : '';
-                const gstinVal = cols.gstin !== -1 ? (row2[cols.gstin] || '') : '';
-                
-                const totalValStr = cols.amount !== -1 ? (row2[cols.amount] || '0') : '0';
-                const cleanTotalVal = parseFloat(String(totalValStr).replace(/[^\d.]/g, '')) || 0;
-
-                extracted = {
-                  vendorName: partyVal || 'Extracted Vendor Inc.',
-                  invoiceNumber: voucherVal || `EXT-${Math.floor(10000 + Math.random() * 90000)}`,
-                  invoiceDate: dateVal || new Date().toISOString().split('T')[0],
-                  taxableValue: cleanTotalVal,
-                  taxAmount: 0,
-                  totalAmount: cleanTotalVal,
-                  gstin: gstinVal || '27AAAAA1111A1Z5'
-                };
-              }
-
+          try {
+            const aiRes = await bulkUploadApi.analyzeSpreadsheet(file);
+            if (aiRes.success) {
               setDocuments(prev => prev.map(d => {
                 if (d.id === tempId) {
                   return {
                     ...d,
-                    excelData: finalExcelData,
-                    extractedData: extracted,
+                    excelData: aiRes.excel_grid,
+                    type: aiRes.document_type || d.type,
+                    aiReasoning: aiRes.ai_reasoning,
+                    columnMapping: aiRes.column_mapping,
+                    confidenceScore: aiRes.confidence_score,
+                    importReadinessScore: aiRes.import_readiness_score,
+                    masterMatchingResults: aiRes.master_matching_results,
+                    validationResults: aiRes.validation_results,
                     status: 'Ready For Review',
                     progress: undefined
                   };
                 }
                 return d;
               }));
-              toast.success(`Successfully processed ${file.name}`);
-            } catch (err) {
-              console.error('Error parsing excel file', err);
-              setDocuments(prev => prev.filter(d => d.id !== tempId));
+              toast.success(`Successfully analyzed ${file.name} with AI mapping!`);
+            } else {
+              throw new Error('Analysis failed');
             }
-          };
-          reader.readAsArrayBuffer(file);
+          } catch (err) {
+            console.error('Error parsing excel file via backend AI', err);
+            toast.error(`AI analysis failed for ${file.name}. Falling back to default layout.`);
+            // Fallback client-side parsing if backend call fails
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                const jsonSheet = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                const maxCols = jsonSheet.reduce((acc, row) => Math.max(acc, row.length), 0) || 10;
+                const formattedRows = jsonSheet.map(row => {
+                  const formattedRow = Array(maxCols).fill('');
+                  for (let i = 0; i < Math.min(row.length, maxCols); i++) {
+                    formattedRow[i] = row[i] !== undefined && row[i] !== null ? String(row[i]) : '';
+                  }
+                  return formattedRow;
+                });
+                const getColLetter = (index) => {
+                  let temp = '';
+                  let i = index;
+                  while (i >= 0) {
+                    temp = String.fromCharCode((i % 26) + 65) + temp;
+                    i = Math.floor(i / 26) - 1;
+                  }
+                  return temp;
+                };
+                const topHeaderLetters = Array(maxCols).fill('').map((_, i) => getColLetter(i));
+                const finalExcelData = [
+                  topHeaderLetters,
+                  ...formattedRows
+                ];
+
+                setDocuments(prev => prev.map(d => {
+                  if (d.id === tempId) {
+                    return {
+                      ...d,
+                      excelData: finalExcelData,
+                      status: 'Ready For Review',
+                      progress: undefined
+                    };
+                  }
+                  return d;
+                }));
+              } catch (e) {
+                setDocuments(prev => prev.filter(d => d.id !== tempId));
+              }
+            };
+            reader.readAsArrayBuffer(file);
+          }
         } else {
           // Standard simulation fallback for unsupported extensions
           let currentProgress = 0;
@@ -716,7 +817,7 @@ export default function BulkUploadPanel() {
   const handleConfirmReject = () => {
     if (!docToReject) return;
     const finalReason = rejectReason === 'Other' ? rejectOtherReason : rejectReason;
-    
+
     setDocuments(prev => prev.map(d => {
       if (d.id === docToReject.id) {
         return {
@@ -772,9 +873,23 @@ export default function BulkUploadPanel() {
   const handleOpenAIDetails = (doc) => {
     setSelectedDoc(doc);
     setShowAIDetailsModal(true);
-  };  const handleOpenPreview = async (doc) => {
+  };
+
+  const handleOpenPreview = async (doc) => {
     const ext = (doc.name || '').split('.').pop().toLowerCase();
     if (['pdf', 'png', 'jpg', 'jpeg'].includes(ext)) {
+      if (doc.id && doc.id.toString().startsWith('DOC-')) {
+        toast.info('Document is still uploading. Please wait...');
+        return;
+      }
+
+      // If document is still processing/AI is running, show toast and do not open the review screen
+      const statusLower = (doc.status || '').toLowerCase();
+      if (['processing', 'uploading', 'ocr_running', 'ocr done', 'ai_running', 'layout_running', 'layout_complete', 'processing...'].includes(statusLower)) {
+        toast.info("AI is analyzing this document. It will take less than 5 seconds. Please wait...");
+        return;
+      }
+
       // Clear any previous polling interval (no longer needed here — review screen polls internally)
       if (activePollRef.current) {
         clearInterval(activePollRef.current);
@@ -799,7 +914,7 @@ export default function BulkUploadPanel() {
       setOcrResult(null);
       setTableSearchQuery('');
       setStatusFilter('All Rows');
-      
+
       const grid = doc.excelData || [
         ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'],
         ['Invoice No', 'Date', 'Party Ledger', 'GSTIN', 'Total Amount', 'GST %', 'Status', 'Remarks', 'Created By', 'Branch']
@@ -846,8 +961,8 @@ export default function BulkUploadPanel() {
           extractedData: hasChanged ? updatedExtData : prevDoc.extractedData,
           excelData: updated
         }));
-        setDocuments(docs => docs.map(d => d.id === previewDoc.id ? { 
-          ...d, 
+        setDocuments(docs => docs.map(d => d.id === previewDoc.id ? {
+          ...d,
           extractedData: hasChanged ? updatedExtData : d.extractedData,
           excelData: updated
         } : d));
@@ -927,6 +1042,13 @@ export default function BulkUploadPanel() {
   };
 
   const handleDeleteDoc = async (docId) => {
+    if (typeof docId === 'string' && docId.startsWith('DOC-')) {
+      delete activeUploadsRef.current[docId];
+      setDocuments(prev => prev.filter(d => d.id !== docId));
+      toast.info('Document removed');
+      return;
+    }
+
     try {
       await bulkUploadApi.deleteDocument(docId);
       setDocuments(prev => prev.filter(d => d.id !== docId));
@@ -963,19 +1085,29 @@ export default function BulkUploadPanel() {
 
   // --- Dynamic Stats calculation ---
   const stats = useMemo(() => {
-    const total = documents.length;
-    const processing = documents.filter(d => d.status === 'Processing').length;
-    const completed = documents.filter(d => ['Categorized', 'Validated', 'Ready For Review'].includes(d.status)).length;
-    const duplicates = documents.filter(d => d.status === 'Duplicate Found').length;
-    const rejected = documents.filter(d => d.status === 'Rejected').length;
-    const missing = documents.filter(d => d.status === 'Missing Information').length;
+    const list = ocrOnly
+      ? documents.filter(doc => doc.source === 'OCR Upload')
+      : documents.filter(doc => doc.source !== 'OCR Upload');
+    const total = list.length;
+    const processing = list.filter(d => d.status === 'Processing').length;
+    const completed = list.filter(d => ['Categorized', 'Validated', 'Ready For Review'].includes(d.status)).length;
+    const duplicates = list.filter(d => d.status === 'Duplicate Found').length;
+    const rejected = list.filter(d => d.status === 'Rejected').length;
+    const missing = list.filter(d => d.status === 'Missing Information').length;
 
     return { total, processing, completed, duplicates, rejected, missing };
-  }, [documents]);
+  }, [documents, ocrOnly]);
 
   // --- Filter and Pagination Logic ---
   const filteredDocs = useMemo(() => {
     return documents.filter(doc => {
+      // Filter out non-OCR docs if ocrOnly is true, or OCR docs if ocrOnly is false
+      if (ocrOnly) {
+        if (doc.source !== 'OCR Upload') return false;
+      } else {
+        if (doc.source === 'OCR Upload') return false;
+      }
+
       // Tab filter
       if (activeTab === 'Duplicate Documents' && doc.status !== 'Duplicate Found') return false;
       if (activeTab === 'Rejected Documents' && doc.status !== 'Rejected') return false;
@@ -1002,7 +1134,7 @@ export default function BulkUploadPanel() {
 
       return true;
     });
-  }, [documents, activeTab, sourceFilter, typeFilter, categoryFilter, search]);
+  }, [documents, activeTab, sourceFilter, typeFilter, categoryFilter, search, ocrOnly]);
 
   const paginatedDocs = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
@@ -1119,7 +1251,7 @@ export default function BulkUploadPanel() {
     const Icon = cfg.icon;
 
     return (
-      <div 
+      <div
         onClick={() => {
           if (status === 'Missing Information') {
             const doc = documents.find(d => d.status === 'Missing Information');
@@ -1167,7 +1299,7 @@ export default function BulkUploadPanel() {
             <button type="button" className="hover:text-blue-400 font-bold" onClick={() => toast.info('Zoom Out')}>-</button>
           </div>
         </div>
-        
+
         {previewDoc.status === 'Duplicate Found' && (
           <div className="absolute top-12 right-8 border-2 border-dashed border-red-500 text-red-500 rounded-lg px-3 py-1 font-black text-xs uppercase tracking-widest transform rotate-12 select-none pointer-events-none opacity-85">
             DUPLICATE
@@ -1213,7 +1345,7 @@ export default function BulkUploadPanel() {
             <span className="text-right">Unit Price</span>
             <span className="text-right">Amount</span>
           </div>
-          
+
           <div className="grid grid-cols-5 border-b border-slate-100 py-3.5">
             <span className="col-span-2 font-bold text-slate-850">Accounting Integration Setup Consultancy</span>
             <span className="text-center font-bold text-slate-500">1</span>
@@ -1270,10 +1402,10 @@ export default function BulkUploadPanel() {
         <span className="bg-white px-1.5 py-0.5 border border-slate-200 rounded font-bold text-slate-800 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200">A1</span>
         <div className="h-4 w-[1px] bg-slate-200 dark:bg-slate-600"></div>
         <span className="font-bold">fx</span>
-        <input 
-          type="text" 
-          readOnly 
-          value={previewDoc.extractedData?.vendorName || ''} 
+        <input
+          type="text"
+          readOnly
+          value={previewDoc.extractedData?.vendorName || ''}
           className="bg-transparent outline-none flex-1 font-sans text-slate-800 text-[10px] pl-1 dark:text-slate-200"
         />
       </div>
@@ -1345,7 +1477,7 @@ export default function BulkUploadPanel() {
           <div className="absolute top-2 right-2 w-3.5 h-3.5 border-t-2 border-r-2 border-blue-500"></div>
           <div className="absolute bottom-2 left-2 w-3.5 h-3.5 border-b-2 border-l-2 border-blue-500"></div>
           <div className="absolute bottom-2 right-2 w-3.5 h-3.5 border-b-2 border-r-2 border-blue-500"></div>
-          
+
           <div className="flex flex-col items-center text-center border-b border-dashed border-slate-300 pb-3">
             <div className="w-8 h-8 rounded-full bg-slate-800/10 flex items-center justify-center font-black text-slate-800 text-xs tracking-wider mb-1 dark:bg-slate-700 dark:text-slate-200">
               ★
@@ -1451,13 +1583,13 @@ export default function BulkUploadPanel() {
 
   const renderMockupExcelPreview = () => {
     const cols = getColumnIndices(excelGridData[1] || []);
-    
+
     const totalRowsCount = Math.max(0, excelGridData.length - 2);
     const currentErrors = aiIssues.filter(i => i.type === 'Error').length;
     const currentWarnings = aiIssues.filter(i => i.type === 'Warning').length;
     const currentValid = Math.max(0, totalRowsCount - currentErrors);
-    const readinessPercent = totalRowsCount > 0 
-      ? Math.max(0, Math.min(100, Math.round((currentValid / totalRowsCount) * 100))) 
+    const readinessPercent = totalRowsCount > 0
+      ? Math.max(0, Math.min(100, Math.round((currentValid / totalRowsCount) * 100)))
       : 100;
 
     // Filter table rows
@@ -1592,7 +1724,7 @@ export default function BulkUploadPanel() {
                 <span className="text-[8px] text-slate-400 dark:text-slate-500 font-medium truncate max-w-[100px]">{previewDoc.name}</span>
               </div>
             </div>
-            
+
             {/* Connector */}
             <div className="flex-1 h-[2px] bg-emerald-500 mx-2.5 max-w-[40px]"></div>
 
@@ -1724,7 +1856,7 @@ export default function BulkUploadPanel() {
                   <SlidersHorizontal size={13} className="text-slate-400" />
                   <span>Column Mapping</span>
                 </button>
-                
+
                 <div className="relative">
                   <select
                     value={statusFilter}
@@ -1751,7 +1883,7 @@ export default function BulkUploadPanel() {
                     className="h-8.5 pl-9 pr-3 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-700 dark:text-slate-250 bg-white dark:bg-[#20202c] placeholder:text-slate-400 dark:placeholder:text-slate-655 text-xs outline-none focus:border-indigo-500 w-44 font-semibold transition-all shadow-3xs"
                   />
                 </div>
-                
+
                 <button
                   onClick={() => toast.info('Filters config')}
                   className="h-8.5 px-3 border border-slate-200 dark:border-slate-800 text-slate-705 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-850 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-3xs bg-white dark:bg-[#20202c]"
@@ -1770,7 +1902,7 @@ export default function BulkUploadPanel() {
               </div>
             </div>
 
-            <div className="flex-1 overflow-auto bg-white dark:bg-[#121216] rounded-b-xl themed-scrollbar" style={{overflowX:'auto', overflowY:'auto'}}>
+            <div className="flex-1 overflow-auto bg-white dark:bg-[#121216] rounded-b-xl themed-scrollbar" style={{ overflowX: 'auto', overflowY: 'auto' }}>
               <table className="w-full border-collapse text-left text-slate-700 dark:text-slate-350 text-xs select-all min-w-[1000px]">
                 <thead>
                   <tr className="bg-slate-50/90 dark:bg-[#1f1f2a] border-b border-slate-200 dark:border-slate-800 text-[10.5px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider h-9 sticky top-0 z-10 select-none">
@@ -1778,11 +1910,11 @@ export default function BulkUploadPanel() {
                       <input type="checkbox" className="rounded border-slate-300 text-indigo-650 cursor-pointer h-3.5 w-3.5" />
                     </th>
                     <th className="py-1.5 px-2 w-16 text-center border-r border-slate-100 dark:border-slate-800/40">Row No.</th>
-                    
+
                     {(excelGridData[1] || []).map((headerText, colIdx) => {
                       const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
                       const colLetter = excelGridData[0] ? (excelGridData[0][colIdx] || alphabet[colIdx] || `C${colIdx}`) : (alphabet[colIdx] || `C${colIdx}`);
-                      
+
                       // Check mapping labels for visual reference
                       let mappedLabel = 'Mapped';
                       if (colIdx === cols.invoice) mappedLabel = 'Invoice No *';
@@ -1791,7 +1923,7 @@ export default function BulkUploadPanel() {
                       else if (colIdx === cols.amount) mappedLabel = 'Total Amount *';
                       else if (colIdx === cols.gstin) mappedLabel = 'GSTIN';
                       else if (colIdx === cols.gst_percent) mappedLabel = 'GST %';
-                      
+
                       return (
                         <th key={colIdx} className="py-1.5 px-3 border-r border-slate-100 dark:border-slate-800/40 min-w-[140px]">
                           <div className="flex flex-col">
@@ -1817,7 +1949,7 @@ export default function BulkUploadPanel() {
                     const rowIssues = aiIssues.filter(i => i.row === actualRowIndex);
                     const hasError = rowIssues.some(i => i.type === 'Error');
                     const hasWarning = rowIssues.some(i => i.type === 'Warning');
-                    
+
                     let statusBadge = (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200/35">
                         <CheckCircle size={10} className="text-emerald-600 dark:text-emerald-400" />
@@ -1846,7 +1978,7 @@ export default function BulkUploadPanel() {
                         <td className="py-1 px-2 text-center whitespace-nowrap">
                           <input type="checkbox" className="rounded border-slate-300 text-indigo-650 cursor-pointer h-3 w-3" />
                         </td>
-                        
+
                         <td className="py-1 px-2 text-center whitespace-nowrap font-bold text-slate-405 dark:text-slate-500 border-r border-slate-100 dark:border-slate-850 select-none">
                           {rowNo}
                         </td>
@@ -1855,7 +1987,7 @@ export default function BulkUploadPanel() {
                           const cellIssue = rowIssues.find(i => i.colIdx === colIdx);
                           const isCellErr = cellIssue && cellIssue.type === 'Error';
                           const isCellWarn = cellIssue && cellIssue.type === 'Warning';
-                          
+
                           let cellClass = "text-slate-700 dark:text-slate-300";
                           let inputClass = "text-inherit";
                           let icon = null;
@@ -2058,654 +2190,675 @@ export default function BulkUploadPanel() {
 
       {previewDoc ? (
         isExcelFile ? (
-          renderMockupExcelPreview()
+          <ExcelBulkUploadReview
+            previewDoc={previewDoc}
+            excelGridData={excelGridData}
+            setExcelGridData={setExcelGridData}
+            setDocuments={setDocuments}
+            onClose={() => setPreviewDoc(null)}
+          />
         ) : (
           <div className="flex-1 flex flex-col overflow-hidden text-xs font-sans min-w-0 select-text">
-          {/* Combined Top Header / Metadata / Actions Bar */}
-          <div className="bg-[var(--app-panel-bg)] border-b border-[var(--app-border)]/60 px-6 py-2 flex flex-wrap items-center justify-between shrink-0 gap-4 select-none">
-            <div className="flex items-center gap-3">
-              {/* Back Navigation Button */}
-              <button
-                onClick={() => setPreviewDoc(null)}
-                className="p-1.5 hover:bg-[var(--app-row-hover)] rounded-lg text-[var(--app-text)] cursor-pointer transition border-none bg-transparent"
-                title="Back to Uploaded Documents"
-              >
-                <ArrowLeft size={16} className="stroke-[2.5]" />
-              </button>
+            {/* Combined Top Header / Metadata / Actions Bar */}
+            <div className="bg-[var(--app-panel-bg)] border-b border-[var(--app-border)]/60 px-6 py-2 flex flex-wrap items-center justify-between shrink-0 gap-4 select-none">
+              <div className="flex items-center gap-3">
+                {/* Back Navigation Button */}
+                <button
+                  onClick={() => setPreviewDoc(null)}
+                  className="p-1.5 hover:bg-[var(--app-row-hover)] rounded-lg text-[var(--app-text)] cursor-pointer transition border-none bg-transparent"
+                  title="Back to Uploaded Documents"
+                >
+                  <ArrowLeft size={16} className="stroke-[2.5]" />
+                </button>
 
-              <div className="h-5 w-[1px] bg-[var(--app-border)]/60"></div>
+                <div className="h-5 w-[1px] bg-[var(--app-border)]/60"></div>
 
-              {/* Green Excel Icon */}
-              <div className="w-8 h-8 bg-emerald-600 rounded flex flex-col items-center justify-center text-white font-extrabold text-[9.5px] shrink-0 border border-emerald-700">
-                <span className="leading-none">X</span>
-                <span className="text-[7px] leading-none -mt-0.5">LS</span>
+                {/* Green Excel Icon */}
+                <div className="w-8 h-8 bg-emerald-600 rounded flex flex-col items-center justify-center text-white font-extrabold text-[9.5px] shrink-0 border border-emerald-700">
+                  <span className="leading-none">X</span>
+                  <span className="text-[7px] leading-none -mt-0.5">LS</span>
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="font-extrabold text-[var(--app-heading)] text-[13px] tracking-tight">{previewDoc.name}</span>
+                    <span className="text-[8px] font-bold px-1.5 py-0.5 bg-emerald-100 text-emerald-800 dark:bg-emerald-950/45 dark:text-emerald-350 border border-emerald-200/55 rounded uppercase">
+                      {(previewDoc.name || '').split('.').pop() || 'XLSX'}
+                    </span>
+                  </div>
+                  <div className="text-[9.5px] text-[var(--app-muted)] font-medium">
+                    <span>Source: <b>Manual Upload</b></span>
+                  </div>
+                </div>
               </div>
-              <div className="flex flex-col gap-0.5">
-                <div className="flex items-center gap-2">
-                  <span className="font-extrabold text-[var(--app-heading)] text-[13px] tracking-tight">{previewDoc.name}</span>
-                  <span className="text-[8px] font-bold px-1.5 py-0.5 bg-emerald-100 text-emerald-800 dark:bg-emerald-950/45 dark:text-emerald-350 border border-emerald-200/55 rounded uppercase">
-                    {(previewDoc.name || '').split('.').pop() || 'XLSX'}
-                  </span>
-                </div>
-                <div className="text-[9.5px] text-[var(--app-muted)] font-medium">
-                  <span>Source: <b>Manual Upload</b></span>
-                </div>
+
+              {/* Actions Bar */}
+              <div className="flex items-center gap-1.5 py-1">
+                {/* Download Icon-Only Button */}
+                <button
+                  onClick={() => {
+                    const ws = XLSX.utils.aoa_to_sheet(excelGridData.slice(1));
+                    const wb = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+                    XLSX.writeFile(wb, (previewDoc.name || 'export.xlsx').replace(/\.[^/.]+$/, '') + '.xlsx');
+                    toast.success('Downloaded as Excel file!');
+                  }}
+                  className="w-8 h-8 border border-[var(--app-border)] text-[var(--app-text)] bg-[var(--app-panel-bg)] hover:bg-[var(--app-row-hover)] rounded-lg flex items-center justify-center cursor-pointer transition shadow-2xs"
+                  title="Download Excel"
+                >
+                  <Download size={14} className="text-[var(--app-muted)]" />
+                </button>
+
+                {/* Save Draft */}
+                <button
+                  onClick={() => {
+                    toast.success('Draft saved successfully!');
+                    setDocuments(prev => prev.map(d => d.id === previewDoc.id ? { ...d, status: 'Validated' } : d));
+                    setPreviewDoc(null);
+                  }}
+                  className="h-8 px-3 border border-[var(--app-border)] text-[var(--app-text)] bg-[var(--app-panel-bg)] hover:bg-[var(--app-row-hover)] font-bold text-[11px] rounded-lg transition flex items-center gap-1 cursor-pointer shadow-2xs"
+                >
+                  <FolderOpen size={11} className="text-[var(--app-muted)]" />
+                  <span>Save Draft</span>
+                </button>
+
+                {/* Reject */}
+                <button
+                  onClick={() => {
+                    toast.error('Document rejected.');
+                    setDocuments(prev => prev.map(d => d.id === previewDoc.id ? { ...d, status: 'Rejected' } : d));
+                    setPreviewDoc(null);
+                  }}
+                  className="h-8 px-3 border border-red-200 text-red-600 hover:bg-red-50 bg-[var(--app-panel-bg)] font-bold text-[11px] rounded-lg transition flex items-center gap-1 cursor-pointer"
+                >
+                  <Trash2 size={11} />
+                  <span>Reject</span>
+                </button>
+
+                {/* Review */}
+                <button
+                  onClick={() => {
+                    toast.info('Document submitted for audit review.');
+                    setDocuments(prev => prev.map(d => d.id === previewDoc.id ? { ...d, status: 'Processing' } : d));
+                    setPreviewDoc(null);
+                  }}
+                  className="h-8 px-3 border border-blue-200 text-blue-600 hover:bg-blue-50 bg-[var(--app-panel-bg)] font-bold text-[11px] rounded-lg transition flex items-center gap-1 cursor-pointer"
+                >
+                  <Mail size={11} />
+                  <span>Review</span>
+                </button>
+
+                {/* Post */}
+                <button
+                  onClick={() => {
+                    toast.success('Document approved and voucher posted!');
+                    setDocuments(prev => prev.map(d => d.id === previewDoc.id ? { ...d, status: 'Completed' } : d));
+                    setPreviewDoc(null);
+                  }}
+                  className="h-8 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[11px] rounded-lg transition flex items-center gap-1 cursor-pointer shadow-sm"
+                >
+                  <Check size={11} className="stroke-[2.5]" />
+                  <span>Post</span>
+                </button>
+
+                <div className="h-4 w-[1px] bg-[var(--app-border)]/60"></div>
+
+                {/* AI Assistant Toggle */}
+                <button
+                  onClick={() => setShowAiRecs(prev => !prev)}
+                  className={`h-8 px-3 rounded-lg font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-2xs border ${showAiRecs
+                      ? 'bg-[var(--app-accent-soft)] text-[var(--app-accent)] border-[var(--app-accent)]/30'
+                      : 'bg-[var(--app-panel-bg)] text-[var(--app-text)] border-[var(--app-border)] hover:bg-[var(--app-row-hover)]'
+                    }`}
+                >
+                  <Sparkles size={12} className={showAiRecs ? 'animate-pulse' : ''} />
+                  <span>AI Assistant</span>
+                  <span className="text-[8px] font-extrabold px-1 py-0.5 bg-[var(--app-accent)]/15 text-[var(--app-accent)] rounded uppercase tracking-wider">BETA</span>
+                </button>
               </div>
             </div>
 
-            {/* Actions Bar */}
-            <div className="flex items-center gap-1.5 py-1">
-              {/* Download Icon-Only Button */}
-              <button
-                onClick={() => {
-                  const ws = XLSX.utils.aoa_to_sheet(excelGridData.slice(1));
-                  const wb = XLSX.utils.book_new();
-                  XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
-                  XLSX.writeFile(wb, (previewDoc.name || 'export.xlsx').replace(/\.[^/.]+$/, '') + '.xlsx');
-                  toast.success('Downloaded as Excel file!');
-                }}
-                className="w-8 h-8 border border-[var(--app-border)] text-[var(--app-text)] bg-[var(--app-panel-bg)] hover:bg-[var(--app-row-hover)] rounded-lg flex items-center justify-center cursor-pointer transition shadow-2xs"
-                title="Download Excel"
-              >
-                <Download size={14} className="text-[var(--app-muted)]" />
-              </button>
+            {/* Grid Layout - Full-bleed split with border dividing line */}
+            <div className="flex-1 flex overflow-hidden min-h-0 bg-white dark:bg-[#1e1e1e]">
 
-              {/* Save Draft */}
-              <button
-                onClick={() => {
-                  toast.success('Draft saved successfully!');
-                  setDocuments(prev => prev.map(d => d.id === previewDoc.id ? { ...d, status: 'Validated' } : d));
-                  setPreviewDoc(null);
-                }}
-                className="h-8 px-3 border border-[var(--app-border)] text-[var(--app-text)] bg-[var(--app-panel-bg)] hover:bg-[var(--app-row-hover)] font-bold text-[11px] rounded-lg transition flex items-center gap-1 cursor-pointer shadow-2xs"
-              >
-                <FolderOpen size={11} className="text-[var(--app-muted)]" />
-                <span>Save Draft</span>
-              </button>
+              {/* Left Column spreadsheet editor */}
+              <div className="flex-1 flex flex-col overflow-hidden min-w-0 border-r border-[var(--app-border)]/75">
 
-              {/* Reject */}
-              <button
-                onClick={() => {
-                  toast.error('Document rejected.');
-                  setDocuments(prev => prev.map(d => d.id === previewDoc.id ? { ...d, status: 'Rejected' } : d));
-                  setPreviewDoc(null);
-                }}
-                className="h-8 px-3 border border-red-200 text-red-600 hover:bg-red-50 bg-[var(--app-panel-bg)] font-bold text-[11px] rounded-lg transition flex items-center gap-1 cursor-pointer"
-              >
-                <Trash2 size={11} />
-                <span>Reject</span>
-              </button>
-
-              {/* Review */}
-              <button
-                onClick={() => {
-                  toast.info('Document submitted for audit review.');
-                  setDocuments(prev => prev.map(d => d.id === previewDoc.id ? { ...d, status: 'Processing' } : d));
-                  setPreviewDoc(null);
-                }}
-                className="h-8 px-3 border border-blue-200 text-blue-600 hover:bg-blue-50 bg-[var(--app-panel-bg)] font-bold text-[11px] rounded-lg transition flex items-center gap-1 cursor-pointer"
-              >
-                <Mail size={11} />
-                <span>Review</span>
-              </button>
-
-              {/* Post */}
-              <button
-                onClick={() => {
-                  toast.success('Document approved and voucher posted!');
-                  setDocuments(prev => prev.map(d => d.id === previewDoc.id ? { ...d, status: 'Completed' } : d));
-                  setPreviewDoc(null);
-                }}
-                className="h-8 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[11px] rounded-lg transition flex items-center gap-1 cursor-pointer shadow-sm"
-              >
-                <Check size={11} className="stroke-[2.5]" />
-                <span>Post</span>
-              </button>
-
-              <div className="h-4 w-[1px] bg-[var(--app-border)]/60"></div>
-
-              {/* AI Assistant Toggle */}
-              <button
-                onClick={() => setShowAiRecs(prev => !prev)}
-                className={`h-8 px-3 rounded-lg font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-2xs border ${
-                  showAiRecs
-                    ? 'bg-[var(--app-accent-soft)] text-[var(--app-accent)] border-[var(--app-accent)]/30'
-                    : 'bg-[var(--app-panel-bg)] text-[var(--app-text)] border-[var(--app-border)] hover:bg-[var(--app-row-hover)]'
-                }`}
-              >
-                <Sparkles size={12} className={showAiRecs ? 'animate-pulse' : ''} />
-                <span>AI Assistant</span>
-                <span className="text-[8px] font-extrabold px-1 py-0.5 bg-[var(--app-accent)]/15 text-[var(--app-accent)] rounded uppercase tracking-wider">BETA</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Grid Layout - Full-bleed split with border dividing line */}
-          <div className="flex-1 flex overflow-hidden min-h-0 bg-white dark:bg-[#1e1e1e]">
-            
-            {/* Left Column spreadsheet editor */}
-            <div className="flex-1 flex flex-col overflow-hidden min-w-0 border-r border-[var(--app-border)]/75">
-              
-              {/* Combined Tabs & Toolbar Row */}
-              {isExcelFile && (
-                <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 bg-slate-50/45 dark:bg-slate-900/40 px-4 shrink-0 select-none gap-3" style={{minHeight:'42px'}}>
-                  <div className="flex items-center gap-1 h-full self-stretch">
-                    {['Preview Data','Raw Data','Summary','AI Insights'].map((tab) => {
-                      const isActive = activePreviewTab === tab;
-                      return (
-                        <button
-                          key={tab}
-                          onClick={() => {
-                            setActivePreviewTab(tab);
-                            toast.info(`Switched to ${tab} (Editable Mode)`);
-                          }}
-                          className={`h-full px-3 font-bold text-xs transition-colors cursor-pointer border-b-2 bg-transparent outline-none ${
-                            isActive
-                              ? 'border-indigo-600 text-indigo-600 dark:border-indigo-500 dark:text-indigo-400 font-bold'
-                              : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
-                          }`}
-                        >
-                          {tab}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {/* Toolbar items shifted directly to this row */}
-                  <div className="flex items-center gap-2 py-1">
-                    <div className="relative">
-                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
-                      <input
-                        type="text"
-                        placeholder="Search in table..."
-                        className="h-8 pl-8 pr-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-700 dark:text-slate-300 text-xs outline-none focus:border-indigo-500 w-44 font-medium transition-all"
-                      />
-                    </div>
-                    <button className="h-8 px-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-650 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition font-bold flex items-center gap-1.5 cursor-pointer">
-                      <Filter size={12} className="text-slate-450" />
-                      <span>Filters</span>
-                    </button>
-                    <button
-                      onClick={handleAddRow}
-                      className="h-8 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-xs border-none"
-                    >
-                      <Plus size={13} />
-                      <span>Add Row</span>
-                    </button>
-                  </div>
-                </div>
-              )}
-                     {/* Scrollable table grid or OCR Left Panel */}
-              {['xlsx', 'xls', 'csv'].includes((previewDoc.name || '').split('.').pop().toLowerCase()) ? (
-                <div className="flex-1 overflow-auto bg-white dark:bg-[#121212]" style={{overflowX:'auto',overflowY:'auto'}}>
-                  <table className="w-full border-collapse text-left text-slate-650 dark:text-slate-350 text-xs border-b border-slate-100 dark:border-slate-800/25">
-                    <thead>
-                      <tr className="bg-slate-50/75 dark:bg-slate-900/60 border-b border-slate-100 dark:border-slate-800 select-none text-[11px] text-slate-700 dark:text-slate-300 font-bold uppercase tracking-wider h-10 sticky top-0 z-10">
-                        <th className="py-3 px-4 font-bold w-24 border-r border-slate-100/60 dark:border-slate-800/20">Status</th>
-                        <th className="py-3 px-4 font-bold border-r border-slate-100/60 dark:border-slate-800/20">Invoice</th>
-                        <th className="py-3 px-4 font-bold border-r border-slate-100/60 dark:border-slate-800/20">Party</th>
-                        <th className="py-3 px-4 font-bold border-r border-slate-100/60 dark:border-slate-800/20">GSTIN</th>
-                        <th className="py-3 px-4 font-bold border-r border-slate-100/60 dark:border-slate-800/20">Voucher Date</th>
-                        <th className="py-3 px-4 font-bold border-r border-slate-100/60 dark:border-slate-800/20">Ledger</th>
-                        <th className="py-3 px-4 font-bold text-right border-r border-slate-100/60 dark:border-slate-800/20">Amount</th>
-                        <th className="py-3 px-4 font-bold">AI Flag</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100/65 dark:divide-slate-800/20 font-sans">
-                      {excelGridData.slice(2).map((row, rIdx) => {
-                        const actualRowIndex = rIdx + 2;
-                        const isRowBlank = row.every(cell => !cell || cell.trim() === '');
-                        if (isRowBlank) return null;
-
-                        const cols = getColumnIndices(excelGridData[1]);
-
-                        const invoiceVal = row[cols.invoice] || '';
-                        const partyVal = row[cols.party] || '';
-                        const dateVal = row[cols.date] || '';
-                        const ledgerVal = row[cols.ledger] || '';
-                        const amountVal = row[cols.amount] || '0.00';
-                        const statusStr = row[cols.status] || 'Valid';
-                        const remarksVal = row[cols.remarks] || '';
-                        const mockGstin = row[cols.gstin] || previewDoc.extractedData?.gstin || '27AAAAA1111A1Z5';
-
-                        // Default 'AI Suggested' or empty values to 'Valid'
-                        let finalStatus = statusStr;
-                        if (!finalStatus || finalStatus === 'AI Suggested') {
-                          finalStatus = 'Valid';
-                        }
-
-                        let statusBadge = (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-900/50">
-                            Valid
-                          </span>
-                        );
-                        if (finalStatus.toLowerCase() === 'warning') {
-                          statusBadge = (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-100 dark:bg-amber-955/20 dark:text-amber-400 dark:border-amber-900/40">
-                              Warning
-                            </span>
-                          );
-                        } else if (finalStatus.toLowerCase() === 'error') {
-                          statusBadge = (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-50 text-red-650 border border-red-100 dark:bg-red-950/30 dark:text-red-455 dark:border-red-900/40">
-                              Error
-                            </span>
-                          );
-                        }
-
+                {/* Combined Tabs & Toolbar Row */}
+                {isExcelFile && (
+                  <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 bg-slate-50/45 dark:bg-slate-900/40 px-4 shrink-0 select-none gap-3" style={{ minHeight: '42px' }}>
+                    <div className="flex items-center gap-1 h-full self-stretch">
+                      {['Preview Data', 'Raw Data', 'Summary', 'AI Insights'].map((tab) => {
+                        const isActive = activePreviewTab === tab;
                         return (
-                          <tr key={rIdx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors h-11 border-b border-slate-100/60 dark:border-slate-800/20">
-                            <td className="py-2 px-4 whitespace-nowrap border-r border-slate-100/60 dark:border-slate-800/20">{statusBadge}</td>
-                            
-                            <td className="py-2 px-4 font-semibold text-slate-800 dark:text-slate-200 border-r border-slate-100/60 dark:border-slate-800/20">
-                              <div className="relative flex items-center w-full h-full">
-                                <input
-                                  type="text"
-                                  value={invoiceVal}
-                                  onChange={(e) => handleExcelCellChange(actualRowIndex, cols.invoice, e.target.value)}
-                                  className="border-none bg-transparent outline-none focus:ring-1 focus:ring-indigo-550/20 dark:focus:ring-indigo-400/20 rounded px-1.5 py-0.5 w-full font-semibold text-slate-800 dark:text-slate-200 focus:bg-white dark:focus:bg-slate-900 focus:border focus:border-slate-200 dark:focus:border-slate-800 pr-5"
-                                />
-                                <Edit2 size={9} className="absolute right-1.5 text-slate-350 dark:text-slate-650 opacity-45 pointer-events-none" />
-                              </div>
-                            </td>
-
-                            <td className="py-2 px-4 text-slate-700 dark:text-slate-300 border-r border-slate-100/60 dark:border-slate-800/20">
-                              <div className="relative flex items-center w-full h-full">
-                                <input
-                                  type="text"
-                                  value={partyVal}
-                                  onChange={(e) => handleExcelCellChange(actualRowIndex, cols.party, e.target.value)}
-                                  className="border-none bg-transparent outline-none focus:ring-1 focus:ring-indigo-550/20 dark:focus:ring-indigo-400/20 rounded px-1.5 py-0.5 w-full text-slate-700 dark:text-slate-300 focus:bg-white dark:focus:bg-slate-900 focus:border focus:border-slate-200 dark:focus:border-slate-800 pr-5"
-                                />
-                                <Edit2 size={9} className="absolute right-1.5 text-slate-350 dark:text-slate-650 opacity-45 pointer-events-none" />
-                              </div>
-                            </td>
-
-                            <td className="py-2 px-4 text-slate-550 dark:text-slate-400 font-mono text-[11px] border-r border-slate-100/60 dark:border-slate-800/20">
-                              <div className="relative flex items-center w-full h-full">
-                                <input
-                                  type="text"
-                                  value={mockGstin}
-                                  onChange={(e) => handleExcelCellChange(actualRowIndex, cols.gstin, e.target.value)}
-                                  className="border-none bg-transparent outline-none focus:ring-1 focus:ring-indigo-550/20 dark:focus:ring-indigo-400/20 rounded px-1.5 py-0.5 w-full text-slate-550 dark:text-slate-400 font-mono focus:bg-white dark:focus:bg-slate-900 focus:border focus:border-slate-200 dark:focus:border-slate-800 pr-5"
-                                />
-                                <Edit2 size={9} className="absolute right-1.5 text-slate-350 dark:text-slate-650 opacity-45 pointer-events-none" />
-                              </div>
-                            </td>
-
-                            <td className="py-2 px-4 text-slate-600 dark:text-slate-400 border-r border-slate-100/60 dark:border-slate-800/20">
-                              <div className="relative flex items-center w-full h-full">
-                                <input
-                                  type="text"
-                                  value={dateVal}
-                                  onChange={(e) => handleExcelCellChange(actualRowIndex, cols.date, e.target.value)}
-                                  className="border-none bg-transparent outline-none focus:ring-1 focus:ring-indigo-550/20 dark:focus:ring-indigo-400/20 rounded px-1.5 py-0.5 w-full text-slate-600 dark:text-slate-400 focus:bg-white dark:focus:bg-slate-900 focus:border focus:border-slate-200 dark:focus:border-slate-800 pr-5"
-                                />
-                                <Edit2 size={9} className="absolute right-1.5 text-slate-350 dark:text-slate-650 opacity-45 pointer-events-none" />
-                              </div>
-                            </td>
-
-                            <td className="py-2 px-4 text-slate-600 dark:text-slate-400 border-r border-slate-100/60 dark:border-slate-800/20">
-                              <div className="relative flex items-center w-full h-full">
-                                <input
-                                  type="text"
-                                  value={ledgerVal}
-                                  onChange={(e) => handleExcelCellChange(actualRowIndex, cols.ledger, e.target.value)}
-                                  className="border-none bg-transparent outline-none focus:ring-1 focus:ring-indigo-550/20 dark:focus:ring-indigo-400/20 rounded px-1.5 py-0.5 w-full text-slate-600 dark:text-slate-400 focus:bg-white dark:focus:bg-slate-900 focus:border focus:border-slate-200 dark:focus:border-slate-800 pr-5"
-                                />
-                                <Edit2 size={9} className="absolute right-1.5 text-slate-350 dark:text-slate-650 opacity-45 pointer-events-none" />
-                              </div>
-                            </td>
-
-                            <td className="py-2 px-4 text-right font-bold text-slate-800 dark:text-slate-200 border-r border-slate-100/60 dark:border-slate-800/20">
-                              <div className="relative flex items-center w-full h-full">
-                                <Edit2 size={9} className="absolute left-1.5 text-slate-350 dark:text-slate-650 opacity-45 pointer-events-none" />
-                                <input
-                                  type="text"
-                                  value={amountVal}
-                                  onChange={(e) => handleExcelCellChange(actualRowIndex, cols.amount, e.target.value)}
-                                  className="border-none bg-transparent outline-none focus:ring-1 focus:ring-indigo-550/20 dark:focus:ring-indigo-400/20 rounded px-1.5 py-0.5 w-full text-right font-bold text-slate-800 dark:text-slate-200 focus:bg-white dark:focus:bg-slate-900 focus:border focus:border-slate-200 dark:focus:border-slate-800 pl-5"
-                                />
-                              </div>
-                            </td>
-
-                            <td className="py-2 px-4 text-slate-550 dark:text-slate-400 italic text-[11px]">
-                              <div className="relative flex items-center w-full h-full">
-                                <input
-                                  type="text"
-                                  value={remarksVal}
-                                  onChange={(e) => handleExcelCellChange(actualRowIndex, cols.remarks, e.target.value)}
-                                  className="border-none bg-transparent outline-none focus:ring-1 focus:ring-indigo-550/20 dark:focus:ring-indigo-400/20 rounded px-1.5 py-0.5 w-full text-slate-550 dark:text-slate-400 italic focus:bg-white dark:focus:bg-slate-900 focus:border focus:border-slate-200 dark:focus:border-slate-800 pr-5"
-                                />
-                                <Edit2 size={9} className="absolute right-1.5 text-slate-350 dark:text-slate-650 opacity-45 pointer-events-none" />
-                              </div>
-                            </td>
-                          </tr>
+                          <button
+                            key={tab}
+                            onClick={() => {
+                              setActivePreviewTab(tab);
+                              toast.info(`Switched to ${tab} (Editable Mode)`);
+                            }}
+                            className={`h-full px-3 font-bold text-xs transition-colors cursor-pointer border-b-2 bg-transparent outline-none ${isActive
+                                ? 'border-indigo-600 text-indigo-600 dark:border-indigo-500 dark:text-indigo-400 font-bold'
+                                : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+                              }`}
+                          >
+                            {tab}
+                          </button>
                         );
                       })}
-                    </tbody>
-                  </table>
-                </div>
-              ) : isOcrLoading ? (
-                <OcrLoadingScreen />
-              ) : ocrResult ? (
-                <OcrLeftPanel
-                  previewDoc={previewDoc}
-                  ocrResult={ocrResult}
-                  ocrActivePage={ocrActivePage}
-                  setOcrActivePage={setOcrActivePage}
-                  ocrZoom={ocrZoom}
-                  setOcrZoom={setOcrZoom}
-                  renderPdfPreview={renderPdfPreview}
-                  renderImagePreview={renderImagePreview}
-                />
-              ) : (
-                <div className="flex-1 overflow-auto bg-white dark:bg-[#121212] p-4 flex items-center justify-center">
-                  {((previewDoc.name || '').split('.').pop().toLowerCase() === 'pdf' || !['xlsx', 'xls', 'csv', 'png', 'jpg', 'jpeg', 'tiff'].includes((previewDoc.name || '').split('.').pop().toLowerCase())) ? renderPdfPreview() : renderImagePreview()}
-                </div>
-              )}
-            </div>
+                    </div>
 
-            {/* AI Assistant panel sidebar */}
-            {showAiRecs && isExcelFile && (
-              <div className="w-[350px] shrink-0 flex flex-col bg-white dark:bg-[#121212] overflow-hidden h-full border-l border-slate-200 dark:border-slate-800 select-none">
-                {/* Sidebar Header */}
-                <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0">
-                  <div className="flex flex-col gap-0.5">
-                    <span className="font-bold text-slate-800 dark:text-slate-200 text-sm flex items-center gap-1.5">
-                      <span>🤖 AI Assistant</span>
-                    </span>
-                    <span className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">Your file has been analyzed automatically.</span>
+                    {/* Toolbar items shifted directly to this row */}
+                    <div className="flex items-center gap-2 py-1">
+                      <div className="relative">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
+                        <input
+                          type="text"
+                          placeholder="Search in table..."
+                          className="h-8 pl-8 pr-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-700 dark:text-slate-300 text-xs outline-none focus:border-indigo-500 w-44 font-medium transition-all"
+                        />
+                      </div>
+                      <button className="h-8 px-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-650 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition font-bold flex items-center gap-1.5 cursor-pointer">
+                        <Filter size={12} className="text-slate-450" />
+                        <span>Filters</span>
+                      </button>
+                      <button
+                        onClick={handleAddRow}
+                        className="h-8 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-xs border-none"
+                      >
+                        <Plus size={13} />
+                        <span>Add Row</span>
+                      </button>
+                    </div>
                   </div>
-                  <button
-                    onClick={() => setShowAiRecs(false)}
-                    className="w-6 h-6 rounded hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-450 dark:text-slate-400 cursor-pointer border-none bg-transparent"
-                    title="Hide AI Assistant"
-                  >
-                    <X size={13} />
-                  </button>
-                </div>
+                )}
+                {/* Scrollable table grid or OCR Left Panel */}
+                {['xlsx', 'xls', 'csv'].includes((previewDoc.name || '').split('.').pop().toLowerCase()) ? (
+                  <div className="flex-1 overflow-auto bg-white dark:bg-[#121212]" style={{ overflowX: 'auto', overflowY: 'auto' }}>
+                    <table className="w-full border-collapse text-left text-slate-650 dark:text-slate-350 text-xs border-b border-slate-100 dark:border-slate-800/25">
+                      <thead>
+                        <tr className="bg-slate-50/75 dark:bg-slate-900/60 border-b border-slate-100 dark:border-slate-800 select-none text-[11px] text-slate-700 dark:text-slate-300 font-bold uppercase tracking-wider h-10 sticky top-0 z-10">
+                          <th className="py-3 px-4 font-bold w-24 border-r border-slate-100/60 dark:border-slate-800/20">Status</th>
+                          <th className="py-3 px-4 font-bold border-r border-slate-100/60 dark:border-slate-800/20">Invoice</th>
+                          <th className="py-3 px-4 font-bold border-r border-slate-100/60 dark:border-slate-800/20">Party</th>
+                          <th className="py-3 px-4 font-bold border-r border-slate-100/60 dark:border-slate-800/20">GSTIN</th>
+                          <th className="py-3 px-4 font-bold border-r border-slate-100/60 dark:border-slate-800/20">Voucher Date</th>
+                          <th className="py-3 px-4 font-bold border-r border-slate-100/60 dark:border-slate-800/20">Ledger</th>
+                          <th className="py-3 px-4 font-bold text-right border-r border-slate-100/60 dark:border-slate-800/20">Amount</th>
+                          <th className="py-3 px-4 font-bold">AI Flag</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100/65 dark:divide-slate-800/20 font-sans">
+                        {excelGridData.slice(2).map((row, rIdx) => {
+                          const actualRowIndex = rIdx + 2;
+                          const isRowBlank = row.every(cell => !cell || cell.trim() === '');
+                          if (isRowBlank) return null;
 
-                {/* Scrollable content */}
-                <div className="flex-1 overflow-y-auto flex flex-col p-5 gap-5">
-                  {/* File Summary */}
-                  <div>
-                    <h4 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">File Summary</h4>
-                    <div className="grid grid-cols-2 gap-2">
-                      {[
-                        { label: 'Total Records', value: '24' },
-                        { label: 'Valid Records', value: '13', color: 'text-emerald-600 dark:text-emerald-400' },
-                        { label: 'Needs Review', value: '9', color: 'text-amber-600 dark:text-amber-400' },
-                        { label: 'Errors', value: '2', color: 'text-red-500 dark:text-red-400' },
-                      ].map((card, idx) => (
-                        <div key={idx} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3 rounded-xl shadow-xs">
-                          <span className="text-[9.5px] font-semibold text-slate-400 dark:text-slate-500 block">{card.label}</span>
-                          <span className={`text-base font-extrabold block mt-0.5 ${card.color || 'text-slate-800 dark:text-slate-200'}`}>{card.value}</span>
+                          const cols = getColumnIndices(excelGridData[1]);
+
+                          const invoiceVal = row[cols.invoice] || '';
+                          const partyVal = row[cols.party] || '';
+                          const dateVal = row[cols.date] || '';
+                          const ledgerVal = row[cols.ledger] || '';
+                          const amountVal = row[cols.amount] || '0.00';
+                          const statusStr = row[cols.status] || 'Valid';
+                          const remarksVal = row[cols.remarks] || '';
+                          const mockGstin = row[cols.gstin] || previewDoc.extractedData?.gstin || '27AAAAA1111A1Z5';
+
+                          // Default 'AI Suggested' or empty values to 'Valid'
+                          let finalStatus = statusStr;
+                          if (!finalStatus || finalStatus === 'AI Suggested') {
+                            finalStatus = 'Valid';
+                          }
+
+                          let statusBadge = (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-900/50">
+                              Valid
+                            </span>
+                          );
+                          if (finalStatus.toLowerCase() === 'warning') {
+                            statusBadge = (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-100 dark:bg-amber-955/20 dark:text-amber-400 dark:border-amber-900/40">
+                                Warning
+                              </span>
+                            );
+                          } else if (finalStatus.toLowerCase() === 'error') {
+                            statusBadge = (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-50 text-red-650 border border-red-100 dark:bg-red-950/30 dark:text-red-455 dark:border-red-900/40">
+                                Error
+                              </span>
+                            );
+                          }
+
+                          return (
+                            <tr key={rIdx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors h-11 border-b border-slate-100/60 dark:border-slate-800/20">
+                              <td className="py-2 px-4 whitespace-nowrap border-r border-slate-100/60 dark:border-slate-800/20">{statusBadge}</td>
+
+                              <td className="py-2 px-4 font-semibold text-slate-800 dark:text-slate-200 border-r border-slate-100/60 dark:border-slate-800/20">
+                                <div className="relative flex items-center w-full h-full">
+                                  <input
+                                    type="text"
+                                    value={invoiceVal}
+                                    onChange={(e) => handleExcelCellChange(actualRowIndex, cols.invoice, e.target.value)}
+                                    className="border-none bg-transparent outline-none focus:ring-1 focus:ring-indigo-550/20 dark:focus:ring-indigo-400/20 rounded px-1.5 py-0.5 w-full font-semibold text-slate-800 dark:text-slate-200 focus:bg-white dark:focus:bg-slate-900 focus:border focus:border-slate-200 dark:focus:border-slate-800 pr-5"
+                                  />
+                                  <Edit2 size={9} className="absolute right-1.5 text-slate-350 dark:text-slate-650 opacity-45 pointer-events-none" />
+                                </div>
+                              </td>
+
+                              <td className="py-2 px-4 text-slate-700 dark:text-slate-300 border-r border-slate-100/60 dark:border-slate-800/20">
+                                <div className="relative flex items-center w-full h-full">
+                                  <input
+                                    type="text"
+                                    value={partyVal}
+                                    onChange={(e) => handleExcelCellChange(actualRowIndex, cols.party, e.target.value)}
+                                    className="border-none bg-transparent outline-none focus:ring-1 focus:ring-indigo-550/20 dark:focus:ring-indigo-400/20 rounded px-1.5 py-0.5 w-full text-slate-700 dark:text-slate-300 focus:bg-white dark:focus:bg-slate-900 focus:border focus:border-slate-200 dark:focus:border-slate-800 pr-5"
+                                  />
+                                  <Edit2 size={9} className="absolute right-1.5 text-slate-350 dark:text-slate-650 opacity-45 pointer-events-none" />
+                                </div>
+                              </td>
+
+                              <td className="py-2 px-4 text-slate-550 dark:text-slate-400 font-mono text-[11px] border-r border-slate-100/60 dark:border-slate-800/20">
+                                <div className="relative flex items-center w-full h-full">
+                                  <input
+                                    type="text"
+                                    value={mockGstin}
+                                    onChange={(e) => handleExcelCellChange(actualRowIndex, cols.gstin, e.target.value)}
+                                    className="border-none bg-transparent outline-none focus:ring-1 focus:ring-indigo-550/20 dark:focus:ring-indigo-400/20 rounded px-1.5 py-0.5 w-full text-slate-550 dark:text-slate-400 font-mono focus:bg-white dark:focus:bg-slate-900 focus:border focus:border-slate-200 dark:focus:border-slate-800 pr-5"
+                                  />
+                                  <Edit2 size={9} className="absolute right-1.5 text-slate-350 dark:text-slate-650 opacity-45 pointer-events-none" />
+                                </div>
+                              </td>
+
+                              <td className="py-2 px-4 text-slate-600 dark:text-slate-400 border-r border-slate-100/60 dark:border-slate-800/20">
+                                <div className="relative flex items-center w-full h-full">
+                                  <input
+                                    type="text"
+                                    value={dateVal}
+                                    onChange={(e) => handleExcelCellChange(actualRowIndex, cols.date, e.target.value)}
+                                    className="border-none bg-transparent outline-none focus:ring-1 focus:ring-indigo-550/20 dark:focus:ring-indigo-400/20 rounded px-1.5 py-0.5 w-full text-slate-600 dark:text-slate-400 focus:bg-white dark:focus:bg-slate-900 focus:border focus:border-slate-200 dark:focus:border-slate-800 pr-5"
+                                  />
+                                  <Edit2 size={9} className="absolute right-1.5 text-slate-350 dark:text-slate-650 opacity-45 pointer-events-none" />
+                                </div>
+                              </td>
+
+                              <td className="py-2 px-4 text-slate-600 dark:text-slate-400 border-r border-slate-100/60 dark:border-slate-800/20">
+                                <div className="relative flex items-center w-full h-full">
+                                  <input
+                                    type="text"
+                                    value={ledgerVal}
+                                    onChange={(e) => handleExcelCellChange(actualRowIndex, cols.ledger, e.target.value)}
+                                    className="border-none bg-transparent outline-none focus:ring-1 focus:ring-indigo-550/20 dark:focus:ring-indigo-400/20 rounded px-1.5 py-0.5 w-full text-slate-600 dark:text-slate-400 focus:bg-white dark:focus:bg-slate-900 focus:border focus:border-slate-200 dark:focus:border-slate-800 pr-5"
+                                  />
+                                  <Edit2 size={9} className="absolute right-1.5 text-slate-350 dark:text-slate-650 opacity-45 pointer-events-none" />
+                                </div>
+                              </td>
+
+                              <td className="py-2 px-4 text-right font-bold text-slate-800 dark:text-slate-200 border-r border-slate-100/60 dark:border-slate-800/20">
+                                <div className="relative flex items-center w-full h-full">
+                                  <Edit2 size={9} className="absolute left-1.5 text-slate-350 dark:text-slate-650 opacity-45 pointer-events-none" />
+                                  <input
+                                    type="text"
+                                    value={amountVal}
+                                    onChange={(e) => handleExcelCellChange(actualRowIndex, cols.amount, e.target.value)}
+                                    className="border-none bg-transparent outline-none focus:ring-1 focus:ring-indigo-550/20 dark:focus:ring-indigo-400/20 rounded px-1.5 py-0.5 w-full text-right font-bold text-slate-800 dark:text-slate-200 focus:bg-white dark:focus:bg-slate-900 focus:border focus:border-slate-200 dark:focus:border-slate-800 pl-5"
+                                  />
+                                </div>
+                              </td>
+
+                              <td className="py-2 px-4 text-slate-550 dark:text-slate-400 italic text-[11px]">
+                                <div className="relative flex items-center w-full h-full">
+                                  <input
+                                    type="text"
+                                    value={remarksVal}
+                                    onChange={(e) => handleExcelCellChange(actualRowIndex, cols.remarks, e.target.value)}
+                                    className="border-none bg-transparent outline-none focus:ring-1 focus:ring-indigo-550/20 dark:focus:ring-indigo-400/20 rounded px-1.5 py-0.5 w-full text-slate-550 dark:text-slate-400 italic focus:bg-white dark:focus:bg-slate-900 focus:border focus:border-slate-200 dark:focus:border-slate-800 pr-5"
+                                  />
+                                  <Edit2 size={9} className="absolute right-1.5 text-slate-350 dark:text-slate-650 opacity-45 pointer-events-none" />
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : isOcrLoading ? (
+                  <OcrLoadingScreen />
+                ) : ocrResult ? (
+                  <OcrLeftPanel
+                    previewDoc={previewDoc}
+                    ocrResult={ocrResult}
+                    ocrActivePage={ocrActivePage}
+                    setOcrActivePage={setOcrActivePage}
+                    ocrZoom={ocrZoom}
+                    setOcrZoom={setOcrZoom}
+                    renderPdfPreview={renderPdfPreview}
+                    renderImagePreview={renderImagePreview}
+                  />
+                ) : (
+                  <div className="flex-1 overflow-auto bg-white dark:bg-[#121212] p-4 flex items-center justify-center">
+                    {((previewDoc.name || '').split('.').pop().toLowerCase() === 'pdf' || !['xlsx', 'xls', 'csv', 'png', 'jpg', 'jpeg', 'tiff'].includes((previewDoc.name || '').split('.').pop().toLowerCase())) ? renderPdfPreview() : renderImagePreview()}
+                  </div>
+                )}
+              </div>
+
+              {/* AI Assistant panel sidebar */}
+              {showAiRecs && isExcelFile && (
+                <div className="w-[350px] shrink-0 flex flex-col bg-white dark:bg-[#121212] overflow-hidden h-full border-l border-slate-200 dark:border-slate-800 select-none">
+                  {/* Sidebar Header */}
+                  <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-bold text-slate-800 dark:text-slate-200 text-sm flex items-center gap-1.5">
+                        <span>🤖 AI Assistant</span>
+                      </span>
+                      <span className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">Your file has been analyzed automatically.</span>
+                    </div>
+                    <button
+                      onClick={() => setShowAiRecs(false)}
+                      className="w-6 h-6 rounded hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-450 dark:text-slate-400 cursor-pointer border-none bg-transparent"
+                      title="Hide AI Assistant"
+                    >
+                      <X size={13} />
+                    </button>
+                  </div>
+
+                  {/* Scrollable content */}
+                  <div className="flex-1 overflow-y-auto flex flex-col p-5 gap-5">
+                    {/* File Summary */}
+                    <div>
+                      <h4 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">File Summary</h4>
+                      <div className="grid grid-cols-2 gap-2">
+                        {[
+                          { label: 'Total Records', value: '24' },
+                          { label: 'Valid Records', value: '13', color: 'text-emerald-600 dark:text-emerald-400' },
+                          { label: 'Needs Review', value: '9', color: 'text-amber-600 dark:text-amber-400' },
+                          { label: 'Errors', value: '2', color: 'text-red-500 dark:text-red-400' },
+                        ].map((card, idx) => (
+                          <div key={idx} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3 rounded-xl shadow-xs">
+                            <span className="text-[9.5px] font-semibold text-slate-400 dark:text-slate-500 block">{card.label}</span>
+                            <span className={`text-base font-extrabold block mt-0.5 ${card.color || 'text-slate-800 dark:text-slate-200'}`}>{card.value}</span>
+                          </div>
+                        ))}
+                        <div className="col-span-2 bg-slate-50/50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 p-3 rounded-xl flex items-center justify-between">
+                          <span className="text-[9.5px] font-semibold text-slate-500 dark:text-slate-450">AI Confidence</span>
+                          <span className="text-xs font-black text-indigo-600 dark:text-indigo-400">96% Accuracy</span>
                         </div>
-                      ))}
-                      <div className="col-span-2 bg-slate-50/50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 p-3 rounded-xl flex items-center justify-between">
-                        <span className="text-[9.5px] font-semibold text-slate-500 dark:text-slate-450">AI Confidence</span>
-                        <span className="text-xs font-black text-indigo-600 dark:text-indigo-400">96% Accuracy</span>
+                      </div>
+                    </div>
+
+                    {/* Auto Detected Columns */}
+                    <div>
+                      <h4 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Auto Detected Columns</h4>
+                      <div className="flex flex-wrap gap-1 mb-2">
+                        {['Invoice No', 'Party Name', 'GSTIN', 'Voucher Date', 'Ledger', 'Amount', 'Tax Rate', 'State', 'HSN Code'].map(tag => (
+                          <span key={tag} className="px-2 py-0.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-650 dark:text-slate-300 rounded-md text-[10px] font-semibold">
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                      <span className="text-[10.5px] text-emerald-605 dark:text-emerald-400 font-medium flex items-center gap-1">
+                        <span>✓ AI detected these columns automatically.</span>
+                      </span>
+                    </div>
+
+                    {/* AI Insights */}
+                    <div>
+                      <h4 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">AI Insights</h4>
+                      <div className="flex flex-col gap-2">
+                        {[
+                          { label: 'Voucher Type Detected', checked: true },
+                          { label: 'Missing GSTIN (5)', checked: true, warning: true },
+                          { label: 'Duplicate Invoices (2)', checked: true, warning: true },
+                          { label: 'Unknown Party (3)', checked: true, warning: true },
+                          { label: 'Missing Ledger (1)', checked: true, warning: true },
+                          { label: 'Invalid Amount (0)', checked: true, ok: true },
+                        ].map((item, idx) => (
+                          <div key={idx} className="flex items-center gap-2 text-xs">
+                            <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] shrink-0 font-bold ${item.ok
+                                ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400'
+                                : item.warning
+                                  ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400'
+                                  : 'bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400'
+                              }`}>
+                              ✓
+                            </span>
+                            <span className="text-slate-700 dark:text-slate-300 font-medium">{item.label}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* AI Quick Actions */}
+                    <div>
+                      <h4 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">AI Quick Actions</h4>
+                      <div className="grid grid-cols-2 gap-2">
+                        {[
+                          'Auto Fix Issues',
+                          'Detect Duplicates',
+                          'Validate GST',
+                          'Standardize Dates',
+                          'Find Missing Masters',
+                          'Refresh Analysis'
+                        ].map(action => (
+                          <button
+                            key={action}
+                            onClick={() => toast.success(`${action} triggered successfully!`)}
+                            className="h-8 px-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-750 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition font-semibold text-[10px] cursor-pointer text-center"
+                          >
+                            {action}
+                          </button>
+                        ))}
                       </div>
                     </div>
                   </div>
 
-                  {/* Auto Detected Columns */}
-                  <div>
-                    <h4 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Auto Detected Columns</h4>
-                    <div className="flex flex-wrap gap-1 mb-2">
-                      {['Invoice No', 'Party Name', 'GSTIN', 'Voucher Date', 'Ledger', 'Amount', 'Tax Rate', 'State', 'HSN Code'].map(tag => (
-                        <span key={tag} className="px-2 py-0.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-650 dark:text-slate-300 rounded-md text-[10px] font-semibold">
-                          {tag}
-                        </span>
-                      ))}
+                  {/* Ask AI input at bottom */}
+                  <div className="p-5 border-t border-slate-100 dark:border-slate-800 shrink-0 bg-slate-50/30 dark:bg-slate-900/10">
+                    <div className="text-[10.5px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Ask AI</div>
+                    <div className="flex items-center gap-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 shadow-3xs mb-2">
+                      <input
+                        id="ai-assistant-ask-input"
+                        type="text"
+                        placeholder="Ask anything about this uploaded data..."
+                        className="flex-1 bg-transparent text-xs text-slate-800 dark:text-slate-200 outline-none border-none placeholder:text-slate-400 dark:placeholder:text-slate-600 font-medium"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && e.target.value) {
+                            toast.info(`AI: Searching for "${e.target.value}"...`);
+                            e.target.value = '';
+                          }
+                        }}
+                      />
+                      <button
+                        onClick={() => {
+                          const input = document.getElementById('ai-assistant-ask-input');
+                          if (input && input.value) {
+                            toast.info(`AI: Searching for "${input.value}"...`);
+                            input.value = '';
+                          }
+                        }}
+                        className="w-6 h-6 bg-indigo-650 hover:bg-indigo-750 rounded-lg flex items-center justify-center text-white cursor-pointer shrink-0 transition border-none"
+                      >
+                        <ChevronRight size={12} className="stroke-[2.5]" />
+                      </button>
                     </div>
-                    <span className="text-[10.5px] text-emerald-605 dark:text-emerald-400 font-medium flex items-center gap-1">
-                      <span>✓ AI detected these columns automatically.</span>
-                    </span>
-                  </div>
-
-                  {/* AI Insights */}
-                  <div>
-                    <h4 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">AI Insights</h4>
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-wrap gap-1">
                       {[
-                        { label: 'Voucher Type Detected', checked: true },
-                        { label: 'Missing GSTIN (5)', checked: true, warning: true },
-                        { label: 'Duplicate Invoices (2)', checked: true, warning: true },
-                        { label: 'Unknown Party (3)', checked: true, warning: true },
-                        { label: 'Missing Ledger (1)', checked: true, warning: true },
-                        { label: 'Invalid Amount (0)', checked: true, ok: true },
-                      ].map((item, idx) => (
-                        <div key={idx} className="flex items-center gap-2 text-xs">
-                          <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] shrink-0 font-bold ${
-                            item.ok 
-                              ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400' 
-                              : item.warning 
-                              ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400' 
-                              : 'bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400'
-                          }`}>
-                            ✓
-                          </span>
-                          <span className="text-slate-700 dark:text-slate-300 font-medium">{item.label}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* AI Quick Actions */}
-                  <div>
-                    <h4 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">AI Quick Actions</h4>
-                    <div className="grid grid-cols-2 gap-2">
-                      {[
-                        'Auto Fix Issues',
-                        'Detect Duplicates',
-                        'Validate GST',
-                        'Standardize Dates',
-                        'Find Missing Masters',
-                        'Refresh Analysis'
-                      ].map(action => (
+                        'Show duplicate invoices',
+                        'Which rows have GST errors?',
+                        'Show missing parties',
+                        'Find invalid amounts'
+                      ].map(phrase => (
                         <button
-                          key={action}
-                          onClick={() => toast.success(`${action} triggered successfully!`)}
-                          className="h-8 px-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-750 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition font-semibold text-[10px] cursor-pointer text-center"
+                          key={phrase}
+                          onClick={() => {
+                            const input = document.getElementById('ai-assistant-ask-input');
+                            if (input) {
+                              input.value = phrase;
+                              input.focus();
+                            }
+                          }}
+                          className="px-2 py-1 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-550 dark:text-slate-400 rounded-md text-[9.5px] font-semibold transition cursor-pointer"
                         >
-                          {action}
+                          {phrase}
                         </button>
                       ))}
                     </div>
                   </div>
                 </div>
+              )}
 
-                {/* Ask AI input at bottom */}
-                <div className="p-5 border-t border-slate-100 dark:border-slate-800 shrink-0 bg-slate-50/30 dark:bg-slate-900/10">
-                  <div className="text-[10.5px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Ask AI</div>
-                  <div className="flex items-center gap-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 shadow-3xs mb-2">
-                    <input
-                      id="ai-assistant-ask-input"
-                      type="text"
-                      placeholder="Ask anything about this uploaded data..."
-                      className="flex-1 bg-transparent text-xs text-slate-800 dark:text-slate-200 outline-none border-none placeholder:text-slate-400 dark:placeholder:text-slate-600 font-medium"
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && e.target.value) {
-                          toast.info(`AI: Searching for "${e.target.value}"...`);
-                          e.target.value = '';
-                        }
-                      }}
-                    />
-                    <button
-                      onClick={() => {
-                        const input = document.getElementById('ai-assistant-ask-input');
-                        if (input && input.value) {
-                          toast.info(`AI: Searching for "${input.value}"...`);
-                          input.value = '';
-                        }
-                      }}
-                      className="w-6 h-6 bg-indigo-650 hover:bg-indigo-750 rounded-lg flex items-center justify-center text-white cursor-pointer shrink-0 transition border-none"
-                    >
-                      <ChevronRight size={12} className="stroke-[2.5]" />
-                    </button>
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    {[
-                      'Show duplicate invoices',
-                      'Which rows have GST errors?',
-                      'Show missing parties',
-                      'Find invalid amounts'
-                    ].map(phrase => (
-                      <button
-                        key={phrase}
-                        onClick={() => {
-                          const input = document.getElementById('ai-assistant-ask-input');
-                          if (input) {
-                            input.value = phrase;
-                            input.focus();
-                          }
-                        }}
-                        className="px-2 py-1 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-550 dark:text-slate-400 rounded-md text-[9.5px] font-semibold transition cursor-pointer"
-                      >
-                        {phrase}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Standard sidebar input forms or OCR Right Panel */}
-            {(!['xlsx', 'xls', 'csv'].includes((previewDoc.name || '').split('.').pop().toLowerCase())) && (
-              ocrResult ? (
-                <OcrRightPanel
-                  ocrResult={ocrResult}
-                  ocrActivePage={ocrActivePage}
-                  setOcrActivePage={setOcrActivePage}
-                  ocrSearchQuery={ocrSearchQuery}
-                  setOcrSearchQuery={setOcrSearchQuery}
-                />
-              ) : (
-                <div className="w-80 bg-[var(--app-panel-bg)] flex flex-col overflow-hidden h-full shrink-0 border-l border-[var(--app-border)]/75">
-                  <div className="p-4 border-b border-[var(--app-border)] bg-[var(--app-table-head-bg)]/50 select-none">
-                    <span className="font-bold text-[var(--app-heading)] text-xs uppercase tracking-wider flex items-center gap-1.5">
-                      <Scan size={14} className="text-[var(--app-accent)]" />
-                      <span>AI Extracted Fields</span>
-                    </span>
-                  </div>
-                  
-                  <div className="p-4 flex-1 overflow-y-auto flex flex-col gap-4">
-                    <div className="bg-[var(--app-content-bg)]/40 border border-[var(--app-border)] p-3 rounded-lg flex flex-col">
-                      <span className="text-[9px] font-bold text-[var(--app-muted)] uppercase tracking-wider">AI Classification Confidence</span>
-                      <span className="text-lg font-black text-[var(--app-heading)] mt-0.5">{previewDoc.confidence}%</span>
+              {/* Standard sidebar input forms or OCR Right Panel */}
+              {(!['xlsx', 'xls', 'csv'].includes((previewDoc.name || '').split('.').pop().toLowerCase())) && (
+                ocrResult ? (
+                  <OcrRightPanel
+                    ocrResult={ocrResult}
+                    ocrActivePage={ocrActivePage}
+                    setOcrActivePage={setOcrActivePage}
+                    ocrSearchQuery={ocrSearchQuery}
+                    setOcrSearchQuery={setOcrSearchQuery}
+                  />
+                ) : (
+                  <div className="w-80 bg-[var(--app-panel-bg)] flex flex-col overflow-hidden h-full shrink-0 border-l border-[var(--app-border)]/75">
+                    <div className="p-4 border-b border-[var(--app-border)] bg-[var(--app-table-head-bg)]/50 select-none">
+                      <span className="font-bold text-[var(--app-heading)] text-xs uppercase tracking-wider flex items-center gap-1.5">
+                        <Scan size={14} className="text-[var(--app-accent)]" />
+                        <span>AI Extracted Fields</span>
+                      </span>
                     </div>
 
-                    <div className="flex flex-col gap-3 text-xs">
-                      <div className="flex flex-col gap-1">
-                        <label className="text-[9px] font-bold text-[var(--app-muted)] uppercase">Vendor / Company Name</label>
-                        <input
-                          type="text"
-                          value={previewDoc.extractedData?.vendorName || ''}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setPreviewDoc(prev => ({
-                              ...prev,
-                              extractedData: { ...prev.extractedData, vendorName: val }
-                            }));
-                            setDocuments(prev => prev.map(d => d.id === previewDoc.id ? { ...d, extractedData: { ...d.extractedData, vendorName: val } } : d));
-                          }}
-                          className="h-8 px-2 bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded text-[var(--app-text)] font-semibold outline-none focus:border-[var(--app-accent)]"
-                        />
+                    <div className="p-4 flex-1 overflow-y-auto flex flex-col gap-4">
+                      <div className="bg-[var(--app-content-bg)]/40 border border-[var(--app-border)] p-3 rounded-lg flex flex-col">
+                        <span className="text-[9px] font-bold text-[var(--app-muted)] uppercase tracking-wider">AI Classification Confidence</span>
+                        <span className="text-lg font-black text-[var(--app-heading)] mt-0.5">{previewDoc.confidence}%</span>
                       </div>
-                      <div className="flex flex-col gap-1">
-                        <label className="text-[9px] font-bold text-[var(--app-muted)] uppercase">Invoice / Batch Number</label>
-                        <input
-                          type="text"
-                          value={previewDoc.extractedData?.invoiceNumber || ''}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setPreviewDoc(prev => ({
-                              ...prev,
-                              extractedData: { ...prev.extractedData, invoiceNumber: val }
-                            }));
-                            setDocuments(prev => prev.map(d => d.id === previewDoc.id ? { ...d, extractedData: { ...d.extractedData, invoiceNumber: val } } : d));
-                          }}
-                          className="h-8 px-2 bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded text-[var(--app-text)] font-semibold outline-none focus:border-[var(--app-accent)]"
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <label className="text-[9px] font-bold text-[var(--app-muted)] uppercase">Document Date</label>
-                        <input
-                          type="date"
-                          value={previewDoc.extractedData?.invoiceDate || ''}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setPreviewDoc(prev => ({
-                              ...prev,
-                              extractedData: { ...prev.extractedData, invoiceDate: val }
-                            }));
-                            setDocuments(prev => prev.map(d => d.id === previewDoc.id ? { ...d, extractedData: { ...d.extractedData, invoiceDate: val } } : d));
-                          }}
-                          className="h-8 px-2 bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded text-[var(--app-text)] font-semibold outline-none focus:border-[var(--app-accent)]"
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <label className="text-[9px] font-bold text-[var(--app-muted)] uppercase">GSTIN Identification</label>
-                        <input
-                          type="text"
-                          value={previewDoc.extractedData?.gstin || ''}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setPreviewDoc(prev => ({
-                              ...prev,
-                              extractedData: { ...prev.extractedData, gstin: val }
-                            }));
-                            setDocuments(prev => prev.map(d => d.id === previewDoc.id ? { ...d, extractedData: { ...d.extractedData, gstin: val } } : d));
-                          }}
-                          className="h-8 px-2 bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded text-[var(--app-text)] font-semibold outline-none focus:border-[var(--app-accent)]"
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <label className="text-[9px] font-bold text-[var(--app-muted)] uppercase">Taxable Subtotal (₹)</label>
-                        <input
-                          type="number"
-                          value={previewDoc.extractedData?.taxableValue || 0}
-                          onChange={(e) => {
-                            const val = parseFloat(e.target.value) || 0;
-                            setPreviewDoc(prev => ({
-                              ...prev,
-                              extractedData: { ...prev.extractedData, taxableValue: val }
-                            }));
-                            setDocuments(prev => prev.map(d => d.id === previewDoc.id ? { ...d, extractedData: { ...d.extractedData, taxableValue: val } } : d));
-                          }}
-                          className="h-8 px-2 bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded text-[var(--app-text)] font-semibold outline-none focus:border-[var(--app-accent)]"
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <label className="text-[9px] font-bold text-[var(--app-muted)] uppercase">Total Amount (₹)</label>
-                        <input
-                          type="number"
-                          value={previewDoc.extractedData?.totalAmount || 0}
-                          onChange={(e) => {
-                            const val = parseFloat(e.target.value) || 0;
-                            setPreviewDoc(prev => ({
-                              ...prev,
-                              extractedData: { ...prev.extractedData, totalAmount: val }
-                            }));
-                            setDocuments(prev => prev.map(d => d.id === previewDoc.id ? { ...d, extractedData: { ...d.extractedData, totalAmount: val } } : d));
-                          }}
-                          className="h-8 px-2 bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded text-[var(--app-text)] font-semibold outline-none focus:border-[var(--app-accent)]"
-                        />
+
+                      <div className="flex flex-col gap-3 text-xs">
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[9px] font-bold text-[var(--app-muted)] uppercase">Vendor / Company Name</label>
+                          <input
+                            type="text"
+                            value={previewDoc.extractedData?.vendorName || ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setPreviewDoc(prev => ({
+                                ...prev,
+                                extractedData: { ...prev.extractedData, vendorName: val }
+                              }));
+                              setDocuments(prev => prev.map(d => d.id === previewDoc.id ? { ...d, extractedData: { ...d.extractedData, vendorName: val } } : d));
+                            }}
+                            className="h-8 px-2 bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded text-[var(--app-text)] font-semibold outline-none focus:border-[var(--app-accent)]"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[9px] font-bold text-[var(--app-muted)] uppercase">Invoice / Batch Number</label>
+                          <input
+                            type="text"
+                            value={previewDoc.extractedData?.invoiceNumber || ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setPreviewDoc(prev => ({
+                                ...prev,
+                                extractedData: { ...prev.extractedData, invoiceNumber: val }
+                              }));
+                              setDocuments(prev => prev.map(d => d.id === previewDoc.id ? { ...d, extractedData: { ...d.extractedData, invoiceNumber: val } } : d));
+                            }}
+                            className="h-8 px-2 bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded text-[var(--app-text)] font-semibold outline-none focus:border-[var(--app-accent)]"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[9px] font-bold text-[var(--app-muted)] uppercase">Document Date</label>
+                          <input
+                            type="date"
+                            value={previewDoc.extractedData?.invoiceDate || ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setPreviewDoc(prev => ({
+                                ...prev,
+                                extractedData: { ...prev.extractedData, invoiceDate: val }
+                              }));
+                              setDocuments(prev => prev.map(d => d.id === previewDoc.id ? { ...d, extractedData: { ...d.extractedData, invoiceDate: val } } : d));
+                            }}
+                            className="h-8 px-2 bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded text-[var(--app-text)] font-semibold outline-none focus:border-[var(--app-accent)]"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[9px] font-bold text-[var(--app-muted)] uppercase">GSTIN Identification</label>
+                          <input
+                            type="text"
+                            value={previewDoc.extractedData?.gstin || ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setPreviewDoc(prev => ({
+                                ...prev,
+                                extractedData: { ...prev.extractedData, gstin: val }
+                              }));
+                              setDocuments(prev => prev.map(d => d.id === previewDoc.id ? { ...d, extractedData: { ...d.extractedData, gstin: val } } : d));
+                            }}
+                            className="h-8 px-2 bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded text-[var(--app-text)] font-semibold outline-none focus:border-[var(--app-accent)]"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[9px] font-bold text-[var(--app-muted)] uppercase">Taxable Subtotal (₹)</label>
+                          <input
+                            type="number"
+                            value={previewDoc.extractedData?.taxableValue || 0}
+                            onChange={(e) => {
+                              const val = parseFloat(e.target.value) || 0;
+                              setPreviewDoc(prev => ({
+                                ...prev,
+                                extractedData: { ...prev.extractedData, taxableValue: val }
+                              }));
+                              setDocuments(prev => prev.map(d => d.id === previewDoc.id ? { ...d, extractedData: { ...d.extractedData, taxableValue: val } } : d));
+                            }}
+                            className="h-8 px-2 bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded text-[var(--app-text)] font-semibold outline-none focus:border-[var(--app-accent)]"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[9px] font-bold text-[var(--app-muted)] uppercase">Total Amount (₹)</label>
+                          <input
+                            type="number"
+                            value={previewDoc.extractedData?.totalAmount || 0}
+                            onChange={(e) => {
+                              const val = parseFloat(e.target.value) || 0;
+                              setPreviewDoc(prev => ({
+                                ...prev,
+                                extractedData: { ...prev.extractedData, totalAmount: val }
+                              }));
+                              setDocuments(prev => prev.map(d => d.id === previewDoc.id ? { ...d, extractedData: { ...d.extractedData, totalAmount: val } } : d));
+                            }}
+                            className="h-8 px-2 bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded text-[var(--app-text)] font-semibold outline-none focus:border-[var(--app-accent)]"
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              )
-            )}
+                )
+              )}
+            </div>
+
+            {/* Bottom footer removed - buttons moved to top tab bar */}
           </div>
-
-          {/* Bottom footer removed - buttons moved to top tab bar */}
-        </div>
         )
       ) : (
         <React.Fragment>
+          {ocrOnly && (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-2.5 mb-2.5 border-[var(--app-border)] shrink-0 select-none">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="h-9 w-9 rounded-xl flex items-center justify-center text-white shrink-0" style={{ background: 'var(--app-accent-gradient)', boxShadow: 'var(--app-shadow)' }}>
+                  <Scan size={17} strokeWidth={2.2} />
+                </div>
+                <div className="min-w-0">
+                  <h2 className="text-base font-extrabold text-[var(--app-heading)] dark:text-white flex items-center gap-2">
+                    <span>OCR Upload</span>
+                    <span className="px-2 py-0.5 bg-[var(--app-accent-soft)] text-[var(--app-accent)] border border-[var(--app-border)] rounded text-[9.5px] font-extrabold uppercase">
+                      Document Queue
+                    </span>
+                  </h2>
+                  <p className="text-[var(--app-muted)] text-[10px] mt-0.5 font-medium truncate">Verify and approve automatically extracted accounting documents.</p>
+                </div>
+              </div>
+            </div>
+          )}
           {/* PAGE HEADER - matches ManualEntryPanel tab style exactly */}
           <div className="m3-scope flex items-center gap-1 overflow-x-auto themed-scrollbar pb-2 mb-2.5 shrink-0 select-none">
             {[
@@ -2736,11 +2889,10 @@ export default function BulkUploadPanel() {
                   <span className="relative flex items-center gap-2">
                     <span className="text-[13px] font-semibold whitespace-nowrap">{tab.label}</span>
                     {tab.count !== null && (
-                      <span className={`text-[11px] px-1.5 py-0.5 rounded-full font-bold transition-all ${
-                        isActive 
-                          ? 'bg-[var(--app-accent)] text-white' 
+                      <span className={`text-[11px] px-1.5 py-0.5 rounded-full font-bold transition-all ${isActive
+                          ? 'bg-[var(--app-accent)] text-white'
                           : 'bg-slate-200/60 dark:bg-slate-700 text-[var(--app-text)]/85'
-                      }`}>
+                        }`}>
                         {tab.count}
                       </span>
                     )}
@@ -2750,1083 +2902,1083 @@ export default function BulkUploadPanel() {
             })}
           </div>
 
-      {/* MAIN VIEWPORT CONTAINER */}
-      <div className="flex-1 flex overflow-hidden min-h-0 relative">
-        
-        {/* LEFT COLUMN: ACTIVE WORKSPACE CONTENT */}
-        <div className="flex-1 flex flex-col overflow-hidden px-0 pt-0 pb-0 gap-0 min-w-0">
+          {/* MAIN VIEWPORT CONTAINER */}
+          <div className="flex-1 flex overflow-hidden min-h-0 relative">
 
-          {/* TAB 1: UPLOAD DOCUMENTS VIEW */}
-          {activeTab === 'Upload Documents' && (
-            <div className="flex flex-col flex-1 h-full gap-4 w-full animate-rise-in overflow-hidden">
-              {/* Drag and Drop Card - clean, spacious & user friendly */}
-              <div 
-                className="w-full flex-1 border-2 border-dashed border-[var(--app-border)] hover:border-[var(--app-accent)] hover:bg-[var(--app-accent-soft)] bg-[var(--app-panel-bg)] rounded-xl flex flex-col items-center justify-center text-center p-8 transition-all cursor-pointer relative group"
-                onClick={handleBrowseFiles}
-                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                    handleUploadSimulated(e.dataTransfer.files);
-                  }
-                }}
-              >
-                {/* Cloud Illustration */}
-                <div className="w-14 h-14 rounded-full bg-[var(--app-accent-soft)] flex items-center justify-center text-[var(--app-accent)] mb-3 group-hover:scale-110 transition-transform duration-200 shadow-sm border border-[var(--app-accent-soft)]">
-                  <UploadCloud size={24} className="animate-bounce" style={{ animationDuration: '2.5s' }} />
-                </div>
-                
-                <h2 className="text-base font-bold text-[var(--app-heading)] tracking-tight">Drop Files Anywhere</h2>
-                <p className="text-[var(--app-text)] text-[11px] mt-1 max-w-sm opacity-80 leading-relaxed">
-                  Upload one or thousands of accounting documents in a single click. Or drag them here.
-                </p>
+            {/* LEFT COLUMN: ACTIVE WORKSPACE CONTENT */}
+            <div className="flex-1 flex flex-col overflow-hidden px-0 pt-0 pb-0 gap-0 min-w-0">
 
-                {/* Primary/Secondary Buttons */}
-                <div className="flex items-center gap-3 mt-4" onClick={(e) => e.stopPropagation()}>
-                  <button 
+              {/* TAB 1: UPLOAD DOCUMENTS VIEW */}
+              {activeTab === 'Upload Documents' && (
+                <div className="flex flex-col flex-1 h-full gap-4 w-full animate-rise-in overflow-hidden">
+                  {/* Drag and Drop Card - clean, spacious & user friendly */}
+                  <div
+                    className="w-full flex-1 border-2 border-dashed border-[var(--app-border)] hover:border-[var(--app-accent)] hover:bg-[var(--app-accent-soft)] bg-[var(--app-panel-bg)] rounded-xl flex flex-col items-center justify-center text-center p-8 transition-all cursor-pointer relative group"
                     onClick={handleBrowseFiles}
-                    className="h-9 px-5 bg-[var(--app-accent)] hover:opacity-90 text-[var(--app-on-accent)] rounded-lg font-bold text-xs shadow-sm hover:shadow-md transition flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <Plus size={14} />
-                    <span>Upload Files</span>
-                  </button>
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleFileChange}
-                    className="hidden"
-                    multiple
-                    accept=".pdf,.png,.jpg,.jpeg,.tiff,.csv,.xls,.xlsx,.zip"
-                  />
-                  <button 
-                    onClick={() => {
-                      toast.info('Simulating folder browser import');
-                      handleSourceUploadTrigger('Manual Upload');
+                    onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                        handleUploadSimulated(e.dataTransfer.files);
+                      }
                     }}
-                    className="h-9 px-4 border border-[var(--app-border)] text-[var(--app-text)] bg-[var(--app-panel-bg)] hover:bg-[var(--app-row-hover)] rounded-lg font-bold text-xs transition shadow-2xs flex items-center gap-1.5 cursor-pointer"
                   >
-                    <FolderOpen size={14} className="text-[var(--app-muted)]" />
-                    <span>Browse Folder</span>
-                  </button>
-                </div>
+                    {/* Cloud Illustration */}
+                    <div className="w-14 h-14 rounded-full bg-[var(--app-accent-soft)] flex items-center justify-center text-[var(--app-accent)] mb-3 group-hover:scale-110 transition-transform duration-200 shadow-sm border border-[var(--app-accent-soft)]">
+                      <UploadCloud size={24} className="animate-bounce" style={{ animationDuration: '2.5s' }} />
+                    </div>
 
-                {/* Badge Cloud of Formats */}
-                <div className="flex flex-wrap items-center justify-center gap-1.5 mt-4 max-w-xl">
-                  {['PDF', 'PNG', 'JPG', 'JPEG', 'TIFF', 'CSV', 'XLS', 'XLSX', 'ZIP'].map(badge => (
-                    <span key={badge} className="px-2 py-0.8 bg-[var(--app-content-bg)] text-[var(--app-text)] border border-[var(--app-border)] rounded-md text-[10px] font-bold">
-                      {badge}
-                    </span>
-                  ))}
-                </div>
+                    <h2 className="text-base font-bold text-[var(--app-heading)] tracking-tight">Drop Files Anywhere</h2>
+                    <p className="text-[var(--app-text)] text-[11px] mt-1 max-w-sm opacity-80 leading-relaxed">
+                      Upload one or thousands of accounting documents in a single click. Or drag them here.
+                    </p>
 
-                {/* Max Size Indicator */}
-                <div className="text-[10px] text-[var(--app-muted)] mt-3 font-medium flex items-center gap-1.5">
-                  <span>Maximum file size: <b>20 GB</b></span>
-                  <span className="w-1 h-1 rounded-full bg-[var(--app-border)]"></span>
-                  <span>Unlimited files supported</span>
-                </div>
-              </div>
-
-              {/* Upload Sources Section */}
-              <div className="flex flex-col gap-2 pb-2 shrink-0">
-                <div>
-                  <h3 className="text-[12px] font-bold text-[var(--app-heading)] tracking-tight">Upload Integration Sources</h3>
-                  <p className="text-[10.5px] text-[var(--app-muted)] mt-0.5">Connect and ingest files automatically. AI tags the incoming source automatically.</p>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
-                  {[
-                    { name: 'Manual Upload', icon: UploadCloud, color: 'text-blue-600 bg-blue-50 border-blue-100' },
-                    { name: 'Email', icon: Mail, color: 'text-amber-600 bg-amber-50 border-amber-100' },
-                    { name: 'WhatsApp', icon: MessageSquare, color: 'text-emerald-600 bg-emerald-50 border-emerald-100' },
-                    { name: 'Google Drive', icon: GlobeIcon, color: 'text-sky-600 bg-sky-50 border-sky-100' },
-                    { name: 'OneDrive', icon: CloudIcon, color: 'text-blue-600 bg-blue-50 border-blue-100' },
-                    { name: 'Dropbox', icon: BoxIcon, color: 'text-indigo-600 bg-indigo-50 border-indigo-100' },
-                    { name: 'ERP Import', icon: Database, color: 'text-purple-600 bg-purple-50 border-purple-100' },
-                    { name: 'Bank Statement Import', icon: FileSpreadsheet, color: 'text-teal-600 bg-teal-50 border-teal-100' }
-                  ].map(source => {
-                    const Icon = source.icon;
-                    return (
+                    {/* Primary/Secondary Buttons */}
+                    <div className="flex items-center gap-3 mt-4" onClick={(e) => e.stopPropagation()}>
                       <button
-                        key={source.name}
-                        onClick={() => handleSourceUploadTrigger(source.name)}
-                        className="py-1.5 px-2 bg-[var(--app-panel-bg)] border border-[var(--app-border)]/80 hover:border-[var(--app-accent)] hover:shadow-2xs rounded-lg flex flex-col items-center text-center transition group cursor-pointer"
+                        onClick={handleBrowseFiles}
+                        className="h-9 px-5 bg-[var(--app-accent)] hover:opacity-90 text-[var(--app-on-accent)] rounded-lg font-bold text-xs shadow-sm hover:shadow-md transition flex items-center gap-1.5 cursor-pointer"
                       >
-                        <div className={`w-6 h-6 rounded-md flex items-center justify-center mb-0.5 transition-transform group-hover:scale-105 border ${source.color}`}>
-                          <Icon size={12} />
-                        </div>
-                        <span className="text-[9.5px] font-bold text-[var(--app-text)] tracking-tight leading-tight block break-words w-full">
-                          {source.name.replace(' Import', '')}
-                        </span>
+                        <Plus size={14} />
+                        <span>Upload Files</span>
                       </button>
-                    );
-                  })}
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleFileChange}
+                        className="hidden"
+                        multiple
+                        accept={ocrOnly ? ".pdf,.png,.jpg,.jpeg,.tiff" : ".pdf,.png,.jpg,.jpeg,.tiff,.csv,.xls,.xlsx,.zip"}
+                      />
+                      <button
+                        onClick={() => {
+                          toast.info('Simulating folder browser import');
+                          handleSourceUploadTrigger('Manual Upload');
+                        }}
+                        className="h-9 px-4 border border-[var(--app-border)] text-[var(--app-text)] bg-[var(--app-panel-bg)] hover:bg-[var(--app-row-hover)] rounded-lg font-bold text-xs transition shadow-2xs flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <FolderOpen size={14} className="text-[var(--app-muted)]" />
+                        <span>Browse Folder</span>
+                      </button>
+                    </div>
+
+                    {/* Badge Cloud of Formats */}
+                    <div className="flex flex-wrap items-center justify-center gap-1.5 mt-4 max-w-xl">
+                      {(ocrOnly ? ['PDF', 'PNG', 'JPG', 'JPEG', 'TIFF'] : ['PDF', 'PNG', 'JPG', 'JPEG', 'TIFF', 'CSV', 'XLS', 'XLSX', 'ZIP']).map(badge => (
+                        <span key={badge} className="px-2 py-0.8 bg-[var(--app-content-bg)] text-[var(--app-text)] border border-[var(--app-border)] rounded-md text-[10px] font-bold">
+                          {badge}
+                        </span>
+                      ))}
+                    </div>
+
+                    {/* Max Size Indicator */}
+                    <div className="text-[10px] text-[var(--app-muted)] mt-3 font-medium flex items-center gap-1.5">
+                      <span>Maximum file size: <b>20 GB</b></span>
+                      <span className="w-1 h-1 rounded-full bg-[var(--app-border)]"></span>
+                      <span>Unlimited files supported</span>
+                    </div>
+                  </div>
+
+                  {/* Upload Sources Section */}
+                  <div className="flex flex-col gap-2 pb-2 shrink-0">
+                    <div>
+                      <h3 className="text-[12px] font-bold text-[var(--app-heading)] tracking-tight">Upload Integration Sources</h3>
+                      <p className="text-[10.5px] text-[var(--app-muted)] mt-0.5">Connect and ingest files automatically. AI tags the incoming source automatically.</p>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
+                      {[
+                        { name: 'Manual Upload', icon: UploadCloud, color: 'text-blue-600 bg-blue-50 border-blue-100' },
+                        { name: 'Email', icon: Mail, color: 'text-amber-600 bg-amber-50 border-amber-100' },
+                        { name: 'WhatsApp', icon: MessageSquare, color: 'text-emerald-600 bg-emerald-50 border-emerald-100' },
+                        ...(ocrOnly ? [] : [
+                          { name: 'Google Drive', icon: GlobeIcon, color: 'text-sky-600 bg-sky-50 border-sky-100' },
+                          { name: 'OneDrive', icon: CloudIcon, color: 'text-blue-600 bg-blue-50 border-blue-100' }
+                        ]),
+                        { name: 'Dropbox', icon: BoxIcon, color: 'text-indigo-600 bg-indigo-50 border-indigo-100' },
+                        ...(ocrOnly ? [] : [
+                          { name: 'ERP Import', icon: Database, color: 'text-purple-600 bg-purple-50 border-purple-100' },
+                          { name: 'Bank Statement Import', icon: FileSpreadsheet, color: 'text-teal-600 bg-teal-50 border-teal-100' }
+                        ])
+                      ].map(source => {
+                        const Icon = source.icon;
+                        return (
+                          <button
+                            key={source.name}
+                            onClick={() => handleSourceUploadTrigger(source.name)}
+                            className="py-1.5 px-2 bg-[var(--app-panel-bg)] border border-[var(--app-border)]/80 hover:border-[var(--app-accent)] hover:shadow-2xs rounded-lg flex flex-col items-center text-center transition group cursor-pointer"
+                          >
+                            <div className={`w-6 h-6 rounded-md flex items-center justify-center mb-0.5 transition-transform group-hover:scale-105 border ${source.color}`}>
+                              <Icon size={12} />
+                            </div>
+                            <span className="text-[9.5px] font-bold text-[var(--app-text)] tracking-tight leading-tight block break-words w-full">
+                              {source.name.replace(' Import', '')}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-          )}
+              )}
 
-          {/* TAB 2, 3, 4: UPLOADED / DUPLICATE / REJECTED VIEWS */}
-          {activeTab !== 'Upload Documents' && (
-            <div className="flex flex-col flex-1 h-full gap-2 w-full animate-rise-in overflow-hidden">
-              
-              {/* UPLOAD STATUS SUMMARY */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1.5 select-none shrink-0">
-                {[
-                  { label: 'Uploaded', value: stats.total, color: 'border-[var(--app-border)]/60 text-[var(--app-text)] bg-[var(--app-panel-bg)]' },
-                  { label: 'Processing', value: stats.processing, color: 'border-amber-500/15 text-amber-600 bg-amber-500/5' },
-                  { label: 'Completed', value: stats.completed, color: 'border-emerald-500/15 text-emerald-650 bg-emerald-550/5' },
-                  { label: 'Duplicates', value: stats.duplicates, color: 'border-red-500/15 text-red-650 bg-red-550/5' },
-                  { label: 'Rejected', value: stats.rejected, color: 'border-red-500/15 text-red-650 bg-red-550/5' },
-                  { label: 'Missing Data', value: stats.missing, color: 'border-amber-500/15 text-amber-600 bg-amber-500/5' }
-                ].map(card => (
-                  <div key={card.label} className={`px-3 py-2 border rounded-lg flex items-center justify-between gap-2 transition hover:bg-[var(--app-row-hover)] ${card.color}`}>
-                    <span className="text-[11px] font-bold tracking-tight uppercase opacity-85">{card.label}</span>
-                    <span className="text-[14px] font-black tracking-tight">{card.value}</span>
+              {/* TAB 2, 3, 4: UPLOADED / DUPLICATE / REJECTED VIEWS */}
+              {activeTab !== 'Upload Documents' && (
+                <div className="flex flex-col flex-1 h-full gap-2 w-full animate-rise-in overflow-hidden">
+
+                  {/* UPLOAD STATUS SUMMARY */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1.5 select-none shrink-0">
+                    {[
+                      { label: 'Uploaded', value: stats.total, color: 'border-[var(--app-border)]/60 text-[var(--app-text)] bg-[var(--app-panel-bg)]' },
+                      { label: 'Processing', value: stats.processing, color: 'border-amber-500/15 text-amber-600 bg-amber-500/5' },
+                      { label: 'Completed', value: stats.completed, color: 'border-emerald-500/15 text-emerald-650 bg-emerald-550/5' },
+                      { label: 'Duplicates', value: stats.duplicates, color: 'border-red-500/15 text-red-650 bg-red-550/5' },
+                      { label: 'Rejected', value: stats.rejected, color: 'border-red-500/15 text-red-650 bg-red-550/5' },
+                      { label: 'Missing Data', value: stats.missing, color: 'border-amber-500/15 text-amber-600 bg-amber-500/5' }
+                    ].map(card => (
+                      <div key={card.label} className={`px-3 py-2 border rounded-lg flex items-center justify-between gap-2 transition hover:bg-[var(--app-row-hover)] ${card.color}`}>
+                        <span className="text-[11px] font-bold tracking-tight uppercase opacity-85">{card.label}</span>
+                        <span className="text-[14px] font-black tracking-tight">{card.value}</span>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-              {/* TOP FILTER BAR */}
-              <div className="bg-[var(--app-panel-bg)]/80 border border-[var(--app-border)]/65 rounded-lg p-1.5 flex flex-col lg:flex-row lg:items-center justify-between gap-2 shadow-2xs shrink-0">
-                
-                {/* Search */}
-                <div className="relative max-w-xs flex-1">
-                  <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--app-muted)] pointer-events-none" />
-                  <input
-                    type="text"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search documents, invoices, users..."
-                    className="w-full h-8 pl-8 pr-3 rounded-md border border-[var(--app-border)] bg-[var(--app-panel-bg)] text-[12px] text-[var(--app-text)] outline-none focus:border-[var(--app-accent)] focus:ring-1 focus:ring-[var(--app-accent-soft)] font-medium"
-                  />
-                </div>
+                  {/* TOP FILTER BAR */}
+                  <div className="bg-[var(--app-panel-bg)]/80 border border-[var(--app-border)]/65 rounded-lg p-1.5 flex flex-col lg:flex-row lg:items-center justify-between gap-2 shadow-2xs shrink-0">
 
-                {/* Dropdowns Filters */}
-                <div className="flex flex-wrap items-center gap-2">
-                  
-                  {/* Source Dropdown */}
-                  <div className="relative">
-                    <select
-                      value={sourceFilter}
-                      onChange={(e) => setSourceFilter(e.target.value)}
-                      className="h-8 px-2.5 pr-6 bg-[var(--app-panel-bg)] border border-[var(--app-border)]/70 text-[var(--app-text)] rounded-md text-[12px] font-semibold outline-none cursor-pointer appearance-none min-w-[110px]"
-                    >
-                      <option value="All Sources">All Sources</option>
-                      <option value="Manual Upload">Manual Upload</option>
-                      <option value="Email">Email</option>
-                      <option value="WhatsApp">WhatsApp</option>
-                      <option value="Google Drive">Google Drive</option>
-                      <option value="Dropbox">Dropbox</option>
-                      <option value="ERP">ERP</option>
-                    </select>
-                    <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--app-muted)] pointer-events-none" />
+                    {/* Search */}
+                    <div className="relative max-w-xs flex-1">
+                      <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--app-muted)] pointer-events-none" />
+                      <input
+                        type="text"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        placeholder="Search documents, invoices, users..."
+                        className="w-full h-8 pl-8 pr-3 rounded-md border border-[var(--app-border)] bg-[var(--app-panel-bg)] text-[12px] text-[var(--app-text)] outline-none focus:border-[var(--app-accent)] focus:ring-1 focus:ring-[var(--app-accent-soft)] font-medium"
+                      />
+                    </div>
+
+                    {/* Dropdowns Filters */}
+                    <div className="flex flex-wrap items-center gap-2">
+
+                      {/* Source Dropdown */}
+                      <div className="relative">
+                        <select
+                          value={sourceFilter}
+                          onChange={(e) => setSourceFilter(e.target.value)}
+                          className="h-8 px-2.5 pr-6 bg-[var(--app-panel-bg)] border border-[var(--app-border)]/70 text-[var(--app-text)] rounded-md text-[12px] font-semibold outline-none cursor-pointer appearance-none min-w-[110px]"
+                        >
+                          <option value="All Sources">All Sources</option>
+                          <option value="Manual Upload">Manual Upload</option>
+                          <option value="Email">Email</option>
+                          <option value="WhatsApp">WhatsApp</option>
+                          <option value="Google Drive">Google Drive</option>
+                          <option value="Dropbox">Dropbox</option>
+                          <option value="ERP">ERP</option>
+                        </select>
+                        <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--app-muted)] pointer-events-none" />
+                      </div>
+
+                      {/* Document Type Dropdown */}
+                      <div className="relative">
+                        <select
+                          value={typeFilter}
+                          onChange={(e) => setTypeFilter(e.target.value)}
+                          className="h-8 px-2.5 pr-6 bg-[var(--app-panel-bg)] border border-[var(--app-border)]/70 text-[var(--app-text)] rounded-md text-[12px] font-semibold outline-none cursor-pointer appearance-none min-w-[130px]"
+                        >
+                          <option value="All Types">All Types</option>
+                          <option value="Purchase Invoice">Purchase Invoice</option>
+                          <option value="Sales Invoice">Sales Invoice</option>
+                          <option value="Expense Bill">Expense Bill</option>
+                          <option value="Receipt">Receipt</option>
+                          <option value="Credit Note">Credit Note</option>
+                          <option value="Debit Note">Debit Note</option>
+                          <option value="Bank Statement">Bank Statement</option>
+                          <option value="GST Report">GST Report</option>
+                          <option value="Purchase Register">Purchase Register</option>
+                          <option value="Sales Register">Sales Register</option>
+                          <option value="Vendor Statement">Vendor Statement</option>
+                          <option value="Unknown">Unknown</option>
+                        </select>
+                        <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--app-muted)] pointer-events-none" />
+                      </div>
+
+                      {/* Category Dropdown */}
+                      <div className="relative">
+                        <select
+                          value={categoryFilter}
+                          onChange={(e) => setCategoryFilter(e.target.value)}
+                          className="h-8 px-2.5 pr-6 bg-[var(--app-panel-bg)] border border-[var(--app-border)]/70 text-[var(--app-text)] rounded-md text-[12px] font-semibold outline-none cursor-pointer appearance-none min-w-[115px]"
+                        >
+                          <option value="All Categories">All Categories</option>
+                          <option value="Financial">Financial</option>
+                          <option value="Non-Financial">Non-Financial</option>
+                          <option value="Unknown">Unknown</option>
+                        </select>
+                        <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--app-muted)] pointer-events-none" />
+                      </div>
+
+                      {/* Action Buttons */}
+                      <button
+                        onClick={handleResetFilters}
+                        className="h-8 px-2 text-[12px] font-bold text-[var(--app-muted)] hover:text-[var(--app-heading)] transition cursor-pointer bg-transparent border-none"
+                      >
+                        Reset
+                      </button>
+
+                      <button
+                        onClick={() => setShowInsightsPanel(!showInsightsPanel)}
+                        className={`h-8 px-2.5 rounded-md border text-[12px] font-semibold transition flex items-center gap-1.5 cursor-pointer ${showInsightsPanel
+                            ? 'bg-[var(--app-accent-soft)] border-[var(--app-accent)]/30 text-[var(--app-accent)]'
+                            : 'bg-[var(--app-panel-bg)] border-[var(--app-border)] text-[var(--app-text)] hover:bg-[var(--app-row-hover)]'
+                          }`}
+                      >
+                        <SlidersHorizontal size={12} />
+                        <span>Insights Panel</span>
+                      </button>
+                    </div>
                   </div>
+                  {/* ENTERPRISE DATA TABLE */}
+                  <div className="bg-[var(--app-panel-bg)] border border-[var(--app-border)]/60 rounded-lg shadow-2xs overflow-hidden flex flex-col flex-1 min-h-0">
+                    <div className="overflow-x-auto flex-1">
+                      <table className="w-full text-left border-collapse min-w-[1180px] text-xs whitespace-nowrap table-fixed">
+                        <colgroup>
+                          <col style={{ width: '40px' }} />
+                          <col style={{ width: '220px' }} />
+                          <col style={{ width: '120px' }} />
+                          <col style={{ width: '130px' }} />
+                          <col style={{ width: '100px' }} />
+                          <col style={{ width: '140px' }} />
+                          <col style={{ width: '120px' }} />
+                          <col style={{ width: '120px' }} />
+                        </colgroup>
+                        <thead>
+                          <tr className="bg-[var(--app-table-head-bg)]/80 border-b border-[var(--app-border)] text-[var(--app-muted)] font-bold uppercase tracking-wider text-[11px]">
+                            <th className="py-1.5 px-2 text-center">
+                              <input
+                                type="checkbox"
+                                className="rounded border-[var(--app-border)] text-[var(--app-accent)] focus:ring-[var(--app-accent-soft)] cursor-pointer h-3 w-3"
+                                onChange={handleSelectAll}
+                                checked={paginatedDocs.length > 0 && paginatedDocs.every(d => checkedDocIds.includes(d.id))}
+                              />
+                            </th>
+                            <th className="py-1.5 px-2">Document</th>
+                            <th className="py-1.5 px-2">Source</th>
+                            <th className="py-1.5 px-2">Detected Type</th>
+                            <th className="py-1.5 px-2">Category</th>
+                            <th className="py-1.5 px-2 text-center">Uploaded On</th>
+                            <th className="py-1.5 px-2 text-center">AI Status</th>
+                            <th className="py-1.5 px-2 text-center">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[var(--app-row-border)] font-medium text-[var(--app-text)]">
+                          {paginatedDocs.length > 0 ? (
+                            paginatedDocs.map((doc) => {
+                              const isChecked = checkedDocIds.includes(doc.id);
+                              return (
+                                <tr
+                                  key={doc.id}
+                                  onClick={() => handleOpenPreview(doc)}
+                                  className={`hover:bg-[var(--app-row-hover)]/60 cursor-pointer transition-colors ${isChecked ? 'bg-[var(--app-accent-soft)]/50' : ''
+                                    }`}
+                                >
+                                  {/* Checkbox */}
+                                  <td className="py-1 px-2 text-center" onClick={(e) => e.stopPropagation()}>
+                                    <input
+                                      type="checkbox"
+                                      className="rounded border-[var(--app-border)] text-[var(--app-accent)] focus:ring-[var(--app-accent-soft)] cursor-pointer h-3 w-3"
+                                      checked={isChecked}
+                                      onChange={() => handleSelectRow(doc.id)}
+                                    />
+                                  </td>
 
-                  {/* Document Type Dropdown */}
-                  <div className="relative">
-                    <select
-                      value={typeFilter}
-                      onChange={(e) => setTypeFilter(e.target.value)}
-                      className="h-8 px-2.5 pr-6 bg-[var(--app-panel-bg)] border border-[var(--app-border)]/70 text-[var(--app-text)] rounded-md text-[12px] font-semibold outline-none cursor-pointer appearance-none min-w-[130px]"
-                    >
-                      <option value="All Types">All Types</option>
-                      <option value="Purchase Invoice">Purchase Invoice</option>
-                      <option value="Sales Invoice">Sales Invoice</option>
-                      <option value="Expense Bill">Expense Bill</option>
-                      <option value="Receipt">Receipt</option>
-                      <option value="Credit Note">Credit Note</option>
-                      <option value="Debit Note">Debit Note</option>
-                      <option value="Bank Statement">Bank Statement</option>
-                      <option value="GST Report">GST Report</option>
-                      <option value="Purchase Register">Purchase Register</option>
-                      <option value="Sales Register">Sales Register</option>
-                      <option value="Vendor Statement">Vendor Statement</option>
-                      <option value="Unknown">Unknown</option>
-                    </select>
-                    <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--app-muted)] pointer-events-none" />
-                  </div>
-
-                  {/* Category Dropdown */}
-                  <div className="relative">
-                    <select
-                      value={categoryFilter}
-                      onChange={(e) => setCategoryFilter(e.target.value)}
-                      className="h-8 px-2.5 pr-6 bg-[var(--app-panel-bg)] border border-[var(--app-border)]/70 text-[var(--app-text)] rounded-md text-[12px] font-semibold outline-none cursor-pointer appearance-none min-w-[115px]"
-                    >
-                      <option value="All Categories">All Categories</option>
-                      <option value="Financial">Financial</option>
-                      <option value="Non-Financial">Non-Financial</option>
-                      <option value="Unknown">Unknown</option>
-                    </select>
-                    <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--app-muted)] pointer-events-none" />
-                  </div>
-
-                  {/* Action Buttons */}
-                  <button 
-                    onClick={handleResetFilters}
-                    className="h-8 px-2 text-[12px] font-bold text-[var(--app-muted)] hover:text-[var(--app-heading)] transition cursor-pointer bg-transparent border-none"
-                  >
-                    Reset
-                  </button>
-
-                  <button 
-                    onClick={() => setShowInsightsPanel(!showInsightsPanel)}
-                    className={`h-8 px-2.5 rounded-md border text-[12px] font-semibold transition flex items-center gap-1.5 cursor-pointer ${
-                      showInsightsPanel 
-                        ? 'bg-[var(--app-accent-soft)] border-[var(--app-accent)]/30 text-[var(--app-accent)]' 
-                        : 'bg-[var(--app-panel-bg)] border-[var(--app-border)] text-[var(--app-text)] hover:bg-[var(--app-row-hover)]'
-                    }`}
-                  >
-                    <SlidersHorizontal size={12} />
-                    <span>Insights Panel</span>
-                  </button>
-                </div>
-              </div>
-              {/* ENTERPRISE DATA TABLE */}
-              <div className="bg-[var(--app-panel-bg)] border border-[var(--app-border)]/60 rounded-lg shadow-2xs overflow-hidden flex flex-col flex-1 min-h-0">
-                <div className="overflow-x-auto flex-1">
-                  <table className="w-full text-left border-collapse min-w-[1180px] text-xs whitespace-nowrap table-fixed">
-                    <colgroup>
-                      <col style={{ width: '40px' }} />
-                      <col style={{ width: '220px' }} />
-                      <col style={{ width: '120px' }} />
-                      <col style={{ width: '130px' }} />
-                      <col style={{ width: '100px' }} />
-                      <col style={{ width: '140px' }} />
-                      <col style={{ width: '120px' }} />
-                      <col style={{ width: '120px' }} />
-                    </colgroup>
-                    <thead>
-                      <tr className="bg-[var(--app-table-head-bg)]/80 border-b border-[var(--app-border)] text-[var(--app-muted)] font-bold uppercase tracking-wider text-[11px]">
-                        <th className="py-1.5 px-2 text-center">
-                          <input
-                            type="checkbox"
-                            className="rounded border-[var(--app-border)] text-[var(--app-accent)] focus:ring-[var(--app-accent-soft)] cursor-pointer h-3 w-3"
-                            onChange={handleSelectAll}
-                            checked={paginatedDocs.length > 0 && paginatedDocs.every(d => checkedDocIds.includes(d.id))}
-                          />
-                        </th>
-                        <th className="py-1.5 px-2">Document</th>
-                        <th className="py-1.5 px-2">Source</th>
-                        <th className="py-1.5 px-2">Detected Type</th>
-                        <th className="py-1.5 px-2">Category</th>
-                        <th className="py-1.5 px-2 text-center">Uploaded On</th>
-                        <th className="py-1.5 px-2 text-center">AI Status</th>
-                        <th className="py-1.5 px-2 text-center">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[var(--app-row-border)] font-medium text-[var(--app-text)]">
-                      {paginatedDocs.length > 0 ? (
-                        paginatedDocs.map((doc) => {
-                          const isChecked = checkedDocIds.includes(doc.id);
-                          return (
-                            <tr
-                              key={doc.id}
-                              onClick={() => handleOpenPreview(doc)}
-                              className={`hover:bg-[var(--app-row-hover)]/60 cursor-pointer transition-colors ${
-                                isChecked ? 'bg-[var(--app-accent-soft)]/50' : ''
-                              }`}
-                            >
-                              {/* Checkbox */}
-                              <td className="py-1 px-2 text-center" onClick={(e) => e.stopPropagation()}>
-                                <input
-                                  type="checkbox"
-                                  className="rounded border-[var(--app-border)] text-[var(--app-accent)] focus:ring-[var(--app-accent-soft)] cursor-pointer h-3 w-3"
-                                  checked={isChecked}
-                                  onChange={() => handleSelectRow(doc.id)}
-                                />
-                              </td>
-
-                              {/* Document Details */}
-                              <td className="py-1 px-2 font-semibold text-[var(--app-heading)] min-w-0">
-                                <div className="flex items-center gap-1.5 min-w-0">
-                                  {getDocIcon(doc.name)}
-                                  <div className="flex flex-col min-w-0">
-                                    <span className="truncate block font-bold text-[var(--app-heading)] text-[11px]" title={doc.name}>
-                                      {doc.name}
-                                    </span>
-                                    <span className="text-[9px] text-[var(--app-muted)] font-mono leading-none mt-0.5">
-                                      {doc.id}
-                                    </span>
-                                  </div>
-                                </div>
-                              </td>
-
-                              {/* Source */}
-                              <td className="py-1 px-2">{getSourceBadge(doc.source)}</td>
-
-                              {/* Detected Type */}
-                              <td className="py-1 px-2">{getTypeBadge(doc.type)}</td>
-
-                              {/* Category */}
-                              <td className="py-1 px-2">{getCategoryBadge(doc.category)}</td>
-
-                              {/* Uploaded On */}
-                              <td className="py-1 px-2 text-center text-[var(--app-muted)] font-mono text-[9px]">
-                                {doc.uploadedOn}
-                              </td>
-
-                              {/* AI Status or progress bar */}
-                              <td className="py-1 px-2 text-center">
-                                {doc.progress !== undefined ? (
-                                  <div className="w-20 mx-auto flex flex-col gap-0.5 items-center">
-                                    <div className="w-full bg-[var(--app-content-bg)] rounded-full h-1 overflow-hidden border border-[var(--app-border)]/50">
-                                      <div className="bg-[var(--app-accent)] h-full transition-all duration-300" style={{ width: `${doc.progress}%` }}></div>
+                                  {/* Document Details */}
+                                  <td className="py-1 px-2 font-semibold text-[var(--app-heading)] min-w-0">
+                                    <div className="flex items-center gap-1.5 min-w-0">
+                                      {getDocIcon(doc.name)}
+                                      <div className="flex flex-col min-w-0">
+                                        <span className="truncate block font-bold text-[var(--app-heading)] text-[11px]" title={doc.name}>
+                                          {doc.name}
+                                        </span>
+                                        <span className="text-[9px] text-[var(--app-muted)] font-mono leading-none mt-0.5">
+                                          {doc.id}
+                                        </span>
+                                      </div>
                                     </div>
-                                    <span className="text-[8.5px] text-[var(--app-muted)] leading-none font-bold font-mono">{doc.progress}%</span>
-                                  </div>
-                                ) : (
-                                  <div className="flex flex-col gap-1 items-center justify-center">
-                                    {getStatusBadge(doc.status)}
-                                    {doc.quality_check && getQualityBadge(doc.quality_check)}
-                                  </div>
-                                )}
-                              </td>
+                                  </td>
 
-                              {/* Action Buttons */}
-                              <td className="py-1 px-2 text-center" onClick={(e) => e.stopPropagation()}>
-                                <div className="flex items-center justify-center gap-1 text-[var(--app-muted)]">
+                                  {/* Source */}
+                                  <td className="py-1 px-2">{getSourceBadge(doc.source)}</td>
+
+                                  {/* Detected Type */}
+                                  <td className="py-1 px-2">{getTypeBadge(doc.type)}</td>
+
+                                  {/* Category */}
+                                  <td className="py-1 px-2">{getCategoryBadge(doc.category)}</td>
+
+                                  {/* Uploaded On */}
+                                  <td className="py-1 px-2 text-center text-[var(--app-muted)] font-mono text-[9px]">
+                                    {doc.uploadedOn}
+                                  </td>
+
+                                  {/* AI Status or progress bar */}
+                                  <td className="py-1 px-2 text-center">
+                                    {doc.progress !== undefined ? (
+                                      <div className="w-20 mx-auto flex flex-col gap-0.5 items-center">
+                                        <div className="w-full bg-[var(--app-content-bg)] rounded-full h-1 overflow-hidden border border-[var(--app-border)]/50">
+                                          <div className="bg-[var(--app-accent)] h-full transition-all duration-300" style={{ width: `${doc.progress}%` }}></div>
+                                        </div>
+                                        <span className="text-[8.5px] text-[var(--app-muted)] leading-none font-bold font-mono">{doc.progress}%</span>
+                                      </div>
+                                    ) : (
+                                      <div className="flex flex-col gap-1 items-center justify-center">
+                                        {getStatusBadge(doc.status)}
+                                        {doc.quality_check && getQualityBadge(doc.quality_check)}
+                                      </div>
+                                    )}
+                                  </td>
+
+                                  {/* Action Buttons */}
+                                  <td className="py-1 px-2 text-center" onClick={(e) => e.stopPropagation()}>
+                                    <div className="flex items-center justify-center gap-1 text-[var(--app-muted)]">
+                                      <button
+                                        onClick={() => handleOpenPreview(doc)}
+                                        className="p-1 hover:text-[var(--app-accent)] hover:bg-[var(--app-row-hover)] rounded transition cursor-pointer"
+                                        title="Preview file"
+                                      >
+                                        <Eye size={13} />
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          toast.info(`Moved document ${doc.id} to Accounting queue`);
+                                        }}
+                                        className="p-1 hover:text-[var(--app-accent)] hover:bg-[var(--app-row-hover)] rounded transition cursor-pointer"
+                                        title="Move document"
+                                      >
+                                        <FolderOpen size={13} />
+                                      </button>
+                                      <button
+                                        onClick={() => handleOpenRejectModal(doc)}
+                                        className="p-1 hover:text-red-650 hover:bg-[var(--app-row-hover)] rounded transition cursor-pointer"
+                                        title="Reject document"
+                                      >
+                                        <AlertCircle size={13} />
+                                      </button>
+                                      <button
+                                        onClick={() => handleDeleteDoc(doc.id)}
+                                        className="p-1 hover:text-red-650 hover:bg-[var(--app-row-hover)] rounded transition cursor-pointer"
+                                        title="Delete document"
+                                      >
+                                        <Trash2 size={13} />
+                                      </button>
+                                      {doc.status === 'Rejected' && (
+                                        <button
+                                          onClick={() => handleRetryProcessing(doc)}
+                                          className="p-1 hover:text-emerald-600 hover:bg-[var(--app-row-hover)] rounded transition cursor-pointer"
+                                          title="Retry AI OCR Processing"
+                                        >
+                                          <RefreshCw size={13} />
+                                        </button>
+                                      )}
+                                      <button
+                                        onClick={() => handleOpenAIDetails(doc)}
+                                        className="p-1 hover:text-[var(--app-accent)] hover:bg-[var(--app-row-hover)] rounded transition cursor-pointer"
+                                        title="View AI details & confidence"
+                                      >
+                                        <Scan size={13} />
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })
+                          ) : (
+                            <tr>
+                              <td colSpan={8} className="p-12 text-center text-[var(--app-muted)] font-medium">
+                                <div className="flex flex-col items-center justify-center gap-1.5">
+                                  <Info size={24} className="text-[var(--app-border)]" />
+                                  <span>No documents found matching the filters.</span>
                                   <button
-                                    onClick={() => handleOpenPreview(doc)}
-                                    className="p-1 hover:text-[var(--app-accent)] hover:bg-[var(--app-row-hover)] rounded transition cursor-pointer"
-                                    title="Preview file"
+                                    onClick={handleResetFilters}
+                                    className="text-[var(--app-accent)] hover:underline font-bold text-xs mt-2 cursor-pointer bg-transparent border-none"
                                   >
-                                    <Eye size={13} />
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      toast.info(`Moved document ${doc.id} to Accounting queue`);
-                                    }}
-                                    className="p-1 hover:text-[var(--app-accent)] hover:bg-[var(--app-row-hover)] rounded transition cursor-pointer"
-                                    title="Move document"
-                                  >
-                                    <FolderOpen size={13} />
-                                  </button>
-                                  <button
-                                    onClick={() => handleOpenRejectModal(doc)}
-                                    className="p-1 hover:text-red-650 hover:bg-[var(--app-row-hover)] rounded transition cursor-pointer"
-                                    title="Reject document"
-                                  >
-                                    <AlertCircle size={13} />
-                                  </button>
-                                  <button
-                                    onClick={() => handleDeleteDoc(doc.id)}
-                                    className="p-1 hover:text-red-650 hover:bg-[var(--app-row-hover)] rounded transition cursor-pointer"
-                                    title="Delete document"
-                                  >
-                                    <Trash2 size={13} />
-                                  </button>
-                                  {doc.status === 'Rejected' && (
-                                    <button
-                                      onClick={() => handleRetryProcessing(doc)}
-                                      className="p-1 hover:text-emerald-600 hover:bg-[var(--app-row-hover)] rounded transition cursor-pointer"
-                                      title="Retry AI OCR Processing"
-                                    >
-                                      <RefreshCw size={13} />
-                                    </button>
-                                  )}
-                                  <button
-                                    onClick={() => handleOpenAIDetails(doc)}
-                                    className="p-1 hover:text-[var(--app-accent)] hover:bg-[var(--app-row-hover)] rounded transition cursor-pointer"
-                                    title="View AI details & confidence"
-                                  >
-                                    <Scan size={13} />
+                                    Clear All Filters
                                   </button>
                                 </div>
                               </td>
                             </tr>
-                          );
-                        })
-                      ) : (
-                        <tr>
-                          <td colSpan={8} className="p-12 text-center text-[var(--app-muted)] font-medium">
-                            <div className="flex flex-col items-center justify-center gap-1.5">
-                              <Info size={24} className="text-[var(--app-border)]" />
-                              <span>No documents found matching the filters.</span>
-                              <button 
-                                onClick={handleResetFilters}
-                                className="text-[var(--app-accent)] hover:underline font-bold text-xs mt-2 cursor-pointer bg-transparent border-none"
-                              >
-                                Clear All Filters
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
 
-                {/* Table Footer / Pagination */}
-                <div className="px-4 py-3 bg-[var(--app-table-head-bg)]/50 border-t border-[var(--app-border)] flex flex-col sm:flex-row items-center justify-between gap-3 font-semibold text-[var(--app-muted)]">
-                  <div className="text-xs">
-                    Showing <span className="text-[var(--app-heading)] font-bold">{filteredDocs.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0}</span> to{' '}
-                    <span className="text-[var(--app-heading)] font-bold">{Math.min(currentPage * itemsPerPage, filteredDocs.length)}</span> of{' '}
-                    <span className="text-[var(--app-heading)] font-bold">{filteredDocs.length}</span> documents
-                  </div>
+                    {/* Table Footer / Pagination */}
+                    <div className="px-4 py-3 bg-[var(--app-table-head-bg)]/50 border-t border-[var(--app-border)] flex flex-col sm:flex-row items-center justify-between gap-3 font-semibold text-[var(--app-muted)]">
+                      <div className="text-xs">
+                        Showing <span className="text-[var(--app-heading)] font-bold">{filteredDocs.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0}</span> to{' '}
+                        <span className="text-[var(--app-heading)] font-bold">{Math.min(currentPage * itemsPerPage, filteredDocs.length)}</span> of{' '}
+                        <span className="text-[var(--app-heading)] font-bold">{filteredDocs.length}</span> documents
+                      </div>
 
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                      disabled={currentPage === 1}
-                      className="h-7 px-2 flex items-center justify-center rounded-lg border border-[var(--app-border)] bg-[var(--app-panel-bg)] text-[var(--app-text)] hover:bg-[var(--app-row-hover)] transition disabled:opacity-40 cursor-pointer"
-                    >
-                      <ChevronLeft size={14} />
-                      <span className="pr-1">Prev</span>
-                    </button>
-                    {Array.from({ length: totalPages }).map((_, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => setCurrentPage(idx + 1)}
-                        className={`h-7 w-7 text-xs rounded-lg font-bold border transition ${
-                          currentPage === idx + 1
-                            ? 'bg-[var(--app-accent)] border-[var(--app-accent)] text-[var(--app-on-accent)] shadow-2xs'
-                            : 'border-[var(--app-border)] bg-[var(--app-panel-bg)] text-[var(--app-text)] hover:bg-[var(--app-row-hover)]'
-                        }`}
-                      >
-                        {idx + 1}
-                      </button>
-                    ))}
-                    <button
-                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                      disabled={currentPage === totalPages}
-                      className="h-7 px-2 flex items-center justify-center rounded-lg border border-[var(--app-border)] bg-[var(--app-panel-bg)] text-[var(--app-text)] hover:bg-[var(--app-row-hover)] transition disabled:opacity-40 cursor-pointer"
-                    >
-                      <span className="pl-1">Next</span>
-                      <ChevronRight size={14} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* RIGHT COLUMN: AI UPLOAD INSIGHTS COLLAPSIBLE SIDE PANEL */}
-        <AnimatePresence>
-          {showInsightsPanel && activeTab !== 'Upload Documents' && (
-            <motion.div
-              initial={{ width: 0, opacity: 0 }}
-              animate={{ width: 260, opacity: 1 }}
-              exit={{ width: 0, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="border-l border-[var(--app-border)] bg-[var(--app-panel-bg)] flex flex-col shrink-0 overflow-y-auto"
-            >
-              <div className="p-2.5 border-b border-[var(--app-border)] flex justify-between items-center bg-[var(--app-table-head-bg)]/50">
-                <span className="font-bold text-[var(--app-heading)] text-xs tracking-tight flex items-center gap-1.5">
-                  <Scan size={14} className="text-[var(--app-accent)]" />
-                  <span>AI Upload Insights</span>
-                </span>
-                <button
-                  onClick={() => setShowInsightsPanel(false)}
-                  className="p-1 hover:bg-[var(--app-row-hover)] rounded text-[var(--app-muted)] hover:text-[var(--app-heading)] cursor-pointer bg-transparent border-none"
-                >
-                  <X size={15} />
-                </button>
-              </div>
-
-              <div className="p-3 flex flex-col gap-3">
-                {/* Stats Breakdown List */}
-                <div className="bg-[var(--app-content-bg)]/40 border border-[var(--app-border)]/60 rounded-lg p-2.5 flex flex-col gap-2">
-                  <div className="flex justify-between items-center text-[11px]">
-                    <span className="text-[var(--app-muted)] font-bold">Total Uploaded</span>
-                    <span className="font-extrabold text-[var(--app-heading)]">{stats.total}</span>
-                  </div>
-                  <div className="w-full bg-[var(--app-border)] h-1 rounded-full overflow-hidden">
-                    <div className="bg-[var(--app-accent)] h-full rounded-full" style={{ width: '100%' }}></div>
-                  </div>
-                  
-                  <div className="flex justify-between items-center text-[11px] mt-1">
-                    <span className="text-[var(--app-muted)] font-bold">Financial Docs</span>
-                    <span className="font-extrabold text-[var(--app-heading)]">
-                      {documents.filter(d => d.category === 'Financial').length}
-                    </span>
-                  </div>
-                  <div className="w-full bg-[var(--app-border)] h-1 rounded-full overflow-hidden">
-                    <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${(documents.filter(d => d.category === 'Financial').length / Math.max(1, stats.total)) * 100}%` }}></div>
-                  </div>
-
-                  <div className="flex justify-between items-center text-[11px] mt-1">
-                    <span className="text-[var(--app-muted)] font-bold">Non-Financial Docs</span>
-                    <span className="font-extrabold text-[var(--app-heading)]">
-                      {documents.filter(d => d.category === 'Non-Financial').length}
-                    </span>
-                  </div>
-                  <div className="w-full bg-[var(--app-border)] h-1 rounded-full overflow-hidden">
-                    <div className="bg-slate-400 h-full rounded-full" style={{ width: `${(documents.filter(d => d.category === 'Non-Financial').length / Math.max(1, stats.total)) * 100}%` }}></div>
-                  </div>
-
-                  <div className="flex justify-between items-center text-[11px] mt-1">
-                    <span className="text-[var(--app-muted)] font-bold">Duplicate Docs</span>
-                    <span className="font-extrabold text-[var(--app-heading)]">{stats.duplicates}</span>
-                  </div>
-                  <div className="w-full bg-[var(--app-border)] h-1 rounded-full overflow-hidden">
-                    <div className="bg-rose-500 h-full rounded-full" style={{ width: `${(stats.duplicates / Math.max(1, stats.total)) * 100}%` }}></div>
-                  </div>
-
-                  <div className="flex justify-between items-center text-[11px] mt-1">
-                    <span className="text-[var(--app-muted)] font-bold">Rejected Docs</span>
-                    <span className="font-extrabold text-[var(--app-heading)]">{stats.rejected}</span>
-                  </div>
-                  <div className="w-full bg-[var(--app-border)] h-1 rounded-full overflow-hidden">
-                    <div className="bg-red-650 h-full rounded-full" style={{ width: `${(stats.rejected / Math.max(1, stats.total)) * 100}%` }}></div>
-                  </div>
-
-                  <div className="flex justify-between items-center text-[11px] mt-1">
-                    <span className="text-[var(--app-muted)] font-bold">Missing Fields</span>
-                    <span className="font-extrabold text-amber-600">{stats.missing}</span>
-                  </div>
-                  <div className="w-full bg-[var(--app-border)] h-1 rounded-full overflow-hidden">
-                    <div className="bg-amber-500 h-full rounded-full" style={{ width: `${(stats.missing / Math.max(1, stats.total)) * 100}%` }}></div>
-                  </div>
-                </div>
-
-                {/* AI Performance Gauge */}
-                <div className="border border-[var(--app-border)]/60 rounded-lg p-2.5 flex flex-col items-center justify-center text-center bg-[var(--app-panel-bg)]">
-                  <span className="text-[9.5px] font-bold text-[var(--app-muted)] uppercase tracking-wider block mb-1.5">
-                    Average OCR Accuracy
-                  </span>
-                  
-                  {/* Gauge Ring Shape */}
-                  <div className="relative w-20 h-20 flex items-center justify-center">
-                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-                      <path
-                        className="text-[var(--app-border)]/50"
-                        strokeWidth="3"
-                        stroke="currentColor"
-                        fill="none"
-                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                      />
-                      <path
-                        className="text-[var(--app-accent)]"
-                        strokeWidth="3.2"
-                        strokeDasharray="98, 100"
-                        strokeLinecap="round"
-                        stroke="currentColor"
-                        fill="none"
-                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                      />
-                    </svg>
-                    <div className="absolute flex flex-col items-center justify-center">
-                      <span className="text-sm font-extrabold text-[var(--app-heading)] leading-none">98%</span>
-                      <span className="text-[7.5px] text-[var(--app-muted)] mt-0.5 uppercase tracking-wide">Confidence</span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                          disabled={currentPage === 1}
+                          className="h-7 px-2 flex items-center justify-center rounded-lg border border-[var(--app-border)] bg-[var(--app-panel-bg)] text-[var(--app-text)] hover:bg-[var(--app-row-hover)] transition disabled:opacity-40 cursor-pointer"
+                        >
+                          <ChevronLeft size={14} />
+                          <span className="pr-1">Prev</span>
+                        </button>
+                        {Array.from({ length: totalPages }).map((_, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => setCurrentPage(idx + 1)}
+                            className={`h-7 w-7 text-xs rounded-lg font-bold border transition ${currentPage === idx + 1
+                                ? 'bg-[var(--app-accent)] border-[var(--app-accent)] text-[var(--app-on-accent)] shadow-2xs'
+                                : 'border-[var(--app-border)] bg-[var(--app-panel-bg)] text-[var(--app-text)] hover:bg-[var(--app-row-hover)]'
+                              }`}
+                          >
+                            {idx + 1}
+                          </button>
+                        ))}
+                        <button
+                          onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                          disabled={currentPage === totalPages}
+                          className="h-7 px-2 flex items-center justify-center rounded-lg border border-[var(--app-border)] bg-[var(--app-panel-bg)] text-[var(--app-text)] hover:bg-[var(--app-row-hover)] transition disabled:opacity-40 cursor-pointer"
+                        >
+                          <span className="pl-1">Next</span>
+                          <ChevronRight size={14} />
+                        </button>
+                      </div>
                     </div>
                   </div>
-
-                  <p className="text-[9.5px] text-[var(--app-muted)] leading-normal mt-2 px-1">
-                    AI models are learning continuously. Data validation triggers for records under 90% confidence index.
-                  </p>
                 </div>
+              )}
+            </div>
 
-                {/* Processing Queue List */}
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-[11px] font-bold text-[var(--app-heading)] tracking-tight">Active Queue</span>
-                  <div className="flex flex-col gap-1.5 max-h-[190px] overflow-y-auto pr-1">
-                    {documents.filter(d => d.status === 'Processing').length > 0 ? (
-                      documents
-                        .filter(d => d.status === 'Processing')
-                        .map(item => (
-                          <div key={item.id} className="p-1.5 border border-[var(--app-border)]/60 rounded-md flex items-center justify-between gap-2 bg-[var(--app-content-bg)]/20">
-                            <div className="flex items-center gap-1.5 min-w-0">
-                              {getDocIcon(item.name)}
-                              <div className="flex flex-col min-w-0">
-                                <span className="text-[10.5px] font-bold text-[var(--app-text)] truncate max-w-[130px] block">
-                                  {item.name}
-                                </span>
-                                <span className="text-[9px] text-[var(--app-muted)] font-mono leading-none mt-0.5">
-                                  {item.id}
-                                </span>
+            {/* RIGHT COLUMN: AI UPLOAD INSIGHTS COLLAPSIBLE SIDE PANEL */}
+            <AnimatePresence>
+              {showInsightsPanel && activeTab !== 'Upload Documents' && (
+                <motion.div
+                  initial={{ width: 0, opacity: 0 }}
+                  animate={{ width: 260, opacity: 1 }}
+                  exit={{ width: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="border-l border-[var(--app-border)] bg-[var(--app-panel-bg)] flex flex-col shrink-0 overflow-y-auto"
+                >
+                  <div className="p-2.5 border-b border-[var(--app-border)] flex justify-between items-center bg-[var(--app-table-head-bg)]/50">
+                    <span className="font-bold text-[var(--app-heading)] text-xs tracking-tight flex items-center gap-1.5">
+                      <Scan size={14} className="text-[var(--app-accent)]" />
+                      <span>AI Upload Insights</span>
+                    </span>
+                    <button
+                      onClick={() => setShowInsightsPanel(false)}
+                      className="p-1 hover:bg-[var(--app-row-hover)] rounded text-[var(--app-muted)] hover:text-[var(--app-heading)] cursor-pointer bg-transparent border-none"
+                    >
+                      <X size={15} />
+                    </button>
+                  </div>
+
+                  <div className="p-3 flex flex-col gap-3">
+                    {/* Stats Breakdown List */}
+                    <div className="bg-[var(--app-content-bg)]/40 border border-[var(--app-border)]/60 rounded-lg p-2.5 flex flex-col gap-2">
+                      <div className="flex justify-between items-center text-[11px]">
+                        <span className="text-[var(--app-muted)] font-bold">Total Uploaded</span>
+                        <span className="font-extrabold text-[var(--app-heading)]">{stats.total}</span>
+                      </div>
+                      <div className="w-full bg-[var(--app-border)] h-1 rounded-full overflow-hidden">
+                        <div className="bg-[var(--app-accent)] h-full rounded-full" style={{ width: '100%' }}></div>
+                      </div>
+
+                      <div className="flex justify-between items-center text-[11px] mt-1">
+                        <span className="text-[var(--app-muted)] font-bold">Financial Docs</span>
+                        <span className="font-extrabold text-[var(--app-heading)]">
+                          {documents.filter(d => d.category === 'Financial').length}
+                        </span>
+                      </div>
+                      <div className="w-full bg-[var(--app-border)] h-1 rounded-full overflow-hidden">
+                        <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${(documents.filter(d => d.category === 'Financial').length / Math.max(1, stats.total)) * 100}%` }}></div>
+                      </div>
+
+                      <div className="flex justify-between items-center text-[11px] mt-1">
+                        <span className="text-[var(--app-muted)] font-bold">Non-Financial Docs</span>
+                        <span className="font-extrabold text-[var(--app-heading)]">
+                          {documents.filter(d => d.category === 'Non-Financial').length}
+                        </span>
+                      </div>
+                      <div className="w-full bg-[var(--app-border)] h-1 rounded-full overflow-hidden">
+                        <div className="bg-slate-400 h-full rounded-full" style={{ width: `${(documents.filter(d => d.category === 'Non-Financial').length / Math.max(1, stats.total)) * 100}%` }}></div>
+                      </div>
+
+                      <div className="flex justify-between items-center text-[11px] mt-1">
+                        <span className="text-[var(--app-muted)] font-bold">Duplicate Docs</span>
+                        <span className="font-extrabold text-[var(--app-heading)]">{stats.duplicates}</span>
+                      </div>
+                      <div className="w-full bg-[var(--app-border)] h-1 rounded-full overflow-hidden">
+                        <div className="bg-rose-500 h-full rounded-full" style={{ width: `${(stats.duplicates / Math.max(1, stats.total)) * 100}%` }}></div>
+                      </div>
+
+                      <div className="flex justify-between items-center text-[11px] mt-1">
+                        <span className="text-[var(--app-muted)] font-bold">Rejected Docs</span>
+                        <span className="font-extrabold text-[var(--app-heading)]">{stats.rejected}</span>
+                      </div>
+                      <div className="w-full bg-[var(--app-border)] h-1 rounded-full overflow-hidden">
+                        <div className="bg-red-650 h-full rounded-full" style={{ width: `${(stats.rejected / Math.max(1, stats.total)) * 100}%` }}></div>
+                      </div>
+
+                      <div className="flex justify-between items-center text-[11px] mt-1">
+                        <span className="text-[var(--app-muted)] font-bold">Missing Fields</span>
+                        <span className="font-extrabold text-amber-600">{stats.missing}</span>
+                      </div>
+                      <div className="w-full bg-[var(--app-border)] h-1 rounded-full overflow-hidden">
+                        <div className="bg-amber-500 h-full rounded-full" style={{ width: `${(stats.missing / Math.max(1, stats.total)) * 100}%` }}></div>
+                      </div>
+                    </div>
+
+                    {/* AI Performance Gauge */}
+                    <div className="border border-[var(--app-border)]/60 rounded-lg p-2.5 flex flex-col items-center justify-center text-center bg-[var(--app-panel-bg)]">
+                      <span className="text-[9.5px] font-bold text-[var(--app-muted)] uppercase tracking-wider block mb-1.5">
+                        Average OCR Accuracy
+                      </span>
+
+                      {/* Gauge Ring Shape */}
+                      <div className="relative w-20 h-20 flex items-center justify-center">
+                        <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                          <path
+                            className="text-[var(--app-border)]/50"
+                            strokeWidth="3"
+                            stroke="currentColor"
+                            fill="none"
+                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                          />
+                          <path
+                            className="text-[var(--app-accent)]"
+                            strokeWidth="3.2"
+                            strokeDasharray="98, 100"
+                            strokeLinecap="round"
+                            stroke="currentColor"
+                            fill="none"
+                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                          />
+                        </svg>
+                        <div className="absolute flex flex-col items-center justify-center">
+                          <span className="text-sm font-extrabold text-[var(--app-heading)] leading-none">98%</span>
+                          <span className="text-[7.5px] text-[var(--app-muted)] mt-0.5 uppercase tracking-wide">Confidence</span>
+                        </div>
+                      </div>
+
+                      <p className="text-[9.5px] text-[var(--app-muted)] leading-normal mt-2 px-1">
+                        AI models are learning continuously. Data validation triggers for records under 90% confidence index.
+                      </p>
+                    </div>
+
+                    {/* Processing Queue List */}
+                    <div className="flex flex-col gap-1.5">
+                      <span className="text-[11px] font-bold text-[var(--app-heading)] tracking-tight">Active Queue</span>
+                      <div className="flex flex-col gap-1.5 max-h-[190px] overflow-y-auto pr-1">
+                        {documents.filter(d => d.status === 'Processing').length > 0 ? (
+                          documents
+                            .filter(d => d.status === 'Processing')
+                            .map(item => (
+                              <div key={item.id} className="p-1.5 border border-[var(--app-border)]/60 rounded-md flex items-center justify-between gap-2 bg-[var(--app-content-bg)]/20">
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  {getDocIcon(item.name)}
+                                  <div className="flex flex-col min-w-0">
+                                    <span className="text-[10.5px] font-bold text-[var(--app-text)] truncate max-w-[130px] block">
+                                      {item.name}
+                                    </span>
+                                    <span className="text-[9px] text-[var(--app-muted)] font-mono leading-none mt-0.5">
+                                      {item.id}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <RefreshCw size={11} className="text-amber-500 animate-spin" />
+                                  <span className="text-[9px] font-bold font-mono text-[var(--app-muted)]">{item.progress || 0}%</span>
+                                </div>
                               </div>
-                            </div>
-                            <div className="flex items-center gap-1 shrink-0">
-                              <RefreshCw size={11} className="text-amber-500 animate-spin" />
-                              <span className="text-[9px] font-bold font-mono text-[var(--app-muted)]">{item.progress || 0}%</span>
-                            </div>
+                            ))
+                        ) : (
+                          <div className="py-6 text-center border border-dashed border-[var(--app-border)] rounded-xl text-[var(--app-muted)] text-[10.5px]">
+                            No active files in OCR processing queue.
                           </div>
-                        ))
-                    ) : (
-                      <div className="py-6 text-center border border-dashed border-[var(--app-border)] rounded-xl text-[var(--app-muted)] text-[10.5px]">
-                        No active files in OCR processing queue.
+                        )}
+                      </div>
+                    </div>
+
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* --- POPUP 1: REJECT MODAL DIALOG --- */}
+          <AnimatePresence>
+            {showRejectModal && docToReject && (
+              <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+                <motion.div
+                  initial={{ scale: 0.95, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.95, opacity: 0 }}
+                  className="bg-[var(--app-panel-bg)] rounded-xl border border-[var(--app-border)] shadow-xl max-w-md w-full overflow-hidden flex flex-col text-[var(--app-text)]"
+                >
+                  <div className="px-5 py-4 border-b border-[var(--app-border)] flex justify-between items-center">
+                    <h3 className="text-sm font-bold text-[var(--app-heading)] flex items-center gap-2">
+                      <AlertCircle className="text-red-500" size={16} />
+                      <span>Reject Document</span>
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowRejectModal(false);
+                        setDocToReject(null);
+                      }}
+                      className="text-[var(--app-muted)] hover:text-[var(--app-heading)] cursor-pointer bg-transparent border-none"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+
+                  <div className="p-5 flex flex-col gap-4">
+                    <p className="text-[var(--app-text)]/90 text-xs leading-normal">
+                      Are you sure you want to reject the document <b className="text-[var(--app-heading)]">{docToReject.name}</b>? Please select a reason below to update the AI audit log.
+                    </p>
+
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-bold text-[var(--app-muted)] uppercase tracking-wide">
+                        Rejection Reason
+                      </label>
+                      <div className="relative">
+                        <select
+                          value={rejectReason}
+                          onChange={(e) => setRejectReason(e.target.value)}
+                          className="w-full h-9 pl-3 pr-8 bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-lg text-xs font-semibold text-[var(--app-text)] outline-none cursor-pointer appearance-none"
+                        >
+                          <option value="Wrong Company">Wrong Company</option>
+                          <option value="Duplicate Document">Duplicate Document</option>
+                          <option value="Non Financial">Non Financial</option>
+                          <option value="Corrupted File">Corrupted File</option>
+                          <option value="Spam">Spam</option>
+                          <option value="Incomplete">Incomplete</option>
+                          <option value="Other">Other</option>
+                        </select>
+                        <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--app-muted)] pointer-events-none" />
+                      </div>
+                    </div>
+
+                    {rejectReason === 'Other' && (
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[10px] font-bold text-[var(--app-muted)] uppercase tracking-wide">
+                          Specify Other Reason
+                        </label>
+                        <input
+                          type="text"
+                          value={rejectOtherReason}
+                          onChange={(e) => setRejectOtherReason(e.target.value)}
+                          placeholder="Type reason here..."
+                          className="w-full h-9 px-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-panel-bg)] text-xs font-medium text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)]"
+                        />
                       </div>
                     )}
                   </div>
-                </div>
 
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* --- POPUP 1: REJECT MODAL DIALOG --- */}
-      <AnimatePresence>
-        {showRejectModal && docToReject && (
-          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-[var(--app-panel-bg)] rounded-xl border border-[var(--app-border)] shadow-xl max-w-md w-full overflow-hidden flex flex-col text-[var(--app-text)]"
-            >
-              <div className="px-5 py-4 border-b border-[var(--app-border)] flex justify-between items-center">
-                <h3 className="text-sm font-bold text-[var(--app-heading)] flex items-center gap-2">
-                  <AlertCircle className="text-red-500" size={16} />
-                  <span>Reject Document</span>
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowRejectModal(false);
-                    setDocToReject(null);
-                  }}
-                  className="text-[var(--app-muted)] hover:text-[var(--app-heading)] cursor-pointer bg-transparent border-none"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-
-              <div className="p-5 flex flex-col gap-4">
-                <p className="text-[var(--app-text)]/90 text-xs leading-normal">
-                  Are you sure you want to reject the document <b className="text-[var(--app-heading)]">{docToReject.name}</b>? Please select a reason below to update the AI audit log.
-                </p>
-
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-[var(--app-muted)] uppercase tracking-wide">
-                    Rejection Reason
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={rejectReason}
-                      onChange={(e) => setRejectReason(e.target.value)}
-                      className="w-full h-9 pl-3 pr-8 bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-lg text-xs font-semibold text-[var(--app-text)] outline-none cursor-pointer appearance-none"
-                    >
-                      <option value="Wrong Company">Wrong Company</option>
-                      <option value="Duplicate Document">Duplicate Document</option>
-                      <option value="Non Financial">Non Financial</option>
-                      <option value="Corrupted File">Corrupted File</option>
-                      <option value="Spam">Spam</option>
-                      <option value="Incomplete">Incomplete</option>
-                      <option value="Other">Other</option>
-                    </select>
-                    <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--app-muted)] pointer-events-none" />
-                  </div>
-                </div>
-
-                {rejectReason === 'Other' && (
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[10px] font-bold text-[var(--app-muted)] uppercase tracking-wide">
-                      Specify Other Reason
-                    </label>
-                    <input
-                      type="text"
-                      value={rejectOtherReason}
-                      onChange={(e) => setRejectOtherReason(e.target.value)}
-                      placeholder="Type reason here..."
-                      className="w-full h-9 px-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-panel-bg)] text-xs font-medium text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)]"
-                    />
-                  </div>
-                )}
-              </div>
-
-              <div className="px-5 py-3.5 bg-[var(--app-table-head-bg)]/50 border-t border-[var(--app-border)] flex justify-end gap-2 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowRejectModal(false);
-                    setDocToReject(null);
-                  }}
-                  className="px-4 py-2 border border-[var(--app-border)] text-[var(--app-text)] bg-[var(--app-panel-bg)] hover:bg-[var(--app-row-hover)] rounded-lg font-bold text-xs cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleConfirmReject}
-                  className="px-4 py-2 bg-red-650 hover:bg-red-700 text-white rounded-lg font-bold text-xs cursor-pointer shadow-sm"
-                >
-                  Reject
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* --- POPUP 2: MISSING INFORMATION FORM MODAL --- */}
-      <AnimatePresence>
-        {showMissingInfoModal && docToEdit && (
-          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-[var(--app-panel-bg)] rounded-xl border border-[var(--app-border)] shadow-xl max-w-lg w-full overflow-hidden flex flex-col text-[var(--app-text)]"
-            >
-              <form onSubmit={handleSaveMissingInfo} className="flex flex-col h-full">
-                
-                <div className="px-5 py-4 border-b border-[var(--app-border)] flex justify-between items-center">
-                  <h3 className="text-sm font-bold text-[var(--app-heading)] flex items-center gap-2">
-                    <AlertTriangle className="text-amber-500" size={16} />
-                    <span>Complete Missing Details Form</span>
-                  </h3>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowMissingInfoModal(false);
-                      setDocToEdit(null);
-                    }}
-                    className="text-[var(--app-muted)] hover:text-[var(--app-heading)] cursor-pointer bg-transparent border-none"
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
-
-                <div className="p-5 flex flex-col gap-4 max-h-[420px] overflow-y-auto">
-                  <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-600 text-[11px] leading-relaxed flex items-start gap-2">
-                    <Info size={14} className="text-amber-500 mt-0.5 shrink-0" />
-                    <span>
-                      Some details couldn't be extracted securely from the document <b className="text-[var(--app-heading)]">{docToEdit.name}</b>. Please input them manually below to complete AI classification.
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    
-                    <div className="col-span-2 flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-[var(--app-muted)] uppercase tracking-wide">
-                        Vendor / Party Name
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={missingFormData.vendorName}
-                        onChange={(e) => setMissingFormData({ ...missingFormData, vendorName: e.target.value })}
-                        placeholder="e.g. Amazon Supplies India"
-                        className="h-8.5 px-3 rounded-lg border border-[var(--app-border)] text-xs font-semibold text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)] bg-[var(--app-panel-bg)]"
-                      />
-                    </div>
-
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-[var(--app-muted)] uppercase tracking-wide">
-                        Invoice Number
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={missingFormData.invoiceNumber}
-                        onChange={(e) => setMissingFormData({ ...missingFormData, invoiceNumber: e.target.value })}
-                        placeholder="e.g. INV-2026-90"
-                        className="h-8.5 px-3 rounded-lg border border-[var(--app-border)] text-xs font-semibold text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)] bg-[var(--app-panel-bg)]"
-                      />
-                    </div>
-
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-[var(--app-muted)] uppercase tracking-wide">
-                        Invoice Date
-                      </label>
-                      <input
-                        type="date"
-                        required
-                        value={missingFormData.invoiceDate}
-                        onChange={(e) => setMissingFormData({ ...missingFormData, invoiceDate: e.target.value })}
-                        className="h-8.5 px-3 rounded-lg border border-[var(--app-border)] text-xs font-semibold text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)] bg-[var(--app-panel-bg)]"
-                      />
-                    </div>
-
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-[var(--app-muted)] uppercase tracking-wide">
-                        GSTIN
-                      </label>
-                      <input
-                        type="text"
-                        value={missingFormData.gstin}
-                        onChange={(e) => setMissingFormData({ ...missingFormData, gstin: e.target.value })}
-                        placeholder="e.g. 27AAAAA1111A1Z5"
-                        className="h-8.5 px-3 rounded-lg border border-[var(--app-border)] text-xs font-semibold text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)] bg-[var(--app-panel-bg)]"
-                      />
-                    </div>
-
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-[var(--app-muted)] uppercase tracking-wide">
-                        Taxable Value (₹)
-                      </label>
-                      <input
-                        type="number"
-                        required
-                        value={missingFormData.taxableValue}
-                        onChange={(e) => {
-                          const val = parseFloat(e.target.value) || 0;
-                          const tax = Math.round(val * 0.18 * 100) / 100;
-                          setMissingFormData({
-                            ...missingFormData,
-                            taxableValue: val,
-                            taxAmount: tax,
-                            totalAmount: val + tax
-                          });
-                        }}
-                        placeholder="0.00"
-                        className="h-8.5 px-3 rounded-lg border border-[var(--app-border)] text-xs font-semibold text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)] bg-[var(--app-panel-bg)]"
-                      />
-                    </div>
-
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-[var(--app-muted)] uppercase tracking-wide">
-                        GST Tax Amount (₹)
-                      </label>
-                      <input
-                        type="number"
-                        value={missingFormData.taxAmount}
-                        onChange={(e) => {
-                          const val = parseFloat(e.target.value) || 0;
-                          setMissingFormData({
-                            ...missingFormData,
-                            taxAmount: val,
-                            totalAmount: missingFormData.taxableValue + val
-                          });
-                        }}
-                        placeholder="0.00"
-                        className="h-8.5 px-3 rounded-lg border border-[var(--app-border)] text-xs font-semibold text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)] bg-[var(--app-panel-bg)]"
-                      />
-                    </div>
-
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-[var(--app-muted)] uppercase tracking-wide">
-                        Total Invoice Value (₹)
-                      </label>
-                      <input
-                        type="number"
-                        required
-                        value={missingFormData.totalAmount}
-                        onChange={(e) => setMissingFormData({ ...missingFormData, totalAmount: parseFloat(e.target.value) || 0 })}
-                        placeholder="0.00"
-                        className="h-8.5 px-3 rounded-lg border border-[var(--app-border)] text-xs font-semibold text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)] bg-[var(--app-panel-bg)]"
-                      />
-                    </div>
-
-                  </div>
-                </div>
-
-                <div className="px-5 py-3.5 bg-[var(--app-table-head-bg)]/50 border-t border-[var(--app-border)] flex justify-end gap-2 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowMissingInfoModal(false);
-                      setDocToEdit(null);
-                    }}
-                    className="px-4 py-2 border border-[var(--app-border)] text-[var(--app-text)] bg-[var(--app-panel-bg)] hover:bg-[var(--app-row-hover)] rounded-lg font-bold text-xs cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 bg-[var(--app-accent)] hover:opacity-90 text-[var(--app-on-accent)] rounded-lg font-bold text-xs cursor-pointer shadow-sm"
-                  >
-                    Save Details
-                  </button>
-                </div>
-
-              </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* --- POPUP 3: VIEW AI DETAILS SIDE SHEET --- */}
-      <AnimatePresence>
-        {showAIDetailsModal && selectedDoc && (
-          <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-xs flex justify-end z-50">
-            {/* Backdrop close area */}
-            <div className="flex-1" onClick={() => { setShowAIDetailsModal(false); setSelectedDoc(null); }}></div>
-            
-            <motion.div
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ type: 'tween', duration: 0.2 }}
-              className="w-full max-w-md bg-[var(--app-panel-bg)] border-l border-[var(--app-border)] h-full flex flex-col shadow-2xl overflow-hidden text-[var(--app-text)]"
-            >
-              <div className="px-5 py-4 border-b border-[var(--app-border)] flex justify-between items-center bg-[var(--app-table-head-bg)]/50">
-                <div className="flex items-center gap-2">
-                  <Scan size={16} className="text-[var(--app-accent)]" />
-                  <span className="font-extrabold text-[var(--app-heading)] text-xs uppercase tracking-wider">
-                    AI Auto-Categorization Log
-                  </span>
-                </div>
-                <button
-                  onClick={() => { setShowAIDetailsModal(false); setSelectedDoc(null); }}
-                  className="p-1 hover:bg-[var(--app-row-hover)] rounded text-[var(--app-muted)] hover:text-[var(--app-heading)] cursor-pointer bg-transparent border-none"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-5">
-                
-                {/* Confidence Meter */}
-                <div className="bg-[var(--app-content-bg)]/40 border border-[var(--app-border)] p-4 rounded-xl flex items-center justify-between">
-                  <div className="flex flex-col">
-                    <span className="text-[10px] font-bold text-[var(--app-muted)] uppercase tracking-wider">
-                      OCR Confidence Score
-                    </span>
-                    <span className="text-2xl font-black text-[var(--app-heading)] mt-0.5">
-                      {selectedDoc.confidence}%
-                    </span>
-                  </div>
-                  
-                  {/* Color progress ring */}
-                  <div className="w-12 h-12 relative flex items-center justify-center">
-                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-                      <path className="text-[var(--app-border)]/50" strokeWidth="2.5" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                      <path className="text-[var(--app-accent)]" strokeWidth="3" strokeDasharray={`${selectedDoc.confidence}, 100`} strokeLinecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                    </svg>
-                  </div>
-                </div>
-
-                {/* AI Tags */}
-                <div className="flex flex-col gap-2">
-                  <span className="text-[10px] font-bold text-[var(--app-muted)] uppercase tracking-wider">
-                    AI Auto-Detected Tags
-                  </span>
-                  
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="bg-[var(--app-content-bg)]/40 border border-[var(--app-border)] rounded-lg p-2.5">
-                      <span className="text-[9px] text-[var(--app-muted)] font-bold uppercase">Source</span>
-                      <div className="mt-1 font-bold text-[var(--app-heading)] text-xs">
-                        {selectedDoc.source}
-                      </div>
-                    </div>
-                    
-                    <div className="bg-[var(--app-content-bg)]/40 border border-[var(--app-border)] rounded-lg p-2.5">
-                      <span className="text-[9px] text-[var(--app-muted)] font-bold uppercase">Category</span>
-                      <div className="mt-1 font-bold text-[var(--app-heading)] text-xs">
-                        {selectedDoc.category}
-                      </div>
-                    </div>
-
-                    <div className="bg-[var(--app-content-bg)]/40 border border-[var(--app-border)] rounded-lg p-2.5 col-span-2">
-                      <span className="text-[9px] text-[var(--app-muted)] font-bold uppercase">Document Type</span>
-                      <div className="mt-1 font-bold text-[var(--app-accent)] text-xs flex items-center gap-1.5">
-                        {selectedDoc.type}
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Structured JSON Extracted Fields */}
-                <div className="flex flex-col gap-2">
-                  <span className="text-[10px] font-bold text-[var(--app-muted)] uppercase tracking-wider">
-                    Extracted OCR Schema
-                  </span>
-                  
-                  <div className="border border-[var(--app-border)] rounded-xl overflow-hidden divide-y divide-[var(--app-row-border)] text-xs font-semibold">
-                    <div className="px-4 py-2.5 flex justify-between bg-[var(--app-table-head-bg)]/50">
-                      <span className="text-[var(--app-muted)] font-bold">Vendor Name</span>
-                      <span className="text-[var(--app-heading)] font-bold text-right">{selectedDoc.extractedData?.vendorName || '--'}</span>
-                    </div>
-                    <div className="px-4 py-2.5 flex justify-between bg-[var(--app-panel-bg)]">
-                      <span className="text-[var(--app-muted)] font-bold">Invoice Number</span>
-                      <span className="text-[var(--app-heading)] font-mono text-right">{selectedDoc.extractedData?.invoiceNumber || '--'}</span>
-                    </div>
-                    <div className="px-4 py-2.5 flex justify-between bg-[var(--app-table-head-bg)]/50">
-                      <span className="text-[var(--app-muted)] font-bold">Invoice Date</span>
-                      <span className="text-[var(--app-heading)] font-mono text-right">{selectedDoc.extractedData?.invoiceDate || '--'}</span>
-                    </div>
-                    <div className="px-4 py-2.5 flex justify-between bg-[var(--app-panel-bg)]">
-                      <span className="text-[var(--app-muted)] font-bold">GSTIN</span>
-                      <span className="text-[var(--app-heading)] font-mono text-right">{selectedDoc.extractedData?.gstin || '--'}</span>
-                    </div>
-                    <div className="px-4 py-2.5 flex justify-between bg-[var(--app-table-head-bg)]/50">
-                      <span className="text-[var(--app-muted)] font-bold">Taxable Value</span>
-                      <span className="text-[var(--app-heading)] font-extrabold text-right">
-                        ₹ {selectedDoc.extractedData?.taxableValue?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </span>
-                    </div>
-                    <div className="px-4 py-2.5 flex justify-between bg-[var(--app-panel-bg)]">
-                      <span className="text-[var(--app-muted)] font-bold">GST Tax (18%)</span>
-                      <span className="text-[var(--app-heading)] font-extrabold text-right">
-                        ₹ {selectedDoc.extractedData?.taxAmount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </span>
-                    </div>
-                    <div className="px-4 py-2.5 flex justify-between bg-[var(--app-table-head-bg)]/50">
-                      <span className="text-[var(--app-muted)] font-bold">Total Invoice Value</span>
-                      <span className="text-[var(--app-accent)] font-black text-right text-sm">
-                        ₹ {selectedDoc.extractedData?.totalAmount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Audit history logs */}
-                <div className="flex flex-col gap-2">
-                  <span className="text-[10px] font-bold text-[var(--app-muted)] uppercase tracking-wider">
-                    AI Auto Audit Steps
-                  </span>
-                  
-                  <div className="flex flex-col gap-3.5 pl-3 border-l-2 border-[var(--app-border)]">
-                    <div className="relative">
-                      <div className="absolute -left-[17px] top-1.5 w-2 h-2 rounded-full bg-emerald-500 border border-[var(--app-panel-bg)]"></div>
-                      <span className="text-[10.5px] font-bold text-[var(--app-heading)]">1. Raw OCR Ingestion</span>
-                      <p className="text-[9.5px] text-[var(--app-muted)] leading-none mt-0.5">Completed successfully at {selectedDoc.uploadedOn}</p>
-                    </div>
-                    
-                    <div className="relative">
-                      <div className="absolute -left-[17px] top-1.5 w-2 h-2 rounded-full bg-emerald-500 border border-[var(--app-panel-bg)]"></div>
-                      <span className="text-[10.5px] font-bold text-[var(--app-heading)]">2. Layout Parsing & Classification</span>
-                      <p className="text-[9.5px] text-[var(--app-muted)] leading-none mt-0.5">Identified schema fields with {selectedDoc.confidence}% confidence index</p>
-                    </div>
-
-                    <div className="relative">
-                      <div className={`absolute -left-[17px] top-1.5 w-2 h-2 rounded-full border border-[var(--app-panel-bg)] ${
-                        selectedDoc.status === 'Missing Information' ? 'bg-amber-500' : 'bg-emerald-500'
-                      }`}></div>
-                      <span className="text-[10.5px] font-bold text-[var(--app-heading)]">3. Schema Field Integrity Verification</span>
-                      <p className="text-[9.5px] text-[var(--app-muted)] leading-none mt-0.5">
-                        {selectedDoc.status === 'Missing Information' 
-                          ? 'Failed: Missing required invoice layout fields' 
-                          : 'Success: Extracted fields matching validation standards'
-                        }
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-
-              <div className="px-5 py-4 bg-[var(--app-table-head-bg)]/50 border-t border-[var(--app-border)] flex items-center justify-between shrink-0">
-                <span className="text-[10px] font-bold text-[var(--app-muted)]">
-                  ID: {selectedDoc.id}
-                </span>
-
-                <div className="flex gap-2">
-                  <button
+                  <div className="px-5 py-3.5 bg-[var(--app-table-head-bg)]/50 border-t border-[var(--app-border)] flex justify-end gap-2 shrink-0">
+                    <button
+                      type="button"
                       onClick={() => {
-                        setShowAIDetailsModal(false);
-                        setSelectedDoc(null);
+                        setShowRejectModal(false);
+                        setDocToReject(null);
                       }}
                       className="px-4 py-2 border border-[var(--app-border)] text-[var(--app-text)] bg-[var(--app-panel-bg)] hover:bg-[var(--app-row-hover)] rounded-lg font-bold text-xs cursor-pointer"
                     >
-                      Close Log
+                      Cancel
                     </button>
-                    {selectedDoc.status !== 'Validated' && (
+                    <button
+                      type="button"
+                      onClick={handleConfirmReject}
+                      className="px-4 py-2 bg-red-650 hover:bg-red-700 text-white rounded-lg font-bold text-xs cursor-pointer shadow-sm"
+                    >
+                      Reject
+                    </button>
+                  </div>
+                </motion.div>
+              </div>
+            )}
+          </AnimatePresence>
+
+          {/* --- POPUP 2: MISSING INFORMATION FORM MODAL --- */}
+          <AnimatePresence>
+            {showMissingInfoModal && docToEdit && (
+              <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+                <motion.div
+                  initial={{ scale: 0.95, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.95, opacity: 0 }}
+                  className="bg-[var(--app-panel-bg)] rounded-xl border border-[var(--app-border)] shadow-xl max-w-lg w-full overflow-hidden flex flex-col text-[var(--app-text)]"
+                >
+                  <form onSubmit={handleSaveMissingInfo} className="flex flex-col h-full">
+
+                    <div className="px-5 py-4 border-b border-[var(--app-border)] flex justify-between items-center">
+                      <h3 className="text-sm font-bold text-[var(--app-heading)] flex items-center gap-2">
+                        <AlertTriangle className="text-amber-500" size={16} />
+                        <span>Complete Missing Details Form</span>
+                      </h3>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowMissingInfoModal(false);
+                          setDocToEdit(null);
+                        }}
+                        className="text-[var(--app-muted)] hover:text-[var(--app-heading)] cursor-pointer bg-transparent border-none"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+
+                    <div className="p-5 flex flex-col gap-4 max-h-[420px] overflow-y-auto">
+                      <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-600 text-[11px] leading-relaxed flex items-start gap-2">
+                        <Info size={14} className="text-amber-500 mt-0.5 shrink-0" />
+                        <span>
+                          Some details couldn't be extracted securely from the document <b className="text-[var(--app-heading)]">{docToEdit.name}</b>. Please input them manually below to complete AI classification.
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+
+                        <div className="col-span-2 flex flex-col gap-1">
+                          <label className="text-[10px] font-bold text-[var(--app-muted)] uppercase tracking-wide">
+                            Vendor / Party Name
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            value={missingFormData.vendorName}
+                            onChange={(e) => setMissingFormData({ ...missingFormData, vendorName: e.target.value })}
+                            placeholder="e.g. Amazon Supplies India"
+                            className="h-8.5 px-3 rounded-lg border border-[var(--app-border)] text-xs font-semibold text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)] bg-[var(--app-panel-bg)]"
+                          />
+                        </div>
+
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[10px] font-bold text-[var(--app-muted)] uppercase tracking-wide">
+                            Invoice Number
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            value={missingFormData.invoiceNumber}
+                            onChange={(e) => setMissingFormData({ ...missingFormData, invoiceNumber: e.target.value })}
+                            placeholder="e.g. INV-2026-90"
+                            className="h-8.5 px-3 rounded-lg border border-[var(--app-border)] text-xs font-semibold text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)] bg-[var(--app-panel-bg)]"
+                          />
+                        </div>
+
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[10px] font-bold text-[var(--app-muted)] uppercase tracking-wide">
+                            Invoice Date
+                          </label>
+                          <input
+                            type="date"
+                            required
+                            value={missingFormData.invoiceDate}
+                            onChange={(e) => setMissingFormData({ ...missingFormData, invoiceDate: e.target.value })}
+                            className="h-8.5 px-3 rounded-lg border border-[var(--app-border)] text-xs font-semibold text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)] bg-[var(--app-panel-bg)]"
+                          />
+                        </div>
+
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[10px] font-bold text-[var(--app-muted)] uppercase tracking-wide">
+                            GSTIN
+                          </label>
+                          <input
+                            type="text"
+                            value={missingFormData.gstin}
+                            onChange={(e) => setMissingFormData({ ...missingFormData, gstin: e.target.value })}
+                            placeholder="e.g. 27AAAAA1111A1Z5"
+                            className="h-8.5 px-3 rounded-lg border border-[var(--app-border)] text-xs font-semibold text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)] bg-[var(--app-panel-bg)]"
+                          />
+                        </div>
+
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[10px] font-bold text-[var(--app-muted)] uppercase tracking-wide">
+                            Taxable Value (₹)
+                          </label>
+                          <input
+                            type="number"
+                            required
+                            value={missingFormData.taxableValue}
+                            onChange={(e) => {
+                              const val = parseFloat(e.target.value) || 0;
+                              const tax = Math.round(val * 0.18 * 100) / 100;
+                              setMissingFormData({
+                                ...missingFormData,
+                                taxableValue: val,
+                                taxAmount: tax,
+                                totalAmount: val + tax
+                              });
+                            }}
+                            placeholder="0.00"
+                            className="h-8.5 px-3 rounded-lg border border-[var(--app-border)] text-xs font-semibold text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)] bg-[var(--app-panel-bg)]"
+                          />
+                        </div>
+
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[10px] font-bold text-[var(--app-muted)] uppercase tracking-wide">
+                            GST Tax Amount (₹)
+                          </label>
+                          <input
+                            type="number"
+                            value={missingFormData.taxAmount}
+                            onChange={(e) => {
+                              const val = parseFloat(e.target.value) || 0;
+                              setMissingFormData({
+                                ...missingFormData,
+                                taxAmount: val,
+                                totalAmount: missingFormData.taxableValue + val
+                              });
+                            }}
+                            placeholder="0.00"
+                            className="h-8.5 px-3 rounded-lg border border-[var(--app-border)] text-xs font-semibold text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)] bg-[var(--app-panel-bg)]"
+                          />
+                        </div>
+
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[10px] font-bold text-[var(--app-muted)] uppercase tracking-wide">
+                            Total Invoice Value (₹)
+                          </label>
+                          <input
+                            type="number"
+                            required
+                            value={missingFormData.totalAmount}
+                            onChange={(e) => setMissingFormData({ ...missingFormData, totalAmount: parseFloat(e.target.value) || 0 })}
+                            placeholder="0.00"
+                            className="h-8.5 px-3 rounded-lg border border-[var(--app-border)] text-xs font-semibold text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)] bg-[var(--app-panel-bg)]"
+                          />
+                        </div>
+
+                      </div>
+                    </div>
+
+                    <div className="px-5 py-3.5 bg-[var(--app-table-head-bg)]/50 border-t border-[var(--app-border)] flex justify-end gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowMissingInfoModal(false);
+                          setDocToEdit(null);
+                        }}
+                        className="px-4 py-2 border border-[var(--app-border)] text-[var(--app-text)] bg-[var(--app-panel-bg)] hover:bg-[var(--app-row-hover)] rounded-lg font-bold text-xs cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="px-4 py-2 bg-[var(--app-accent)] hover:opacity-90 text-[var(--app-on-accent)] rounded-lg font-bold text-xs cursor-pointer shadow-sm"
+                      >
+                        Save Details
+                      </button>
+                    </div>
+
+                  </form>
+                </motion.div>
+              </div>
+            )}
+          </AnimatePresence>
+
+          {/* --- POPUP 3: VIEW AI DETAILS SIDE SHEET --- */}
+          <AnimatePresence>
+            {showAIDetailsModal && selectedDoc && (
+              <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-xs flex justify-end z-50">
+                {/* Backdrop close area */}
+                <div className="flex-1" onClick={() => { setShowAIDetailsModal(false); setSelectedDoc(null); }}></div>
+
+                <motion.div
+                  initial={{ x: '100%' }}
+                  animate={{ x: 0 }}
+                  exit={{ x: '100%' }}
+                  transition={{ type: 'tween', duration: 0.2 }}
+                  className="w-full max-w-md bg-[var(--app-panel-bg)] border-l border-[var(--app-border)] h-full flex flex-col shadow-2xl overflow-hidden text-[var(--app-text)]"
+                >
+                  <div className="px-5 py-4 border-b border-[var(--app-border)] flex justify-between items-center bg-[var(--app-table-head-bg)]/50">
+                    <div className="flex items-center gap-2">
+                      <Scan size={16} className="text-[var(--app-accent)]" />
+                      <span className="font-extrabold text-[var(--app-heading)] text-xs uppercase tracking-wider">
+                        AI Auto-Categorization Log
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => { setShowAIDetailsModal(false); setSelectedDoc(null); }}
+                      className="p-1 hover:bg-[var(--app-row-hover)] rounded text-[var(--app-muted)] hover:text-[var(--app-heading)] cursor-pointer bg-transparent border-none"
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-5">
+
+                    {/* Confidence Meter */}
+                    <div className="bg-[var(--app-content-bg)]/40 border border-[var(--app-border)] p-4 rounded-xl flex items-center justify-between">
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-bold text-[var(--app-muted)] uppercase tracking-wider">
+                          OCR Confidence Score
+                        </span>
+                        <span className="text-2xl font-black text-[var(--app-heading)] mt-0.5">
+                          {selectedDoc.confidence}%
+                        </span>
+                      </div>
+
+                      {/* Color progress ring */}
+                      <div className="w-12 h-12 relative flex items-center justify-center">
+                        <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                          <path className="text-[var(--app-border)]/50" strokeWidth="2.5" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                          <path className="text-[var(--app-accent)]" strokeWidth="3" strokeDasharray={`${selectedDoc.confidence}, 100`} strokeLinecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                        </svg>
+                      </div>
+                    </div>
+
+                    {/* AI Tags */}
+                    <div className="flex flex-col gap-2">
+                      <span className="text-[10px] font-bold text-[var(--app-muted)] uppercase tracking-wider">
+                        AI Auto-Detected Tags
+                      </span>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="bg-[var(--app-content-bg)]/40 border border-[var(--app-border)] rounded-lg p-2.5">
+                          <span className="text-[9px] text-[var(--app-muted)] font-bold uppercase">Source</span>
+                          <div className="mt-1 font-bold text-[var(--app-heading)] text-xs">
+                            {selectedDoc.source}
+                          </div>
+                        </div>
+
+                        <div className="bg-[var(--app-content-bg)]/40 border border-[var(--app-border)] rounded-lg p-2.5">
+                          <span className="text-[9px] text-[var(--app-muted)] font-bold uppercase">Category</span>
+                          <div className="mt-1 font-bold text-[var(--app-heading)] text-xs">
+                            {selectedDoc.category}
+                          </div>
+                        </div>
+
+                        <div className="bg-[var(--app-content-bg)]/40 border border-[var(--app-border)] rounded-lg p-2.5 col-span-2">
+                          <span className="text-[9px] text-[var(--app-muted)] font-bold uppercase">Document Type</span>
+                          <div className="mt-1 font-bold text-[var(--app-accent)] text-xs flex items-center gap-1.5">
+                            {selectedDoc.type}
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Structured JSON Extracted Fields */}
+                    <div className="flex flex-col gap-2">
+                      <span className="text-[10px] font-bold text-[var(--app-muted)] uppercase tracking-wider">
+                        Extracted OCR Schema
+                      </span>
+
+                      <div className="border border-[var(--app-border)] rounded-xl overflow-hidden divide-y divide-[var(--app-row-border)] text-xs font-semibold">
+                        <div className="px-4 py-2.5 flex justify-between bg-[var(--app-table-head-bg)]/50">
+                          <span className="text-[var(--app-muted)] font-bold">Vendor Name</span>
+                          <span className="text-[var(--app-heading)] font-bold text-right">{selectedDoc.extractedData?.vendorName || '--'}</span>
+                        </div>
+                        <div className="px-4 py-2.5 flex justify-between bg-[var(--app-panel-bg)]">
+                          <span className="text-[var(--app-muted)] font-bold">Invoice Number</span>
+                          <span className="text-[var(--app-heading)] font-mono text-right">{selectedDoc.extractedData?.invoiceNumber || '--'}</span>
+                        </div>
+                        <div className="px-4 py-2.5 flex justify-between bg-[var(--app-table-head-bg)]/50">
+                          <span className="text-[var(--app-muted)] font-bold">Invoice Date</span>
+                          <span className="text-[var(--app-heading)] font-mono text-right">{selectedDoc.extractedData?.invoiceDate || '--'}</span>
+                        </div>
+                        <div className="px-4 py-2.5 flex justify-between bg-[var(--app-panel-bg)]">
+                          <span className="text-[var(--app-muted)] font-bold">GSTIN</span>
+                          <span className="text-[var(--app-heading)] font-mono text-right">{selectedDoc.extractedData?.gstin || '--'}</span>
+                        </div>
+                        <div className="px-4 py-2.5 flex justify-between bg-[var(--app-table-head-bg)]/50">
+                          <span className="text-[var(--app-muted)] font-bold">Taxable Value</span>
+                          <span className="text-[var(--app-heading)] font-extrabold text-right">
+                            ₹ {selectedDoc.extractedData?.taxableValue?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                        <div className="px-4 py-2.5 flex justify-between bg-[var(--app-panel-bg)]">
+                          <span className="text-[var(--app-muted)] font-bold">GST Tax (18%)</span>
+                          <span className="text-[var(--app-heading)] font-extrabold text-right">
+                            ₹ {selectedDoc.extractedData?.taxAmount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                        <div className="px-4 py-2.5 flex justify-between bg-[var(--app-table-head-bg)]/50">
+                          <span className="text-[var(--app-muted)] font-bold">Total Invoice Value</span>
+                          <span className="text-[var(--app-accent)] font-black text-right text-sm">
+                            ₹ {selectedDoc.extractedData?.totalAmount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Audit history logs */}
+                    <div className="flex flex-col gap-2">
+                      <span className="text-[10px] font-bold text-[var(--app-muted)] uppercase tracking-wider">
+                        AI Auto Audit Steps
+                      </span>
+
+                      <div className="flex flex-col gap-3.5 pl-3 border-l-2 border-[var(--app-border)]">
+                        <div className="relative">
+                          <div className="absolute -left-[17px] top-1.5 w-2 h-2 rounded-full bg-emerald-500 border border-[var(--app-panel-bg)]"></div>
+                          <span className="text-[10.5px] font-bold text-[var(--app-heading)]">1. Raw OCR Ingestion</span>
+                          <p className="text-[9.5px] text-[var(--app-muted)] leading-none mt-0.5">Completed successfully at {selectedDoc.uploadedOn}</p>
+                        </div>
+
+                        <div className="relative">
+                          <div className="absolute -left-[17px] top-1.5 w-2 h-2 rounded-full bg-emerald-500 border border-[var(--app-panel-bg)]"></div>
+                          <span className="text-[10.5px] font-bold text-[var(--app-heading)]">2. Layout Parsing & Classification</span>
+                          <p className="text-[9.5px] text-[var(--app-muted)] leading-none mt-0.5">Identified schema fields with {selectedDoc.confidence}% confidence index</p>
+                        </div>
+
+                        <div className="relative">
+                          <div className={`absolute -left-[17px] top-1.5 w-2 h-2 rounded-full border border-[var(--app-panel-bg)] ${selectedDoc.status === 'Missing Information' ? 'bg-amber-500' : 'bg-emerald-500'
+                            }`}></div>
+                          <span className="text-[10.5px] font-bold text-[var(--app-heading)]">3. Schema Field Integrity Verification</span>
+                          <p className="text-[9.5px] text-[var(--app-muted)] leading-none mt-0.5">
+                            {selectedDoc.status === 'Missing Information'
+                              ? 'Failed: Missing required invoice layout fields'
+                              : 'Success: Extracted fields matching validation standards'
+                            }
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+
+                  <div className="px-5 py-4 bg-[var(--app-table-head-bg)]/50 border-t border-[var(--app-border)] flex items-center justify-between shrink-0">
+                    <span className="text-[10px] font-bold text-[var(--app-muted)]">
+                      ID: {selectedDoc.id}
+                    </span>
+
+                    <div className="flex gap-2">
                       <button
                         onClick={() => {
-                          setDocuments(prev => prev.map(d => d.id === selectedDoc.id ? { ...d, status: 'Validated' } : d));
-                          toast.success('Document marked as validated');
                           setShowAIDetailsModal(false);
                           setSelectedDoc(null);
                         }}
-                        className="px-4 py-2 bg-[var(--app-accent)] hover:opacity-90 text-[var(--app-on-accent)] rounded-lg font-bold text-xs cursor-pointer shadow-sm"
+                        className="px-4 py-2 border border-[var(--app-border)] text-[var(--app-text)] bg-[var(--app-panel-bg)] hover:bg-[var(--app-row-hover)] rounded-lg font-bold text-xs cursor-pointer"
                       >
-                        Validate Fields
+                        Close Log
                       </button>
-                    )}
+                      {selectedDoc.status !== 'Validated' && (
+                        <button
+                          onClick={() => {
+                            setDocuments(prev => prev.map(d => d.id === selectedDoc.id ? { ...d, status: 'Validated' } : d));
+                            toast.success('Document marked as validated');
+                            setShowAIDetailsModal(false);
+                            setSelectedDoc(null);
+                          }}
+                          className="px-4 py-2 bg-[var(--app-accent)] hover:opacity-90 text-[var(--app-on-accent)] rounded-lg font-bold text-xs cursor-pointer shadow-sm"
+                        >
+                          Validate Fields
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </motion.div>
-            </div>
-          )}
-        </AnimatePresence>
+                </motion.div>
+              </div>
+            )}
+          </AnimatePresence>
 
         </React.Fragment>
       )}
@@ -3840,13 +3992,13 @@ export default function BulkUploadPanel() {
               <ShieldAlert className="text-rose-500 shrink-0" size={18} />
               <h3 className="text-sm font-bold text-slate-850 dark:text-slate-100">Duplicate Document Detected</h3>
             </div>
-            
+
             {/* Content */}
             <div className="p-5 space-y-4">
               <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-normal">
                 An identical document has already been uploaded to the system. Please choose how you wish to proceed:
               </p>
-              
+
               <div className="p-3.5 rounded-lg bg-slate-50 dark:bg-slate-900/50 border border-slate-200/50 dark:border-slate-800/50 space-y-2">
                 <div className="flex justify-between">
                   <span className="text-[10px] text-slate-400 dark:text-slate-500">File Name</span>
@@ -3874,7 +4026,7 @@ export default function BulkUploadPanel() {
                 </div>
               </div>
             </div>
-            
+
             {/* Actions Footer */}
             <div className="px-5 py-3.5 bg-slate-50/50 dark:bg-slate-900/20 border-t border-slate-100 dark:border-slate-800 flex flex-wrap gap-2 justify-end">
               <button
@@ -3886,14 +4038,14 @@ export default function BulkUploadPanel() {
               >
                 Cancel Upload
               </button>
-              
+
               <button
                 onClick={handleForceReplaceUpload}
                 className="px-3.5 py-1.5 border border-amber-200 text-amber-600 dark:text-amber-400 text-[11px] font-bold rounded-lg hover:bg-amber-50 dark:hover:bg-amber-950/20 cursor-pointer transition-colors bg-white dark:bg-transparent"
               >
                 Replace
               </button>
-              
+
               <button
                 onClick={() => {
                   const existingId = duplicateUploadInfo.existingDoc.id;

@@ -94,10 +94,11 @@ class LayoutAnalyzer:
                 temp_cols = {}
                 for col_key, keywords in HEADER_KEYWORDS.items():
                     for kw in keywords:
+                        kw_clean = re.sub(r"[^\w\s%]", "", kw).lower().strip()
                         for w in line:
                             txt = w.get("text", "").lower().strip()
                             txt = re.sub(r"[^\w\s%]", "", txt)
-                            if txt == kw or (len(kw) > 3 and kw in txt):
+                            if txt == kw_clean or (len(kw_clean) > 3 and kw_clean in txt) or (len(txt) > 3 and txt in kw_clean):
                                 box = w.get("box", [])
                                 if box:
                                     w_min_x = min(pt[0] for pt in box)

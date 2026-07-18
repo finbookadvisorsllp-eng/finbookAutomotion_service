@@ -13,8 +13,9 @@ import { useAppStore } from '../../stores/useAppStore';
 
 const ThemeContext = createContext(null);
 
-const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSaveSuccess }) => {
+const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSaveSuccess, initialData, isOcrMode }) => {
   const navigate = useNavigate();
+  const [initialDataLoaded, setInitialDataLoaded] = useState(false);
 
   const handleCancel = () => {
     const activeType = form.voucherType || 'purchase_invoice';
@@ -187,6 +188,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
   const getLedgerNameForComponent = (componentType) => {
     const comp = componentType.toUpperCase();
     const charge = (form.additionalCharges || []).find(c => {
+      if (c.componentType === comp) return true;
       const name = (c.ledgerName || '').toUpperCase();
       if (comp === 'CGST') return name.includes('CGST');
       if (comp === 'SGST') return name.includes('SGST') || name.includes('UTGST');
@@ -237,6 +239,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
     let charges = [...(form.additionalCharges || [])];
 
     const idx = charges.findIndex(c => {
+      if (c.componentType === comp) return true;
       const name = (c.ledgerName || '').toUpperCase();
       if (comp === 'CGST') return name.includes('CGST');
       if (comp === 'SGST') return name.includes('SGST') || name.includes('UTGST');
@@ -252,7 +255,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
 
     if (idx > -1) {
       if (nextLedgerName) {
-        charges[idx] = { ...charges[idx], ledgerName: nextLedgerName, amount: amt };
+        charges[idx] = { ...charges[idx], ledgerName: nextLedgerName, amount: amt, componentType: comp };
       } else {
         charges.splice(idx, 1);
       }
@@ -261,7 +264,8 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
         id: Date.now() + Math.random(),
         ledgerName: nextLedgerName,
         amount: amt,
-        taxableValue: parseFloat(form.baseTotal || 0).toFixed(2)
+        taxableValue: parseFloat(form.baseTotal || 0).toFixed(2),
+        componentType: comp
       });
     }
 
@@ -281,6 +285,15 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
         sgstRateVal = totalRate / 2;
       }
     }
+
+    const cgstAmt = parseFloat(form.cgstTotal || 0);
+    const sgstAmt = parseFloat(form.sgstTotal || 0);
+    const igstAmt = parseFloat(form.igstTotal || 0);
+
+    // If amounts present but rates are zero, use a non-zero sentinel to trigger ledger auto-add
+    if (cgstAmt > 0 && cgstRateVal === 0 && !isInterstate) cgstRateVal = 1;
+    if (sgstAmt > 0 && sgstRateVal === 0 && !isInterstate) sgstRateVal = 1;
+    if (igstAmt > 0 && igstRateVal === 0 && isInterstate) igstRateVal = 1;
 
     let updated = false;
     let charges = [...(form.additionalCharges || [])];
@@ -312,14 +325,14 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
       }
     };
 
-    syncComponent('CGST', cgstRateVal, parseFloat(form.cgstTotal || 0));
-    syncComponent('SGST', sgstRateVal, parseFloat(form.sgstTotal || 0));
-    syncComponent('IGST', igstRateVal, parseFloat(form.igstTotal || 0));
+    syncComponent('CGST', cgstRateVal, cgstAmt);
+    syncComponent('SGST', sgstRateVal, sgstAmt);
+    syncComponent('IGST', igstRateVal, igstAmt);
 
     if (updated) {
       updateForm({ additionalCharges: charges });
     }
-  }, [form.baseTotal, form.cgstTotal, form.sgstTotal, form.igstTotal, isInterstate]);
+  }, [form.baseTotal, form.cgstTotal, form.sgstTotal, form.igstTotal, isInterstate, form.entryTab]);
 
   useEffect(() => {
     fetchMasterData();
@@ -334,6 +347,152 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
     }
   }, [voucherType, form._id]);
 
+  // Populate form with initialData if provided (e.g. from OCR)
+  useEffect(() => {
+    if (initialData && Object.keys(initialData).length > 0 && !initialDataLoaded) {
+      resetForm(voucherType);
+      updateForm({
+        ...initialData,
+        entryMode: 'ocr'
+      });
+      if (initialData.entryTab) {
+        updateForm({ entryTab: initialData.entryTab });
+        setActiveTab(initialData.entryTab === 'with_item' ? 'With Item Invoice' : 'Without Item Invoice');
+      }
+      setInitialDataLoaded(true);
+    }
+  }, [initialData, voucherType, initialDataLoaded]);
+
+  // Auto-match party ledger once masterData loads
+  useEffect(() => {
+    const findClosestLedger = (extractedName, ledgersList) => {
+      if (!extractedName || extractedName === 'Missing') return extractedName;
+      if (!ledgersList || ledgersList.length === 0) return extractedName;
+      const clean = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, '').replace(/^the/, '').trim();
+      const cleanExtracted = clean(extractedName);
+      for (const ledger of ledgersList) {
+        if (clean(ledger) === cleanExtracted) return ledger;
+      }
+      for (const ledger of ledgersList) {
+        const cleanLed = clean(ledger);
+        if (cleanLed.includes(cleanExtracted) || cleanExtracted.includes(cleanLed)) {
+          return ledger;
+        }
+      }
+      return extractedName;
+    };
+
+    if (initialData && masterData?.partyLedgers?.length > 0 && form.partyLedger) {
+      const extracted = form.partyLedger;
+      const ledgers = masterData.partyLedgers;
+      if (!ledgers.includes(extracted)) {
+        const closest = findClosestLedger(extracted, ledgers);
+        if (closest !== extracted) {
+          updateForm({ partyLedger: closest });
+          if (masterData?.partyLedgerDetails?.[closest]) {
+            const d = masterData.partyLedgerDetails[closest];
+            updateForm({
+              partyGstin: d.gstin || '',
+              gstRegistration: d.gstState ? `${d.gstState} Registration` : '',
+              gstRegistrationType: d.registrationType || ''
+            });
+          }
+        }
+      }
+    }
+  }, [masterData?.partyLedgers, form.partyLedger, initialData]);
+
+  // Auto-match stock items once masterData loads
+  useEffect(() => {
+    const findClosestStockItem = (extractedName, itemsList) => {
+      if (!extractedName || extractedName === 'Missing') return extractedName;
+      if (!itemsList || itemsList.length === 0) return extractedName;
+      const clean = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+      const cleanExtracted = clean(extractedName);
+      for (const item of itemsList) {
+        if (clean(item) === cleanExtracted) return item;
+      }
+      for (const item of itemsList) {
+        const cleanItem = clean(item);
+        if (cleanItem && cleanItem.length > 2) {
+          if (cleanExtracted.includes(cleanItem) || cleanItem.includes(cleanExtracted)) {
+            return item;
+          }
+        }
+      }
+      return extractedName;
+    };
+
+    if (initialData && masterData?.stockItems?.length > 0 && form.productLines?.length > 0) {
+      const hasUnmapped = form.productLines.some(row => row.stockItem && !masterData.stockItems.includes(row.stockItem));
+      if (!hasUnmapped) return;
+
+      let updated = false;
+      const newLines = form.productLines.map(row => {
+        const currentVal = row.stockItem || '';
+        if (currentVal && !masterData.stockItems.includes(currentVal)) {
+          const closest = findClosestStockItem(currentVal, masterData.stockItems);
+          if (closest !== currentVal) {
+            updated = true;
+            const updates = { stockItem: closest };
+            if (masterData.stockItemDetails?.[closest]) {
+              const sd = masterData.stockItemDetails[closest];
+              if (sd.hsnCode) updates.hsnSacCode = sd.hsnCode;
+              if (sd.gstRate !== undefined) updates.gstRate = sd.gstRate;
+              if (sd.unit) updates.unit = sd.unit;
+            }
+            return { ...row, ...updates };
+          }
+        }
+        return row;
+      });
+      if (updated) {
+        updateForm({ productLines: newLines });
+      }
+    }
+  }, [masterData?.stockItems, form.productLines, initialData]);
+
+  // Auto-match purchase ledgers once masterData loads (for without-item mode)
+  useEffect(() => {
+    const findClosestLedger = (extractedName, ledgersList) => {
+      if (!extractedName || extractedName === 'Missing') return extractedName;
+      if (!ledgersList || ledgersList.length === 0) return extractedName;
+      const clean = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+      const cleanExtracted = clean(extractedName);
+      for (const ledger of ledgersList) {
+        if (clean(ledger) === cleanExtracted) return ledger;
+      }
+      for (const ledger of ledgersList) {
+        const cleanLed = clean(ledger);
+        if (cleanLed.includes(cleanExtracted) || cleanExtracted.includes(cleanLed)) {
+          return ledger;
+        }
+      }
+      return extractedName;
+    };
+
+    if (initialData && masterData?.purchaseLedgers?.length > 0 && form.purchaseLines?.length > 0) {
+      const hasUnmapped = form.purchaseLines.some(row => row.purchaseLedger && !masterData.purchaseLedgers.includes(row.purchaseLedger));
+      if (!hasUnmapped) return;
+
+      let updated = false;
+      const newLines = form.purchaseLines.map(row => {
+        const currentVal = row.purchaseLedger || '';
+        if (currentVal && !masterData.purchaseLedgers.includes(currentVal)) {
+          const closest = findClosestLedger(currentVal, masterData.purchaseLedgers);
+          if (closest !== currentVal) {
+            updated = true;
+            return { ...row, purchaseLedger: closest };
+          }
+        }
+        return row;
+      });
+      if (updated) {
+        updateForm({ purchaseLines: newLines });
+      }
+    }
+  }, [masterData?.purchaseLedgers, form.purchaseLines, initialData]);
+
   // Auto-fill Voucher Number like Tally — peek next number on new entry only
   useEffect(() => {
     if (!form._id && form.voucherNumberSeries === 'Default') {
@@ -341,6 +500,13 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
       fetchNextInvoiceNumber(effectiveType);
     }
   }, [form.voucherType, form._id, form.voucherNumberSeries]);
+
+  // Default purchaseLedger to the first available ledger once masterData loads if empty
+  useEffect(() => {
+    if (!form.purchaseLedger && masterData?.purchaseLedgers?.length > 0) {
+      updateForm({ purchaseLedger: masterData.purchaseLedgers[0] });
+    }
+  }, [masterData?.purchaseLedgers, form.purchaseLedger]);
 
   const [activeTab, setActiveTab] = useState('Without Item Invoice');
 
@@ -696,7 +862,8 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
 
         {/* ─── 1. Compact Header Row ─── */}
-        <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-2.5 shrink-0 border-b" style={{ borderColor: 'var(--m3-outline-variant)', backgroundColor: 'var(--m3-surface-container-low)' }}>
+        {!isOcrMode && (
+          <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-2.5 shrink-0 border-b" style={{ borderColor: 'var(--m3-outline-variant)', backgroundColor: 'var(--m3-surface-container-low)' }}>
           <div className="flex items-center gap-4">
             <h1 className="text-[15px] font-semibold tracking-tight" style={{ color: 'var(--m3-on-surface)' }}>
               {form.voucherType === 'debit_note'
@@ -731,6 +898,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
             )}
           </div>
         </div>
+        )}
 
         {/* ─── 2. Voucher Types & Summary Row ─── */}
         <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-2 border-b shrink-0" style={{ borderColor: 'var(--m3-outline-variant)', backgroundColor: 'var(--m3-surface-container-low)' }}>
@@ -799,8 +967,22 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
         {/* ─── 3. Main Body ─── */}
         <div className="flex-1 overflow-hidden flex flex-col">
           {/* Form Area */}
-          <div className="flex-1 p-2 overflow-y-auto themed-scrollbar bg-[var(--app-panel-bg)]">
+          <div className="flex-1 p-3 overflow-y-auto themed-scrollbar bg-[var(--app-panel-bg)]">
             <div className="flex flex-col gap-3">
+              {/* A. Entry Mode Switcher for OCR mode */}
+              {isOcrMode && (
+                <div className="flex items-center justify-between p-2.5 bg-white dark:bg-[#1a1b20] rounded-xl border border-slate-200/60 dark:border-slate-800/60 shadow-sm shrink-0">
+                  <span className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Invoice Entry Mode</span>
+                  <div className="m3-seg" role="group" aria-label="Entry mode">
+                    <button type="button" aria-pressed={activeTab === 'With Item Invoice'} onClick={() => handleTabChange('With Item Invoice')}>
+                      {activeTab === 'With Item Invoice' && <Check size={12} className="mr-1" />} With Item
+                    </button>
+                    <button type="button" aria-pressed={activeTab === 'Without Item Invoice'} onClick={() => handleTabChange('Without Item Invoice')}>
+                      {activeTab === 'Without Item Invoice' && <Check size={12} className="mr-1" />} Without Item
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* A. Voucher Details Section */}
               <div className="p-2.5 m3-card mb-0">
@@ -820,15 +1002,14 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                     </div>
 
                     {/* Voucher Type — clickable select, auto-set from header but editable */}
-                    <div className="col-span-1 relative">
-                      <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 " style={{ backgroundColor: 'var(--m3-surface-container-low)', color: 'var(--m3-on-surface-variant)' }}>
+                    <div className="col-span-1 relative group">
+                      <label className="text-[10px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 group-focus-within:text-indigo-600 text-slate-500 transition-colors" style={{ backgroundColor: 'var(--m3-surface-container-low)' }}>
                         Voucher Type
                       </label>
                       <select
                         value={getSelectValue()}
                         onChange={(e) => updateForm({ voucherType: e.target.value })}
-                        className="w-full h-7.5 px-3 rounded-lg border text-[11px] font-bold outline-none bg-[var(--app-panel-bg)]"
-                        style={{ borderColor: theme.border, color: theme.text }}
+                        className="w-full h-9 px-2.5 rounded-t border-b text-[11px] font-medium outline-none bg-slate-50 dark:bg-[var(--app-control-bg)] border-slate-300 dark:border-[var(--app-border)] text-slate-800 dark:text-[var(--app-text)] focus:border-indigo-500 hover:border-indigo-400 cursor-pointer"
                       >
                         {voucherTypeOptions.map((opt) => (
                           <option key={opt} value={opt}>
@@ -839,15 +1020,14 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                     </div>
 
                     {/* Voucher Number Series */}
-                    <div className="col-span-1 relative">
-                      <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 " style={{ backgroundColor: 'var(--m3-surface-container-low)', color: 'var(--m3-on-surface-variant)' }}>
+                    <div className="col-span-1 relative group">
+                      <label className="text-[10px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 group-focus-within:text-indigo-600 text-slate-500 transition-colors" style={{ backgroundColor: 'var(--m3-surface-container-low)' }}>
                         Voucher Number Series
                       </label>
                       <select
                         value={form.voucherNumberSeries || 'Default'}
                         onChange={(e) => updateForm({ voucherNumberSeries: e.target.value })}
-                        className="w-full h-7.5 px-3 rounded-lg border text-[11px] font-bold outline-none bg-[var(--app-panel-bg)]"
-                        style={{ borderColor: theme.border, color: theme.text }}
+                        className="w-full h-9 px-2.5 rounded-t border-b text-[11px] font-medium outline-none bg-slate-50 dark:bg-[var(--app-control-bg)] border-slate-300 dark:border-[var(--app-border)] text-slate-800 dark:text-[var(--app-text)] focus:border-indigo-500 hover:border-indigo-400 cursor-pointer"
                       >
                         <option value="Default">Default</option>
                         <option value="Manual">Manual</option>
@@ -957,17 +1137,15 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                     )}
 
                     {/* Narration */}
-                    <div className={(form.consigneeLedger && form.consigneeLedger !== 'Same as Party' && form.consigneeLedger !== form.partyLedger) ? 'col-span-3 relative flex flex-col gap-1' : 'col-span-4 relative flex flex-col gap-1'}>
-                      <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 " style={{ backgroundColor: 'var(--m3-surface-container-low)', color: 'var(--m3-on-surface-variant)' }}>
+                    <div className={`relative flex flex-col gap-1 group ${(form.consigneeLedger && form.consigneeLedger !== 'Same as Party' && form.consigneeLedger !== form.partyLedger) ? 'col-span-3' : 'col-span-4'}`}>
+                      <label className="text-[10px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 group-focus-within:text-indigo-600 text-slate-500 transition-colors" style={{ backgroundColor: 'var(--m3-surface-container-low)' }}>
                         Narration
                       </label>
                       <input
                         type="text"
                         value={form.narration || ''}
                         onChange={(e) => updateForm({ narration: e.target.value })}
-                        className="w-full h-7.5 px-3 rounded-lg border text-[11px] font-bold outline-none focus:border-[var(--app-accent)] bg-[var(--app-panel-bg)]"
-                        placeholder="Enter narration here..."
-                        style={{ borderColor: theme.border, color: theme.text }}
+                        className="w-full h-9 px-2.5 rounded-t border-b text-[11px] font-medium outline-none bg-slate-50 dark:bg-[var(--app-control-bg)] border-slate-300 dark:border-[var(--app-border)] text-slate-800 dark:text-[var(--app-text)] focus:border-indigo-500 hover:border-indigo-400"
                       />
                     </div>
                   </div>
@@ -999,21 +1177,21 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                       </button>
                     </div>
                   </div>
-                  <div className="overflow-visible mb-1.5">
+                  <div className="overflow-x-auto themed-scrollbar w-full mb-1.5">
                     {activeTab === 'Without Item Invoice' ? (
-                      <table className="w-full text-left text-[10px] border-collapse min-w-[900px] overflow-visible" style={{ borderColor: theme.border }}>
+                      <table className="w-full text-left text-[10px] border-collapse min-w-[700px] overflow-visible" style={{ borderColor: theme.border }}>
                         <thead>
                           <tr className="border-b" style={{ borderColor: theme.border, color: theme.mutedText }}>
-                            <th className="px-1 py-1 w-8 text-center border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>#</th>
+                            <th className="px-1 py-1 w-6 text-center border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>#</th>
                             <th className="px-1 py-1 border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>Item / Ledger *</th>
-                            <th className="px-1 py-1 w-24 border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>HSN/SAC</th>
-                            <th className="px-1 py-1 w-24 text-right border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>Amount (₹)</th>
-                            <th className="px-1 py-1 w-16 border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>GST%</th>
-                            <th className="px-1 py-1 w-20 text-right border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>CGST</th>
-                            <th className="px-1 py-1 w-20 text-right border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>SGST</th>
-                            <th className="px-1 py-1 w-20 text-right border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>IGST</th>
-                            <th className="px-1 py-1 w-20 text-right border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>Total Tax</th>
-                            <th className="px-1 py-1 w-24 text-right border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>Net Amount</th>
+                            <th className="px-1 py-1 w-16 border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>HSN/SAC</th>
+                            <th className="px-1 py-1 w-18 text-right border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>Amount (₹)</th>
+                            <th className="px-1 py-1 w-12 border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>GST%</th>
+                            <th className="px-1 py-1 w-14 text-right border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>CGST</th>
+                            <th className="px-1 py-1 w-14 text-right border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>SGST</th>
+                            <th className="px-1 py-1 w-14 text-right border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>IGST</th>
+                            <th className="px-1 py-1 w-14 text-right border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>Total Tax</th>
+                            <th className="px-1 py-1 w-18 text-right border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>Net Amount</th>
                             <th className="px-1 py-1 w-8 text-center" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}></th>
                           </tr>
                         </thead>
@@ -1107,19 +1285,19 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                         </tbody>
                       </table>
                     ) : (
-                      <table className="w-full text-left text-[10px] border-collapse min-w-[980px] overflow-visible" style={{ borderColor: theme.border }}>
+                      <table className="w-full text-left text-[10px] border-collapse min-w-[780px] overflow-visible" style={{ borderColor: theme.border }}>
                         <thead>
                           <tr className="border-b" style={{ borderColor: theme.border, color: theme.mutedText }}>
-                            <th className="px-1 py-1 w-8 text-center border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>#</th>
-                            <th className="px-1 py-1 w-64 border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>Item / Ledger *</th>
-                            <th className="px-1 py-1 w-20 text-right border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>Stock Qty</th>
-                            <th className="px-1 py-1 w-24 border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>HSN/SAC</th>
-                            <th className="px-1 py-1 w-16 border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>GST%</th>
-                            <th className="px-1 py-1 w-20 text-right border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>Qty</th>
-                            <th className="px-1 py-1 w-24 border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>Unit</th>
-                            <th className="px-1 py-1 w-28 text-right border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>Rate (₹)</th>
-                            <th className="px-1 py-1 w-16 text-right border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>Disc%</th>
-                            <th className="px-1 py-1 w-32 text-right border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>Amount (₹)</th>
+                            <th className="px-1 py-1 w-6 text-center border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>#</th>
+                            <th className="px-1 py-1 w-44 border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>Item / Ledger *</th>
+                            <th className="px-1 py-1 w-14 text-right border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>Stock Qty</th>
+                            <th className="px-1 py-1 w-16 border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>HSN/SAC</th>
+                            <th className="px-1 py-1 w-12 border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>GST%</th>
+                            <th className="px-1 py-1 w-12 text-right border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>Qty</th>
+                            <th className="px-1 py-1 w-14 border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>Unit</th>
+                            <th className="px-1 py-1 w-18 text-right border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>Rate (₹)</th>
+                            <th className="px-1 py-1 w-12 text-right border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>Disc%</th>
+                            <th className="px-1 py-1 w-20 text-right border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>Amount (₹)</th>
                             <th className="px-1 py-1 w-10 text-center" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}></th>
                           </tr>
                         </thead>
@@ -1271,7 +1449,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                 {/* Left Stack: Ledger Details & HSN Tax Detailes */}
                 <div className="flex flex-col gap-4">
                   {/* Ledger Details */}
-                  <div className="p-4 m3-card flex flex-col gap-3">
+                  <div className="m3-card p-3 mb-0 flex flex-col gap-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <div className="p-1.5 bg-[var(--app-accent-soft)] dark:bg-[var(--app-accent-soft)] text-[var(--app-accent)] dark:text-[var(--app-accent)] rounded-lg border border-[var(--app-border)] dark:border-[var(--app-border)] flex items-center justify-center">
@@ -1361,7 +1539,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                   </div>
 
                   {/* HSN / Sales Tax Details */}
-                  <div className="p-4 m3-card flex flex-col gap-3">
+                  <div className="m3-card p-3 mb-0 flex flex-col gap-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <div className="p-1.5 bg-amber-50 dark:bg-amber-950/40 text-amber-500 dark:text-amber-400 rounded-lg border border-amber-100 dark:border-amber-900/50 flex items-center justify-center">
@@ -1474,7 +1652,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                 </div>
 
                 {/* Tax & Statutory Ledger Details */}
-                <div className="p-2.5 m3-card flex flex-col gap-2">
+                <div className="m3-card p-3 mb-0 flex flex-col gap-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <div className="p-1 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-500 dark:text-emerald-400 rounded-lg border border-emerald-100 dark:border-emerald-900/50 flex items-center justify-center">
@@ -1566,7 +1744,9 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                             <tbody>
                               {/* CGST Row */}
                               <tr className="border-b last:border-b-0 hover:bg-[var(--app-content-bg)]/30" style={{ borderColor: theme.border }}>
-                                <td className="px-3 py-1.5 border-r font-bold text-[var(--app-heading)]" style={{ borderColor: theme.border }}>CGST (Central GST)</td>
+                                <td className="px-3 py-1.5 border-r font-bold text-[var(--app-heading)]" style={{ borderColor: theme.border }}>
+                                  <span className="inline-flex items-center gap-1">CGST {cgstRateVal > 0 && <span className="text-[11px] px-1 py-0.5 bg-[var(--app-accent-soft)] text-[var(--app-accent)] rounded font-black">{cgstRateVal}%</span>} <span className="text-[11px] px-1 py-0.5 bg-[var(--app-accent-soft)] text-[var(--app-accent)] rounded font-black">Input</span></span>
+                                </td>
                                 <td className="p-1 border-r relative z-30 focus-within:z-50" style={{ borderColor: theme.border }}>
                                   <SearchableDropdown
                                     placeholder="Select CGST Ledger"
@@ -1590,7 +1770,9 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
 
                               {/* SGST Row */}
                               <tr className="border-b last:border-b-0 hover:bg-[var(--app-content-bg)]/30" style={{ borderColor: theme.border }}>
-                                <td className="px-3 py-1.5 border-r font-bold text-[var(--app-heading)]" style={{ borderColor: theme.border }}>SGST (State GST)</td>
+                                <td className="px-3 py-1.5 border-r font-bold text-[var(--app-heading)]" style={{ borderColor: theme.border }}>
+                                  <span className="inline-flex items-center gap-1">SGST {sgstRateVal > 0 && <span className="text-[11px] px-1 py-0.5 bg-[var(--app-accent-soft)] text-[var(--app-accent)] rounded font-black">{sgstRateVal}%</span>} <span className="text-[11px] px-1 py-0.5 bg-[var(--app-accent-soft)] text-[var(--app-accent)] rounded font-black">Input</span></span>
+                                </td>
                                 <td className="p-1 border-r relative z-20 focus-within:z-50" style={{ borderColor: theme.border }}>
                                   <SearchableDropdown
                                     placeholder="Select SGST Ledger"
@@ -1615,7 +1797,9 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                               {/* IGST Row */}
                               {isInterstate && (
                                 <tr className="border-b last:border-b-0 hover:bg-[var(--app-content-bg)]/30" style={{ borderColor: theme.border }}>
-                                  <td className="px-3 py-1.5 border-r font-bold text-[var(--app-heading)]" style={{ borderColor: theme.border }}>IGST (Integrated GST)</td>
+                                  <td className="px-3 py-1.5 border-r font-bold text-[var(--app-heading)]" style={{ borderColor: theme.border }}>
+                                    <span className="inline-flex items-center gap-1">IGST {igstRateVal > 0 && <span className="text-[11px] px-1 py-0.5 bg-orange-50 dark:bg-orange-950/30 text-orange-600 rounded font-black">{igstRateVal}%</span>} <span className="text-[11px] px-1 py-0.5 bg-orange-50 dark:bg-orange-950/30 text-orange-600 rounded font-black">Input</span></span>
+                                  </td>
                                   <td className="p-1 border-r relative z-10 focus-within:z-50" style={{ borderColor: theme.border }}>
                                     <SearchableDropdown
                                       placeholder="Select IGST Ledger"
@@ -1751,7 +1935,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
         </div>{/* End Left Column */}
 
         {/* ─── Right Column (25%): Party Details Sidebar ─── */}
-        {form.partyLedger && (
+        {!isOcrMode && form.partyLedger && (
           <div className="w-[280px] min-w-[260px] shrink-0 border-l overflow-y-auto themed-scrollbar p-3" style={{ borderColor: 'var(--m3-outline-variant)', backgroundColor: 'var(--m3-surface-container-low)' }}>
             {(() => {
               const details = masterData.partyLedgerDetails?.[form.partyLedger] || {};
@@ -1967,7 +2151,7 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
   return (
     <div className={`relative flex flex-col gap-1 w-full group ${disabled ? 'opacity-50 pointer-events-none' : ''}`} ref={dropdownRef} style={{ zIndex: isOpen ? 50 : 1 }}>
       {label && (
-        <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 group-focus-within:text-[var(--m3-primary)] transition-colors" style={{ backgroundColor: 'var(--m3-surface-container-low)', color: 'var(--m3-on-surface-variant)' }}>
+        <label className="text-[10px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 group-focus-within:text-indigo-600 text-slate-500 transition-colors" style={{ backgroundColor: 'var(--m3-surface-container-low)' }}>
           {label}
         </label>
       )}
@@ -1975,8 +2159,7 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
         <div className="relative flex-1">
           <div
             onClick={() => !disabled && setIsOpen(!isOpen)}
-            className={`w-full ${compact ? 'h-7.5' : 'h-10'} ${rounded ? 'rounded-lg' : 'rounded-lg'} border px-2 flex items-center justify-between cursor-pointer transition-all duration-300 group/input ${isOpen ? 'border-[var(--app-accent)]' : 'hover:border-[var(--app-accent)]'} ${disabled ? 'bg-[var(--app-table-head-bg)] cursor-not-allowed' : ''}`}
-            style={{ backgroundColor: disabled ? undefined : 'var(--m3-surface-container-high)', borderColor: isOpen ? 'var(--m3-primary)' : 'var(--m3-outline-variant)' }}
+            className={`w-full ${compact ? 'h-8 px-2.5' : 'h-9 px-2.5'} rounded-t border-b flex items-center justify-between cursor-pointer transition-all duration-300 bg-slate-50 dark:bg-[var(--app-control-bg)] border-slate-300 dark:border-[var(--app-border)] text-slate-800 dark:text-[var(--app-text)] ${isOpen ? 'border-indigo-500' : 'hover:border-indigo-400'} ${disabled ? 'bg-slate-100 dark:bg-slate-900 cursor-not-allowed opacity-60' : ''}`}
           >
             <span className={`text-[11px] font-bold truncate transition-colors ${value ? (isDark ? 'text-[var(--app-accent)]' : 'text-[var(--app-accent)]') : 'text-[var(--app-muted)]'}`}>
               {value || placeholder}
@@ -2080,7 +2263,7 @@ const InputField = ({ label, placeholder, value, icon: Icon, type = "text", comp
   return (
     <div className="relative flex flex-col gap-1 w-full group">
       {label && (
-        <label className="text-[11px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 group-focus-within:text-[var(--m3-primary)] transition-colors" style={{ backgroundColor: 'var(--m3-surface-container-low)', color: 'var(--m3-on-surface-variant)' }}>
+        <label className="text-[10px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 group-focus-within:text-indigo-600 text-slate-500 transition-colors" style={{ backgroundColor: 'var(--m3-surface-container-low)' }}>
           {label}
         </label>
       )}
@@ -2093,8 +2276,7 @@ const InputField = ({ label, placeholder, value, icon: Icon, type = "text", comp
               onChange={handleTextChange}
               placeholder="dd-mm-yyyy"
               readOnly={readOnly}
-              className={`w-full ${compact ? 'h-7.5 px-2' : 'h-10 px-2'} rounded-lg border text-[11px] font-bold outline-none transition-all duration-300 focus:ring-0 ${isDark ? 'placeholder:text-white/10' : 'placeholder:text-[var(--app-muted)]'} ${align === 'right' ? 'text-right' : ''} ${readOnly ? (isDark ? 'cursor-not-allowed opacity-60 bg-slate-800/20' : 'cursor-not-allowed bg-[var(--app-content-bg)]/50') : 'hover:border-[var(--app-accent)]'}`}
-              style={{ backgroundColor: readOnly ? 'var(--m3-surface-container)' : 'var(--m3-surface-container-high)', borderColor: 'var(--m3-outline-variant)', color: readOnly ? 'var(--m3-primary)' : 'var(--m3-on-surface)' }}
+              className={`w-full ${compact ? 'h-8 px-2.5 text-[11px]' : 'h-9 px-2.5 text-[11px]'} rounded-t border-b font-medium outline-none transition-all duration-300 focus:ring-0 ${align === 'right' ? 'text-right' : ''} ${readOnly ? 'cursor-not-allowed bg-indigo-50 dark:bg-indigo-950/20 border-indigo-300 dark:border-indigo-900/40 text-indigo-700 dark:text-indigo-400 font-bold' : 'bg-slate-50 dark:bg-[var(--app-control-bg)] border-slate-300 dark:border-[var(--app-border)] text-slate-800 dark:text-[var(--app-text)] hover:border-indigo-400 focus:border-indigo-500'}`}
             />
             {Icon && !readOnly && (
               <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center cursor-pointer">
@@ -2116,8 +2298,7 @@ const InputField = ({ label, placeholder, value, icon: Icon, type = "text", comp
             onChange={(e) => onChange && onChange(e.target.value)}
             readOnly={readOnly}
             placeholder={placeholder}
-            className={`w-full ${compact ? 'h-7.5 px-2' : 'h-10 px-2'} rounded-lg border text-[11px] font-bold outline-none transition-all duration-300 focus:ring-0 ${isDark ? 'placeholder:text-white/10' : 'placeholder:text-[var(--app-muted)]'} ${align === 'right' ? 'text-right' : ''} ${readOnly ? (isDark ? 'cursor-not-allowed opacity-60 bg-slate-800/20' : 'cursor-not-allowed bg-[var(--app-content-bg)]/50') : 'hover:border-[var(--app-accent)]'}`}
-            style={{ backgroundColor: readOnly ? 'var(--m3-surface-container)' : 'var(--m3-surface-container-high)', borderColor: 'var(--m3-outline-variant)', color: readOnly ? 'var(--m3-primary)' : 'var(--m3-on-surface)' }}
+            className={`w-full ${compact ? 'h-8 px-2.5 text-[11px]' : 'h-9 px-2.5 text-[11px]'} rounded-t border-b font-medium outline-none transition-all duration-300 focus:ring-0 ${align === 'right' ? 'text-right' : ''} ${readOnly ? 'cursor-not-allowed bg-indigo-50 dark:bg-indigo-950/20 border-indigo-300 dark:border-indigo-900/40 text-indigo-700 dark:text-indigo-400 font-bold' : 'bg-slate-50 dark:bg-[var(--app-control-bg)] border-slate-300 dark:border-[var(--app-border)] text-slate-800 dark:text-[var(--app-text)] hover:border-indigo-400 focus:border-indigo-500'}`}
           />
         )}
         {type !== "date" && Icon && <Icon className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--app-muted)] group-focus-within:text-[var(--app-accent)] transition-colors pointer-events-none" size={12} />}

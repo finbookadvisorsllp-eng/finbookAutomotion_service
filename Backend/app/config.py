@@ -20,6 +20,7 @@ class Settings:
     NVIDIA_API_KEY: str = os.getenv("NVIDIA_API_KEY")
     NVIDIA_BASE_URL: str = os.getenv("NVIDIA_BASE_URL") or "https://integrate.api.nvidia.com/v1"
     LLM_MODEL: str = os.getenv("LLM_MODEL") or "meta/llama-3.1-70b-instruct"
+    OPENROUTER_API_KEY: str = os.getenv("OPENROUTER_API_KEY")
 
 settings = Settings()
 
