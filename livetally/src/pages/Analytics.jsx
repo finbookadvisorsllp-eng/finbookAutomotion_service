@@ -23,7 +23,7 @@ const tooltipFmt = ({ active, payload, label }) => {
 export default function Analytics() {
   return (
     <div className="animate-fade-in">
-      <div className="flex items-start justify-between mb-5 flex-wrap gap-3">
+      <div className="flex items-start justify-between mb-5 flex-wrap gap-3 bg-white p-3 rounded-2xl">
         <div>
           <h1 className="text-xl font-black text-slate-900">Analytics & Trends</h1>
           <p className="text-sm text-slate-400 mt-0.5">Business performance insights · FY 2024-25</p>
@@ -39,9 +39,9 @@ export default function Analytics() {
             <p className="text-xs text-slate-400">Monthly · FY 2024-25</p>
           </div>
           <div className="flex gap-2">
-            {[['Revenue','#2563eb'],['Expense','#ef4444'],['Profit','#10b981']].map(([k,c])=>(
+            {[['Revenue', '#2563eb'], ['Expense', '#ef4444'], ['Profit', '#10b981']].map(([k, c]) => (
               <div key={k} className="flex items-center gap-1.5 text-xs text-slate-500">
-                <div className="w-2 h-2 rounded-full" style={{background:c}}/>{k}
+                <div className="w-2 h-2 rounded-full" style={{ background: c }} />{k}
               </div>
             ))}
           </div>
@@ -49,20 +49,20 @@ export default function Analytics() {
         <ResponsiveContainer width="100%" height={260}>
           <AreaChart data={monthlyTrend} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
             <defs>
-              {[['rev','#2563eb'],['exp','#ef4444'],['prof','#10b981']].map(([id,color])=>(
+              {[['rev', '#2563eb'], ['exp', '#ef4444'], ['prof', '#10b981']].map(([id, color]) => (
                 <linearGradient key={id} id={id} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={color} stopOpacity={0.15}/>
-                  <stop offset="95%" stopColor={color} stopOpacity={0}/>
+                  <stop offset="5%" stopColor={color} stopOpacity={0.15} />
+                  <stop offset="95%" stopColor={color} stopOpacity={0} />
                 </linearGradient>
               ))}
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid-stroke)" />
-            <XAxis dataKey="month" tick={{fontSize:11,fill:'#94a3b8'}} axisLine={false} tickLine={false} />
-            <YAxis tickFormatter={v=>`₹${(v/100000).toFixed(0)}L`} tick={{fontSize:10,fill:'#94a3b8'}} axisLine={false} tickLine={false} />
+            <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+            <YAxis tickFormatter={v => `₹${(v / 100000).toFixed(0)}L`} tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
             <Tooltip content={tooltipFmt} cursor={false} />
             <Area type="monotone" dataKey="revenue" stroke="#2563eb" strokeWidth={2} fill="url(#rev)" name="Revenue" />
             <Area type="monotone" dataKey="expense" stroke="#ef4444" strokeWidth={2} fill="url(#exp)" name="Expense" />
-            <Area type="monotone" dataKey="profit"  stroke="#10b981" strokeWidth={2.5} fill="url(#prof)" name="Profit" />
+            <Area type="monotone" dataKey="profit" stroke="#10b981" strokeWidth={2.5} fill="url(#prof)" name="Profit" />
           </AreaChart>
         </ResponsiveContainer>
       </div>
@@ -73,14 +73,14 @@ export default function Analytics() {
           <h2 className="text-sm font-bold text-slate-800 mb-4">Budget vs Actual</h2>
           <ResponsiveContainer width="100%" height={240}>
             <BarChart data={budgetVsActual} layout="vertical" margin={{ left: 10 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid-stroke)" horizontal={false}/>
-              <XAxis type="number" tickFormatter={v=>`₹${(v/100000).toFixed(0)}L`} tick={{fontSize:10,fill:'#94a3b8'}} axisLine={false} tickLine={false}/>
-              <YAxis type="category" dataKey="category" tick={{fontSize:11,fill:'#64748b'}} axisLine={false} tickLine={false} width={110}/>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid-stroke)" horizontal={false} />
+              <XAxis type="number" tickFormatter={v => `₹${(v / 100000).toFixed(0)}L`} tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+              <YAxis type="category" dataKey="category" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} width={110} />
               <Tooltip content={tooltipFmt} cursor={false} />
-              <Legend iconType="circle" iconSize={8} formatter={v=><span style={{fontSize:11,color:'#64748b'}}>{v}</span>}/>
-              <Bar dataKey="budget" fill="#e2e8f0" radius={[0,3,3,0]} name="Budget" />
-              <Bar dataKey="actual" radius={[0,3,3,0]} name="Actual">
-                {budgetVsActual.map((e,i)=>(
+              <Legend iconType="circle" iconSize={8} formatter={v => <span style={{ fontSize: 11, color: '#64748b' }}>{v}</span>} />
+              <Bar dataKey="budget" fill="#e2e8f0" radius={[0, 3, 3, 0]} name="Budget" />
+              <Bar dataKey="actual" radius={[0, 3, 3, 0]} name="Actual">
+                {budgetVsActual.map((e, i) => (
                   <Cell key={i} fill={e.actual <= e.budget ? '#10b981' : '#ef4444'} />
                 ))}
               </Bar>
@@ -93,14 +93,14 @@ export default function Analytics() {
           <h2 className="text-sm font-bold text-slate-800 mb-4">Cash Flow — Last 6 Months</h2>
           <ResponsiveContainer width="100%" height={240}>
             <ComposedChart data={cashFlowData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid-stroke)"/>
-              <XAxis dataKey="month" tick={{fontSize:11,fill:'#94a3b8'}} axisLine={false} tickLine={false}/>
-              <YAxis tickFormatter={v=>`₹${(v/100000).toFixed(0)}L`} tick={{fontSize:10,fill:'#94a3b8'}} axisLine={false} tickLine={false}/>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid-stroke)" />
+              <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+              <YAxis tickFormatter={v => `₹${(v / 100000).toFixed(0)}L`} tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
               <Tooltip content={tooltipFmt} cursor={false} />
-              <Legend iconType="circle" iconSize={8} formatter={v=><span style={{fontSize:11,color:'#64748b'}}>{v}</span>}/>
-              <Bar dataKey="operating" fill="#2563eb" radius={[3,3,0,0]} name="Operating" />
-              <Bar dataKey="investing" fill="#e2e8f0" radius={[3,3,0,0]} name="Investing" />
-              <Line type="monotone" dataKey="net" stroke="#10b981" strokeWidth={2.5} dot={{fill:'#10b981',r:4}} name="Net Cash" />
+              <Legend iconType="circle" iconSize={8} formatter={v => <span style={{ fontSize: 11, color: '#64748b' }}>{v}</span>} />
+              <Bar dataKey="operating" fill="#2563eb" radius={[3, 3, 0, 0]} name="Operating" />
+              <Bar dataKey="investing" fill="#e2e8f0" radius={[3, 3, 0, 0]} name="Investing" />
+              <Line type="monotone" dataKey="net" stroke="#10b981" strokeWidth={2.5} dot={{ fill: '#10b981', r: 4 }} name="Net Cash" />
             </ComposedChart>
           </ResponsiveContainer>
         </div>
@@ -115,7 +115,7 @@ export default function Analytics() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50">
-                {['Category','Budget','Actual','Variance','Status'].map(h=>(
+                {['Category', 'Budget', 'Actual', 'Variance', 'Status'].map(h => (
                   <th key={h} className="px-5 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -128,11 +128,11 @@ export default function Analytics() {
                     <td className="px-5 py-3 font-semibold text-slate-800">{row.category}</td>
                     <td className="px-5 py-3 text-slate-600">{formatINR(row.budget)}</td>
                     <td className="px-5 py-3 font-semibold text-slate-800">{formatINR(row.actual)}</td>
-                    <td className={`px-5 py-3 font-bold ${fav?'text-emerald-600 dark:text-[#B6FF00]':'text-red-500 dark:text-red-400'}`}>
+                    <td className={`px-5 py-3 font-bold ${fav ? 'text-emerald-600 dark:text-[#B6FF00]' : 'text-red-500 dark:text-red-400'}`}>
                       {fav ? '' : '+'}{formatINR(Math.abs(row.variance))} {fav ? 'Saving' : 'Overshoot'}
                     </td>
                     <td className="px-5 py-3">
-                      <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${fav?'bg-emerald-100 dark:bg-[#B6FF00]/10 text-emerald-700 dark:text-[#B6FF00]':'bg-red-100 dark:bg-red-500/10 text-red-700 dark:text-red-400'}`}>
+                      <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${fav ? 'bg-emerald-100 dark:bg-[#B6FF00]/10 text-emerald-700 dark:text-[#B6FF00]' : 'bg-red-100 dark:bg-red-500/10 text-red-700 dark:text-red-400'}`}>
                         {fav ? '✓ On Track' : '⚠ Over Budget'}
                       </span>
                     </td>

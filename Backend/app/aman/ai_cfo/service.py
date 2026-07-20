@@ -10,9 +10,11 @@ Ties the pieces together for a single chat turn:
 
 Everything is tenant-scoped through the ``db`` handed in by the route.
 """
+import re
 import time
 
 from app.aman.core.serializers import inr
+from app.aman.core.cache import cached_report
 from app.aman.ai_cfo.config import ai_cfo_settings as cfg
 from app.aman.ai_cfo import context_builder as ctx
 from app.aman.ai_cfo import prompts, rules_engine, repository as repo, monitoring
@@ -48,6 +50,60 @@ def _infer_sections(message: str) -> list[str] | None:
     return hits
 
 
+# ─────────────────────────────── Fast-path (no context) ───────────────────────────────
+# Greetings / small talk / meta questions don't need the (expensive) financial
+# context at all — building it and shipping ~1.7k prompt tokens for a "Hi" is pure
+# latency. We detect these cheaply and skip context entirely.
+_SMALLTALK_RE = re.compile(
+    r"^(hi+|hey+|hello+|yo|hiya|sup|howdy|greetings|"
+    r"thanks?|thank\s?you|thankyou|thx|ty|cheers|"
+    r"ok(ay)?|k|cool|great|nice|awesome|perfect|got it|"
+    r"bye|goodbye|see\s?ya|good\s?(morning|afternoon|evening|night|day)|"
+    r"how\s?are\s?you|who\s?are\s?you|what('?s| is)\s?your\s?name|"
+    r"what\s?can\s?you\s?do|what\s?do\s?you\s?do|introduce\s?yourself|"
+    r"help|start|test(ing)?|ping)\b[\s!.?,]*$",
+    re.IGNORECASE,
+)
+
+
+def _is_smalltalk(message: str) -> bool:
+    m = (message or "").strip()
+    if not m:
+        return True
+    if len(m) <= 3 and m.replace("!", "").isalpha():   # 'hi', 'yo', 'ok'
+        return True
+    return bool(_SMALLTALK_RE.match(m))
+
+
+def _select_sections(message: str):
+    """Which context sections to build. ``[]`` for greetings/small talk (skip the
+    heavy context build entirely), otherwise the keyword-inferred set (None=all)."""
+    if _is_smalltalk(message):
+        return []
+    return _infer_sections(message)
+
+
+def _build_context(db, fy, sections):
+    """Build the grounded context, briefly cached per tenant+fy+section-set so
+    back-to-back questions don't re-aggregate the report engines. Small talk
+    (``sections == []``) is trivial and bypasses the cache."""
+    if sections == []:
+        return ctx.build_context(db, fy, [])
+    tenant = getattr(db, "name", "default")
+    sig = "all" if sections is None else "+".join(sorted(sections))
+    return cached_report(tenant, "aicfo-context",
+                         lambda: ctx.build_context(db, fy, sections),
+                         fy=fy, sections=sig)
+
+
+def _context_text(context, sections) -> str:
+    """Render context for the prompt. For small talk (no sections) send a short
+    neutral note instead of an empty financial block."""
+    if sections == []:
+        return "(Greeting / general message — no company financial data was looked up for this turn.)"
+    return ctx.format_for_prompt(context)
+
+
 # ─────────────────────────────── Degraded (no-LLM) answer ───────────────────────────────
 def _degraded_answer(context: dict, insights: list[dict], reason: str) -> str:
     """A grounded, useful answer built without the model — used when the provider
@@ -81,9 +137,9 @@ def answer_chat(db, user: dict, message: str, session_id: str | None = None,
         repo.touch_session(db, sid, title=prompts.title_from_message(message))
 
     # 2. Grounded context (only the sections this question needs).
-    sections = _infer_sections(message)
-    context = ctx.build_context(db, fy, sections)
-    context_text = ctx.format_for_prompt(context)
+    sections = _select_sections(message)
+    context = _build_context(db, fy, sections)
+    context_text = _context_text(context, sections)
     context_used = [n for n, d in (context.get("sections") or {}).items()
                     if isinstance(d, dict) and d.get("available")]
 
@@ -98,7 +154,8 @@ def answer_chat(db, user: dict, message: str, session_id: str | None = None,
         history = history[:-1]
     memory_text = _format_memory(repo.get_business_memory(db, user_sub))
 
-    messages = prompts.build_messages(message, context_text, history, memory_text)
+    messages = prompts.build_messages(message, context_text, history, memory_text,
+                                      light=(sections == []))
 
     # 5. Call the provider (graceful) — timed for monitoring.
     degraded = False
@@ -185,9 +242,9 @@ def stream_chat(db, user: dict, message: str, session_id: str | None = None,
     if is_new:
         repo.touch_session(db, sid, title=prompts.title_from_message(message))
 
-    sections = _infer_sections(message)
-    context = ctx.build_context(db, fy, sections)
-    context_text = ctx.format_for_prompt(context)
+    sections = _select_sections(message)
+    context = _build_context(db, fy, sections)
+    context_text = _context_text(context, sections)
     context_used = [n for n, d in (context.get("sections") or {}).items()
                     if isinstance(d, dict) and d.get("available")]
     insights = rules_engine.evaluate(context)
@@ -197,7 +254,8 @@ def stream_chat(db, user: dict, message: str, session_id: str | None = None,
     if history and history[-1].get("role") == "user":
         history = history[:-1]
     memory_text = _format_memory(repo.get_business_memory(db, user_sub))
-    messages = prompts.build_messages(message, context_text, history, memory_text)
+    messages = prompts.build_messages(message, context_text, history, memory_text,
+                                      light=(sections == []))
 
     yield {"event": "meta", "data": {"sessionId": sid, "fy": context.get("fy"),
                                      "contextUsed": context_used}}

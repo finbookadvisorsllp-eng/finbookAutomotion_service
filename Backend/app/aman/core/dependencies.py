@@ -186,6 +186,36 @@ def require_aman_subscription(user: dict = Depends(get_current_user)) -> dict:
     return user
 
 
+def require_company_access(request: Request, user: dict = Depends(require_aman_subscription)) -> dict:
+    """Authorize the caller for the specific company in ``x-company-id``.
+
+    Closes the gap where any valid aman token could read/mutate *any* company by
+    changing the header. Deterministic rule:
+
+      * token with ``companies == ["*"]`` (admin / dev)  → allow
+      * token carrying a concrete ``companies`` allowlist → the requested ref must
+        be in it, else 403
+      * token with no ``companies`` claim (older IAM tokens that don't scope)      → allow
+        (compatibility; documented residual — flip to deny once every issued token
+        carries the claim)
+      * no company ref (default company)                  → nothing to check
+
+    Reusable platform-wide; currently applied to the Business Health router.
+    """
+    companies = user.get("companies")
+    if not companies or "*" in companies:
+        return user
+    ref = (request.headers.get("x-company-id") or request.headers.get("x-company")
+           or request.query_params.get("companyId") or "").strip()
+    if not ref:
+        return user
+    allowed = {str(c).strip().lower() for c in companies}
+    if ref.lower() in allowed:
+        return user
+    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Not authorized for the requested company")
+
+
 def require_module(module: str):
     """Finer-grained, tier-based feature gate (optional per route)."""
     def _checker(user: dict = Depends(require_aman_subscription)) -> dict:

@@ -98,12 +98,12 @@ export default function OutstandingReports() {
   return (
     <div className="animate-fade-in space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white px-4 py-3 shadow-sm rounded-2xl">
         <div>
           <h1 className="text-xl font-black text-slate-900 dark:text-slate-800">Outstanding Reports</h1>
           <p className="text-sm text-slate-400 mt-0.5">Receivables &amp; payables — derived from ledger balances, reconciled with the Balance Sheet</p>
         </div>
-        <div className="flex bg-white dark:bg-[#1a1a24] border border-slate-200 dark:border-slate-700/50 p-1.5 rounded-2xl shadow-sm">
+        <div className="flex bg-white dark:bg-[#1a1a24] border border-slate-300 dark:border-slate-700/50 p-1.5 rounded-2xl shadow-sm">
           <button onClick={() => setReportType('receivables')}
             className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${isReceivable ? 'bg-blue-50 text-blue-700' : 'text-slate-500 hover:text-slate-700'}`}>
             Receivables (To Collect)

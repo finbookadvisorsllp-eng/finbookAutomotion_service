@@ -1,6 +1,7 @@
-// Financial Health Score card (Phase 9) — a 0–100 composite with a grade ring
-// and per-component bars. Deterministic + reconciled (computed server-side from
-// the same report figures), so it never contradicts the reports.
+// Health Score card — a 0–100 composite with a grade ring and per-pillar bars.
+// Renders the SAME score the Business Health page shows (one source of truth):
+// /ai-cfo/health-score now delegates to Business Health's 5-pillar model, so this
+// rail can never disagree with /health. Deterministic + reconciled server-side.
 
 const GRADE_COLOR = {
   A: '#16a34a', B: '#65a30d', C: '#d97706', D: '#ea580c', E: '#dc2626', '—': '#94a3b8',
@@ -38,7 +39,7 @@ export default function HealthScore({ data }) {
         </div>
         <div className="min-w-0">
           <p className="text-[11px] font-extrabold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>
-            Financial Health
+            Business Health
           </p>
           <p className="text-[15px] font-black" style={{ color }}>{label}</p>
         </div>
@@ -48,9 +49,10 @@ export default function HealthScore({ data }) {
       <div className="mt-3 space-y-1.5">
         {components.map((c) => (
           <div key={c.key}>
-            <div className="flex items-center justify-between text-[10px] font-bold mb-0.5">
-              <span style={{ color: 'var(--theme-text-muted)' }}>{c.label}</span>
-              <span style={{ color: 'var(--theme-text-main)' }}>{c.score ?? '—'}</span>
+            <div className="flex items-center justify-between gap-2 text-[10px] font-bold mb-0.5">
+              <span className="truncate" title={c.detail || c.label}
+                style={{ color: 'var(--theme-text-muted)' }}>{c.label}</span>
+              <span className="shrink-0 tabular-nums" style={{ color: 'var(--theme-text-main)' }}>{c.score ?? '—'}</span>
             </div>
             <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--theme-kpi-border)' }}>
               <div className="h-full rounded-full transition-all"

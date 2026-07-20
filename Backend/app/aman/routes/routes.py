@@ -17,6 +17,10 @@ from . import (
 # AI CFO lives in its own package (app.aman.ai_cfo) so it stays easy to evolve
 # and test in isolation. It is subscription-gated like every other data route.
 from app.aman.ai_cfo.routes import router as ai_cfo_router
+# Business Health is a sibling self-contained package (app.aman.business_health):
+# it orchestrates the report services into scores, risks, opportunities and a
+# tracked Decision Ledger. Subscription-gated and company-scoped like the rest.
+from app.aman.business_health.routes import router as business_health_router
 
 aman_api_router = APIRouter(prefix="/api/v3")
 
@@ -41,7 +45,8 @@ for _module in (
 ):
     _protected.include_router(_module.router)
 
-# AI CFO router (imported directly from its own package).
+# AI CFO + Business Health routers (imported directly from their own packages).
 _protected.include_router(ai_cfo_router)
+_protected.include_router(business_health_router)
 
 aman_api_router.include_router(_protected)

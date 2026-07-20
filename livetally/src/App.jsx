@@ -1,6 +1,7 @@
 import { useState, useEffect, lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { DateProvider } from './context/DateContext'
+import { AICFOProvider } from './context/AICFOContext'
 
 // Layout — always mounted, kept eager.
 import Sidebar from './components/Sidebar'
@@ -49,6 +50,10 @@ const ItemPerformance = lazy(() => import('./pages/ItemPerformance'))
 const GenericReport = lazy(() => import('./pages/GenericReport'))
 const CashBankModule = lazy(() => import('./pages/CashBankModule'))
 const AICFO = lazy(() => import('./pages/AICFO/AICFO'))
+// Business Health — one hub page with tabs (Overview / Score / Decisions /
+// Opportunities & Risks / Impact). The tab lives in the URL so deep-links and
+// evidence cross-links keep working; the whole feature code-splits as one chunk.
+const BusinessHealth = lazy(() => import('./pages/BusinessHealth/BusinessHealth'))
 
 import "./index.css"
 
@@ -140,8 +145,13 @@ export default function App() {
   return (
     <BrowserRouter>
       <DateProvider>
+        <AICFOProvider>
         <AppShell>
           <Routes>
+            {/* ── Business Health (one hub, tab in the URL) ── */}
+            <Route path="/health" element={<BusinessHealth />} />
+            <Route path="/health/:tab" element={<BusinessHealth />} />
+
             {/* ── Overview ── */}
             <Route path="/" element={<Dashboard />} />
             <Route path="/ai-cfo" element={<AICFO />} />
@@ -199,6 +209,7 @@ export default function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </AppShell>
+        </AICFOProvider>
       </DateProvider>
     </BrowserRouter>
   )

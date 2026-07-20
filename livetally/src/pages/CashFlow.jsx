@@ -71,7 +71,7 @@ export default function CashFlow() {
   return (
     <div className="animate-fade-in space-y-5">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white px-4 py-3 shadow-sm rounded-2xl">
         <div>
           <h1 className="text-xl font-black text-slate-900">Cash Flow Statement</h1>
           <p className="text-sm text-slate-400 mt-0.5">{cf?.method || 'Direct Method'} · every figure traces to a voucher</p>

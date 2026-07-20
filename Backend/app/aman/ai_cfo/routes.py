@@ -22,14 +22,15 @@ import json
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 
-from app.aman.core.dependencies import get_db, get_fy, get_current_user
+from app.aman.core.dependencies import get_db, get_fy, get_current_user, get_tenant_key
 from app.aman.core.serializers import serialize_docs
+from app.aman.core.cache import cached_report
 from app.aman.models.common import ok
 from app.aman.ai_cfo.config import ai_cfo_settings as cfg
 from app.aman.ai_cfo.schemas import ChatRequest
 from app.aman.ai_cfo import service, repository as repo
 from app.aman.ai_cfo import suggestions as sugg
-from app.aman.ai_cfo import context_builder as ctx, rules_engine, health_score, monitoring, forecast
+from app.aman.ai_cfo import context_builder as ctx, rules_engine, monitoring, forecast, findings
 from app.aman.ai_cfo.providers import ProviderError
 
 router = APIRouter(prefix="/ai-cfo", tags=["aman:ai-cfo"])
@@ -120,9 +121,31 @@ def insights(fy: str = Depends(get_fy), db=Depends(get_db)):
 
 @router.get("/health-score")
 def health_score_endpoint(fy: str = Depends(get_fy), db=Depends(get_db)):
-    """Deterministic 0–100 financial health score (profit/liquidity/collection/growth)."""
-    context = ctx.build_context(db, fy, sections=["profit", "cash", "outstanding", "sales"])
-    return ok(health_score.compute(context), meta={"fy": fy})
+    """Deterministic 0–100 health score — **the same score Business Health shows**.
+
+    This used to run its own 4-pillar scorer (profit 35 / liquidity 30 / collections 20
+    / growth 15), which meant one company could show two different health scores in the
+    same app — the AI CFO rail and the Business Health page disagreeing. There is now a
+    single source of truth: Business Health's 5-pillar model. The response keeps the
+    legacy ``components`` key so existing callers keep working.
+
+    Imported inside the function: ``business_health.briefing`` imports the AI CFO
+    provider, so a module-level import here would be circular.
+    """
+    from app.aman.business_health import pillars as bh_pillars
+    from app.aman.business_health.engines import kpi as bh_kpi
+
+    sc = bh_pillars.compute(bh_kpi.build_metrics(db, fy))
+    return ok({
+        "overall": sc["overall"], "grade": sc["grade"], "label": sc["label"],
+        "coverage": sc["coverage"],
+        "components": [
+            {"key": p["key"], "label": p["label"], "score": p["score"],
+             "weight": p["weight"], "band": p["band"],
+             "detail": (p["drivers"][0]["detail"] if p.get("drivers") else "")}
+            for p in sc["pillars"]
+        ],
+    }, meta={"fy": fy})
 
 
 @router.get("/stats")
@@ -136,6 +159,16 @@ def forecast_endpoint(fy: str = Depends(get_fy), months: int = Query(default=3, 
                       db=Depends(get_db)):
     """Sales / cash / collections outlook (transparent linear projection + caveats)."""
     return ok(forecast.build_forecast(db, fy, months), meta={"fy": fy})
+
+
+@router.get("/brief")
+def brief_endpoint(fy: str = Depends(get_fy), tenant: str = Depends(get_tenant_key), db=Depends(get_db)):
+    """CFO Brief: the findings engine (CFO_REASONING_MODEL.md). One unified pass that
+    surfaces only *material* findings — ranked across categories, worst first — plus a
+    per-category summary (so a clean category reads 'checked, all clear', never blank).
+    Deterministic; the LLM only narrates this list downstream."""
+    return ok(cached_report(tenant, "ai_cfo_brief", lambda: findings.build_findings(db, fy), fy=fy),
+              meta={"fy": fy})
 
 
 @router.get("/recommendations")

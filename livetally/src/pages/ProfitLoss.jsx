@@ -201,16 +201,16 @@ export default function ProfitLoss() {
         if (!itemPerformanceRes) return null;
         const name = itemPerformanceRes.name;
         const vchs = itemPerformanceRes.vouchers || [];
-        
+
         const customersMap = new Map();
         const suppliersMap = new Map();
-        
+
         vchs.forEach(v => {
             const isSales = v.type === 'Sales' || v.type === 'Credit Note';
             const isPurchase = v.type === 'Purchase' || v.type === 'Debit Note';
             const qty = Math.abs(v.qty || 0);
             const amount = Math.abs(v.amount || 0);
-            
+
             if (isSales && v.ledgerName) {
                 if (!customersMap.has(v.ledgerName)) {
                     customersMap.set(v.ledgerName, {
@@ -238,26 +238,26 @@ export default function ProfitLoss() {
                 s.totalAmount += amount;
             }
         });
-        
+
         const customers = Array.from(customersMap.values()).map(c => ({
             ...c,
             totalQty: c.totalQty.toFixed(2),
             rate: c.totalQty > 0 ? `₹${(c.totalAmount / c.totalQty).toFixed(2)}` : '₹0'
         }));
-        
+
         const suppliers = Array.from(suppliersMap.values()).map(s => ({
             ...s,
             totalQty: s.totalQty.toFixed(2),
             rate: s.totalQty > 0 ? `₹${(s.totalAmount / s.totalQty).toFixed(2)}` : '₹0'
         }));
-        
+
         const itemSummary = getStockItemSummary();
         const amount = itemSummary ? itemSummary.value : 0;
         const hsn = itemSummary ? itemSummary.hsn : '';
         const closingStock = itemSummary ? `${itemSummary.closing} ${itemSummary.unit || 'PCS'}` : '0 PCS';
         const avgPurRate = itemSummary ? itemSummary.rate : 0;
         const gstRate = itemSummary ? `${itemSummary.gstRate} %` : '0 %';
-        
+
         return {
             name,
             amount,
@@ -356,7 +356,7 @@ export default function ProfitLoss() {
 
             {/* Header & Global Actions */}
             {!ledgerId && !voucherId && !stockItemId && !stockItemCustomer && (
-                <div className="flex flex-col md:flex-row md:items-center justify-between mb-3 flex-wrap gap-4">
+                <div className="bg-white p-2 flex flex-col md:flex-row md:items-center justify-between mb-3 flex-wrap gap-4">
                     <div className="flex items-center gap-3">
                         <button className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-600 "><path d="m15 18-6-6 6-6" /></svg>
@@ -365,11 +365,11 @@ export default function ProfitLoss() {
                     </div>
 
                     {/* Year Selector */}
-                    <div className="flex items-center glass-card">
+                    <div className="flex items-center glass-card dp-trigger shadow-sm ">
                         <button
                             onClick={handlePrevYear}
                             disabled={currentIndex <= 0}
-                            className="p-2 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 transition-colors border-r border-slate-200"
+                            className="p-2 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 transition-colors border-r border-slate-400 cursor-pointer"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
                         </button>
@@ -379,7 +379,7 @@ export default function ProfitLoss() {
                         <button
                             onClick={handleNextYear}
                             disabled={currentIndex >= years.length - 1}
-                            className="p-2 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 transition-colors border-l border-slate-200"
+                            className="p-2 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 transition-colors border-l border-slate-400 cursor-pointer"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
                         </button>

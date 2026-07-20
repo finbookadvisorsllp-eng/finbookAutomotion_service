@@ -33,6 +33,8 @@ _DYNAMIC_PROMPTS = {
     "receivables-high": ("How do I bring down my receivables?", "collections"),
     "thin-margin": ("My margin is thin — how do I improve it?", "profitability"),
     "net-loss": ("I'm making a loss — what's driving it?", "profitability"),
+    "customer-concentration": ("How exposed am I to my biggest customer?", "sales"),
+    "customer-concentration-top3": ("How concentrated is my revenue across customers?", "sales"),
 }
 
 

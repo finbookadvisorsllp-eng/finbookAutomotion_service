@@ -2,19 +2,25 @@ import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import logoUrl from '../assets/logo.png'
 import {
-  LayoutDashboard, BarChart2, Bell, Mail, TrendingUp, Scale, Droplet, FileText,
-  BookOpen, Calendar, AlertTriangle, ReceiptText, Clock, ShoppingCart, Package,
-  Snail, Rocket, CircleDollarSign, FileEdit, CreditCard, Search, PieChart,
-  UsersRound, ShieldCheck, PlugZap, FolderKanban, HeadphonesIcon, ChevronDown, Landmark,
-  ClipboardList, FileMinus, Truck, ClipboardCheck, FilePlus, Inbox, Bot
+  LayoutDashboard, BarChart2, Bell, TrendingUp, Scale, Droplet, FileText,
+  Calendar, AlertTriangle, ReceiptText, ShoppingCart, Package,
+  Snail, Rocket, CircleDollarSign, PieChart, ChevronDown, Landmark,
+  ClipboardList, FileMinus, Truck, ClipboardCheck, FilePlus, Inbox, Bot,
+  HeartPulse
 } from 'lucide-react'
 
 const navGroups = [
   {
+    id: 'business-health', label: 'Business Health',
+    items: [
+      { id: 'bh', label: 'Business Health', path: '/health', icon: HeartPulse, badge: 'NEW' },
+      { id: 'ai-cfo', label: 'AI CFO', path: '/ai-cfo', icon: Bot, badge: 'AI' },
+    ],
+  },
+  {
     id: 'overview', label: 'Overview',
     items: [
       { id: 'dashboard', label: 'Dashboard', path: '/', icon: LayoutDashboard, badge: null },
-      { id: 'ai-cfo', label: 'AI CFO', path: '/ai-cfo', icon: Bot, badge: 'AI' },
       { id: 'alerts-notif', label: 'Alerts & Notifications', path: '/alerts', icon: Bell, badge: 7 },
     ],
   },

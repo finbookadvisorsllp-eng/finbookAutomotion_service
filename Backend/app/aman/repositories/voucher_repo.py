@@ -345,6 +345,36 @@ def monthly_ledger_movement(db, fy: str | None = None, ledger_names: list[str] =
             for row in db["vouchers"].aggregate(pipeline)}
 
 
+def monthly_by_ledger(db, fy: str | None = None, ledger_names: list[str] = None,
+                      date_match: dict | None = None) -> dict[str, dict[int, float]]:
+    """Per-ledger, per-month **net** movement (debit − credit, sign-based) for a set
+    of ledgers → ``{ledgerName: {monthNumber: net}}``. Same journal filters as
+    ``monthly_ledger_movement`` but grouped by ledger too, so the AI CFO anomaly
+    detector can see how each expense ledger moves month over month. For an expense
+    ledger a positive net = money spent that month."""
+    if not ledger_names:
+        return {}
+    match_clause = accounting_only(date_match_clause(fy, date_match, {"ledgerEntries.ledgerName": {"$in": ledger_names}}))
+    amt = {"$ifNull": ["$ledgerEntries.amount", 0]}
+    pipeline = [
+        {"$match": match_clause},
+        {"$unwind": "$ledgerEntries"},
+        {"$match": {"ledgerEntries.ledgerName": {"$in": ledger_names}}},
+        {"$group": {
+            "_id": {"ledger": "$ledgerEntries.ledgerName", "month": {"$month": f"${DATE_FIELD}"}},
+            "debit": {"$sum": {"$cond": [{"$lt": [amt, 0]}, {"$abs": amt}, 0]}},
+            "credit": {"$sum": {"$cond": [{"$gt": [amt, 0]}, amt, 0]}},
+        }},
+    ]
+    out: dict[str, dict[int, float]] = {}
+    for row in db["vouchers"].aggregate(pipeline):
+        led = row["_id"]["ledger"]
+        mnum = row["_id"]["month"]
+        net = round(row.get("debit", 0) - row.get("credit", 0), 2)
+        out.setdefault(led, {})[mnum] = net
+    return out
+
+
 def ledgers_movement(db, date_match: dict, ledger_names: list[str]) -> dict[str, dict]:
     """Per-ledger {debit, credit} for a *restricted* set of ledgers over a range.
 

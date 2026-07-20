@@ -168,10 +168,10 @@ export default function BalanceSheet() {
   return (
     <div className="animate-fade-in pb-12">
       {/* Header */}
-      <div className="flex flex-col xl:flex-row xl:items-center justify-between mb-5 gap-4">
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between mb-5 gap-4 bg-white px-4 py-3 shadow-sm rounded-2xl">
         <div>
           <h1 className="text-2xl font-black text-slate-900">Balance Sheet</h1>
-          <p className="text-sm font-semibold text-slate-500 mt-1">as at {bs?.asOf || currentYear.label || '—'}</p>
+          {/* <p className="text-sm font-semibold text-slate-500 mt-1">as at {bs?.asOf || currentYear.label || '—'}</p> */}
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center glass-card h-9 overflow-hidden">

@@ -203,10 +203,6 @@ export default function DayBook() {
       <div className="sticky top-0 z-30 flex items-center justify-between glass-card px-5 py-4 mb-5 flex-wrap gap-4">
         <div className="flex items-center gap-3">
           <h1 className="text-lg font-black text-slate-900 dark:text-white leading-tight">Day Book</h1>
-          <span className="h-4 w-[1px] bg-slate-200 dark:bg-slate-800" />
-          <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">
-            {displayPeriod || fy} {loading ? '· Fetching...' : ''}
-          </p>
         </div>
 
         <div className="flex items-center gap-2">

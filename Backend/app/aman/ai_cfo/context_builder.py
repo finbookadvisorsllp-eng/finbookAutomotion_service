@@ -177,7 +177,8 @@ def build_context(db, fy: str | None = None, sections: list[str] | None = None) 
     ``sections`` limits which loaders run (a targeted question needn't build
     everything). Unknown sections are ignored; the default is all of them."""
     fy = fy or current_fy()
-    wanted = [s for s in (sections or ALL_SECTIONS) if s in _LOADERS]
+    # None => all sections; an explicit [] => none (used for greetings/smalltalk).
+    wanted = [s for s in (ALL_SECTIONS if sections is None else sections) if s in _LOADERS]
     out: dict = {"fy": fy, "previousFy": prev_fy(fy), "sections": {}}
     for name in wanted:
         out["sections"][name] = _safe(lambda n=name: _LOADERS[n](db, fy))
@@ -206,7 +207,9 @@ def format_for_prompt(context: dict) -> str:
     sec = context.get("sections", {})
 
     def avail(name):
-        d = sec.get(name) or {}
+        d = sec.get(name)
+        if d is None:
+            return None  # not requested this turn — not a real data gap
         if not d.get("available", False):
             gaps.append(f"{name} ({d.get('reason', 'unavailable')})")
             return None

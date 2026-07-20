@@ -162,6 +162,9 @@ export const aiCfoMessages = (sessionId, limit = 200) => apiGet('/ai-cfo/history
 export const aiCfoSuggestions = (fy) => apiGet('/ai-cfo/suggestions', { fy })
 export const aiCfoDeleteConversation = (sessionId) => apiDelete('/ai-cfo/conversation', { sessionId })
 export const aiCfoInsights = (fy) => apiGet('/ai-cfo/insights', { fy })
+// CFO Brief — the findings engine: only material findings, ranked across categories
+// (worst first) + a per-category summary. Powers the CFO Desk.
+export const aiCfoBrief = (fy) => apiGet('/ai-cfo/brief', { fy })
 export const aiCfoHealthScore = (fy) => apiGet('/ai-cfo/health-score', { fy })
 export const aiCfoRecommendations = (fy) => apiGet('/ai-cfo/recommendations', { fy })
 export const aiCfoWarnings = (fy) => apiGet('/ai-cfo/warnings', { fy })
@@ -170,5 +173,30 @@ export const aiCfoGetMemory = () => apiGet('/ai-cfo/memory')
 export const aiCfoSetMemory = (key, value, category = 'general') =>
   apiPost('/ai-cfo/memory', { key, value, category })
 export const aiCfoDeleteMemory = (key) => apiDelete('/ai-cfo/memory', { key })
+
+// ─── Business Health ─── (decision operating system layered on the report engines;
+// every figure reconciles with its report page — the module never re-does accounting.)
+export const bhHealth = () => apiGet('/business-health/health')
+export const bhOverview = (fy) => apiGet('/business-health/overview', { fy })
+export const bhScore = (fy) => apiGet('/business-health/score', { fy })
+// Impact since onboarding: before→after vitals, score delta, and the realised ₹
+// impact of acted decisions (the value the AI CFO has generated).
+export const bhImpact = (fy) => apiGet('/business-health/impact', { fy })
+export const bhPillars = (fy) => apiGet('/business-health/pillars', { fy })
+export const bhKpis = (fy) => apiGet('/business-health/kpis', { fy })
+export const bhInsights = (fy, type) => apiGet('/business-health/insights', { fy, type })
+export const bhRisks = (fy) => apiGet('/business-health/risks', { fy })
+export const bhOpportunities = (fy) => apiGet('/business-health/opportunities', { fy })
+export const bhSimulate = (overrides, fy) => apiPost('/business-health/simulate', { overrides, fy })
+export const bhDecisions = (fy, status) => apiGet('/business-health/decisions', { fy, status })
+export const bhGenerateDecisions = (fy) => apiPost('/business-health/decisions/generate', {}, { fy })
+export const bhActDecision = (id, note) =>
+  apiPost(`/business-health/decisions/${encodeURIComponent(id)}/act`, { note })
+export const bhSnoozeDecision = (id, days) =>
+  apiPost(`/business-health/decisions/${encodeURIComponent(id)}/snooze`, { days })
+export const bhDismissDecision = (id, reason) =>
+  apiPost(`/business-health/decisions/${encodeURIComponent(id)}/dismiss`, { reason })
+export const bhBriefing = (fy) => apiGet('/business-health/briefing', { fy })
+export const bhTrend = (fy, limit) => apiGet('/business-health/trend', { fy, limit })
 
 export { auth, setCompanyId }

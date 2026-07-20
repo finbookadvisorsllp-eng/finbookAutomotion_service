@@ -20,6 +20,8 @@ PROFIT_DECLINE_PCT = -5.0       # net profit down >5% YoY
 EXPENSE_SPIKE_PCT = 15.0        # purchases/expenses up >15% YoY
 MARGIN_THIN_PCT = 5.0           # net margin below 5%
 RECEIVABLES_TO_SALES = 0.25     # receivables > 25% of annual sales = collection risk
+TOP_CUSTOMER_PCT = 30.0         # single customer > 30% of sales = concentration risk
+TOP3_CUSTOMER_PCT = 55.0        # top 3 customers > 55% of sales = concentration risk
 
 
 def _sec(context: dict, name: str) -> dict:
@@ -136,6 +138,35 @@ def evaluate(context: dict) -> list[dict]:
                 "Outstanding receivables to collect",
                 f"{inr(rec)} is due from {outstanding.get('receivableParties')} parties.",
                 metric="receivables", value=money(rec), action="View Receivables"))
+
+    # ── Customer concentration risk ──
+    # Grounded purely in the top-customer sales already in context vs total sales:
+    # if too much revenue rides on one/few customers, losing one is a cash shock.
+    top = sales.get("topCustomers") or []
+    if isinstance(ann_sales, (int, float)) and ann_sales > 0 and top:
+        def _cust_share(rows):
+            s = sum(r.get("sales") or 0 for r in rows if isinstance(r.get("sales"), (int, float)))
+            return s / ann_sales * 100
+        top1 = top[0]
+        top1_pct = _cust_share(top[:1])
+        top3_pct = _cust_share(top[:3])
+        if top1_pct >= TOP_CUSTOMER_PCT:
+            out.append(_insight(
+                "customer-concentration", "warning", "revenue",
+                "Revenue is concentrated in one customer",
+                f"{top1.get('name')} accounts for ~{top1_pct:.0f}% of sales "
+                f"({inr(top1.get('sales'))} of {inr(ann_sales)}). Losing this account "
+                "would be a serious revenue and cash shock — diversify the customer base.",
+                metric="customerConcentration", value=round(top1_pct, 1),
+                action="Analyze Sales"))
+        elif top3_pct >= TOP3_CUSTOMER_PCT:
+            out.append(_insight(
+                "customer-concentration-top3", "info", "revenue",
+                "Revenue leans on a few customers",
+                f"The top 3 customers make up ~{top3_pct:.0f}% of sales. Watch this "
+                "concentration and grow the wider customer base to reduce dependency.",
+                metric="customerConcentration", value=round(top3_pct, 1),
+                action="Analyze Sales"))
 
     # ── Payables (informational) ──
     pay = outstanding.get("payablesTotal")

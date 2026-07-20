@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Bot, Send, X, Maximize2, Sparkles } from 'lucide-react'
 import { useDateRange } from '../context/DateContext'
-import { useAICFOChat } from '../hooks/useAICFOChat'
+import { useAICFO } from '../context/AICFOContext'
 import MessageBubble from '../pages/AICFO/MessageBubble'
 import Suggestions from '../pages/AICFO/Suggestions'
 
@@ -14,8 +14,8 @@ export default function AICFOLauncher() {
   const navigate = useNavigate()
   const location = useLocation()
   const { fy } = useDateRange()
-  const chat = useAICFOChat(fy)
-  const { messages, input, setInput, sending, suggestions, send, isEmpty } = chat
+  // Shared, persistent engine instance — same conversation as the full page.
+  const { messages, input, setInput, sending, suggestions, send, isEmpty, activate } = useAICFO()
   const scrollRef = useRef(null)
   const inputRef = useRef(null)
 
@@ -26,9 +26,13 @@ export default function AICFOLauncher() {
     if (open) scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
   }, [messages, sending, open])
 
+  // Lazy first-access load: initialize resources the first time the popup opens.
   useEffect(() => {
-    if (open) setTimeout(() => inputRef.current?.focus(), 120)
-  }, [open])
+    if (!open) return
+    activate()
+    const t = setTimeout(() => inputRef.current?.focus(), 120)
+    return () => clearTimeout(t)
+  }, [open, activate])
 
   // Escape closes the panel.
   useEffect(() => {
