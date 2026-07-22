@@ -106,6 +106,18 @@ const calculateFormTotals = (form) => {
     });
   }
 
+  if (Array.isArray(form.salesLines)) {
+    form.salesLines.forEach((c) => {
+      const nameUpper = (c.ledgerName || c.salesLedger || '').toUpperCase();
+      const isTaxLedger = nameUpper.includes('CGST') || nameUpper.includes('SGST') || nameUpper.includes('IGST') || nameUpper.includes('UTGST') || nameUpper.includes('CESS');
+      if (!isTaxLedger) {
+        const amt = parseFloat(c.amount) || 0;
+        ledgerAmount += amt;
+        totalAdditionalCharges += amt;
+      }
+    });
+  }
+
   if (form.entryTab === 'with_item') {
     if (Array.isArray(form.productLines)) {
       form.productLines.forEach((line) => {
@@ -117,10 +129,6 @@ const calculateFormTotals = (form) => {
         itemAmount += amount;
       });
     }
-
-    // NOTE: salesLines in 'with_item' mode represent sales ledger distribution accounts,
-    // NOT additional charges. Only the explicit additionalCharges array contributes here.
-    // (Previously this loop incorrectly doubled the taxable base for OCR-imported invoices.)
 
     // Step 3, 4, 5, 6: Distribute additional charges and calculate tax item-wise
     if (Array.isArray(form.productLines)) {

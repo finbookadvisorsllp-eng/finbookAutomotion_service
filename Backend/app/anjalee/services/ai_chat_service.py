@@ -1518,10 +1518,8 @@ class AiChatService:
         import re
         search_configs = [
             ("sales_vouchers", "sales_invoice"),
-            ("purchase_transactions", "purchase_invoice"),
             ("purchase_vouchers", "purchase_invoice"),
-            ("fund_flow_vouchers", "payment"),
-            ("fund_flow_transactions", "payment")
+            ("fund_flow_vouchers", "payment")
         ]
         
         if voucher_number:
@@ -1546,10 +1544,10 @@ class AiChatService:
                 target_colls = [("sales_vouchers", "sales_invoice")]
                 query = {"partyLedgerName": {"$regex": re.escape(party), "$options": "i"}, "isDeleted": {"$ne": True}}
             elif "purchase" in v_type_normalized or "debit" in v_type_normalized:
-                target_colls = [("purchase_transactions", "purchase_invoice"), ("purchase_vouchers", "purchase_invoice")]
+                target_colls = [("purchase_vouchers", "purchase_invoice")]
                 query = {"partyLedger": {"$regex": re.escape(party), "$options": "i"}, "isDeleted": {"$ne": True}}
             else:
-                target_colls = [("fund_flow_vouchers", "payment"), ("fund_flow_transactions", "payment")]
+                target_colls = [("fund_flow_vouchers", "payment")]
                 query = {"partyLedger": {"$regex": re.escape(party), "$options": "i"}, "status": {"$ne": "deleted"}}
                 
             for coll, v_type in target_colls:
@@ -2387,7 +2385,7 @@ class AiChatService:
         features = []
         if "sales_vouchers" in collections:
             features.append("Sales Voucher (Invoicing)")
-        if "purchase_vouchers" in collections or "purchase_transactions" in collections:
+        if "purchase_vouchers" in collections:
             features.append("Purchase Voucher (Billing)")
         if "fund_flow_vouchers" in collections:
             features.append("Payment Voucher")
@@ -2973,7 +2971,7 @@ class AiChatService:
             })
             
         recent_sales = await self.db["sales_vouchers"].find({"isDeleted": {"$ne": True}}).sort("createdAt", -1).limit(10).to_list(length=10)
-        recent_purchase = await self.db["purchase_transactions"].find({"isDeleted": {"$ne": True}}).sort("createdAt", -1).limit(10).to_list(length=10)
+        recent_purchase = await self.db["purchase_vouchers"].find({"isDeleted": {"$ne": True}}).sort("createdAt", -1).limit(10).to_list(length=10)
         
         voucher_history = []
         for v in recent_sales:

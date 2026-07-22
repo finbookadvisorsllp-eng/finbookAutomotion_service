@@ -70,7 +70,9 @@ class CompanyService:
     def get_company_master_data(self, company_id: Optional[str] = None) -> Dict[str, Any]:
         from bson import ObjectId
         comp = None
+        is_specific_company = False
         if company_id:
+            is_specific_company = True
             if len(company_id) == 24:
                 try:
                     comp = self.repo.db["companies"].find_one({"_id": ObjectId(company_id)})
@@ -83,14 +85,14 @@ class CompanyService:
                         {"basicCompantFormalName": company_id}
                     ]
                 })
-        
-        if not comp:
+
+        if not comp and not is_specific_company:
             comp = self.repo.db["companies"].find_one()
 
         comp_db_id = comp["_id"] if comp else None
 
-        sales_ledgers = self.repo.get_ledgers_by_group("Sales Accounts", company_id=comp_db_id)
-        if not sales_ledgers:
+        sales_ledgers = self.repo.get_ledgers_by_group("Sales Accounts", company_id=comp_db_id) if comp_db_id else []
+        if not sales_ledgers and not is_specific_company:
             sales_ledgers = ["General Sales", "Service Sales"]
 
         party_groups = ["Sundry Debtors", "Sundry Creditors"]
@@ -98,46 +100,45 @@ class CompanyService:
         # Query full ledgers to extract details for auto-populating
         party_details = {}
         party_ledgers = []
-        try:
-            query = {"groupName": {"$in": party_groups}}
-            if comp_db_id:
-                query["companyId"] = comp_db_id
-            raw_ledgers = list(self.repo.db["ledgers"].find(
-                query,
-                {"ledgerName": 1, "partyDetails.gstin": 1, "partyDetails.gstState": 1, "gstin": 1}
-            ))
-            for doc in raw_ledgers:
-                name = doc.get("ledgerName")
-                if name:
-                    party_ledgers.append(name)
-                    pd = doc.get("partyDetails") or {}
-                    gstin = pd.get("gstin") or doc.get("gstin") or ""
-                    
-                    # Resolve state from gstin prefix or gstState
-                    gst_state = pd.get("gstState") or ""
-                    if not gst_state and gstin and len(gstin) >= 2:
-                        state_codes = {
-                            "01": "Jammu & Kashmir", "02": "Himachal Pradesh", "03": "Punjab", "04": "Chandigarh",
-                            "05": "Uttarakhand", "06": "Haryana", "07": "Delhi", "08": "Rajasthan", "09": "Uttar Pradesh",
-                            "10": "Bihar", "11": "Sikkim", "12": "Arunachal Pradesh", "13": "Nagaland", "14": "Manipur",
-                            "15": "Mizoram", "16": "Tripura", "17": "Meghalaya", "18": "Assam", "19": "West Bengal",
-                            "20": "Jharkhand", "21": "Odisha", "22": "Chhattisgarh", "23": "Madhya Pradesh",
-                            "24": "Gujarat", "25": "Daman & Diu", "26": "Dadra & Nagar Haveli", "27": "Maharashtra",
-                            "29": "Karnataka", "30": "Goa", "31": "Lakshadweep", "32": "Kerala", "33": "Tamil Nadu",
-                            "34": "Puducherry", "35": "Andaman & Nicobar Islands", "36": "Telangana", "37": "Andhra Pradesh",
-                            "38": "Ladakh"
+        if comp_db_id:
+            try:
+                query = {"groupName": {"$in": party_groups}, "companyId": comp_db_id}
+                raw_ledgers = list(self.repo.db["ledgers"].find(
+                    query,
+                    {"ledgerName": 1, "partyDetails.gstin": 1, "partyDetails.gstState": 1, "gstin": 1}
+                ))
+                for doc in raw_ledgers:
+                    name = doc.get("ledgerName")
+                    if name:
+                        party_ledgers.append(name)
+                        pd = doc.get("partyDetails") or {}
+                        gstin = pd.get("gstin") or doc.get("gstin") or ""
+                        
+                        # Resolve state from gstin prefix or gstState
+                        gst_state = pd.get("gstState") or ""
+                        if not gst_state and gstin and len(gstin) >= 2:
+                            state_codes = {
+                                "01": "Jammu & Kashmir", "02": "Himachal Pradesh", "03": "Punjab", "04": "Chandigarh",
+                                "05": "Uttarakhand", "06": "Haryana", "07": "Delhi", "08": "Rajasthan", "09": "Uttar Pradesh",
+                                "10": "Bihar", "11": "Sikkim", "12": "Arunachal Pradesh", "13": "Nagaland", "14": "Manipur",
+                                "15": "Mizoram", "16": "Tripura", "17": "Meghalaya", "18": "Assam", "19": "West Bengal",
+                                "20": "Jharkhand", "21": "Odisha", "22": "Chhattisgarh", "23": "Madhya Pradesh",
+                                "24": "Gujarat", "25": "Daman & Diu", "26": "Dadra & Nagar Haveli", "27": "Maharashtra",
+                                "29": "Karnataka", "30": "Goa", "31": "Lakshadweep", "32": "Kerala", "33": "Tamil Nadu",
+                                "34": "Puducherry", "35": "Andaman & Nicobar Islands", "36": "Telangana", "37": "Andhra Pradesh",
+                                "38": "Ladakh"
+                            }
+                            prefix = gstin[:2]
+                            gst_state = state_codes.get(prefix, "")
+                        
+                        party_details[name] = {
+                            "gstin": gstin,
+                            "gstState": gst_state
                         }
-                        prefix = gstin[:2]
-                        gst_state = state_codes.get(prefix, "")
-                    
-                    party_details[name] = {
-                        "gstin": gstin,
-                        "gstState": gst_state
-                    }
-        except Exception:
-            pass
+            except Exception:
+                pass
 
-        if not party_ledgers:
+        if not party_ledgers and not is_specific_company:
             party_ledgers = self.repo.get_ledgers_by_groups(party_groups, company_id=comp_db_id)
             if not party_ledgers:
                 party_ledgers = ["HDFC Bank", "Cash", "Sundry Debtor A"]
@@ -150,38 +151,37 @@ class CompanyService:
             gst_state = comp["gstDetails"].get("gstState")
             if gst_state:
                 gst_registrations.append(f"{gst_state} Registration")
-        if not gst_registrations:
+        if not gst_registrations and not is_specific_company:
             gst_registrations = ["Madhya Pradesh Registration", "Maharashtra Registration"]
 
-        stock_items = self.repo.get_stock_items(company_id=comp_db_id)
-        if not stock_items:
+        stock_items = self.repo.get_stock_items(company_id=comp_db_id) if comp_db_id else []
+        if not stock_items and not is_specific_company:
             stock_items = ["Monitor", "Keyboard"]
 
         # Build a details dict keyed by item name for HSN autofill
-        stock_item_details_list = self.repo.get_stock_item_details(company_id=comp_db_id)
+        stock_item_details_list = self.repo.get_stock_item_details(company_id=comp_db_id) if comp_db_id else []
         stock_item_details = {item["name"]: {"hsnCode": item["hsnCode"], "gstRate": item["gstRate"]} for item in stock_item_details_list}
 
-        tcs_ledgers = self.repo.get_tcs_ledgers(company_id=comp_db_id)
-        if not tcs_ledgers:
+        tcs_ledgers = self.repo.get_tcs_ledgers(company_id=comp_db_id) if comp_db_id else []
+        if not tcs_ledgers and not is_specific_company:
             tcs_ledgers = ["TCS on Sales"]
 
         expense_groups = ["Indirect Expenses", "Direct Expenses", "Indirect Incomes", "Direct Incomes"]
-        additional_charge_ledgers = self.repo.get_ledgers_by_groups(expense_groups, company_id=comp_db_id)
-        if not additional_charge_ledgers:
+        additional_charge_ledgers = self.repo.get_ledgers_by_groups(expense_groups, company_id=comp_db_id) if comp_db_id else []
+        if not additional_charge_ledgers and not is_specific_company:
             additional_charge_ledgers = ["Freight Charges"]
 
         parents = ["Sales", "Sales Order", "Credit Note", "Purchase", "Purchase Order", "Debit Note", "Payment", "Receipt", "Contra"]
         voucher_types_raw = []
-        try:
-            query = {"parent": {"$in": parents}}
-            if comp_db_id:
-                query["companyId"] = comp_db_id
-            voucher_types_raw = list(self.repo.db["voucherTypes"].find(
-                query,
-                {"voucherTypeName": 1, "parent": 1}
-            ))
-        except Exception:
-            pass
+        if comp_db_id:
+            try:
+                query = {"parent": {"$in": parents}, "companyId": comp_db_id}
+                voucher_types_raw = list(self.repo.db["voucherTypes"].find(
+                    query,
+                    {"voucherTypeName": 1, "parent": 1}
+                ))
+            except Exception:
+                pass
 
         sales_parents = ["Sales", "Sales Order", "Credit Note"]
         voucher_types = [
@@ -189,7 +189,7 @@ class CompanyService:
             for doc in voucher_types_raw
             if doc.get("parent") in sales_parents and doc.get("voucherTypeName")
         ]
-        if not voucher_types:
+        if not voucher_types and not is_specific_company:
             voucher_types = ["sales_invoice", "sales_order", "credit_note"]
 
         voucher_types_full = [
@@ -203,36 +203,34 @@ class CompanyService:
 
         # Get tax ledgers (Duties & Taxes / Input / Output)
         tax_ledgers = []
-        try:
-            query = {"groupName": {"$in": ["Duties & Taxes", "GST INPUT", "Output", "Duties and Taxes"]}}
-            if comp_db_id:
-                query["companyId"] = comp_db_id
-            tax_ledgers = [
-                doc.get("ledgerName")
-                for doc in self.repo.db["ledgers"].find(
-                    query,
-                    {"ledgerName": 1}
-                )
-                if doc.get("ledgerName")
-            ]
-        except Exception:
-            pass
-        if not tax_ledgers:
+        if comp_db_id:
+            try:
+                query = {"groupName": {"$in": ["Duties & Taxes", "GST INPUT", "Output", "Duties and Taxes"]}, "companyId": comp_db_id}
+                tax_ledgers = [
+                    doc.get("ledgerName")
+                    for doc in self.repo.db["ledgers"].find(
+                        query,
+                        {"ledgerName": 1}
+                    )
+                    if doc.get("ledgerName")
+                ]
+            except Exception:
+                pass
+        if not tax_ledgers and not is_specific_company:
             tax_ledgers = ["CGST Output", "SGST Output", "IGST Output", "CGST Input", "SGST Input", "IGST Input"]
 
         # Get all ledgers dynamically from the database
         all_ledgers = []
-        try:
-            query = {}
-            if comp_db_id:
-                query["companyId"] = comp_db_id
-            all_ledgers = [
-                doc.get("ledgerName")
-                for doc in self.repo.db["ledgers"].find(query, {"ledgerName": 1})
-                if doc.get("ledgerName")
-            ]
-        except Exception:
-            pass
+        if comp_db_id:
+            try:
+                query = {"companyId": comp_db_id}
+                all_ledgers = [
+                    doc.get("ledgerName")
+                    for doc in self.repo.db["ledgers"].find(query, {"ledgerName": 1})
+                    if doc.get("ledgerName")
+                ]
+            except Exception:
+                pass
         if not all_ledgers:
             all_ledgers = list(set(sales_ledgers + party_ledgers + additional_charge_ledgers + tcs_ledgers))
 
@@ -252,10 +250,32 @@ class CompanyService:
         }
 
 
-    def get_company_dashboard_summary(self, start_date_str: str = None, end_date_str: str = None, party_ledger: str = None) -> Dict[str, Any]:
+    def get_company_dashboard_summary(self, start_date_str: str = None, end_date_str: str = None, party_ledger: str = None, company_id: str = None) -> Dict[str, Any]:
+        from bson import ObjectId
+        comp_doc = None
+        is_specific_company = False
+        if company_id:
+            is_specific_company = True
+            if len(company_id) == 24:
+                try:
+                    comp_doc = self.repo.db["companies"].find_one({"_id": ObjectId(company_id)})
+                except Exception:
+                    pass
+            if not comp_doc:
+                comp_doc = self.repo.db["companies"].find_one({
+                    "$or": [
+                        {"companyName": company_id},
+                        {"basicCompantFormalName": company_id}
+                    ]
+                })
+
+        if not comp_doc and not is_specific_company:
+            comp_doc = self.repo.db["companies"].find_one()
+
+        comp_db_id = comp_doc["_id"] if comp_doc else None
+
         # 1. Check Tally connection / erpConnection configuration
         has_config = False
-        comp_doc = self.repo.db["companies"].find_one()
         if comp_doc and comp_doc.get("erpConnection"):
             erp = comp_doc.get("erpConnection")
             if erp.get("companyName") or erp.get("tallyGuid") or erp.get("connectionId"):
@@ -315,12 +335,17 @@ class CompanyService:
         CREDITOR_GROUPS = ["Sundry Creditors"]
         group_names = DEBTOR_GROUPS + CREDITOR_GROUPS
 
-        masters = {l["ledgerName"]: l for l in self.repo.db["ledgers"].find({"groupName": {"$in": group_names}})}
+        ledger_q = {"groupName": {"$in": group_names}}
+        if comp_db_id:
+            ledger_q["companyId"] = comp_db_id
+        masters = {l["ledgerName"]: l for l in self.repo.db["ledgers"].find(ledger_q)}
         party_ledgers_list = sorted(list(masters.keys()))
 
         # 4. Compute balances for the period
         from app.aman.services.accounting import compute_ledger_balances
         date_match = {"dates.date": {"$gte": start_dt, "$lte": end_dt}}
+        if comp_db_id:
+            date_match["companyId"] = comp_db_id
         balances = compute_ledger_balances(self.repo.db, date_match=date_match)
 
         # Helper to query totals for historical vouchers
@@ -329,6 +354,8 @@ class CompanyService:
                 "voucherTypeName": {"$in": voucher_types},
                 "dates.date": {"$gte": start_dt, "$lte": end_dt}
             }
+            if comp_db_id:
+                match_q["companyId"] = comp_db_id
             if party_ledger:
                 match_q["partyLedgerName"] = party_ledger
 
@@ -363,6 +390,8 @@ class CompanyService:
                 "isDeleted": {"$ne": True},
                 "voucherType": {"$regex": "^(sales_invoice|sales invoice|sales_order|sales order)$", "$options": "i"}
             }
+            if comp_db_id:
+                match_q["companyId"] = comp_db_id
             if party_ledger:
                 match_q["partyLedgerName"] = party_ledger
 
@@ -396,6 +425,8 @@ class CompanyService:
                 "isDeleted": {"$ne": True},
                 "voucherType": {"$regex": "^(purchase_invoice|purchase invoice|purchase_order|purchase order)$", "$options": "i"}
             }
+            if comp_db_id:
+                match_q["companyId"] = comp_db_id
             if party_ledger:
                 match_q["partyLedgerName"] = party_ledger
 
@@ -608,7 +639,6 @@ class CompanyService:
             { "label": "API / Other", "count": format_inr(api_other_count), "pct": f"{api_pct}%", "colorBg": "bg-rose-500", "colorHex": "#EF4444" }
         ]
 
-        # Company Overview
         total_ledgers = self.repo.db["ledgers"].count_documents({})
         active_ledgers_count = len(self.repo.db["vouchers"].distinct("partyLedgerName", vch_match))
         dormant_ledgers = max(0, total_ledgers - active_ledgers_count)
@@ -673,7 +703,6 @@ class CompanyService:
             "escalated": "0"
         }
 
-        # Sync Monitor
         item_count = self.repo.db["stockItems"].count_documents({})
         cost_center_count = self.repo.db["costCenters"].count_documents({})
 
@@ -716,7 +745,7 @@ class CompanyService:
         except Exception:
             pass
 
-        if not recent_activity:
+        if not recent_activity and not is_specific_company:
             recent_activity = [
                 { "time": "10:42 AM", "text": "OCR Invoice #INV-223 posted to Tally successfully.", "iconType": "CheckCircle2", "color": "text-emerald-500" },
                 { "time": "10:37 AM", "text": "Bank transaction from HDFC Bank classified and approved.", "iconType": "Database", "color": "text-blue-500" },

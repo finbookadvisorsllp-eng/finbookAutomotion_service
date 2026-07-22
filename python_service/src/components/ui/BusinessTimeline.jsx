@@ -1,23 +1,61 @@
 import { motion } from 'motion/react'
+import { useNavigate } from 'react-router-dom'
 import { History, Sun, CalendarClock } from 'lucide-react'
 
-// Narrative strip: Yesterday → Today → Tomorrow with mock AI summaries.
-const COLS = [
-  { key: 'y', label: 'Yesterday', icon: History, items: ['Imported 128 vouchers', 'Exported 96 to Tally', 'Mapped 4 new ledgers'] },
-  { key: 't', label: 'Today', icon: Sun, accent: true, items: ['12 drafts pending review', '40 vouchers ready to export', 'Tally connected — synced 2h ago'] },
-  { key: 'm', label: 'Tomorrow', icon: CalendarClock, items: ['230 vouchers queued for import', '3 masters need mapping', 'Scheduled Tally sync at 9 AM'] },
-]
+export default function BusinessTimeline({ data }) {
+  const navigate = useNavigate()
+  const totalVch = data?.totalVouchers || 0
+  const pending = data?.pendingApproval || 0
+  const posted = data?.postedToTally || 0
+  const ocr = data?.ocrDocumentsProcessed || 0
 
-export default function BusinessTimeline() {
+  const cols = [
+    {
+      key: 'y',
+      label: 'Yesterday',
+      icon: History,
+      route: '/automation/ai-processing',
+      items: [
+        `Imported ${ocr.toLocaleString('en-IN')} vouchers via OCR`,
+        `Exported ${posted.toLocaleString('en-IN')} to Tally`,
+        `Database active with ${totalVch.toLocaleString('en-IN')} total entries`
+      ]
+    },
+    {
+      key: 't',
+      label: 'Today',
+      icon: Sun,
+      accent: true,
+      route: '/automation/approval-center',
+      items: [
+        `${pending.toLocaleString('en-IN')} drafts pending review`,
+        `${posted.toLocaleString('en-IN')} vouchers ready to export`,
+        `Tally connected — live synced`
+      ]
+    },
+    {
+      key: 'm',
+      label: 'Tomorrow',
+      icon: CalendarClock,
+      route: '/tally/connector',
+      items: [
+        `Auto-sync queued for new vouchers`,
+        `Live ledger mapping check`,
+        `Scheduled Tally sync active`
+      ]
+    },
+  ]
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
-      {COLS.map((col, ci) => {
+      {cols.map((col, ci) => {
         const Icon = col.icon
         return (
           <motion.div
             key={col.key}
+            onClick={() => navigate(col.route)}
             initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.32, delay: ci * 0.06 }}
-            className="rounded-xl border p-3"
+            className="rounded-xl border p-3 cursor-pointer hover:border-[var(--app-accent)] transition-colors"
             style={{ borderColor: col.accent ? 'var(--app-accent)' : 'var(--app-border)', backgroundColor: 'var(--app-panel-bg)', boxShadow: 'var(--app-shadow)' }}
           >
             <div className="flex items-center gap-1.5 mb-2.5">

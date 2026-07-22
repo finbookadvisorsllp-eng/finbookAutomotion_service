@@ -44,7 +44,8 @@ class PurchaseService:
         status: Optional[str] = None, 
         search: Optional[str] = None, 
         page: int = 1, 
-        limit: int = 50
+        limit: int = 50,
+        company_id: Optional[str] = None
     ) -> Dict[str, Any]:
         query = {}
         if voucher_type:

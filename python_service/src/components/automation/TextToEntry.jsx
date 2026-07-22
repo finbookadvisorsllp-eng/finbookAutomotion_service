@@ -2,11 +2,122 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Send, Bot, User, RotateCcw, Trash2, Plus, FileText,
   Loader2, Save, CloudUpload, X, RefreshCw, CheckCircle2,
-  AlertTriangle, Mic, Paperclip, Check, Sparkles, AlertCircle, Eye
+  AlertTriangle, Mic, Paperclip, Check, Sparkles, AlertCircle, Eye,
+  ArrowLeft
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { aiApi } from '../../services/aiApi';
 import { salesApi } from '../../services/salesApi';
+import CreateSales from '../sales/CreateSales';
+import CreatePurchase from '../purchase/CreatePurchase';
+import CreateFundFlow from '../vouchers/CreateFundFlow';
+
+const mapDraftToFormInitialData = (draft) => {
+  if (!draft) return {};
+
+  const voucherType = (draft.voucher_type || 'sales_invoice').toLowerCase();
+
+  const mapped = {
+    voucherType: draft.voucher_type || 'sales_invoice',
+    voucherDate: draft.voucher_date || new Date().toISOString().split('T')[0],
+    voucherNumber: draft.voucher_number || '',
+    partyLedger: draft.party || '',
+    party: draft.party || '',
+    partyGstin: draft.party_gstin || draft.gstin || '',
+    gstRegistration: draft.gst_registration || 'Madhya Pradesh Registration',
+    entryTab: draft.entryTab || (draft.items && draft.items.length > 0 ? 'with_item' : 'without_item'),
+    baseTotal: parseFloat(draft.base_amount || 0),
+    cgstTotal: parseFloat(draft.cgst_amount || 0),
+    sgstTotal: parseFloat(draft.sgst_amount || 0),
+    igstTotal: parseFloat(draft.igst_amount || 0),
+    cessTotal: parseFloat(draft.cess_amount || 0),
+    grandTotal: parseFloat(draft.amount || 0),
+    amount: parseFloat(draft.amount || 0),
+    narration: draft.narration || '',
+  };
+
+  if (['cash_payment', 'payment', 'receipt', 'bank_payment', 'contra'].includes(voucherType)) {
+    mapped.againstLedger = draft.credit || draft.debit || draft.party || '';
+    mapped.ledgerRows = (draft.items || []).map((it, idx) => ({
+      id: Date.now() + idx,
+      ledgerName: it.item_name || it.ledger_name || draft.party || '',
+      description: it.description || '',
+      amount: parseFloat(it.amount || it.rate || 0),
+      costCenter: it.costCenter || ''
+    }));
+    if (mapped.ledgerRows.length === 0 && draft.party) {
+      mapped.ledgerRows = [{
+        id: Date.now(),
+        ledgerName: draft.party,
+        description: '',
+        amount: parseFloat(draft.amount || 0),
+        costCenter: ''
+      }];
+    }
+  } else {
+    if (mapped.entryTab === 'with_item') {
+      mapped.productLines = (draft.items || []).map((it, idx) => {
+        const qtyVal = parseFloat(it.quantity || 1);
+        const rateVal = parseFloat(it.rate || 0);
+        const gstRateVal = (it.gst_rate !== undefined && it.gst_rate !== null && parseFloat(it.gst_rate) > 0)
+          ? parseFloat(it.gst_rate)
+          : 18;
+        const lineAmt = parseFloat(it.amount || (qtyVal * rateVal));
+
+        return {
+          id: Date.now() + idx,
+          stockItem: it.item_name || '',
+          hsnSacCode: it.hsn || '',
+          billQuantity: qtyVal,
+          billedQty: qtyVal,
+          unit: it.unit || 'Nos',
+          billRate: rateVal,
+          discountPercent: parseFloat(it.discount_percent || 0),
+          amount: lineAmt,
+          gstRate: gstRateVal,
+          taxabilityType: 'Taxable',
+          rcm: false
+        };
+      });
+    } else {
+      mapped.salesLines = (draft.items || []).map((it, idx) => {
+        const lineAmt = parseFloat(it.amount || it.rate || 0);
+        const gstRateVal = (it.gst_rate !== undefined && it.gst_rate !== null && parseFloat(it.gst_rate) > 0)
+          ? parseFloat(it.gst_rate)
+          : 18;
+        return {
+          id: Date.now() + idx,
+          salesLedger: it.item_name || '',
+          description: it.description || '',
+          amount: lineAmt,
+          gstRate: gstRateVal
+        };
+      });
+      mapped.purchaseLines = (draft.items || []).map((it, idx) => {
+        const lineAmt = parseFloat(it.amount || it.rate || 0);
+        const gstRateVal = (it.gst_rate !== undefined && it.gst_rate !== null && parseFloat(it.gst_rate) > 0)
+          ? parseFloat(it.gst_rate)
+          : 18;
+        return {
+          id: Date.now() + idx,
+          purchaseLedger: it.item_name || '',
+          description: it.description || '',
+          amount: lineAmt,
+          gstRate: gstRateVal
+        };
+      });
+    }
+
+    mapped.additionalCharges = (draft.additional_charges || []).map((ch, idx) => ({
+      id: Date.now() + idx + 100,
+      ledgerName: ch.ledger_name || '',
+      amount: parseFloat(ch.amount || 0),
+      taxableValue: ch.taxable_value || mapped.baseTotal
+    }));
+  }
+
+  return mapped;
+};
 
 const recalculateDraft = (currentDraft, activePartyDetails, pageData, stockItemDetails) => {
   if (!currentDraft) return null;
@@ -65,8 +176,13 @@ const recalculateDraft = (currentDraft, activePartyDetails, pageData, stockItemD
 
   // Calculate total additional charges (non-tax ledgers)
   let totalAdditionalCharges = 0;
-  (currentDraft.additional_charges || []).forEach((c) => {
-    const nameUpper = (c.ledger_name || '').toUpperCase();
+  const allNonItemLedgers = [
+    ...(currentDraft.additional_charges || []),
+    ...(currentDraft.sales_entries || []),
+    ...(currentDraft.ledger_entries || [])
+  ];
+  allNonItemLedgers.forEach((c) => {
+    const nameUpper = (c.ledger_name || c.ledgerName || c.ledger || '').toUpperCase();
     const isTaxLedger = nameUpper.includes('CGST') || nameUpper.includes('SGST') || nameUpper.includes('IGST') || nameUpper.includes('UTGST') || nameUpper.includes('CESS');
     if (!isTaxLedger) {
       totalAdditionalCharges += parseFloat(c.amount) || 0;
@@ -915,41 +1031,44 @@ export const TextToEntry = () => {
   }
 
   // ========================================================================
-  // RENDER OPTION A: FULL-SCREEN VOUCHER WORKSHEET REVIEW MODE (If isReviewMode = true)
+  // RENDER OPTION A: DYNAMIC MANUAL VOUCHER ENTRY FORM REVIEW MODE
   // ========================================================================
   if (isReviewMode && draft) {
+    const mappedInitialData = mapDraftToFormInitialData(draft);
+    const vType = (draft.voucher_type || 'sales_invoice').toLowerCase();
+
     return (
-      <div className="flex h-full w-full overflow-hidden bg-slate-50 text-slate-800 font-sans">
+      <div className="flex h-full w-full overflow-hidden bg-[var(--app-content-bg)] text-[var(--app-heading)] font-sans">
         
-        {/* Sidebar remains on the left */}
-        <aside className="w-72 border-r flex flex-col shrink-0 bg-white border-slate-200">
-          <div className="p-4 border-b border-slate-200 flex flex-col gap-3 shrink-0">
+        {/* Sidebar: Voucher Chats */}
+        <aside className="w-72 border-r flex flex-col shrink-0 bg-[var(--app-panel-bg)] border-[var(--app-border)]">
+          <div className="p-4 border-b border-[var(--app-border)] flex flex-col gap-3 shrink-0">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">Voucher Chats</span>
+              <span className="text-[11px] font-extrabold uppercase tracking-wider text-[var(--app-muted)]">Voucher Chats</span>
               <button 
                 onClick={handleNewChat}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-[11px] font-bold hover:bg-blue-700 transition-all shadow-sm"
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-[11px] font-bold hover:bg-indigo-700 transition-all shadow-xs"
               >
                 <Plus size={12} />
                 <span>New Chat</span>
               </button>
             </div>
-            <div className="flex bg-slate-100 p-0.5 rounded-lg text-[10.5px] font-bold border border-slate-200 shrink-0">
+            <div className="flex bg-[var(--app-control-bg)] p-0.5 rounded-lg text-[10.5px] font-bold border border-[var(--app-border)] shrink-0">
               <button 
                 onClick={() => setStatusFilter('All')} 
-                className={`flex-1 py-1 rounded text-center transition-all ${statusFilter === 'All' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                className={`flex-1 py-1 rounded text-center transition-all ${statusFilter === 'All' ? 'bg-[var(--app-panel-bg)] text-indigo-600 shadow-xs' : 'text-[var(--app-muted)] hover:text-[var(--app-heading)]'}`}
               >
                 All
               </button>
               <button 
                 onClick={() => setStatusFilter('Draft')} 
-                className={`flex-1 py-1 rounded text-center transition-all ${statusFilter === 'Draft' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                className={`flex-1 py-1 rounded text-center transition-all ${statusFilter === 'Draft' ? 'bg-[var(--app-panel-bg)] text-indigo-600 shadow-xs' : 'text-[var(--app-muted)] hover:text-[var(--app-heading)]'}`}
               >
                 Draft
               </button>
               <button 
                 onClick={() => setStatusFilter('Approved')} 
-                className={`flex-1 py-1 rounded text-center transition-all ${statusFilter === 'Approved' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                className={`flex-1 py-1 rounded text-center transition-all ${statusFilter === 'Approved' ? 'bg-[var(--app-panel-bg)] text-indigo-600 shadow-xs' : 'text-[var(--app-muted)] hover:text-[var(--app-heading)]'}`}
               >
                 Approved
               </button>
@@ -963,1023 +1082,110 @@ export const TextToEntry = () => {
                 <div
                   key={conv.id}
                   onClick={() => handleSelectConversation(conv.id)}
-                  className={`p-3 rounded-lg border cursor-pointer transition-all flex flex-col gap-1 ${
+                  className={`p-3 rounded-xl border cursor-pointer transition-all flex flex-col gap-1 ${
                     isActive 
-                      ? 'bg-blue-50/70 border-blue-400 shadow-sm' 
-                      : 'bg-white border-slate-200 hover:bg-slate-50/60'
+                      ? 'bg-indigo-50/70 border-indigo-400 shadow-xs' 
+                      : 'bg-[var(--app-panel-bg)] border-[var(--app-border)] hover:bg-[var(--app-control-hover)]'
                   }`}
                 >
                   <div className="flex justify-between items-start gap-1">
-                    <span className="text-[11.5px] font-extrabold text-slate-700 truncate max-w-[140px]">{conv.title}</span>
+                    <span className="text-[11.5px] font-extrabold text-[var(--app-heading)] truncate max-w-[140px]">{conv.title}</span>
                     <div className="flex items-center gap-1.5 shrink-0">
-                      <span className="text-[9px] text-slate-400">{conv.date}</span>
+                      <span className="text-[9px] text-[var(--app-muted)]">{conv.date}</span>
                       <button 
                         onClick={(e) => handleDeleteConversation(conv.id, e)}
-                        className="text-slate-400 hover:text-rose-500 p-0.5 rounded transition-all"
+                        className="text-[var(--app-muted)] hover:text-rose-500 p-0.5 rounded transition-all"
                         title="Delete chat"
                       >
                         <Trash2 size={11} />
                       </button>
                     </div>
                   </div>
-                  <div className="text-[10px] text-slate-400 truncate font-medium">{conv.preview}</div>
-                  <div className="flex gap-1.5 mt-1 items-center">
-                    <span className="px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider bg-blue-50 text-blue-600">
-                      {conv.voucherType || 'Voucher'}
-                    </span>
-                    <span className="px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider bg-amber-50 text-amber-600">
-                      {conv.status || 'Draft'}
-                    </span>
-                  </div>
+                  <p className="text-[10.5px] text-[var(--app-muted)] line-clamp-1">{conv.preview}</p>
                 </div>
               );
             })}
           </div>
 
-          <div className="p-3 border-t bg-slate-50/50 border-slate-200 grid grid-cols-3 gap-2 text-center text-[9px] shrink-0 font-bold text-slate-500">
+          <div className="p-3 border-t border-[var(--app-border)] bg-[var(--app-content-bg)] flex justify-between items-center text-[10px] text-[var(--app-muted)] shrink-0">
             <div>
-              <div className="text-slate-800 text-[11px] font-extrabold">{pageData?.partyCount}</div>
+              <div className="text-[var(--app-heading)] text-[11px] font-extrabold">{pageData?.partyCount}</div>
               Parties
             </div>
             <div>
-              <div className="text-slate-800 text-[11px] font-extrabold">{pageData?.itemCount}</div>
+              <div className="text-[var(--app-heading)] text-[11px] font-extrabold">{pageData?.itemCount}</div>
               Items
             </div>
             <div>
-              <div className="text-slate-800 text-[11px] font-extrabold">{pageData?.ledgerCount}</div>
+              <div className="text-[var(--app-heading)] text-[11px] font-extrabold">{pageData?.ledgerCount}</div>
               Ledgers
             </div>
           </div>
         </aside>
 
-      {/* Expanded Form Worksheet Dashboard */}
-      <main className="flex-1 flex flex-col min-w-0 bg-slate-50 overflow-y-auto themed-scrollbar p-4 space-y-4">
-        
-        {/* Top Header Row with Actions */}
-        <header className="flex justify-between items-center bg-white p-3 rounded-lg border border-slate-200 shadow-sm shrink-0">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-[13px] font-extrabold text-slate-800">Review & Save Voucher Draft</span>
-              <span className="px-2 py-0.5 text-[9px] font-bold rounded bg-amber-50 border border-amber-200 text-amber-600 uppercase">
-                {draft.status || 'Draft'}
-              </span>
-            </div>
-            <p className="text-[10px] text-slate-400 font-semibold mt-0.5">
-              Verify details, make modifications below, and click "Save Draft" to persist your changes.
-            </p>
-          </div>
+        {/* Main Content Area: Exact Manual Voucher Form Embedded */}
+        <main className="flex-1 flex flex-col min-w-0 bg-[var(--app-content-bg)] overflow-y-auto themed-scrollbar p-3 space-y-2">
           
-          <div className="flex items-center gap-2">
-            <button 
-              onClick={() => setIsReviewMode(false)}
-              className="px-3 py-1.5 rounded-lg border border-slate-200 text-[11px] font-bold text-slate-600 bg-white hover:bg-slate-50 transition-all flex items-center gap-1.5"
-            >
-              <X size={12} />
-              <span>Back to Chat</span>
-            </button>
-            <button 
-              onClick={handleSaveDraft}
-              className="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold transition-all shadow-sm flex items-center gap-1.5"
-            >
-              <Save size={12} />
-              <span>Save Draft</span>
-            </button>
-            <button 
-              onClick={handleApprove}
-              className="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold transition-all shadow-sm flex items-center gap-1.5"
-            >
-              <CheckCircle2 size={12} />
-              <span>Approve & Post</span>
-            </button>
-          </div>
-        </header>
-
-        {/* Dynamic Grid Layout */}
-        <div className="grid grid-cols-4 gap-3">
-          
-          {/* Columns 1, 2 & 3: Full Manual Entry Worksheet Form */}
-          <div className="col-span-3 space-y-3">
-            <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm space-y-3">
-              <div className="text-[11px] uppercase font-extrabold tracking-wider text-slate-400 border-b pb-1">Voucher Details</div>
-              
-              {/* Header Information */}
-              <div className="grid grid-cols-3 gap-3 text-[11px]">
-                <div>
-                  <label className="text-slate-400 block text-[9.5px] mb-1 font-semibold">Voucher Type</label>
-                  <select
-                    value={draft.voucher_type}
-                    onChange={(e) => handleHeaderChange('voucher_type', e.target.value)}
-                    className="w-full h-8 px-2 rounded-md border border-slate-200 bg-white outline-none focus:border-blue-500 font-semibold text-slate-700"
-                  >
-                    {(pageData?.availableVoucherTypes || pageData?.voucherTypes || ["Sales", "Purchase", "Debit Note", "Credit Note", "Payment", "Receipt", "Contra"]).map(vt => {
-                      const value = vt.replace(/\s+Voucher$/i, '').replace(/\s+Bill$/i, '');
-                      return (
-                        <option key={vt} value={value}>{vt.endsWith('Voucher') || vt.endsWith('Bill') || vt.toLowerCase() === 'contra' ? vt : `${value} Voucher`}</option>
-                      );
-                    })}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-slate-400 block text-[9.5px] mb-1 font-semibold">Voucher Date</label>
-                  <input
-                    type="date"
-                    value={draft.date}
-                    onChange={(e) => handleHeaderChange('date', e.target.value)}
-                    className="w-full h-8 px-2 rounded-md border border-slate-200 bg-white outline-none focus:border-blue-500 font-semibold text-slate-700 text-center"
-                  />
-                </div>
-                <div>
-                  <label className="text-slate-400 block text-[9.5px] mb-1 font-semibold">Voucher Number</label>
-                  <input
-                    type="text"
-                    value={draft.voucher_number || ''}
-                    onChange={(e) => handleHeaderChange('voucher_number', e.target.value)}
-                    placeholder="Auto Generated"
-                    className="w-full h-8 px-2 rounded-md border border-slate-200 bg-white outline-none focus:border-blue-500 font-semibold text-slate-700 text-center"
-                  />
-                </div>
-              </div>
-
-              {draft.voucher_type?.toLowerCase() === 'contra' ? (
-                /* Contra Voucher manual UI */
-                <div className="border-t pt-3 space-y-4">
-                  <div className="grid grid-cols-2 gap-4 text-[11px]">
-                    {/* DR SOURCE ACCOUNT */}
-                    <div className="bg-slate-50/50 p-4 rounded-lg border border-slate-200/60 space-y-3">
-                      <div className="text-[10px] uppercase font-extrabold tracking-wider text-emerald-600 flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                        <span>(DR) SOURCE ACCOUNT</span>
-                      </div>
-                      <div>
-                        <label className="text-slate-400 block text-[9.5px] mb-1 font-semibold">Ledger Name *</label>
-                        <select
-                          value={draft.debit || ''}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            const updated = { ...draft, debit: val };
-                            setDraft(updated);
-                            aiApi.updateDraft(activeConvId, updated).then(res => {
-                              setDraft(res.draft);
-                              setDraftJson(res.draft_json);
-                            });
-                          }}
-                          className="w-full h-8 px-2 rounded-md border border-slate-200 bg-white outline-none focus:border-blue-500 font-semibold text-slate-700 text-[10.5px]"
-                        >
-                          <option value="" disabled>-- Select Cash/Bank --</option>
-                          {(pageData?.allBanks || []).map((name) => (
-                            <option key={name} value={name}>{name}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-slate-400 block text-[9.5px] mb-1 font-semibold">Account Type</label>
-                        <div className="w-full h-8 px-2 rounded-md border border-slate-100 bg-slate-100/50 flex items-center font-bold text-slate-500 text-[10.5px]">
-                          {draft.debit && draft.debit.toLowerCase().includes('cash') ? 'Cash' : 'Bank'}
-                        </div>
-                      </div>
-                      <div>
-                        <label className="text-slate-400 block text-[9.5px] mb-1 font-semibold">Amount (₹) *</label>
-                        <input
-                          type="number"
-                          value={draft.amount || ''}
-                          onChange={(e) => {
-                            const val = parseFloat(e.target.value) || 0;
-                            const updated = { ...draft, amount: val };
-                            if (updated.items && updated.items.length > 0) {
-                              updated.items = updated.items.map(item => ({ ...item, amount: val, rate: val }));
-                            }
-                            setDraft(updated);
-                            aiApi.updateDraft(activeConvId, updated).then(res => {
-                              setDraft(res.draft);
-                              setDraftJson(res.draft_json);
-                            });
-                          }}
-                          placeholder="Enter amount"
-                          className="w-full h-8 px-2 rounded-md border border-slate-200 bg-white outline-none focus:border-blue-500 font-bold text-slate-700 text-[10.5px]"
-                        />
-                      </div>
-                    </div>
-
-                    {/* CR DESTINATION ACCOUNT */}
-                    <div className="bg-slate-50/50 p-4 rounded-lg border border-slate-200/60 space-y-3">
-                      <div className="text-[10px] uppercase font-extrabold tracking-wider text-blue-600 flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-                        <span>(CR) DESTINATION ACCOUNT</span>
-                      </div>
-                      <div>
-                        <label className="text-slate-400 block text-[9.5px] mb-1 font-semibold">Ledger Name *</label>
-                        <select
-                          value={draft.credit || ''}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            const updated = { ...draft, credit: val };
-                            setDraft(updated);
-                            aiApi.updateDraft(activeConvId, updated).then(res => {
-                              setDraft(res.draft);
-                              setDraftJson(res.draft_json);
-                            });
-                          }}
-                          className="w-full h-8 px-2 rounded-md border border-slate-200 bg-white outline-none focus:border-blue-500 font-semibold text-slate-700 text-[10.5px]"
-                        >
-                          <option value="" disabled>-- Select Cash/Bank --</option>
-                          {(pageData?.allBanks || []).map((name) => (
-                            <option key={name} value={name}>{name}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-slate-400 block text-[9.5px] mb-1 font-semibold">Account Type</label>
-                        <div className="w-full h-8 px-2 rounded-md border border-slate-100 bg-slate-100/50 flex items-center font-bold text-slate-500 text-[10.5px]">
-                          {draft.credit && draft.credit.toLowerCase().includes('cash') ? 'Cash' : 'Bank'}
-                        </div>
-                      </div>
-                      <div>
-                        <label className="text-slate-400 block text-[9.5px] mb-1 font-semibold">Amount (₹) *</label>
-                        <input
-                          type="number"
-                          value={draft.amount || ''}
-                          onChange={(e) => {
-                            const val = parseFloat(e.target.value) || 0;
-                            const updated = { ...draft, amount: val };
-                            if (updated.items && updated.items.length > 0) {
-                              updated.items = updated.items.map(item => ({ ...item, amount: val, rate: val }));
-                            }
-                            setDraft(updated);
-                            aiApi.updateDraft(activeConvId, updated).then(res => {
-                              setDraft(res.draft);
-                              setDraftJson(res.draft_json);
-                            });
-                          }}
-                          placeholder="Enter amount"
-                          className="w-full h-8 px-2 rounded-md border border-slate-200 bg-white outline-none focus:border-blue-500 font-bold text-slate-700 text-[10.5px]"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Status/Validation Badges */}
-                  <div className="space-y-1.5">
-                    {draft.debit && draft.credit && draft.debit === draft.credit && (
-                      <div className="bg-rose-50 border border-rose-200 text-rose-600 rounded-md p-2 text-[10px] font-semibold flex items-center gap-1.5">
-                        <AlertCircle size={12} className="text-rose-500 shrink-0" />
-                        <span>Validation Error: Source (DR) and Destination (CR) accounts cannot be the same ledger.</span>
-                      </div>
-                    )}
-                    {(!draft.amount || draft.amount <= 0) && (
-                      <div className="bg-rose-50 border border-rose-200 text-rose-600 rounded-md p-2 text-[10px] font-semibold flex items-center gap-1.5">
-                        <AlertCircle size={12} className="text-rose-500 shrink-0" />
-                        <span>Validation Error: Transaction amount must be greater than zero.</span>
-                      </div>
-                    )}
-                    {draft.debit && draft.credit && draft.debit !== draft.credit && draft.amount > 0 && (
-                      <div className="bg-emerald-50 border border-emerald-200 text-emerald-600 rounded-md p-2 text-[10px] font-semibold flex items-center gap-1.5">
-                        <Check size={12} className="text-emerald-500 shrink-0" />
-                        <span>Status: Balanced (DR Amount ₹{draft.amount.toLocaleString('en-IN')} = CR Amount ₹{draft.amount.toLocaleString('en-IN')})</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ) : ['payment', 'receipt'].includes(draft.voucher_type?.toLowerCase()) ? (
-                /* Accounting Voucher (Payment, Receipt) manual UI */
-                <div className="border-t pt-3 space-y-4">
-                  {/* Mode and Account Header Row */}
-                  <div className="grid grid-cols-3 gap-3 text-[11px]">
-                    <div>
-                      <label className="text-slate-400 block text-[9.5px] mb-1 font-semibold">Payment Mode</label>
-                      <select
-                        value={
-                          draft.voucher_type?.toLowerCase() === 'payment'
-                            ? (draft.credit && draft.credit.toLowerCase().includes('cash') ? 'Cash' : 'Bank')
-                            : (draft.debit && draft.debit.toLowerCase().includes('cash') ? 'Cash' : 'Bank')
-                        }
-                        onChange={() => {}} // Read-only / auto inferred
-                        className="w-full h-8 px-2 rounded-md border border-slate-200 bg-slate-50 outline-none font-semibold text-slate-500 cursor-not-allowed"
-                        disabled
-                      >
-                        <option value="Cash">Cash</option>
-                        <option value="Bank">Bank</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="text-slate-400 block text-[9.5px] mb-1 font-semibold">
-                        {draft.voucher_type?.toLowerCase() === 'receipt' ? 'Receipt Account' : 'Payment Account'} *
-                      </label>
-                      <select
-                        value={
-                          draft.voucher_type?.toLowerCase() === 'payment'
-                            ? (draft.credit || '')
-                            : (draft.debit || '')
-                        }
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          let updated;
-                          if (draft.voucher_type?.toLowerCase() === 'payment') {
-                            updated = { ...draft, credit: val };
-                          } else {
-                            updated = { ...draft, debit: val };
-                          }
-                          setDraft(updated);
-                          aiApi.updateDraft(activeConvId, updated).then(res => {
-                            setDraft(res.draft);
-                            setDraftJson(res.draft_json);
-                          });
-                        }}
-                        className="w-full h-8 px-2 rounded-md border border-slate-200 bg-white outline-none focus:border-blue-500 font-semibold text-slate-700 text-[10.5px]"
-                      >
-                        <option value="" disabled>-- Select Cash/Bank Account --</option>
-                        {(pageData?.allBanks || []).map((name) => (
-                          <option key={name} value={name}>{name}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="text-slate-400 block text-[9.5px] mb-1 font-semibold">Account Balance</label>
-                      <div className="w-full h-8 px-2 rounded-md border border-slate-100 bg-slate-50/50 flex items-center font-bold text-slate-600 text-[10.5px]">
-                        {(() => {
-                          const key = draft.voucher_type?.toLowerCase() === 'payment' ? draft.credit : draft.debit;
-                          const balData = pendingBillsMap[key];
-                          return balData 
-                            ? `₹ ${parseFloat(balData.outstandingBalance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })} ${balData.outstandingType || ''}` 
-                            : '₹ 0.00';
-                        })()}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* TRANSACTION DETAILS Table */}
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="text-[10px] uppercase font-extrabold tracking-wider text-slate-400">Transaction Details</span>
-                      <button
-                        onClick={handleItemAdd}
-                        className="flex items-center gap-1 px-2.5 py-0.5 rounded border border-blue-200 bg-blue-50 text-blue-600 text-[9.5px] font-bold hover:bg-blue-100 transition-colors"
-                      >
-                        <Plus size={10} />
-                        <span>Add Row</span>
-                      </button>
-                    </div>
-
-                    <div className="border border-slate-200 rounded overflow-hidden">
-                      <table className="w-full text-left border-collapse text-[10px]">
-                        <thead>
-                          <tr className="bg-slate-50 border-b border-slate-200 text-[8.5px] uppercase font-extrabold text-slate-400">
-                            <th className="p-1.5 pl-3 border-r border-slate-200 w-10 text-center">#</th>
-                            <th className="p-1.5 border-r border-slate-200">Ledger Name *</th>
-                            <th className="p-1.5 border-r border-slate-200">Description</th>
-                            <th className="p-1.5 text-center w-36 border-r border-slate-200">Amount (₹)</th>
-                            <th className="p-1.5 text-center w-52 border-r border-slate-200">Outstanding Bills</th>
-                            <th className="p-1.5 text-center w-12">Action</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 bg-white">
-                          {(draft.items || []).map((item, idx) => {
-                            const billsData = pendingBillsMap[item.item_name];
-                            const outstandingText = billsData 
-                              ? `₹ ${Math.abs(billsData.outstandingBalance).toLocaleString('en-IN')} ${billsData.outstandingBalance >= 0 ? 'Dr' : 'Cr'}` 
-                              : '₹ 0.00';
-                            return (
-                              <tr key={idx} className="hover:bg-slate-50/50">
-                                <td className="p-1.5 border-r border-slate-100 text-center text-slate-400 font-semibold">{idx + 1}</td>
-                                <td className="p-1 border-r border-slate-100">
-                                  <select
-                                    value={item.item_name}
-                                    onChange={(e) => handleItemChange(idx, 'item_name', e.target.value)}
-                                    className="w-full h-7 px-1.5 rounded border border-slate-200 bg-white outline-none focus:border-blue-500 font-semibold text-slate-700 text-[10.5px]"
-                                  >
-                                    <option value="" disabled>-- Select Ledger --</option>
-                                    {item.item_name && !(pageData?.allLedgers || []).includes(item.item_name) && (
-                                      <option value={item.item_name}>{item.item_name}</option>
-                                    )}
-                                    {(pageData?.allLedgers || []).map((name) => (
-                                      <option key={name} value={name}>{name}</option>
-                                    ))}
-                                  </select>
-                                </td>
-                                <td className="p-1 border-r border-slate-100">
-                                  <input
-                                    type="text"
-                                    value={item.description || ''}
-                                    onChange={(e) => handleItemChange(idx, 'description', e.target.value)}
-                                    placeholder="Enter description"
-                                    className="w-full h-7 px-2 rounded border border-slate-200 focus:border-blue-500 font-medium text-slate-700 text-[10.5px]"
-                                  />
-                                </td>
-                                <td className="p-1 border-r border-slate-100">
-                                  <input
-                                    type="number"
-                                    value={item.amount || ''}
-                                    onChange={(e) => handleItemChange(idx, 'amount', parseFloat(e.target.value) || 0)}
-                                    placeholder="0.00"
-                                    className="w-full h-7 px-2 rounded border border-slate-200 focus:border-blue-500 font-bold text-slate-700 text-[10.5px] text-center"
-                                  />
-                                </td>
-                                <td className="p-1 border-r border-slate-100 text-center font-bold text-slate-600 text-[10.5px]">
-                                  {outstandingText}
-                                </td>
-                                <td className="p-1 text-center">
-                                  <button
-                                    onClick={() => handleItemDelete(idx)}
-                                    className="p-1 text-rose-500 hover:bg-rose-50 rounded transition-colors"
-                                  >
-                                    <Trash2 size={13} />
-                                  </button>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                          {(!draft.items || draft.items.length === 0) && (
-                            <tr>
-                              <td colSpan={6} className="text-center py-6 text-slate-400 italic bg-slate-50/50">
-                                No transaction rows added. Click "Add Row" to insert an entry.
-                              </td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-
-                  {/* OUTSTANDING BILLS ALLOCATION SECTION */}
-                  <div className="space-y-2">
-                    <div className="text-[10px] uppercase font-extrabold tracking-wider text-slate-400">Outstanding Bills Allocation</div>
-                    {(() => {
-                      const allPending = [];
-                      (draft.items || []).forEach(item => {
-                        const balanceData = pendingBillsMap[item.item_name];
-                        if (balanceData && balanceData.pendingBills && balanceData.pendingBills.length > 0) {
-                          balanceData.pendingBills.forEach(bill => {
-                            allPending.push({ party: item.item_name, bill });
-                          });
-                        }
-                      });
-
-                      if (allPending.length === 0) {
-                        return (
-                          <div className="bg-slate-50 border border-slate-200 text-slate-400 text-center py-3 text-[9px] uppercase font-extrabold rounded-md tracking-wider">
-                            NO PENDING BILLS AVAILABLE TO ALLOCATE.
-                          </div>
-                        );
-                      }
-
-                      return (
-                        <div className="border border-slate-200 rounded overflow-hidden">
-                          <table className="w-full text-left border-collapse text-[10px]">
-                            <thead>
-                              <tr className="bg-slate-50 border-b border-slate-200 text-[8.5px] uppercase font-extrabold text-slate-400">
-                                <th className="p-1.5 pl-3 border-r border-slate-200 w-10 text-center">#</th>
-                                <th className="p-1.5 border-r border-slate-200">Party Ledger</th>
-                                <th className="p-1.5 border-r border-slate-200">Bill Reference Number</th>
-                                <th className="p-1.5 border-r border-slate-200">Bill Date</th>
-                                <th className="p-1.5 text-right w-36 border-r border-slate-200">Bill Amount (₹)</th>
-                                <th className="p-1.5 text-right w-36">Amount Allocation (₹)</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 bg-white">
-                              {allPending.map((p, index) => (
-                                <tr key={index} className="hover:bg-slate-50/50 font-medium text-slate-600">
-                                  <td className="p-1.5 border-r border-slate-100 text-center text-slate-400 font-semibold">{index + 1}</td>
-                                  <td className="p-1.5 border-r border-slate-100 font-semibold text-slate-700">{p.party}</td>
-                                  <td className="p-1.5 border-r border-slate-100 font-mono text-[9.5px]">{p.bill.billNo}</td>
-                                  <td className="p-1.5 border-r border-slate-100">{p.bill.date || 'N/A'}</td>
-                                  <td className="p-1.5 border-r border-slate-100 text-right font-extrabold text-slate-700">
-                                    ₹ {parseFloat(p.bill.pendingAmount || p.bill.billAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                  </td>
-                                  <td className="p-1.5 text-right font-extrabold text-blue-600">
-                                    ₹ {(() => {
-                                      const alloc = (draft.bill_allocations || []).find(a => a.bill === p.bill.billNo);
-                                      return parseFloat(alloc ? alloc.amount : p.bill.pendingAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
-                                    })()}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      );
-                    })()}
-                  </div>
-                </div>
-              ) : (
-                /* Invoice Item / Party Voucher UI (Sales, Purchase, Debit/Credit Note) */
-                <>
-                  {/* Party Section */}
-                  <div className="grid grid-cols-2 gap-3 border-t pt-3 text-[11px]">
-                    <div>
-                      <label className="text-slate-400 block text-[9.5px] mb-1 font-semibold">Party / Customer Account</label>
-                      <select
-                        value={draft.party || ''}
-                        onChange={(e) => handlePartyChange(e.target.value)}
-                        className="w-full h-8 px-2 rounded-md border border-slate-200 bg-white outline-none focus:border-blue-500 font-semibold text-slate-700"
-                      >
-                        <option value="" disabled>-- Select Party --</option>
-                        {pageData?.allParties?.map((name) => (
-                          <option key={name} value={name}>{name}</option>
-                        ))}
-                      </select>
-                    </div>
-                    
-                    {draft.party && (
-                      <div className="bg-slate-50 p-2 rounded-md border border-slate-200/60 grid grid-cols-3 gap-2 text-[10px] items-center">
-                        <div>
-                          <span className="text-slate-400 block text-[8px] font-medium">GSTIN</span>
-                          <span className="font-bold text-slate-700">{activePartyDetails?.partyDetails?.gstin || 'N/A'}</span>
-                        </div>
-                        <div>
-                          <span className="text-slate-400 block text-[8px] font-medium">Supply State</span>
-                          <span className="font-bold text-slate-700">{activePartyDetails?.partyDetails?.gstState || 'N/A'}</span>
-                        </div>
-                        <div className="text-right">
-                          <span className="text-slate-400 block text-[8px] font-medium">Outstanding</span>
-                          <span className="font-extrabold text-rose-500">
-                            {activePartyDetails?.outstandingBalance ? `₹ ${parseFloat(activePartyDetails.outstandingBalance).toLocaleString('en-IN')}` : '₹ 0.00'}
-                          </span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Stock Items Spreadsheet */}
-                  <div className="border-t pt-3 space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="text-[10px] uppercase font-extrabold tracking-wider text-slate-400">Inventory Items ({draft.items?.length || 0})</span>
-                      <button
-                        onClick={handleItemAdd}
-                        className="flex items-center gap-1 px-2.5 py-0.5 rounded border border-blue-200 bg-blue-50 text-blue-600 text-[9.5px] font-bold hover:bg-blue-100 transition-colors"
-                      >
-                        <Plus size={10} />
-                        <span>Add Item Row</span>
-                      </button>
-                    </div>
-
-                    <div className="border border-slate-200 rounded overflow-hidden">
-                      <table className="w-full text-left border-collapse text-[10px]">
-                        <thead>
-                          <tr className="bg-slate-50 border-b border-slate-200 text-[8.5px] uppercase font-extrabold text-slate-400">
-                            <th className="p-1.5 pl-3 border-r border-slate-200 w-8 text-center">#</th>
-                            <th className="p-1.5 border-r border-slate-200 w-64">Item / Ledger *</th>
-                            <th className="p-1.5 text-right w-20 border-r border-slate-200">Stock Qty</th>
-                            <th className="p-1.5 text-center w-24 border-r border-slate-200">HSN/SAC</th>
-                            <th className="p-1.5 text-center w-16 border-r border-slate-200">GST%</th>
-                            <th className="p-1.5 text-right w-20 border-r border-slate-200">Qty</th>
-                            <th className="p-1.5 text-center w-24 border-r border-slate-200">Unit</th>
-                            <th className="p-1.5 text-right w-28 border-r border-slate-200">Rate (₹)</th>
-                            <th className="p-1.5 text-right w-16 border-r border-slate-200">Disc%</th>
-                            <th className="p-1.5 text-right w-32 border-r border-slate-200">Amount (₹)</th>
-                            <th className="p-1.5 text-center w-10">Action</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 bg-white">
-                          {draft.items && draft.items.length > 0 ? (
-                            draft.items.map((item, idx) => (
-                              <tr key={idx} className="hover:bg-slate-50/50">
-                                <td className="p-1.5 pl-3 border-r border-slate-100 text-center text-slate-400 font-semibold">{idx + 1}</td>
-                                <td className="p-1 border-r border-slate-100">
-                                  <select
-                                    value={item.item_name}
-                                    onChange={(e) => {
-                                      const val = e.target.value;
-                                      const details = stockItemDetails[val] || {};
-                                      handleItemChange(idx, {
-                                        item_name: val,
-                                        hsn: details.hsnCode || '',
-                                        gst_rate: details.gstRate !== undefined ? details.gstRate : 18.0,
-                                        unit: details.unit || 'Nos',
-                                        rate: details.rate || item.rate
-                                      });
-                                    }}
-                                    className="w-full h-7 px-1.5 rounded border border-slate-200 bg-white outline-none focus:border-blue-500 font-semibold text-slate-700 text-[10.5px]"
-                                  >
-                                    {pageData?.allItems?.map((name) => (
-                                      <option key={name} value={name}>{name}</option>
-                                    ))}
-                                  </select>
-                                  <input
-                                    type="text"
-                                    value={item.description || ''}
-                                    onChange={(e) => handleItemChange(idx, 'description', e.target.value)}
-                                    placeholder="Description"
-                                    className="w-full h-6 px-2 border-t rounded outline-none text-[11px] bg-transparent mt-0.5"
-                                    style={{ borderColor: 'rgba(226,232,240,0.8)', color: '#64748b' }}
-                                  />
-                                </td>
-                                <td className="p-1 border-r border-slate-100 text-right font-bold text-slate-500 bg-slate-50/20">
-                                  {(() => {
-                                    if (item.item_name && stockItemDetails[item.item_name]) {
-                                      const qty = stockItemDetails[item.item_name].qty ?? 0;
-                                      return qty.toLocaleString('en-IN');
-                                    }
-                                    return '-';
-                                  })()}
-                                </td>
-                                <td className="p-1 border-r border-slate-100">
-                                  <input
-                                    type="text"
-                                    value={item.hsn || ''}
-                                    onChange={(e) => handleItemChange(idx, 'hsn', e.target.value)}
-                                    placeholder="HSN"
-                                    className="w-full h-7 px-2 rounded border border-slate-200 text-center focus:border-blue-500 font-bold text-slate-700 text-[10.5px]"
-                                  />
-                                </td>
-                                <td className="p-1 border-r border-slate-100">
-                                  <select
-                                    value={item.gst_rate || 0}
-                                    onChange={(e) => handleItemChange(idx, 'gst_rate', parseFloat(e.target.value) || 0)}
-                                    className="w-full h-7 px-1 rounded border border-slate-200 bg-white outline-none focus:border-blue-500 font-bold text-slate-700 text-[10.5px]"
-                                  >
-                                    {(pageData?.gstRates || [0, 5, 12, 18, 28]).map(rate => (
-                                      <option key={rate} value={rate}>{rate}%</option>
-                                    ))}
-                                  </select>
-                                </td>
-                                <td className="p-1 border-r border-slate-100">
-                                  <input
-                                    type="number"
-                                    value={item.quantity || ''}
-                                    onChange={(e) => handleItemChange(idx, 'quantity', parseFloat(e.target.value) || 0)}
-                                    className="w-full h-7 px-1 rounded border border-slate-200 text-right focus:border-blue-500 font-bold text-slate-700 text-[10.5px]"
-                                  />
-                                </td>
-                                <td className="p-1 border-r border-slate-100">
-                                  <select
-                                    value={item.unit || 'Nos'}
-                                    onChange={(e) => handleItemChange(idx, 'unit', e.target.value)}
-                                    className="w-full h-7 px-1 rounded border border-slate-200 bg-white outline-none focus:border-blue-500 font-bold text-slate-700 text-[10.5px]"
-                                  >
-                                    {(pageData?.units || ['Nos', 'Pcs', 'Kg', 'Ltr', 'Box', 'Mtr']).map(u => (
-                                      <option key={u} value={u}>{u}</option>
-                                    ))}
-                                  </select>
-                                </td>
-                                <td className="p-1 border-r border-slate-100">
-                                  <input
-                                    type="number"
-                                    value={item.rate || ''}
-                                    onChange={(e) => handleItemChange(idx, 'rate', parseFloat(e.target.value) || 0)}
-                                    className="w-full h-7 px-1.5 rounded border border-slate-200 text-right focus:border-blue-500 font-bold text-slate-700 text-[10.5px]"
-                                  />
-                                </td>
-                                <td className="p-1 border-r border-slate-100">
-                                  <input
-                                    type="number"
-                                    value={item.discount_percent || ''}
-                                    onChange={(e) => handleItemChange(idx, 'discount_percent', parseFloat(e.target.value) || 0)}
-                                    className="w-full h-7 px-1 rounded border border-slate-200 text-right focus:border-blue-500 font-bold text-slate-700 text-[10.5px]"
-                                  />
-                                </td>
-                                <td className="p-1.5 text-right font-extrabold text-slate-800 text-[10.5px] pr-2.5 border-r border-slate-100">
-                                  ₹ {parseFloat(item.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                </td>
-                                <td className="p-1 text-center">
-                                  <button
-                                    onClick={() => handleItemDelete(idx)}
-                                    className="p-1 text-rose-500 hover:bg-rose-50 rounded transition-colors"
-                                  >
-                                    <Trash2 size={12} />
-                                  </button>
-                                </td>
-                              </tr>
-                            ))
-                          ) : (
-                            <tr>
-                              <td colSpan={11} className="p-4 text-center text-slate-400 italic">
-                                No items added. Click "Add Item Row" to insert an entry.
-                              </td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                  {/* Additional Charges & Tax details Sections */}
-                  {!['payment', 'receipt', 'contra'].includes(draft.voucher_type?.toLowerCase()) && (
-                    <>
-                      {/* 1. Additional Charges Grid (Only manually added non-tax ledgers) */}
-                      {(() => {
-                        const manualCharges = (draft.additional_charges || []).filter(
-                          c => !['CGST','SGST','IGST','UTGST','CESS'].some(t => (c.ledger_name || '').toUpperCase().includes(t))
-                        );
-                        if (manualCharges.length === 0) return null;
-                        const manualTotal = manualCharges.reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0);
-                        return (
-                          <div className="border-t pt-3 space-y-2">
-                            <div className="flex justify-between items-center">
-                              <span className="text-[10px] uppercase font-extrabold tracking-wider text-slate-400">Additional Charges ({manualCharges.length})</span>
-                            </div>
-                            <div className="border border-slate-200 rounded overflow-hidden">
-                              <table className="w-full text-left border-collapse text-[10px]">
-                                <thead>
-                                  <tr className="bg-amber-50 border-b border-slate-200 text-[8.5px] uppercase font-extrabold text-slate-500">
-                                    <th className="p-1.5 pl-3 border-r border-slate-200 w-8 text-center">#</th>
-                                    <th className="p-1.5 border-r border-slate-200">Ledger Name</th>
-                                    <th className="p-1.5 text-right w-28 pr-3">Amount (₹)</th>
-                                  </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-100 bg-white">
-                                  {manualCharges.map((charge, idx) => (
-                                    <tr key={idx} className="hover:bg-slate-50/50">
-                                      <td className="p-1.5 border-r border-slate-100 text-center text-slate-400 font-semibold">{idx + 1}</td>
-                                      <td className="p-1.5 border-r border-slate-100 font-semibold text-slate-700">{charge.ledger_name}</td>
-                                      <td className="p-1.5 text-right font-extrabold text-slate-800 pr-3">
-                                        ₹ {parseFloat(charge.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                                <tfoot>
-                                  <tr className="bg-slate-50 border-t border-slate-200">
-                                    <td colSpan={2} className="p-1.5 pl-3 text-[9px] font-extrabold uppercase text-slate-500">Total Additional Charges</td>
-                                    <td className="p-1.5 pr-3 text-right font-extrabold text-amber-600">
-                                      ₹ {manualTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                    </td>
-                                  </tr>
-                                </tfoot>
-                              </table>
-                            </div>
-                          </div>
-                        );
-                      })()}
-
-                      {/* 2. HSN & Statutory Tax Ledgers Grid */}
-                      {(() => {
-                        const companyStateCode = pageData?.companyGst?.gstin?.trim().substring(0, 2) || '';
-                        const partyStateCode = activePartyDetails?.partyDetails?.gstin?.trim().substring(0, 2) || '';
-                        let isInterstate = false;
-                        if (companyStateCode && partyStateCode) {
-                          isInterstate = companyStateCode !== partyStateCode;
-                        } else {
-                          const companyState = pageData?.companyGst?.gstState?.trim().toLowerCase() || 'madhya pradesh';
-                          const partyState = activePartyDetails?.partyDetails?.gstState?.trim().toLowerCase() || '';
-                          if (partyState) {
-                            isInterstate = companyState !== partyState;
-                          }
-                        }
-
-                        return (
-                          <div className="grid grid-cols-2 gap-4 border-t pt-3">
-                            {/* Left Column: HSN tax Detailes */}
-                            <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm space-y-2">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-1.5">
-                                  <span className="font-extrabold text-[11px] uppercase tracking-wider text-slate-500">HSN tax Detailes</span>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                  <label className="flex items-center gap-1 cursor-pointer select-none">
-                                    <input
-                                      type="checkbox"
-                                      checked={true}
-                                      readOnly
-                                      className="w-3.5 h-3.5 rounded border-slate-300 accent-blue-600"
-                                    />
-                                    <span className="text-[10px] font-bold text-slate-600">Round Off</span>
-                                  </label>
-                                  <div className="px-2 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-600 text-[10px] font-bold">
-                                    Total Tax: ₹ {((cgst || 0) + (sgst || 0) + (igst || 0)).toFixed(2)}
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="border border-slate-200 rounded overflow-hidden">
-                                <table className="w-full text-left border-collapse text-[10px]">
-                                  <thead>
-                                    <tr className="bg-slate-50 border-b border-slate-200 text-[8.5px] uppercase font-extrabold text-slate-400">
-                                      <th className="p-1.5 border-r border-slate-200">Hsn no.</th>
-                                      <th className="p-1.5 text-right border-r border-slate-200">Taxable Value</th>
-                                      <th className="p-1.5 text-right border-r border-slate-200">CGST</th>
-                                      <th className="p-1.5 text-right border-r border-slate-200">SGST</th>
-                                      <th className="p-1.5 text-right border-r border-slate-200">IGST</th>
-                                      <th className="p-1.5 text-right">Cess</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody className="divide-y divide-slate-100 bg-white">
-                                    {(() => {
-                                      const hsnMap = {};
-                                      (draft.items || []).forEach(item => {
-                                        const hsn = (item.hsn || '').trim() || '-';
-                                        if (!hsnMap[hsn]) {
-                                          hsnMap[hsn] = { hsn, taxableValue: 0, cgst: 0, sgst: 0, igst: 0, cess: 0 };
-                                        }
-                                        hsnMap[hsn].taxableValue += parseFloat(item.taxableAmount || item.amount || 0);
-                                        hsnMap[hsn].cgst += parseFloat(item.cgst || 0);
-                                        hsnMap[hsn].sgst += parseFloat(item.sgst || 0);
-                                        hsnMap[hsn].igst += parseFloat(item.igst || 0);
-                                        hsnMap[hsn].cess += parseFloat(item.cess || 0);
-                                      });
-                                      const rows = Object.values(hsnMap);
-                                      if (rows.length === 0) {
-                                        return (
-                                          <tr>
-                                            <td colSpan={6} className="p-3 text-center text-slate-400 italic">No HSN tax details available</td>
-                                          </tr>
-                                        );
-                                      }
-                                      return (
-                                        <>
-                                          {rows.map((row, idx) => (
-                                            <tr key={idx} className="hover:bg-slate-50/50">
-                                              <td className="p-1.5 border-r border-slate-100 font-medium text-slate-700">{row.hsn}</td>
-                                              <td className="p-1.5 border-r border-slate-100 text-right font-semibold">₹ {row.taxableValue.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                                              <td className="p-1.5 border-r border-slate-100 text-right">₹ {row.cgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                                              <td className="p-1.5 border-r border-slate-100 text-right">₹ {row.sgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                                              <td className="p-1.5 border-r border-slate-100 text-right">₹ {row.igst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                                              <td className="p-1.5 text-right">₹ {row.cess.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                                            </tr>
-                                          ))}
-                                          <tr className="bg-slate-50 font-bold border-t border-slate-200 text-slate-700">
-                                            <td className="p-1.5 border-r border-slate-200">Total</td>
-                                            <td className="p-1.5 border-r border-slate-200 text-right">₹ {rows.reduce((s, r) => s + r.taxableValue, 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                                            <td className="p-1.5 border-r border-slate-200 text-right">₹ {rows.reduce((s, r) => s + r.cgst, 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                                            <td className="p-1.5 border-r border-slate-200 text-right">₹ {rows.reduce((s, r) => s + r.sgst, 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                                            <td className="p-1.5 border-r border-slate-200 text-right">₹ {rows.reduce((s, r) => s + r.igst, 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                                            <td className="p-1.5 text-right">₹ {rows.reduce((s, r) => s + r.cess, 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                                          </tr>
-                                        </>
-                                      );
-                                    })()}
-                                  </tbody>
-                                </table>
-                              </div>
-                            </div>
-
-                            {/* Right Column: Tax & Statutory Ledger Details */}
-                            <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm space-y-2">
-                              <div className="flex items-center justify-between">
-                                <span className="font-extrabold text-[11px] uppercase tracking-wider text-slate-500">Tax & Statutory Ledger Details</span>
-                                <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded text-[9px] font-extrabold uppercase tracking-wider">Auto Calculated</span>
-                              </div>
-
-                              <div className="border border-slate-200 rounded overflow-hidden">
-                                <table className="w-full text-left border-collapse text-[10px]">
-                                  <thead>
-                                    <tr className="bg-slate-50 border-b border-slate-200 text-[8.5px] uppercase font-extrabold text-slate-400">
-                                      <th className="p-1.5 border-r border-slate-200 w-1/3">Tax Component</th>
-                                      <th className="p-1.5 border-r border-slate-200">Ledger (Select Ledger)</th>
-                                      <th className="p-1.5 text-right">Amount (Auto)</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody className="divide-y divide-slate-100 bg-white">
-                                    {!isInterstate && (
-                                      <>
-                                        <tr className="hover:bg-slate-50/50">
-                                          <td className="p-1.5 border-r border-slate-100 font-bold text-slate-700">CGST <span className="text-[8px] px-1 py-0.2 bg-blue-50 text-blue-600 rounded">Intra</span></td>
-                                          <td className="p-1 border-r border-slate-100">
-                                            <select
-                                              value={getLedgerNameForComponent('CGST')}
-                                              onChange={(e) => setLedgerNameForComponent('CGST', e.target.value)}
-                                              className="w-full h-6 px-1.5 rounded border border-slate-200 bg-white outline-none focus:border-blue-500 font-semibold text-slate-700 text-[10px]"
-                                            >
-                                              {getLedgerOptions('CGST').map(opt => (
-                                                <option key={opt} value={opt}>{opt}</option>
-                                              ))}
-                                            </select>
-                                          </td>
-                                          <td className="p-1.5 text-right font-semibold text-slate-700">₹ {cgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                                        </tr>
-                                        <tr className="hover:bg-slate-50/50">
-                                          <td className="p-1.5 border-r border-slate-100 font-bold text-slate-700">SGST <span className="text-[8px] px-1 py-0.2 bg-blue-50 text-blue-600 rounded">Intra</span></td>
-                                          <td className="p-1 border-r border-slate-100">
-                                            <select
-                                              value={getLedgerNameForComponent('SGST')}
-                                              onChange={(e) => setLedgerNameForComponent('SGST', e.target.value)}
-                                              className="w-full h-6 px-1.5 rounded border border-slate-200 bg-white outline-none focus:border-blue-500 font-semibold text-slate-700 text-[10px]"
-                                            >
-                                              {getLedgerOptions('SGST').map(opt => (
-                                                <option key={opt} value={opt}>{opt}</option>
-                                              ))}
-                                            </select>
-                                          </td>
-                                          <td className="p-1.5 text-right font-semibold text-slate-700">₹ {sgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                                        </tr>
-                                      </>
-                                    )}
-                                    {isInterstate && (
-                                      <tr className="hover:bg-slate-50/50">
-                                        <td className="p-1.5 border-r border-slate-100 font-bold text-slate-700">IGST <span className="text-[8px] px-1 py-0.2 bg-orange-50 text-orange-600 rounded">Inter</span></td>
-                                        <td className="p-1 border-r border-slate-100">
-                                          <select
-                                            value={getLedgerNameForComponent('IGST')}
-                                            onChange={(e) => setLedgerNameForComponent('IGST', e.target.value)}
-                                            className="w-full h-6 px-1.5 rounded border border-slate-200 bg-white outline-none focus:border-blue-500 font-semibold text-slate-700 text-[10px]"
-                                          >
-                                            {getLedgerOptions('IGST').map(opt => (
-                                              <option key={opt} value={opt}>{opt}</option>
-                                            ))}
-                                          </select>
-                                        </td>
-                                        <td className="p-1.5 text-right font-semibold text-slate-700">₹ {igst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                                      </tr>
-                                    )}
-                                    <tr className="hover:bg-slate-50/50">
-                                      <td className="p-1.5 border-r border-slate-100 font-bold text-slate-700">CESS (Cess)</td>
-                                      <td className="p-1 border-r border-slate-100">
-                                        <select
-                                          value={getLedgerNameForComponent('CESS') || 'CESS Payable'}
-                                          onChange={(e) => setLedgerNameForComponent('CESS', e.target.value)}
-                                          className="w-full h-6 px-1.5 rounded border border-slate-200 bg-white outline-none focus:border-blue-500 font-semibold text-slate-700 text-[10px]"
-                                        >
-                                          {getLedgerOptions('CESS').map(opt => (
-                                            <option key={opt} value={opt}>{opt}</option>
-                                          ))}
-                                        </select>
-                                      </td>
-                                      <td className="p-1.5 text-right font-semibold text-slate-700">₹ {(draft.cess_amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                                    </tr>
-                                  </tbody>
-                                </table>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })()}
-                    </>
-                  )}
-                </>
-              )}
-                {/* Narration */}
-                <div className="border-t pt-3 space-y-2">
-                  <div className="text-[11px] uppercase font-extrabold tracking-wider text-slate-400">Narration</div>
-                  <textarea
-                    value={draft.narration || ''}
-                    onChange={(e) => handleHeaderChange('narration', e.target.value)}
-                    placeholder="Enter transaction narration..."
-                    rows={2}
-                    className="w-full p-2 rounded-md border border-slate-200 bg-white outline-none focus:border-blue-500 font-medium text-slate-700 text-[11px] resize-none"
-                  />
-                </div>
-
-              </div>
-            </div>
-
-            {/* Column 4: Summaries & Tally Preview */}
-            <div className="col-span-1 space-y-3">
-              
-              {/* Summary Totals */}
-              <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm space-y-2">
-                <div className="text-[11px] uppercase font-extrabold tracking-wider text-slate-400 border-b pb-1">Voucher Summary</div>
-                {!['payment', 'receipt', 'contra'].includes(draft.voucher_type?.toLowerCase()) && (
-                  <div className="space-y-2 text-[11px]">
-                    <div className="flex justify-between">
-                      <span className="text-slate-400 font-medium">Taxable Value</span>
-                      <span className="font-semibold text-slate-700">₹ {taxableVal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                    </div>
-                    {cgst > 0 && (
-                      <div className="flex justify-between">
-                        <span className="text-slate-400 font-medium">CGST</span>
-                        <span className="font-semibold text-slate-700">₹ {cgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                      </div>
-                    )}
-                    {sgst > 0 && (
-                      <div className="flex justify-between">
-                        <span className="text-slate-400 font-medium">SGST</span>
-                        <span className="font-semibold text-slate-700">₹ {sgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                      </div>
-                    )}
-                    {igst > 0 && (
-                      <div className="flex justify-between">
-                        <span className="text-slate-400 font-medium">IGST</span>
-                        <span className="font-semibold text-slate-700">₹ {igst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                      </div>
-                    )}
-                    {/* Additional charges rows in summary */}
-                    {(draft.additional_charges || []).filter(c => !['CGST','SGST','IGST','UTGST','CESS'].some(t => (c.ledger_name || '').toUpperCase().includes(t))).length > 0 && (
-                      <>
-                        <div className="border-t border-dashed border-slate-100 pt-1.5 flex justify-between text-[10px] text-slate-400 font-semibold uppercase tracking-wide">
-                          <span>Additional Charges</span>
-                        </div>
-                        {draft.additional_charges
-                          .filter(c => !['CGST','SGST','IGST','UTGST','CESS'].some(t => (c.ledger_name || '').toUpperCase().includes(t)))
-                          .map((charge, idx) => (
-                            <div key={idx} className="flex justify-between">
-                              <span className="font-medium flex items-center gap-1 text-slate-500">
-                                {charge.ledger_name}
-                              </span>
-                              <span className="font-semibold text-slate-700">₹ {parseFloat(charge.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                            </div>
-                          ))}
-                      </>
-                    )}
-                  </div>
-                )}
-                
-                <div className="pt-1.5 flex justify-between items-center border-t border-dashed border-slate-200">
-                  <span className="font-extrabold uppercase text-slate-700 text-[11px]">Grand Total</span>
-                  <span className="text-[15px] font-extrabold text-blue-600">
-                    ₹ {draft.amount ? parseFloat(draft.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 }) : '0.00'}
+          {/* Top Action Bar with Back to Chat */}
+          <header className="flex justify-between items-center bg-[var(--app-panel-bg)] px-4 py-2.5 rounded-xl border border-[var(--app-border)] shadow-xs shrink-0">
+            <div className="flex items-center gap-3">
+              <button 
+                onClick={() => setIsReviewMode(false)}
+                className="h-8 px-3 rounded-lg border border-[var(--app-border)] text-xs font-bold text-[var(--app-heading)] hover:bg-[var(--app-control-hover)] transition-all flex items-center gap-1.5 shrink-0"
+              >
+                <ArrowLeft size={14} />
+                <span>Back to AI Chat</span>
+              </button>
+              <div>
+                <h2 className="text-sm font-extrabold text-[var(--app-heading)] flex items-center gap-2">
+                  Review &amp; Edit Voucher Draft
+                  <span className="px-2 py-0.5 text-[9.5px] font-bold rounded bg-amber-500/10 border border-amber-500/30 text-amber-600 uppercase">
+                    {draft.status || 'Draft'}
                   </span>
-                </div>
+                </h2>
+                <p className="text-[10.5px] text-[var(--app-muted)] mt-0.5">
+                  Autofilled in standard Manual Entry form — review details, edit fields, and save or post to Tally
+                </p>
               </div>
-
-              {/* Tally Preview payload */}
-              {draftJson && (
-                <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm space-y-2">
-                  <div className="text-[11px] uppercase font-extrabold tracking-wider text-slate-400 border-b pb-1">Tally JSON Payload</div>
-                  <div className="bg-slate-900 text-emerald-400 p-2 rounded-lg text-[9px] font-mono h-[180px] overflow-y-auto themed-scrollbar whitespace-pre-wrap select-all">
-                    {JSON.stringify(draftJson, null, 2)}
-                  </div>
-                </div>
-              )}
-
             </div>
+          </header>
 
+          {/* Embedded Dynamic Manual Voucher Form */}
+          <div className="flex-1 min-h-0">
+            {['cash_payment', 'payment', 'receipt', 'bank_payment', 'contra'].includes(vType) ? (
+              <CreateFundFlow
+                initialData={mappedInitialData}
+                voucherType={vType === 'receipt' ? 'bank_payment' : vType === 'contra' ? 'contra' : 'cash_payment'}
+                onBack={() => setIsReviewMode(false)}
+                onSaveSuccess={async () => {
+                  await selectSession(activeConvId);
+                  setIsReviewMode(false);
+                  toast.success('Voucher updated and saved successfully!');
+                }}
+              />
+            ) : ['purchase', 'purchase_invoice', 'purchase_order', 'debit_note'].includes(vType) ? (
+              <CreatePurchase
+                initialData={mappedInitialData}
+                voucherType={vType}
+                onBack={() => setIsReviewMode(false)}
+                onSaveSuccess={async () => {
+                  await selectSession(activeConvId);
+                  setIsReviewMode(false);
+                  toast.success('Voucher updated and saved successfully!');
+                }}
+              />
+            ) : (
+              <CreateSales
+                initialData={mappedInitialData}
+                voucherType={vType}
+                onBack={() => setIsReviewMode(false)}
+                onSaveSuccess={async () => {
+                  await selectSession(activeConvId);
+                  setIsReviewMode(false);
+                  toast.success('Voucher updated and saved successfully!');
+                }}
+              />
+            )}
           </div>
         </main>
 

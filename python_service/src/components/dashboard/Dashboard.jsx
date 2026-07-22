@@ -6,6 +6,9 @@ import Sidebar from '../layout/Sidebar'
 import { LABEL_TO_PATH, PATH_TO_LABEL } from '../../routes/routePaths'
 import { useAppStore } from '../../stores/useAppStore'
 import { fetchCompanies } from '../companies/api'
+import { authApi } from '../../services/authApi'
+import { toast } from 'sonner'
+
 import CompanionBar from '../ui/CompanionBar'
 import SearchOverlay from '../ui/SearchOverlay'
 import PetalField from '../ui/PetalField'
@@ -27,38 +30,52 @@ function Dashboard() {
   const mode = useAppStore((s) => s.mode)
   const toggleMode = useAppStore((s) => s.toggleMode)
   const companies = useAppStore((s) => s.companies)
-  const selectedCompany = useAppStore((s) => s.selectedCompany)
-  const setSelectedCompany = useAppStore((s) => s.setSelectedCompany)
-  const setCompanies = useAppStore((s) => s.setCompanies)
+  const orgId = useAppStore((s) => s.orgId)
+  const setAuth = useAppStore((s) => s.setAuth)
+  const setOrg = useAppStore((s) => s.setOrg)
   const approvalCenterView = useAppStore((s) => s.approvalCenterView)
 
   const isApprovalDetail = location.pathname.startsWith('/automation/approval-center') && approvalCenterView === 'detail'
   const isCompactHeader = isApprovalDetail || location.pathname === '/sales/new' || location.pathname === '/' || location.pathname === '/automation/ai-processing' || location.pathname === '/automation/text-to-entry'
 
-  // Dynamically load company list from the database
-  useEffect(() => {
-    const loadCompanies = async () => {
-      try {
-        const list = await fetchCompanies()
-        if (list && list.length > 0) {
-          const names = list.map((c) => c.name)
-          setCompanies(names)
-          
-          // Fallback if current selected company is empty, not in database list, or matches old mocks
-          if (
-            !selectedCompany ||
-            !names.includes(selectedCompany) ||
-            ['Data Uncyclable', 'Finolax Advisors', 'Greenline Ventures', 'Apex Holdings'].includes(selectedCompany)
-          ) {
-            setSelectedCompany(names[0])
-          }
-        }
-      } catch (err) {
-        console.error('Failed to load companies dynamically:', err)
-      }
+  const handleCompanyChange = async (targetOrgId) => {
+    try {
+      const res = await authApi.selectOrg(targetOrgId)
+      const { token: orgToken, refreshToken: orgRefresh, organization } = res.data
+      const base64Url = orgToken.split('.')[1]
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
+      const claims = JSON.parse(window.atob(base64))
+      const expiry = claims ? claims.exp * 1000 : null
+
+      setAuth({
+        token: orgToken,
+        refreshToken: orgRefresh,
+        user: useAppStore.getState().user,
+        tokenExpiresAt: expiry,
+        role: claims?.role,
+        permissions: claims?.permissions,
+      })
+
+      setOrg({
+        orgId: organization.id,
+        orgDbName: organization.dbName,
+        orgName: organization.displayName || organization.name,
+      })
+
+      toast.success(`Switched workspace to ${organization.displayName || organization.name}`)
+      setTimeout(() => {
+        window.location.reload()
+      }, 100)
+    } catch (err) {
+      toast.error('Failed to switch workspace')
     }
-    loadCompanies()
-  }, [setCompanies, setSelectedCompany, selectedCompany])
+  }
+
+  const selectOptions = (companies || []).map((org) => ({
+    value: org.id,
+    label: org.displayName || org.name,
+  }))
+
 
 
   const sidebarCollapsed = useAppStore((s) => s.sidebarCollapsed)
@@ -108,11 +125,12 @@ function Dashboard() {
             isDark={isDark}
             mode={mode}
             onModeToggle={toggleMode}
-            companies={companies}
-            selectedCompany={selectedCompany}
-            onCompanyChange={setSelectedCompany}
+            companies={selectOptions}
+            selectedCompany={orgId}
+            onCompanyChange={handleCompanyChange}
             onMobileNavToggle={() => setMobileNavOpen((p) => !p)}
           />
+
 
           <main
             className={`relative flex-1 flex flex-col overflow-hidden ${['/automation/ai-processing', '/automation/text-to-entry'].includes(location.pathname) ? 'p-0' : isCompactHeader ? 'p-2 pb-0.5' : 'p-3 sm:p-4 md:p-5'}`}

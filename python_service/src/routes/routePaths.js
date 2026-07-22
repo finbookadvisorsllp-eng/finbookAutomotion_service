@@ -7,7 +7,7 @@ export const LOGIN_PATH = '/login'
 
 export const LABEL_TO_PATH = {
   
-  'Dashboard': '/',
+  'Dashboard': '/dashboard',
 
   // Manage
   'Manage Company': '/companies',
@@ -89,6 +89,10 @@ export const LABEL_TO_PATH = {
   'Item Master': '/master/stock-ledger',
 }
 
-export const PATH_TO_LABEL = Object.fromEntries(
-  Object.entries(LABEL_TO_PATH).map(([label, path]) => [path, label])
-)
+export const PATH_TO_LABEL = {
+  ...Object.fromEntries(
+    Object.entries(LABEL_TO_PATH).map(([label, path]) => [path, label])
+  ),
+  '/': 'Dashboard',
+}
+

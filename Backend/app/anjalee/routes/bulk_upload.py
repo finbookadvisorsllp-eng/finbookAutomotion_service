@@ -1,4 +1,4 @@
-﻿import os
+import os
 import asyncio
 import uuid
 import logging
@@ -414,6 +414,16 @@ async def upload_file(
         val_res = document_validation_service.check_quality_and_pages(file_path, file_type == 'pdf')
 
         company_id = request.headers.get("x-company-id") or request.headers.get("x-company")
+        if not company_id:
+            auth_header = request.headers.get("authorization") or request.headers.get("Authorization")
+            if auth_header and auth_header.startswith("Bearer "):
+                try:
+                    from app.core.security import decode_token
+                    token = auth_header.split(" ")[1]
+                    claims = decode_token(token)
+                    company_id = claims.get("orgId") or claims.get("companyId")
+                except Exception:
+                    pass
 
         # 4. Save metadata record with status=Processing
         doc_record = {

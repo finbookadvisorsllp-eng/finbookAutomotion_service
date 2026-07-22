@@ -45,7 +45,12 @@ async def health():
 
 app.include_router(api_router)
 
+# ─────────────── Shared IAM Auth Router ───────────────
+from app.auth.router import router as auth_router
+app.include_router(auth_router)
+
 # ─────────────── AMAN (LiveTally) routes — /api/v3 ───────────────
+
 # Owned by the aman project. Do not edit anjalee's include above.
 from app.aman.routes.routes import aman_api_router
 app.include_router(aman_api_router)

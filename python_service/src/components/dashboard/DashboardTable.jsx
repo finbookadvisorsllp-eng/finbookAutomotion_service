@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { FileText, Clock, Download, Upload, Sparkles, Settings } from 'lucide-react'
 import api from '../../lib/axios'
@@ -11,13 +12,6 @@ import ThinkingLoader from '../ui/ThinkingLoader'
 import BusinessTimeline from '../ui/BusinessTimeline'
 import { VoucherSourcesCard, PipelineCard, AiInsightsCard, ApprovalWorkflowCard } from './widgets'
 
-const KPIS = [
-  { label: 'Total Vouchers', value: '25,648', icon: FileText, delta: { value: '12.5%', dir: 'up' }, insight: 'AI confidence 97% · trending up' },
-  { label: 'Pending Approval', value: '32', icon: Clock, delta: { value: '8.3%', dir: 'up' }, insight: 'AI confidence 88% · 6 auto-approvable' },
-  { label: 'Imported Today', value: '1,037', icon: Download, delta: { value: '15.2%', dir: 'up' }, insight: 'AI confidence 99% · 2 need review' },
-  { label: 'Exported to Tally', value: '96', icon: Upload, delta: { value: '9.1%', dir: 'up' }, insight: 'AI confidence 94% · no failures' },
-]
-
 function SectionLabel({ icon: Icon, children }) {
   return (
     <div className="flex items-center gap-1.5">
@@ -28,7 +22,9 @@ function SectionLabel({ icon: Icon, children }) {
 }
 
 export default function DashboardTable() {
+  const navigate = useNavigate()
   const selectedCompany = useAppStore((s) => s.selectedCompany)
+  const currentUser = useAppStore((s) => s.user)
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [selectedFy, setSelectedFy] = useState(localStorage.getItem('selectedFy') || 'FY 2023-24')
@@ -72,28 +68,45 @@ export default function DashboardTable() {
   const tod = hr < 12 ? 'morning' : hr < 17 ? 'afternoon' : hr < 21 ? 'evening' : 'night'
   const greet = hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening'
   const today = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })
+  const userName = currentUser?.name || currentUser?.email?.split('@')[0] || 'User'
+
+  const totalVouchersStr = typeof data?.totalVouchers === 'number' ? data.totalVouchers.toLocaleString('en-IN') : (data?.totalVouchers || '0')
+  const pendingApprovalStr = typeof data?.pendingApproval === 'number' ? data.pendingApproval.toLocaleString('en-IN') : (data?.pendingApproval || '0')
+  const importedTodayStr = typeof data?.ocrDocumentsProcessed === 'number' ? data.ocrDocumentsProcessed.toLocaleString('en-IN') : (data?.ocrDocumentsProcessed || '0')
+  const postedToTallyStr = typeof data?.postedToTally === 'number' ? data.postedToTally.toLocaleString('en-IN') : (data?.postedToTally || '0')
+
+  const kpis = [
+    { label: 'Total Vouchers', value: totalVouchersStr, icon: FileText, delta: { value: 'Live', dir: 'up' }, insight: 'Click to view all sales invoices', onClick: () => navigate('/sales/invoices') },
+    { label: 'Pending Approval', value: pendingApprovalStr, icon: Clock, delta: { value: 'Active', dir: 'up' }, insight: 'Click to open approval center', onClick: () => navigate('/automation/approval-center') },
+    { label: 'Imported Today', value: importedTodayStr, icon: Download, delta: { value: 'Live', dir: 'up' }, insight: 'Click to open OCR processing', onClick: () => navigate('/automation/ai-processing') },
+    { label: 'Exported to Tally', value: postedToTallyStr, icon: Upload, delta: { value: 'Synced', dir: 'up' }, insight: 'Click to open Tally connector', onClick: () => navigate('/tally/connector') },
+  ]
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      {/* Greeting hero */}
-      <div className="relative overflow-hidden rounded-2xl border p-4 md:p-5 mb-3 shrink-0"
+      {/* Greeting hero - compact & sleek */}
+      <div className="relative overflow-hidden rounded-xl border px-3.5 py-2.5 mb-2 shrink-0"
         style={{ borderColor: 'var(--app-border)', background: 'linear-gradient(120deg, var(--app-accent-soft) 0%, transparent 58%), var(--app-panel-bg)', boxShadow: 'var(--app-shadow)' }}>
-        <div className="absolute -right-12 -top-20 h-60 w-60 rounded-full blur-3xl pointer-events-none" style={{ background: 'radial-gradient(circle, var(--app-accent-soft) 0%, transparent 70%)' }} />
-        <div className="relative flex items-center justify-between gap-4">
+        <div className="absolute -right-12 -top-20 h-40 w-40 rounded-full blur-3xl pointer-events-none" style={{ background: 'radial-gradient(circle, var(--app-accent-soft) 0%, transparent 70%)' }} />
+        <div className="relative flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--app-muted)' }}>{today}</p>
-            <h1 className="text-[26px] md:text-[34px] font-black tracking-tight leading-tight mt-1" style={{ color: 'var(--app-heading)' }}>
-              {greet}, <span style={{ background: 'var(--app-accent-gradient)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>Anjalee Bisen</span>
+            <p className="text-[9px] font-bold uppercase tracking-widest" style={{ color: 'var(--app-muted)' }}>{today}</p>
+            <h1 className="text-[18px] md:text-[22px] font-black tracking-tight leading-snug mt-0.5" style={{ color: 'var(--app-heading)' }}>
+              {greet}, <span style={{ background: 'var(--app-accent-gradient)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>{userName}</span>
             </h1>
-            <p className="text-[12px] md:text-[13px] font-medium mt-2 flex items-center gap-2 flex-wrap" style={{ color: 'var(--app-muted)' }}>
-              <span className="inline-flex items-center gap-1"><Sparkles size={13} className="text-[var(--app-accent)]" /> 12 vouchers need review</span>
+            <p className="text-[11px] md:text-[12px] font-medium mt-1 flex items-center gap-2 flex-wrap" style={{ color: 'var(--app-muted)' }}>
+              <span onClick={() => navigate('/automation/approval-center')} className="inline-flex items-center gap-1 cursor-pointer hover:underline hover:text-[var(--app-accent)]">
+                <Sparkles size={12} className="text-[var(--app-accent)]" /> {data?.pendingApproval || 0} vouchers need review
+              </span>
               <span className="opacity-40">·</span>
-              <span><b style={{ color: 'var(--app-heading)' }}>40</b> ready to export</span>
+              <span onClick={() => navigate('/tally/connector')} className="cursor-pointer hover:underline hover:text-[var(--app-accent)]">
+                <b style={{ color: 'var(--app-heading)' }}>{data?.postedToTally || 0}</b> ready to export
+              </span>
               <span className="opacity-40 hidden sm:inline">·</span>
-              <span className="hidden sm:inline">Tally connected</span>
+              <span onClick={() => navigate('/tally/connector')} className="hidden sm:inline cursor-pointer hover:underline hover:text-[var(--app-accent)]">Tally connected</span>
             </p>
           </div>
-          <HeroDoodle tod={tod} className="w-28 h-24 md:w-44 md:h-36 shrink-0" />
+          <HeroDoodle tod={tod} className="w-20 h-16 md:w-24 md:h-20 shrink-0 cursor-pointer" onClick={() => navigate('/automation/approval-center')} />
         </div>
       </div>
 
@@ -110,22 +123,26 @@ export default function DashboardTable() {
         <div className="space-y-1.5">
           <SectionLabel icon={FileText}>Business overview</SectionLabel>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {KPIS.map((k, i) => <StatCard key={k.label} index={i} {...k} />)}
+            {kpis.map((k, i) => (
+              <div key={k.label} onClick={k.onClick} className="cursor-pointer transition-transform hover:-translate-y-0.5">
+                <StatCard index={i} {...k} />
+              </div>
+            ))}
           </div>
         </div>
 
         <div className="space-y-1.5">
           <SectionLabel icon={Sparkles}>Your business story</SectionLabel>
-          <BusinessTimeline />
+          <BusinessTimeline data={data} />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-          <VoucherSourcesCard onMore={soon} />
-          <PipelineCard onMore={soon} />
-          <AiInsightsCard onMore={soon} />
+          <VoucherSourcesCard data={data} onMore={() => navigate('/sales/invoices')} />
+          <PipelineCard data={data} onMore={() => navigate('/automation/approval-center')} />
+          <AiInsightsCard data={data} onMore={() => navigate('/automation/approval-center')} />
         </div>
 
-        <ApprovalWorkflowCard onMore={soon} />
+        <ApprovalWorkflowCard data={data} onMore={() => navigate('/automation/approval-center')} />
       </div>
     </div>
   )

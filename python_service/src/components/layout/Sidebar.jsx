@@ -8,6 +8,8 @@ import {
   Building2, Users, ShieldCheck, ReceiptText, FileMinus, Circle,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'motion/react'
+import { useAppStore } from '../../stores/useAppStore'
+
 
 // Nav structure. Leaf `label`s MUST match keys in routePaths LABEL_TO_PATH so
 // click->navigate and active highlighting keep working for free. Groups just
@@ -146,7 +148,79 @@ function SectionLabel({ children }) {
   return <div className="px-3 pt-3 pb-1 text-[9.5px] font-bold uppercase tracking-wider" style={{ color: 'var(--app-sidebar-muted)' }}>{children}</div>
 }
 
+const LEAF_TO_MODULE_ID = {
+  'Dashboard': 'dashboard',
+  'Manual Voucher Entry': 'manualVoucher',
+  'Bulk Upload': 'bulkUpload',
+  'OCR Upload': 'ocrUpload',
+  'Text to Entry': 'textToEntry',
+  'Approval Center': 'approvalCenter',
+  'Sales Inbox': 'salesInbox',
+  'Sales Review': 'salesInbox',
+  'Sales Archive': 'salesInbox',
+  'Sales Order': 'salesOrder',
+  'Sales Invoice': 'salesInvoice',
+  'Credit Note (Sales Return)': 'salesReturn',
+  'Purchase Inbox': 'purchaseInbox',
+  'Purchase Review': 'purchaseInbox',
+  'Purchase Archive': 'purchaseInbox',
+  'Purchase Order': 'purchaseOrder',
+  'Purchase Invoice': 'purchaseInvoice',
+  'Debit Note (Purchase Return)': 'debitNote',
+  'Payment': 'payment',
+  'Receipt': 'receipt',
+  'Contra': 'contra',
+  'Fund Flow Review': 'payment',
+  'Fund Flow Archive': 'payment',
+  'Manage Bank': 'manageBank',
+  'Manage Rule': 'manageBank',
+  'Inbox': 'manageBank',
+  'Bank Review': 'manageBank',
+  'Bank Archive': 'manageBank',
+  'Ledger Master': 'ledgerMaster',
+  'Item Master': 'itemMaster',
+  'Tally Connector': 'tallyConnector',
+  'Document Archive': 'documentArchive',
+  'Companies': 'companies',
+  'Clients': 'clients',
+  'User & Role Management': 'usersRoles',
+  'Configuration': 'configuration',
+}
+
+function checkLeafViewPermission(leafLabel, permissions, role) {
+  const modId = LEAF_TO_MODULE_ID[leafLabel]
+  if (!modId) return true
+
+  // If role permissions matrix is present, evaluate view permission strictly first
+  if (permissions && typeof permissions === 'object' && !Array.isArray(permissions)) {
+    const modObj = permissions[modId]
+    if (modObj !== undefined) {
+      if (typeof modObj === 'boolean') return modObj
+      if (typeof modObj === 'object' && modObj.view !== undefined) return Boolean(modObj.view)
+    }
+  }
+
+  if (Array.isArray(permissions) && permissions.length > 0) {
+    const item = permissions.find((p) => p.id === modId || p.name === modId)
+    if (item) {
+      if (typeof item.view !== 'undefined') return Boolean(item.view)
+      if (typeof item.actions === 'object' && item.actions.view !== 'undefined') return Boolean(item.actions.view)
+    }
+  }
+
+  // System Super Admin fallback
+  const lowerRole = (role || '').toLowerCase()
+  if (lowerRole === 'admin' || lowerRole === 'administrator' || lowerRole === 'superadmin') {
+    return true
+  }
+
+  return true
+}
+
 function Sidebar({ activeItem, onItemClick, collapsed, onToggle }) {
+  const role = useAppStore((s) => s.role)
+  const permissions = useAppStore((s) => s.permissions) || useAppStore((s) => s.user?.permissions)
+
   const [openGroups, setOpenGroups] = useState(() => {
     const g = groupOf(activeItem)
     return g ? { [g]: true } : {}
@@ -157,11 +231,27 @@ function Sidebar({ activeItem, onItemClick, collapsed, onToggle }) {
   })
   const searchRef = useRef(null)
 
+  const filteredNav = NAV.map((group) => {
+    if (group.label === 'Administration' && role !== 'admin') return null
+
+    if (group.children) {
+      const allowedChildren = group.children.filter((child) =>
+        checkLeafViewPermission(child, permissions, role)
+      )
+      if (allowedChildren.length === 0) return null
+      return { ...group, children: allowedChildren }
+    }
+
+    if (!checkLeafViewPermission(group.label, permissions, role)) return null
+    return group
+  }).filter(Boolean)
+
   // Keep the active item's group open as the user navigates.
   useEffect(() => {
     const g = groupOf(activeItem)
     if (g) setOpenGroups((prev) => (prev[g] ? prev : { ...prev, [g]: true }))
   }, [activeItem])
+
 
   // ⌘K / Ctrl+K focuses the nav search (command palette feel).
   useEffect(() => {
@@ -254,7 +344,8 @@ function Sidebar({ activeItem, onItemClick, collapsed, onToggle }) {
               </>
             )}
 
-            {NAV.map((entry) =>
+            {filteredNav.map((entry) =>
+
               entry.children ? (
                 collapsed ? (
                   <button

@@ -1,12 +1,15 @@
 import { lazy } from 'react'
-import { createBrowserRouter, useNavigate, useOutletContext } from 'react-router-dom'
+import { createBrowserRouter, useNavigate, useOutletContext, Navigate, useLocation } from 'react-router-dom'
 import ProtectedRoute from './ProtectedRoute'
+import { useAppStore } from '../stores/useAppStore'
 
 // Layout is eager (always needed). Every panel below is lazy — each becomes its
 // own JS chunk, so the initial bundle stays small no matter how many features grow.
 import Dashboard from '../components/dashboard/Dashboard'
 
-const Login = lazy(() => import('../components/auth/Login'))
+import Login from '../components/auth/Login'
+import OrgSelect from '../components/auth/OrgSelect'
+import Landing from '../components/auth/Landing'
 
 const DashboardTable = lazy(() => import('../components/dashboard/DashboardTable'))
 const CompaniesPanel = lazy(() => import('../components/companies/CompaniesPanel'))
@@ -89,6 +92,19 @@ const StockLedgerRoute = () => { const { isDark } = useDashCtx(); return <Master
 
 export const router = createBrowserRouter([
   { path: '/login', element: <Login /> },
+  { path: '/org-select', element: <OrgSelect /> },
+  {
+    path: '/home',
+    element: (
+      <ProtectedRoute>
+        <Landing />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/landing',
+    element: <Navigate to="/home" replace />,
+  },
   {
     path: '/',
     element: (
@@ -97,7 +113,8 @@ export const router = createBrowserRouter([
       </ProtectedRoute>
     ),
     children: [
-      { index: true, element: <UserDataRoute /> },
+      { index: true, element: <Navigate to="/home" replace /> },
+      { path: 'dashboard', element: <UserDataRoute /> },
 
       { path: 'companies', element: <CompaniesRoute /> },
       { path: 'users/business', element: <BusinessUsersRoute /> },

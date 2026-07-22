@@ -1,15 +1,17 @@
 import { useState } from 'react'
 import { motion } from 'motion/react'
 import {
-  Bell, ChevronDown, Menu, Moon, Sun, RefreshCw, HelpCircle,
-  CheckCircle2, ArrowLeft, Building2, Calendar,
+  Bell, ChevronDown, Menu, Moon, Sun, RefreshCw, HelpCircle, LogOut,
+  CheckCircle2, ArrowLeft, Building2, Calendar, Home,
   LayoutDashboard, TrendingUp, ShoppingCart, ArrowLeftRight, Landmark,
   BookOpen, Plug, Settings, FileText, Sparkles,
 } from 'lucide-react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useAppStore } from '../../stores/useAppStore'
 import { PATH_TO_LABEL } from '../../routes/routePaths'
+import { authApi } from '../../services/authApi'
 import Select from '../ui/Select'
+
 
 // Route → section label + icon, keyed by first path segment. Drives the
 // dynamic page-heading so the header reflects where you are.
@@ -95,6 +97,7 @@ function IconBtn({ icon: Icon, badge, onClick, label }) {
 
 function Navbar({ isDark, onModeToggle, companies, selectedCompany, onCompanyChange, onMobileNavToggle }) {
   const location = useLocation()
+  const navigate = useNavigate()
   const approvalCenterView = useAppStore((s) => s.approvalCenterView)
   const isApprovalDetail = location.pathname.startsWith('/automation/approval-center') && approvalCenterView === 'detail'
 
@@ -104,6 +107,17 @@ function Navbar({ isDark, onModeToggle, companies, selectedCompany, onCompanyCha
     setSelectedFy(fy)
     window.dispatchEvent(new Event('fy-changed'))
   }
+
+  const handleLogout = () => {
+    const refreshToken = useAppStore.getState().refreshToken
+    const logout = useAppStore.getState().logout
+    if (refreshToken) {
+      authApi.logout(refreshToken).catch(() => {})
+    }
+    logout()
+    window.location.href = '/login'
+  }
+
 
   return (
     <header
@@ -147,9 +161,12 @@ function Navbar({ isDark, onModeToggle, companies, selectedCompany, onCompanyCha
         <StatusPill icon={CheckCircle2} label="Tally Status" value="Connected" />
         <StatusPill icon={RefreshCw} label="Sync Status" value="Synced" />
 
+        <IconBtn icon={Home} onClick={() => navigate('/home')} label="Division Hub" />
         <IconBtn icon={isDark ? Sun : Moon} onClick={onModeToggle} label="Toggle theme" />
         <IconBtn icon={Bell} badge={3} label="Notifications" />
         <IconBtn icon={HelpCircle} label="Help" />
+        <IconBtn icon={LogOut} onClick={handleLogout} label="Sign Out" />
+
 
         <div className="flex items-center gap-1 cursor-pointer ml-1 select-none">
           <div className="h-8 w-8 rounded-full flex items-center justify-center font-bold text-[12px] shrink-0" style={{ backgroundColor: 'var(--app-accent)', color: 'var(--app-on-accent)' }}>R</div>

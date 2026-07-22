@@ -85,39 +85,12 @@ class SalesVoucherRepository:
         return current_seq + 1
 
     async def get_dynamic_next_sequence(self, voucher_type: str, prefix: str, consume: bool = False) -> int:
-        types = [voucher_type, voucher_type.replace("_", " "), voucher_type.replace(" ", "_")]
-        types = list(set(types))
-        regex_pattern = "^(" + "|".join(types) + ")$"
-        
-        # Query matching vouchers (including soft-deleted vouchers)
-        query = {
-            "voucherType": {"$regex": regex_pattern, "$options": "i"},
-            "voucherNumber": {"$regex": f"^{prefix}-"}
-        }
-        cursor = self.db[SALES_VOUCHERS_COLLECTION].find(query, {"voucherNumber": 1})
-        docs = await cursor.to_list(length=1000)
-        
-        max_seq = 0
-        for d in docs:
-            v_num = d.get("voucherNumber", "")
-            parts = v_num.split("-")
-            if len(parts) >= 3:
-                try:
-                    seq_val = int(parts[-1])
-                    if seq_val > max_seq:
-                        max_seq = seq_val
-                except ValueError:
-                    pass
-
         # Get current counter value
         counter = await self.db[COUNTERS_COLLECTION].find_one({"_id": prefix})
         current_seq = counter["seq"] if counter else 0
         
-        # Take the maximum of existing docs and the counter
-        actual_seq = max(current_seq, max_seq)
-        
         if consume:
-            next_seq = actual_seq + 1
+            next_seq = current_seq + 1
             await self.db[COUNTERS_COLLECTION].update_one(
                 {"_id": prefix},
                 {"$set": {"seq": next_seq}},
@@ -125,7 +98,7 @@ class SalesVoucherRepository:
             )
             return next_seq
         else:
-            return actual_seq + 1
+            return current_seq + 1
 
     async def get_company_state(self) -> str:
         # Lookup first company doc

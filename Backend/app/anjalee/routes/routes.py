@@ -19,25 +19,35 @@ async def health():
         "version": "2.0.0"
     }
 
-# Module Routes
+# Module Routes (Public)
 api_router.include_router(auth.router)
-api_router.include_router(companies.router)
-api_router.include_router(purchase.router)
-api_router.include_router(fundflow.router)
+
+# Protected business routers
+from fastapi import Depends
+from app.core.dependencies import require_authenticated
+
+protected_router = APIRouter(dependencies=[Depends(require_authenticated)])
+
+protected_router.include_router(companies.router)
+protected_router.include_router(purchase.router)
+protected_router.include_router(fundflow.router)
 
 # Change by Anjalee: Register new Sales Voucher router
 from . import sales
-api_router.include_router(sales.router)
+protected_router.include_router(sales.router)
 
 from . import bulk_upload
-api_router.include_router(bulk_upload.router)
+protected_router.include_router(bulk_upload.router)
 
 # AI Chat router
 from . import ai_chat
-api_router.include_router(ai_chat.router)
+protected_router.include_router(ai_chat.router)
 
 # Voucher router
 from . import voucher
-api_router.include_router(voucher.router)
+protected_router.include_router(voucher.router)
+
+api_router.include_router(protected_router)
+
 
 

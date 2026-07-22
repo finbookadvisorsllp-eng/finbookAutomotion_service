@@ -16,6 +16,12 @@ class Settings:
     # Default Database Name to fetch data locally
     DEFAULT_DB_NAME: str = "finbook_23aafff9731l1z7"
 
+    # Shared IAM Authentication settings
+    IAM_DB_NAME: str = os.getenv("IAM_DB_NAME") or "iam"
+    JWT_SECRET: str = os.getenv("JWT_SECRET") or "finbook-shared-secret-key-39281a8b3d0"
+    JWT_EXPIRE_MINUTES: int = int(os.getenv("JWT_EXPIRE_MINUTES") or "60")
+    JWT_REFRESH_EXPIRE_MINUTES: int = int(os.getenv("JWT_REFRESH_EXPIRE_MINUTES") or "10080")
+
     # AI LLM settings
     NVIDIA_API_KEY: str = os.getenv("NVIDIA_API_KEY")
     NVIDIA_BASE_URL: str = os.getenv("NVIDIA_BASE_URL") or "https://integrate.api.nvidia.com/v1"
@@ -23,4 +29,5 @@ class Settings:
     OPENROUTER_API_KEY: str = os.getenv("OPENROUTER_API_KEY")
 
 settings = Settings()
+
 

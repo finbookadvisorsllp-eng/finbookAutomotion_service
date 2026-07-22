@@ -27,19 +27,34 @@ async def get_summary_stats(
 
 @router.get("")
 async def list_transactions(
+    request: Request,
     voucherType: Optional[str] = None,
     status: Optional[str] = None,
     search: Optional[str] = None,
+    companyId: Optional[str] = Query(None),
     page: int = 1,
     limit: int = 50,
     service: FundFlowService = Depends(get_fundflow_service)
 ):
+    company_header = companyId or request.headers.get("x-company-id") or request.headers.get("x-company")
+    if not company_header:
+        auth_header = request.headers.get("authorization") or request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            try:
+                from app.core.security import decode_token
+                token = auth_header.split(" ")[1]
+                claims = decode_token(token)
+                company_header = claims.get("orgId") or claims.get("companyId")
+            except Exception:
+                pass
+
     result = service.list_transactions(
         voucher_type=voucherType,
         status=status,
         search=search,
         page=page,
-        limit=limit
+        limit=limit,
+        company_id=company_header
     )
     return {
         "success": True,
@@ -241,8 +256,8 @@ async def get_fundflow_ledgers(
                 })
                 cost_categories.add(category)
         cost_categories = list(cost_categories)
-    else:
-        # Fallback values if database collection is empty
+    elif not company_header:
+        # Fallback values only if no specific company header was requested
         cost_categories = ['Primary Cost Category', 'Marketing', 'Operations']
         cost_centers = [
             {"name": 'Mumbai Branch', "category": 'Primary Cost Category'},

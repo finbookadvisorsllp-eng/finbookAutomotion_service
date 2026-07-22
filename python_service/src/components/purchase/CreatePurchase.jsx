@@ -347,16 +347,15 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
     }
   }, [voucherType, form._id]);
 
-  // Populate form with initialData if provided (e.g. from OCR)
+  // Populate form with initialData if provided (e.g. from OCR or AI Text to Entry)
   useEffect(() => {
     if (initialData && Object.keys(initialData).length > 0 && !initialDataLoaded) {
       resetForm(voucherType);
       updateForm({
         ...initialData,
-        entryMode: 'ocr'
+        entryMode: initialData.entryMode || 'manual'
       });
       if (initialData.entryTab) {
-        updateForm({ entryTab: initialData.entryTab });
         setActiveTab(initialData.entryTab === 'with_item' ? 'With Item Invoice' : 'Without Item Invoice');
       }
       setInitialDataLoaded(true);

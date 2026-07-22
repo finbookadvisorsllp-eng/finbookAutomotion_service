@@ -228,7 +228,7 @@ async def get_ledger_details(
     async for v in service.db["sales_vouchers"].find({"partyLedgerName": doc["ledgerName"], "isDeleted": {"$ne": True}}):
         balance += float(v.get("grandTotal") or 0.0)
         
-    async for v in service.db["purchase_transactions"].find({"partyLedger": doc["ledgerName"], "isDeleted": {"$ne": True}}):
+    async for v in service.db["purchase_vouchers"].find({"partyLedger": doc["ledgerName"], "isDeleted": {"$ne": True}}):
         balance -= float(v.get("grandTotal") or 0.0)
         
     return {

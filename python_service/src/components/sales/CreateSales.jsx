@@ -427,17 +427,16 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
     }
   }, [voucherType, form._id]);
 
-  // Populate form with initialData if provided (e.g. from OCR)
+  // Populate form with initialData if provided (e.g. from OCR or AI Text to Entry)
+  const setForm = useSalesStore((s) => s.setForm);
+
   useEffect(() => {
     if (initialData && Object.keys(initialData).length > 0 && !initialDataLoaded) {
       resetForm();
-      Object.entries(initialData).forEach(([key, val]) => {
-        setFormField(key, val);
+      setForm({
+        ...initialData,
+        entryMode: initialData.entryMode || 'manual'
       });
-      setFormField('entryMode', 'ocr');
-      if (initialData.entryTab) {
-        setFormField('entryTab', initialData.entryTab);
-      }
       setInitialDataLoaded(true);
     }
   }, [initialData, initialDataLoaded]);

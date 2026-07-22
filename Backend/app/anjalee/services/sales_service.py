@@ -156,7 +156,8 @@ class SalesVoucherService:
         limit: int = 50,
         voucher_type: Optional[str] = None,
         status: Optional[str] = None,
-        search: Optional[str] = None
+        search: Optional[str] = None,
+        company_id: Optional[str] = None
     ) -> Dict[str, Any]:
         skip = (page - 1) * limit
         query = {}

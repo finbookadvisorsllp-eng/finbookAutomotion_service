@@ -40,7 +40,7 @@ def calculate_taxes(
     cess_ledger_amt = 0.0
     all_ledgers_for_cess = (sales_entries or []) + (additional_charges or [])
     for c in all_ledgers_for_cess:
-        name = (c.get("ledgerName") or c.get("ledger") or c.get("ledger_name") or "").upper()
+        name = (c.get("ledgerName") or c.get("ledger") or c.get("ledger_name") or c.get("salesLedger") or c.get("sales_ledger") or c.get("purchaseLedger") or c.get("purchase_ledger") or "").upper()
         if "CESS" in name:
             has_cess_ledger = True
             match = re.search(r"(\d+(?:\.\d+)?)\s*%", name)
@@ -59,7 +59,7 @@ def calculate_taxes(
         ledger_total = 0.0
         if sales_entries:
             for entry in sales_entries:
-                entry_name = (entry.get("ledgerName") or entry.get("ledger_name") or "").upper()
+                entry_name = (entry.get("ledgerName") or entry.get("ledger") or entry.get("ledger_name") or entry.get("salesLedger") or entry.get("sales_ledger") or entry.get("purchaseLedger") or entry.get("purchase_ledger") or "").upper()
                 is_tax_entry = any(tok in entry_name for tok in ["CGST", "SGST", "IGST", "UTGST", "CESS"])
                 if not is_tax_entry:
                     ledger_total += float(entry.get("amount") or 0.0)
@@ -67,7 +67,7 @@ def calculate_taxes(
         additional_charges_non_tax = 0.0
         if additional_charges:
             for c in additional_charges:
-                name = (c.get("ledgerName") or c.get("ledger_name") or "").upper()
+                name = (c.get("ledgerName") or c.get("ledger") or c.get("ledger_name") or c.get("salesLedger") or c.get("sales_ledger") or c.get("purchaseLedger") or c.get("purchase_ledger") or "").upper()
                 is_tax = any(tok in name for tok in ["CGST", "SGST", "IGST", "UTGST", "CESS"])
                 if not is_tax:
                     additional_charges_non_tax += float(c.get("amount") or 0.0)

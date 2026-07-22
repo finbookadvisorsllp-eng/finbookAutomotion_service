@@ -27,19 +27,34 @@ async def create_voucher(
 @router.get("", response_model=dict)
 @router.get("/", response_model=dict)
 async def list_vouchers(
+    request: Request,
     voucherType: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
+    companyId: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=500),
     service: SalesVoucherService = Depends(get_sales_voucher_service)
 ):
+    company_header = companyId or request.headers.get("x-company-id") or request.headers.get("x-company")
+    if not company_header:
+        auth_header = request.headers.get("authorization") or request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            try:
+                from app.core.security import decode_token
+                token = auth_header.split(" ")[1]
+                claims = decode_token(token)
+                company_header = claims.get("orgId") or claims.get("companyId")
+            except Exception:
+                pass
+
     result = await service.list_vouchers(
         page=page,
         limit=limit,
         voucher_type=voucherType,
         status=status,
-        search=search
+        search=search,
+        company_id=company_header
     )
     return {
         "success": True,

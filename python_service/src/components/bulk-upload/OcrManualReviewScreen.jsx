@@ -6,6 +6,7 @@ import usePurchaseStore from '../../stores/usePurchaseStore';
 import { useFundFlowStore } from '../../stores/useFundFlowStore';
 import bulkUploadApi from '../../services/bulkUploadApi';
 import VoucherRenderer from '../vouchers/VoucherRenderer';
+import apiClient from '../../lib/apiClient';
 
 // ── Progress Steps Configuration ──────────────────────────────────────────────
 const PIPELINE_STEPS = [
@@ -85,6 +86,7 @@ function ProgressPanel({ stage, progress, stageLabel, error }) {
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSuccess }) {
   const [currentDoc, setCurrentDoc] = useState(doc);
+  const [previewUrl, setPreviewUrl] = useState('');
   const [pipelineStage, setPipelineStage] = useState('processing');
   const [pipelineProgress, setPipelineProgress] = useState(5);
   const [pipelineLabel, setPipelineLabel] = useState('Starting pipeline...');
@@ -165,6 +167,43 @@ export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSucc
     const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5000/api/v2';
     fileUrl = `${baseUrl}${fileUrl}`;
   }
+
+  // ── Fetch file as blob with Auth Token ────────────────────────────────────
+  useEffect(() => {
+    let active = true;
+    let localBlobUrl = '';
+
+    const loadFileBlob = async () => {
+      if (!fileUrl) {
+        setPreviewUrl('');
+        return;
+      }
+      if (fileUrl.startsWith('/') || fileUrl.includes('/api/')) {
+        try {
+          const res = await apiClient.get(fileUrl, { responseType: 'blob' });
+          if (active) {
+            localBlobUrl = URL.createObjectURL(res.data);
+            setPreviewUrl(localBlobUrl);
+          }
+        } catch (err) {
+          console.error('Failed to load preview blob:', err);
+          if (active) setPreviewUrl(fileUrl);
+        }
+      } else {
+        if (active) setPreviewUrl(fileUrl);
+      }
+    };
+
+    loadFileBlob();
+
+    return () => {
+      active = false;
+      if (localBlobUrl) {
+        URL.revokeObjectURL(localBlobUrl);
+      }
+    };
+  }, [fileUrl]);
+
   const fileName = currentDoc?.name || doc?.name || 'Document';
   const fileExt = (fileName.split('.').pop() || '').toLowerCase();
   const isPdf = fileExt === 'pdf';
@@ -1508,12 +1547,12 @@ export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSucc
             </div>
           </div>
           <div className="flex-1 overflow-hidden bg-white dark:bg-[#121216] flex flex-col">
-            {fileUrl ? (
+            {previewUrl || fileUrl ? (
               isPdf ? (
-                <iframe src={fileUrl} className="w-full h-full border-none m-0 p-0" title="Invoice Preview" />
+                <iframe src={previewUrl || fileUrl} className="w-full h-full border-none m-0 p-0" title="Invoice Preview" />
               ) : (
                 <div className="w-full h-full overflow-auto flex items-center justify-center p-2 bg-slate-50 dark:bg-[#121216]">
-                  <img src={fileUrl} alt="Invoice Preview" className="max-w-full max-h-full object-contain" />
+                  <img src={previewUrl || fileUrl} alt="Invoice Preview" className="max-w-full max-h-full object-contain" />
                 </div>
               )
             ) : (
