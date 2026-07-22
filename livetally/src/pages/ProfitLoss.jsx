@@ -38,58 +38,50 @@ export default function ProfitLoss() {
             if (fyVal) params.fy = fyVal;
             return params;
         }
-        if (dateRangeVal.includes('Today')) {
-            params.dateFilter = 'today';
-        } else if (dateRangeVal.includes('Yesterday')) {
-            const yesterday = new Date();
-            yesterday.setDate(yesterday.getDate() - 1);
-            params.dateFilter = 'custom';
-            params.fromDate = yesterday.toISOString().split('T')[0];
-            params.toDate = params.fromDate;
-        } else if (dateRangeVal.includes('This Month')) {
-            params.dateFilter = 'this_month';
-        } else if (dateRangeVal.includes('This Quarter')) {
-            params.dateFilter = 'this_quarter';
-        } else if (dateRangeVal.includes('This Year') || dateRangeVal.includes('This Financial Year')) {
-            params.dateFilter = 'this_financial_year';
-        } else {
-            const match = dateRangeVal.match(/\(([^)]+)\)/);
-            if (match) {
-                const parts = match[1].split(' - ');
-                if (parts.length === 2) {
-                    const parseHeaderDate = (str) => {
-                        const cleaned = str.replace(/(\d+)(st|nd|rd|th)/, '$1');
-                        const dateParts = cleaned.trim().split(/\s+/);
-                        if (dateParts.length !== 3) return null;
-                        const day = parseInt(dateParts[0], 10);
-                        const monthName = dateParts[1].slice(0, 3).toLowerCase();
-                        const yearShort = dateParts[2].replace("'", "");
-                        const year = parseInt(yearShort, 10) + 2000;
-                        const months = {
-                            jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
-                            jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12'
-                        };
-                        const month = months[monthName];
-                        if (!month) return null;
-                        return `${year}-${month}-${String(day).padStart(2, '0')}`;
-                    };
-                    const fromDate = parseHeaderDate(parts[0]);
-                    const toDate = parseHeaderDate(parts[1]);
-                    if (fromDate && toDate) {
-                        params.dateFilter = 'custom';
-                        params.fromDate = fromDate;
-                        params.toDate = toDate;
-                    }
-                }
-            } else if (dateRangeVal.includes(' - ')) {
-                const parts = dateRangeVal.split(' - ');
-                if (parts.length === 2 && parts[0].includes('/')) {
-                    const [d1, m1, y1] = parts[0].split('/');
-                    const [d2, m2, y2] = parts[1].split('/');
+        const match = dateRangeVal.match(/\(([^)]+)\)/);
+        if (match) {
+            const parts = match[1].split(' - ');
+            const parseHeaderDate = (str) => {
+                const cleaned = str.replace(/(\d+)(st|nd|rd|th)/, '$1');
+                const dateParts = cleaned.trim().split(/\s+/);
+                if (dateParts.length !== 3) return null;
+                const day = parseInt(dateParts[0], 10);
+                const monthName = dateParts[1].slice(0, 3).toLowerCase();
+                const yearShort = dateParts[2].replace("'", "");
+                const year = parseInt(yearShort, 10) + 2000;
+                const months = {
+                    jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
+                    jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12'
+                };
+                const month = months[monthName];
+                if (!month) return null;
+                return `${year}-${month}-${String(day).padStart(2, '0')}`;
+            };
+
+            if (parts.length === 2) {
+                const fromDate = parseHeaderDate(parts[0]);
+                const toDate = parseHeaderDate(parts[1]);
+                if (fromDate && toDate) {
                     params.dateFilter = 'custom';
-                    params.fromDate = `${y1.trim()}-${m1.trim()}-${d1.trim()}`;
-                    params.toDate = `${y2.trim()}-${m2.trim()}-${d2.trim()}`;
+                    params.fromDate = fromDate;
+                    params.toDate = toDate;
                 }
+            } else {
+                const singleDate = parseHeaderDate(parts[0]);
+                if (singleDate) {
+                    params.dateFilter = 'custom';
+                    params.fromDate = singleDate;
+                    params.toDate = singleDate;
+                }
+            }
+        } else if (dateRangeVal.includes(' - ')) {
+            const parts = dateRangeVal.split(' - ');
+            if (parts.length === 2 && parts[0].includes('/')) {
+                const [d1, m1, y1] = parts[0].split('/');
+                const [d2, m2, y2] = parts[1].split('/');
+                params.dateFilter = 'custom';
+                params.fromDate = `${y1.trim()}-${m1.trim()}-${d1.trim()}`;
+                params.toDate = `${y2.trim()}-${m2.trim()}-${d2.trim()}`;
             }
         }
         if (fyVal && !params.fy) {

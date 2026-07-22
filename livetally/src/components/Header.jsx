@@ -1,17 +1,63 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Menu, Bell, Download, Plug, Calendar, ChevronDown, CheckCircle2, Moon, Sun } from 'lucide-react'
-import { company, notifications } from '../data/mockData'
+import { Menu, Bell, Calendar, ChevronDown, CheckCircle2, Moon, Sun } from 'lucide-react'
+import { notifications } from '../data/mockData'
 import { useDateRange } from '../context/DateContext'
 import { getAllCompanies } from '../api'
 import { getCompanyId, setCompanyId } from '../api/client'
 import { CACHE_TIMES } from '../queryClient'
 
+const getFyFromRange = (rangeStr) => {
+  const match = rangeStr.match(/\(([^)]+)\)/)
+  if (!match) return null
+  
+  const parts = match[1].split(' - ')
+  const dateStr = parts[0] // e.g. "1st Apr '26"
+  
+  const cleaned = dateStr.replace(/(\d+)(st|nd|rd|th)/, '$1')
+  const dateParts = cleaned.trim().split(/\s+/)
+  if (dateParts.length !== 3) return null
+  
+  const monthName = dateParts[1].slice(0, 3).toLowerCase()
+  const yearShort = dateParts[2].replace("'", "")
+  const year = parseInt(yearShort, 10) + 2000
+  
+  const months = {
+    jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6,
+    jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12
+  }
+  const month = months[monthName]
+  if (!month) return null
+  
+  const startYear = month >= 4 ? year : year - 1
+  return `${startYear}-${startYear + 1}`
+}
+
 export default function Header({ collapsed, onToggleSidebar, isDarkMode, toggleTheme }) {
   const [notifOpen, setNotifOpen] = useState(false)
   const [companyOpen, setCompanyOpen] = useState(false)
   const [dateRangeOpen, setDateRangeOpen] = useState(false)
-  const { selectedDateRange, setSelectedDateRange } = useDateRange()
+  const { fy, years, setFy, selectedDateRange, setSelectedDateRange } = useDateRange()
+
+  const companyRef = useRef(null)
+  const dateRangeRef = useRef(null)
+  const notifRef = useRef(null)
+
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (companyRef.current && !companyRef.current.contains(e.target)) {
+        setCompanyOpen(false)
+      }
+      if (dateRangeRef.current && !dateRangeRef.current.contains(e.target)) {
+        setDateRangeOpen(false)
+      }
+      if (notifRef.current && !notifRef.current.contains(e.target)) {
+        setNotifOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleOutsideClick)
+    return () => document.removeEventListener('mousedown', handleOutsideClick)
+  }, [])
 
   // Real company switcher — lists every tenant company, switches the active one.
   // Company list is master data: cached (was re-fetched on every Header render).
@@ -35,28 +81,125 @@ export default function Header({ collapsed, onToggleSidebar, isDarkMode, toggleT
     window.location.reload()
   }
 
-  const dateRanges = [
-    "Today (29th May '26)",
-    "Yesterday (28th May '26)",
-    "This Week (22nd May '26 - 29th May '26)",
-    "Last Week (15th May '26 - 22nd May '26)",
-    "This Month (1st May '26 - 31st May '26)",
-    "Last Month (1st Apr '26 - 30th Apr '26)",
-    "This Quarter (1st Apr '26 - 30th Jun '26)",
-    "This Year (1st Apr '26 - 31st Mar '27)",
-    "Last Year (1st Apr '25 - 31st Mar '26)"
-  ]
+  const dateRanges = useMemo(() => {
+    let today = new Date()
+    
+    // Shift reference date if a specific financial year (fy) is active
+    if (fy && fy.includes('-')) {
+      const parts = fy.split('-')
+      const startYear = parseInt(parts[0], 10)
+      const endYear = parseInt(parts[1], 10)
+      if (!isNaN(startYear) && !isNaN(endYear)) {
+        const currentMonth = today.getMonth()
+        const currentDate = today.getDate()
+        if (currentMonth >= 3) {
+          // April to December -> starts in startYear
+          today = new Date(startYear, currentMonth, currentDate)
+        } else {
+          // January to March -> ends in endYear
+          today = new Date(endYear, currentMonth, currentDate)
+        }
+      }
+    }
+    
+    const getOrdinalSuffix = (day) => {
+      if (day > 3 && day < 21) return 'th';
+      switch (day % 10) {
+        case 1:  return "st";
+        case 2:  return "nd";
+        case 3:  return "rd";
+        default: return "th";
+      }
+    }
+
+    const formatRangeDate = (d) => {
+      const day = d.getDate();
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const month = months[d.getMonth()];
+      const yearShort = String(d.getFullYear()).slice(-2);
+      return `${day}${getOrdinalSuffix(day)} ${month} '${yearShort}`;
+    }
+
+    const formatWeek = (d) => {
+      const day = (d.getDay() + 6) % 7;
+      const mon = new Date(d);
+      mon.setDate(d.getDate() - day);
+      const sun = new Date(mon);
+      sun.setDate(mon.getDate() + 6);
+      return `${formatRangeDate(mon)} - ${formatRangeDate(sun)}`;
+    }
+
+    const formatLastWeek = (d) => {
+      const day = (d.getDay() + 6) % 7;
+      const mon = new Date(d);
+      mon.setDate(d.getDate() - day - 7);
+      const sun = new Date(mon);
+      sun.setDate(mon.getDate() + 6);
+      return `${formatRangeDate(mon)} - ${formatRangeDate(sun)}`;
+    }
+
+    const formatMonth = (d) => {
+      const start = new Date(d.getFullYear(), d.getMonth(), 1)
+      const end = new Date(d.getFullYear(), d.getMonth() + 1, 0)
+      return `${formatRangeDate(start)} - ${formatRangeDate(end)}`;
+    }
+
+    const formatLastMonth = (d) => {
+      const start = new Date(d.getFullYear(), d.getMonth() - 1, 1)
+      const end = new Date(d.getFullYear(), d.getMonth(), 0)
+      return `${formatRangeDate(start)} - ${formatRangeDate(end)}`;
+    }
+
+    const formatQuarter = (d) => {
+      const m = d.getMonth();
+      let startMonth, endMonth, startYear = d.getFullYear(), endYear = d.getFullYear();
+      if (m >= 3 && m <= 5) {
+        startMonth = 3; endMonth = 5;
+      } else if (m >= 6 && m <= 8) {
+        startMonth = 6; endMonth = 8;
+      } else if (m >= 9 && m <= 11) {
+        startMonth = 9; endMonth = 11;
+      } else {
+        startMonth = 0; endMonth = 2;
+      }
+      const start = new Date(startYear, startMonth, 1);
+      const end = new Date(endYear, endMonth + 1, 0);
+      return `${formatRangeDate(start)} - ${formatRangeDate(end)}`;
+    }
+
+    const formatYear = (d) => {
+      const m = d.getMonth();
+      const startYear = m >= 3 ? d.getFullYear() : d.getFullYear() - 1;
+      const start = new Date(startYear, 3, 1);
+      const end = new Date(startYear + 1, 2, 31);
+      return `${formatRangeDate(start)} - ${formatRangeDate(end)}`;
+    }
+
+    const formatLastYear = (d) => {
+      const m = d.getMonth();
+      const startYear = (m >= 3 ? d.getFullYear() : d.getFullYear() - 1) - 1;
+      const start = new Date(startYear, 3, 1);
+      const end = new Date(startYear + 1, 2, 31);
+      return `${formatRangeDate(start)} - ${formatRangeDate(end)}`;
+    }
+
+    const yesterday = new Date(today)
+    yesterday.setDate(today.getDate() - 1)
+
+    return [
+      `Today (${formatRangeDate(today)})`,
+      `Yesterday (${formatRangeDate(yesterday)})`,
+      `This Week (${formatWeek(today)})`,
+      `Last Week (${formatLastWeek(today)})`,
+      `This Month (${formatMonth(today)})`,
+      `Last Month (${formatLastMonth(today)})`,
+      `This Quarter (${formatQuarter(today)})`,
+      `This Year (${formatYear(today)})`,
+      `Last Year (${formatLastYear(today)})`
+    ]
+  }, [fy])
 
   const unreadCount = notifications.filter(n => !n.read).length
-
-  const syncTimeAgo = () => {
-    const now = new Date()
-    const sync = new Date(company.lastSync)
-    const diffH = Math.round((now - sync) / 36e5)
-    if (diffH < 1) return 'Just now'
-    if (diffH === 1) return '1h ago'
-    return `${diffH}h ago`
-  }
 
   // Theme aware accent colors
   const accentColor = isDarkMode ? '#B6FF00' : '#2563eb'
@@ -84,7 +227,7 @@ export default function Header({ collapsed, onToggleSidebar, isDarkMode, toggleT
       </button>
 
       {/* Company Switcher */}
-      <div className="relative">
+      <div className="relative" ref={companyRef}>
         <button
           onClick={() => setCompanyOpen(!companyOpen)}
           className="flex items-center gap-2 px-3 py-1.5 rounded-xl transition-all duration-150 max-w-[180px] sm:max-w-[260px] md:max-w-[320px]"
@@ -154,7 +297,7 @@ export default function Header({ collapsed, onToggleSidebar, isDarkMode, toggleT
       <div className="flex items-center gap-2.5 lg:gap-3">
 
         {/* Date Range Selector */}
-        <div className="relative hidden md:block">
+        <div className="relative hidden md:block" ref={dateRangeRef}>
           <button
             onClick={() => setDateRangeOpen(!dateRangeOpen)}
             className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-[12.5px] font-medium transition-all duration-150"
@@ -182,7 +325,14 @@ export default function Header({ collapsed, onToggleSidebar, isDarkMode, toggleT
                 {dateRanges.map((range, idx) => (
                   <button
                     key={idx}
-                    onClick={() => { setSelectedDateRange(range); setDateRangeOpen(false) }}
+                    onClick={() => {
+                      setSelectedDateRange(range)
+                      setDateRangeOpen(false)
+                      const derivedFy = getFyFromRange(range)
+                      if (derivedFy && years.some(y => y.id === derivedFy)) {
+                        setFy(derivedFy)
+                      }
+                    }}
                     className="w-full flex items-center px-4 py-2.5 transition-colors text-left"
                     style={{
                       color: selectedDateRange === range ? accentColor : 'var(--theme-text-main)',
@@ -204,43 +354,6 @@ export default function Header({ collapsed, onToggleSidebar, isDarkMode, toggleT
           )}
         </div>
 
-        {/* Sync Badge */}
-        <div
-          className="hidden sm:flex items-center gap-2 px-2.5 py-1.5 rounded-xl cursor-pointer transition-all duration-150"
-          style={{ background: accentLight, border: `1px solid ${accentHover}` }}
-          onMouseEnter={e => e.currentTarget.style.background = accentHover}
-          onMouseLeave={e => e.currentTarget.style.background = accentLight}
-        >
-          <div className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: accentColor }}></span>
-            <span className="relative inline-flex rounded-full h-2 w-2" style={{ backgroundColor: accentColor }}></span>
-          </div>
-          <span className="text-xs font-medium hidden lg:inline" style={{ color: accentColor }}>Synced · {syncTimeAgo()}</span>
-        </div>
-
-        {/* Export */}
-        <button
-          className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium transition-all duration-150"
-          style={{ background: 'var(--theme-card-bg)', border: '1px solid var(--theme-card-border)', color: 'var(--theme-text-secondary)' }}
-          onMouseEnter={e => e.currentTarget.style.boxShadow = 'var(--shadow-xs)'}
-          onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}
-        >
-          <Download size={13} style={{ color: 'var(--theme-text-light)' }} /> Export
-        </button>
-
-        {/* Connect Tally */}
-        <button
-          className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-150"
-          style={{
-            background: accentColor,
-            color: isDarkMode ? 'black' : 'white',
-            boxShadow: `0 2px 8px ${accentLight}`,
-          }}
-        >
-          <Plug size={13} />
-          <span className="hidden lg:inline">Connect Tally</span>
-        </button>
-
         {/* Theme Toggle Button */}
         <button
           onClick={toggleTheme}
@@ -254,7 +367,7 @@ export default function Header({ collapsed, onToggleSidebar, isDarkMode, toggleT
         </button>
 
         {/* Notification Bell */}
-        <div className="relative">
+        <div className="relative" ref={notifRef}>
           <button
             onClick={() => setNotifOpen(!notifOpen)}
             className="w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-150 active:scale-95"
