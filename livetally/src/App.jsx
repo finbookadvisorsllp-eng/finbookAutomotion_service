@@ -57,11 +57,32 @@ const BusinessHealth = lazy(() => import('./pages/BusinessHealth/BusinessHealth'
 
 import "./index.css"
 
-// Lightweight fallback shown while a lazy route chunk loads.
+// Premium skeleton fallback shown while a lazy route chunk loads.
 function RouteFallback() {
   return (
-    <div className="flex items-center justify-center py-20 text-[12px] font-semibold text-slate-400 animate-pulse">
-      Loading…
+    <div className="animate-fade-in flex flex-col gap-5 py-2">
+      {/* Header skeleton */}
+      <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-2">
+          <div className="skeleton" style={{ width: 280, height: 28, borderRadius: 8 }} />
+          <div className="skeleton" style={{ width: 180, height: 14, borderRadius: 6 }} />
+        </div>
+        <div className="flex gap-2">
+          <div className="skeleton" style={{ width: 120, height: 36, borderRadius: 12 }} />
+          <div className="skeleton" style={{ width: 90, height: 36, borderRadius: 12 }} />
+        </div>
+      </div>
+      {/* KPI row skeleton */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="skeleton" style={{ height: 110, borderRadius: 20 }} />
+        ))}
+      </div>
+      {/* Chart area skeleton */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+        <div className="xl:col-span-2 skeleton" style={{ height: 340, borderRadius: 20 }} />
+        <div className="skeleton" style={{ height: 340, borderRadius: 20 }} />
+      </div>
     </div>
   )
 }

@@ -137,15 +137,21 @@ export default function AICFOLauncher() {
       <button
         onClick={() => setOpen(o => !o)}
         aria-label={open ? 'Close AI CFO' : 'Open AI CFO'}
-        className={`relative w-14 h-14 rounded-2xl flex items-center justify-center cursor-pointer transition-all duration-300 hover:scale-105 active:scale-95 ${open ? '' : 'aicfo-glow-ring'}`}
-        style={{ background: 'linear-gradient(135deg, #b6ff00 0%, #1e7bff 100%)', color: '#050505' }}
+        className="relative w-13 h-13 rounded-2xl flex items-center justify-center cursor-pointer transition-all duration-300 hover:scale-105 active:scale-95 shadow-lg dark:aicfo-glow-ring overflow-visible"
+        style={{
+          background: 'var(--theme-accent)',
+          color: '#ffffff',
+          boxShadow: '0 8px 24px rgba(37, 99, 235, 0.35)',
+        }}
       >
-        {open ? <X size={24} strokeWidth={2.6} /> : (
+        {open ? <X size={22} strokeWidth={2.4} /> : (
           <>
-            <Bot size={26} strokeWidth={2.3} />
-            <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center"
-                  style={{ background: '#050505' }}>
-              <Sparkles size={9} style={{ color: '#b6ff00' }} />
+            <Bot size={24} strokeWidth={2} />
+            <span
+              className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center border-2 border-white dark:border-[#050505]"
+              style={{ background: '#0f172a', color: '#60a5fa' }}
+            >
+              <Sparkles size={8} />
             </span>
           </>
         )}

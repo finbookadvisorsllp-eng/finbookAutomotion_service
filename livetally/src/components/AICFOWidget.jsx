@@ -4,7 +4,7 @@
 // line. Everything shown is deterministic + reconciled (same report figures).
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bot, ArrowRight, AlertTriangle, ShieldCheck, Lightbulb } from 'lucide-react'
+import { Bot, ArrowRight, AlertTriangle, ShieldCheck, Lightbulb, Sparkles } from 'lucide-react'
 import { aiCfoHealthScore, aiCfoInsights } from '../api'
 
 const GRADE_COLOR = { A: '#16a34a', B: '#65a30d', C: '#d97706', D: '#ea580c', E: '#dc2626', '—': '#94a3b8' }
@@ -27,28 +27,28 @@ export default function AICFOWidget({ fy }) {
   const color = GRADE_COLOR[score?.grade] || '#94a3b8'
   const Icon = SEV_ICON[top?.severity] || Lightbulb
   const pct = score?.overall == null ? 0 : score.overall
-  const ring = `conic-gradient(${color} ${pct * 3.6}deg, var(--theme-kpi-border) 0deg)`
+  const ring = `conic-gradient(${color} ${pct * 3.6}deg, var(--theme-card-border) 0deg)`
 
   return (
     <button
       onClick={() => navigate('/ai-cfo')}
-      className="w-full text-left rounded-xl px-3 py-2.5 flex items-center gap-3 transition-all group"
-      style={{ background: 'var(--theme-kpi-bg)', border: '1px solid var(--theme-kpi-border)', boxShadow: 'var(--theme-kpi-shadow)' }}
-      onMouseEnter={e => { e.currentTarget.style.boxShadow = 'var(--theme-kpi-shadow-hover)'; e.currentTarget.style.transform = 'translateY(-1px)' }}
-      onMouseLeave={e => { e.currentTarget.style.boxShadow = 'var(--theme-kpi-shadow)'; e.currentTarget.style.transform = 'translateY(0)' }}
+      className="w-full text-left erp-card erp-card-hover px-5 py-4 flex items-center gap-4 transition-all group"
+      style={{
+        borderLeft: '3px solid var(--theme-accent)',
+      }}
     >
       {/* Brand + health ring */}
-      <div className="flex items-center gap-2.5 shrink-0">
-        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-             style={{ background: 'linear-gradient(135deg, #b6ff00 0%, #1e7bff 100%)', color: '#050505' }}>
-          <Bot size={17} strokeWidth={2.4} />
+      <div className="flex items-center gap-3 shrink-0">
+        <div className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0"
+             style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)', color: '#ffffff' }}>
+          <Bot size={20} strokeWidth={2} />
         </div>
         {score && (
-          <div className="relative shrink-0" style={{ width: 34, height: 34 }}>
+          <div className="relative shrink-0" style={{ width: 40, height: 40 }}>
             <div className="w-full h-full rounded-full" style={{ background: ring }} />
             <div className="absolute inset-[3px] rounded-full flex items-center justify-center"
-                 style={{ background: 'var(--theme-kpi-bg)' }}>
-              <span className="text-[11px] font-black" style={{ color }}>{score.overall ?? '—'}</span>
+                 style={{ background: 'var(--theme-card-bg)' }}>
+              <span className="text-[12px] font-bold" style={{ color }}>{score.overall ?? '—'}</span>
             </div>
           </div>
         )}
@@ -56,26 +56,26 @@ export default function AICFOWidget({ fy }) {
 
       {/* Headline + top insight */}
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <span className="text-[12px] font-black" style={{ color: 'var(--theme-text-main)' }}>AI CFO</span>
+        <div className="flex items-center gap-2.5">
+          <span className="text-[14px] font-semibold" style={{ color: 'var(--theme-text-main)' }}>AI CFO</span>
           {score && (
-            <span className="text-[10px] font-extrabold px-1.5 py-px rounded-full"
-                  style={{ background: 'var(--theme-kpi-border)', color }}>
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-lg"
+                  style={{ background: 'var(--theme-accent-light)', color: 'var(--theme-accent)' }}>
               {score.label}
             </span>
           )}
         </div>
-        <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
+        <div className="flex items-center gap-2 mt-1 min-w-0">
           {top ? (
             <>
-              <Icon size={12} className="shrink-0"
-                    style={{ color: top.severity === 'danger' ? '#dc2626' : top.severity === 'warning' ? '#d97706' : 'var(--theme-accent)' }} />
-              <span className="text-[11.5px] truncate" style={{ color: 'var(--theme-text-muted)' }}>
+              <Icon size={13} className="shrink-0"
+                    style={{ color: top.severity === 'danger' ? '#f43f5e' : top.severity === 'warning' ? '#f59e0b' : 'var(--theme-accent)' }} />
+              <span className="text-[13px] truncate" style={{ color: 'var(--theme-text-muted)' }}>
                 {top.detail}
               </span>
             </>
           ) : (
-            <span className="text-[11.5px]" style={{ color: 'var(--theme-text-muted)' }}>
+            <span className="text-[13px]" style={{ color: 'var(--theme-text-muted)' }}>
               Ask about profit, cash, sales or collections — grounded in your books.
             </span>
           )}
@@ -83,9 +83,10 @@ export default function AICFOWidget({ fy }) {
       </div>
 
       {/* CTA */}
-      <span className="shrink-0 flex items-center gap-1 text-[11px] font-extrabold px-2.5 py-1.5 rounded-lg"
-            style={{ background: 'var(--theme-accent)', color: 'var(--theme-bg)' }}>
-        Ask AI CFO <ArrowRight size={13} strokeWidth={2.6} className="group-hover:translate-x-0.5 transition-transform" />
+      <span className="shrink-0 flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-xl transition-all"
+            style={{ background: 'var(--theme-accent)', color: '#ffffff' }}>
+        <Sparkles size={13} strokeWidth={2} />
+        Ask AI CFO <ArrowRight size={13} strokeWidth={2} className="group-hover:translate-x-0.5 transition-transform" />
       </span>
     </button>
   )

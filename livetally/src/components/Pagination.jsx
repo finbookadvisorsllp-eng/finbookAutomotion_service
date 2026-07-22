@@ -25,16 +25,31 @@ export default function Pagination({ pagination, onPageChange, onPageSizeChange 
   ordered.forEach((n, i) => { if (i > 0 && n - ordered[i - 1] > 1) withGaps.push('…'); withGaps.push(n); });
 
   return (
-    <div className="py-2.5 px-4 border-t border-[var(--report-divider)] flex flex-wrap items-center justify-between gap-3 bg-[var(--theme-card-bg)]">
+    <div
+      className="py-3 px-5 flex flex-wrap items-center justify-between gap-3"
+      style={{
+        borderTop: '1px solid var(--theme-card-border)',
+        background: 'var(--theme-card-bg)',
+        borderRadius: '0 0 20px 20px',
+      }}
+    >
       <div className="flex items-center gap-3">
-        <span className="text-[11px] font-bold text-[var(--theme-text-muted)]">{start}-{end} of {total}</span>
+        <span className="text-[12px] font-medium" style={{ color: 'var(--theme-text-muted)' }}>
+          {start}–{end} of {total}
+        </span>
         {onPageSizeChange && (
           <div className="flex items-center gap-1.5">
-            <span className="text-[11px] font-bold text-[var(--theme-text-muted)]">Rows:</span>
+            <span className="text-[12px] font-medium" style={{ color: 'var(--theme-text-muted)' }}>Rows:</span>
             <select
               value={pageSize}
               onChange={(e) => onPageSizeChange(Number(e.target.value))}
-              className="text-[11px] font-bold text-[var(--theme-text-main)] bg-[var(--theme-card-bg)] border border-[var(--report-border)] rounded-none px-1.5 py-1 focus:outline-none focus:border-[var(--theme-text-main)] focus:ring-0 transition-colors cursor-pointer"
+              className="text-[12px] font-medium px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors cursor-pointer"
+              style={{
+                color: 'var(--theme-text-main)',
+                background: 'var(--theme-card-bg)',
+                border: '1px solid var(--theme-card-border)',
+                borderRadius: 8,
+              }}
             >
               {PAGE_SIZES.map((n) => <option key={n} value={n}>{n}</option>)}
             </select>
@@ -45,19 +60,44 @@ export default function Pagination({ pagination, onPageChange, onPageSizeChange 
       {totalPages > 1 && (
         <div className="flex items-center gap-1">
           <button onClick={() => onPageChange(page - 1)} disabled={!hasPrev}
-            className="p-1 rounded-none border border-[var(--report-border)] text-[var(--theme-text-muted)] hover:text-[var(--theme-text-main)] hover:bg-[var(--report-row-hover)] disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer focus:outline-none">
+            className="p-1.5 rounded-lg transition-colors cursor-pointer focus:outline-none disabled:opacity-30"
+            style={{
+              border: '1px solid var(--theme-card-border)',
+              color: 'var(--theme-text-muted)',
+              background: 'var(--theme-card-bg)',
+            }}
+            onMouseEnter={e => { if (!e.currentTarget.disabled) e.currentTarget.style.background = 'var(--report-row-hover)' }}
+            onMouseLeave={e => e.currentTarget.style.background = 'var(--theme-card-bg)'}
+          >
             <ChevronLeft size={16} />
           </button>
           {withGaps.map((n, i) => n === '…' ? (
-            <span key={`g${i}`} className="w-7 h-7 flex items-center justify-center text-[var(--theme-text-light)] text-[12px]">…</span>
+            <span key={`g${i}`} className="w-8 h-8 flex items-center justify-center text-[12px]" style={{ color: 'var(--theme-text-light)' }}>…</span>
           ) : (
             <button key={n} onClick={() => onPageChange(n)}
-              className={`w-7 h-7 flex items-center justify-center rounded-none text-[12px] border transition-colors ${n === page ? 'border-blue-600 bg-blue-600 text-white font-bold' : 'border-[var(--report-border)] text-[var(--theme-text-muted)] bg-[var(--theme-card-bg)] hover:bg-[var(--report-row-hover)] hover:text-[var(--theme-text-main)]'}`}>
+              className="w-8 h-8 flex items-center justify-center text-[12px] font-medium transition-colors"
+              style={{
+                borderRadius: 8,
+                border: `1px solid ${n === page ? '#2563eb' : 'var(--theme-card-border)'}`,
+                background: n === page ? '#2563eb' : 'var(--theme-card-bg)',
+                color: n === page ? '#ffffff' : 'var(--theme-text-muted)',
+              }}
+              onMouseEnter={e => { if (n !== page) e.currentTarget.style.background = 'var(--report-row-hover)' }}
+              onMouseLeave={e => { if (n !== page) e.currentTarget.style.background = 'var(--theme-card-bg)' }}
+            >
               {n}
             </button>
           ))}
           <button onClick={() => onPageChange(page + 1)} disabled={!hasNext}
-            className="p-1 rounded-none border border-[var(--report-border)] text-[var(--theme-text-muted)] hover:text-[var(--theme-text-main)] hover:bg-[var(--report-row-hover)] disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer focus:outline-none">
+            className="p-1.5 rounded-lg transition-colors cursor-pointer focus:outline-none disabled:opacity-30"
+            style={{
+              border: '1px solid var(--theme-card-border)',
+              color: 'var(--theme-text-muted)',
+              background: 'var(--theme-card-bg)',
+            }}
+            onMouseEnter={e => { if (!e.currentTarget.disabled) e.currentTarget.style.background = 'var(--report-row-hover)' }}
+            onMouseLeave={e => e.currentTarget.style.background = 'var(--theme-card-bg)'}
+          >
             <ChevronRight size={16} />
           </button>
         </div>

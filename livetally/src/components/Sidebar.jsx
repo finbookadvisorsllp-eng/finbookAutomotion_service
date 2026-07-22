@@ -6,26 +6,21 @@ import {
   Calendar, AlertTriangle, ReceiptText, ShoppingCart, Package,
   Snail, Rocket, CircleDollarSign, PieChart, ChevronDown, Landmark,
   ClipboardList, FileMinus, Truck, ClipboardCheck, FilePlus, Inbox, Bot,
-  HeartPulse
+  HeartPulse, Settings, ChevronRight
 } from 'lucide-react'
 
 const navGroups = [
   {
-    id: 'business-health', label: 'Business Health',
-    items: [
-      { id: 'bh', label: 'Business Health', path: '/health', icon: HeartPulse, badge: 'NEW' },
-      { id: 'ai-cfo', label: 'AI CFO', path: '/ai-cfo', icon: Bot, badge: 'AI' },
-    ],
-  },
-  {
     id: 'overview', label: 'Overview',
     items: [
       { id: 'dashboard', label: 'Dashboard', path: '/', icon: LayoutDashboard, badge: null },
+      { id: 'bh', label: 'Business Health', path: '/health', icon: HeartPulse, badge: 'NEW' },
+      { id: 'ai-cfo', label: 'AI CFO', path: '/ai-cfo', icon: Bot, badge: 'AI' },
       { id: 'alerts-notif', label: 'Alerts & Notifications', path: '/alerts', icon: Bell, badge: 7 },
     ],
   },
   {
-    id: 'reports', label: 'Reports & Analytics',
+    id: 'reports', label: 'Reports',
     items: [
       { id: 'pl', label: 'Profit & Loss', path: '/reports/pl', icon: TrendingUp },
       { id: 'bs', label: 'Balance Sheet', path: '/reports/bs', icon: Scale },
@@ -33,7 +28,7 @@ const navGroups = [
       { id: 'tb', label: 'Trial Balance', path: '/reports/tb', icon: FileText },
       { id: 'daybook', label: 'Day Book', path: '/reports/daybook', icon: Calendar },
       { id: 'outstanding', label: 'Outstanding', path: '/reports/outstanding', icon: AlertTriangle },
-      { id: 'profitab', label: 'Profitability', path: '/analytics', icon: PieChart },
+      { id: 'profitab', label: 'Analytics', path: '/analytics', icon: PieChart },
     ],
   },
   {
@@ -55,12 +50,6 @@ const navGroups = [
     ],
   },
   {
-    id: 'cash-bank', label: 'Cash & Bank',
-    items: [
-      { id: 'cb-dashboard', label: 'Cash & Bank', path: '/cash-bank', icon: Landmark }
-    ],
-  },
-  {
     id: 'inventory', label: 'Inventory',
     items: [
       { id: 'stock', label: 'Stock Summary', path: '/inventory', icon: Package },
@@ -71,38 +60,19 @@ const navGroups = [
       { id: 'item-perf', label: 'Item Performance', path: '/inventory/performance', icon: BarChart2 },
     ],
   },
-
+  {
+    id: 'cash-bank', label: 'Cash & Bank',
+    items: [
+      { id: 'cb-dashboard', label: 'Cash & Bank', path: '/cash-bank', icon: Landmark }
+    ],
+  },
 ]
 
-// ── Color palette — responsive to theme ──
-const C = {
-  font: 'var(--font-sidebar)',
-
-  logoTitle: 'var(--theme-text-main)',
-  logoSub: 'var(--theme-accent)',
-  logoBorder: 'var(--color-sidebar-border)',
-
-  label: 'var(--color-sidebar-text-label)',
-  labelChevron: 'var(--theme-accent)',
-
-  itemText: 'var(--color-sidebar-text-muted)',
-  itemIcon: 'var(--theme-accent)',
-  itemHoverBg: 'var(--color-sidebar-hover)',
-
-  activeBg: 'var(--color-sidebar-active-bg)',
-  activeText: 'var(--color-sidebar-active-text)',
-  activeIcon: 'var(--color-sidebar-active-text)',
-  activeShadow: '0 2px 12px var(--color-sidebar-active-bg)',
-
-  badgeBg: 'var(--theme-accent)',
-  badgeText: 'var(--theme-bg)',
-
-  footerBorder: 'var(--color-sidebar-border)',
-  footerName: 'var(--theme-text-main)',
-  footerRole: 'var(--theme-accent)',
-  footerHover: 'var(--color-sidebar-hover)',
-
-  divider: 'var(--color-sidebar-border)',
+// Badge variant styles
+const BADGE_STYLES = {
+  NEW: 'bg-emerald-50 text-emerald-700 dark:bg-[rgba(182,255,0,0.15)] dark:text-[#B6FF00]',
+  AI: 'bg-violet-50 text-violet-700 dark:bg-[rgba(139,92,246,0.15)] dark:text-[#a78bfa]',
+  number: 'bg-blue-600 text-white dark:bg-[#b6ff00] dark:text-[#050505]',
 }
 
 export default function Sidebar({ collapsed, setCollapsed, mobileOpen }) {
@@ -121,44 +91,56 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen }) {
 
       {/* ── Logo Header ── */}
       <div
-        className="flex items-center gap-1 px-4 shrink-0 border-b-1 border-slate-300"
-        style={{ height: 'var(--header-height)' }}
+        className="flex items-center gap-2.5 px-5 shrink-0"
+        style={{
+          height: 'var(--header-height)',
+          borderBottom: '1px solid var(--color-sidebar-border)',
+        }}
       >
-        <img src={logoUrl} alt="Logo" className="h-12 w-auto object-contain" /> <span className='font-bold text-gray-500 text-lg'>Tally Vision</span>
+        <img src={logoUrl} alt="Logo" className="h-9 w-auto object-contain" />
+        <span
+          className="sidebar-logo-text font-semibold tracking-tight"
+          style={{
+            fontSize: 15,
+            color: 'var(--theme-text-main)',
+            letterSpacing: '-0.02em',
+          }}
+        >
+          Tally Vision
+        </span>
       </div>
 
       {/* ── Navigation ── */}
-      <nav className="flex-1 overflow-y-auto overflow-x-hidden py-3 px-2.5 scrollbar-hide">
+      <nav className="flex-1 overflow-y-auto overflow-x-hidden py-4 px-3 scrollbar-hide">
         {navGroups.map((group) => {
           const isOpen = openGroups.includes(group.id)
           return (
-            <div key={group.id} className="mb-0.5">
+            <div key={group.id} className="mb-1">
 
               {/* ── Section Label ── */}
               <button
                 onClick={() => !collapsed && toggleGroup(group.id)}
-                className="w-full flex items-center justify-between px-2 py-1 rounded-lg cursor-pointer mt-3 first:mt-1 transition-colors duration-150"
+                className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg cursor-pointer mt-4 first:mt-0 transition-colors duration-150"
                 style={{ background: 'transparent' }}
-                onMouseEnter={e => e.currentTarget.style.background = C.itemHoverBg}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--color-sidebar-hover)'}
                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
               >
                 <span
                   className="nav-group-label whitespace-nowrap"
                   style={{
-                    fontFamily: C.font,
-                    fontSize: 9.5,
-                    fontWeight: 800,
-                    color: C.label,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: 'var(--color-sidebar-text-label)',
                     textTransform: 'uppercase',
-                    letterSpacing: '0.15em',
+                    letterSpacing: '0.08em',
                   }}
                 >
                   {group.label}
                 </span>
                 <ChevronDown
-                  size={11}
+                  size={12}
                   className={`nav-group-chevron transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
-                  style={{ color: C.labelChevron }}
+                  style={{ color: 'var(--color-sidebar-text-label)' }}
                 />
               </button>
 
@@ -172,12 +154,13 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen }) {
                       key={item.id}
                       title={collapsed ? item.label : undefined}
                       onClick={() => navigate(item.path)}
-                      className="relative w-full flex items-center gap-2.5 px-2.5 py-[7px] rounded-xl text-left mt-[3px] transition-all duration-150"
-                      style={active ? {
-                        background: C.activeBg,
-                        boxShadow: C.activeShadow,
-                      } : {}}
-                      onMouseEnter={e => { if (!active) e.currentTarget.style.background = C.itemHoverBg }}
+                      className="relative w-full flex items-center gap-2.5 px-2.5 mt-0.5 text-left transition-all duration-150"
+                      style={{
+                        height: 36,
+                        borderRadius: 10,
+                        background: active ? 'var(--color-sidebar-active-bg)' : 'transparent',
+                      }}
+                      onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'var(--color-sidebar-hover)' }}
                       onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent' }}
                     >
                       {/* Active left pill */}
@@ -186,20 +169,23 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen }) {
                       {/* Icon */}
                       <span
                         className="shrink-0 flex items-center justify-center"
-                        style={{ width: 17, height: 17, color: active ? C.activeIcon : C.itemIcon }}
+                        style={{
+                          width: 18,
+                          height: 18,
+                          color: active ? 'var(--color-sidebar-active-text)' : 'var(--theme-text-muted)',
+                        }}
                       >
-                        <Icon size={15} strokeWidth={active ? 2.5 : 2} />
+                        <Icon size={17} strokeWidth={active ? 2 : 1.8} />
                       </span>
 
                       {/* Label */}
                       <span
                         className="nav-item-label whitespace-nowrap flex-1 truncate"
                         style={{
-                          fontFamily: C.font,
-                          fontSize: 13,
-                          fontWeight: active ? 800 : 600,
-                          color: active ? C.activeText : C.itemText,
-                          letterSpacing: '0.005em',
+                          fontSize: 13.5,
+                          fontWeight: active ? 600 : 500,
+                          color: active ? 'var(--color-sidebar-active-text)' : 'var(--color-sidebar-text-muted)',
+                          letterSpacing: '-0.005em',
                         }}
                       >
                         {item.label}
@@ -208,13 +194,11 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen }) {
                       {/* Badge */}
                       {item.badge && (
                         <span
-                          className="nav-item-badge shrink-0 text-[10px] font-black px-1.5 py-0.5 rounded-full min-w-[18px] text-center leading-none"
-                          style={{
-                            fontFamily: C.font,
-                            background: C.badgeBg,
-                            color: C.badgeText,
-                            boxShadow: '0 2px 8px rgba(29,78,216,0.30)',
-                          }}
+                          className={`nav-item-badge shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center leading-none ${
+                            typeof item.badge === 'number'
+                              ? BADGE_STYLES.number
+                              : BADGE_STYLES[item.badge] || BADGE_STYLES.number
+                          }`}
                         >
                           {item.badge}
                         </span>
@@ -229,44 +213,48 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen }) {
       </nav>
 
       {/* ── Divider ── */}
-      <div className="mx-4 h-px" style={{ background: C.divider }} />
+      <div className="mx-4 h-px" style={{ background: 'var(--color-sidebar-border)' }} />
 
       {/* ── Footer / User Card ── */}
       <div className="p-3">
         <div
-          className="flex items-center gap-3 px-2.5 py-2.5 rounded-xl cursor-pointer transition-all duration-150"
+          className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-all duration-150"
           style={{ background: 'transparent' }}
-          onMouseEnter={e => e.currentTarget.style.background = C.footerHover}
+          onMouseEnter={e => e.currentTarget.style.background = 'var(--color-sidebar-hover)'}
           onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
         >
           {/* Avatar */}
           <div
-            className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] text-white shrink-0"
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-[11px] text-white shrink-0"
             style={{
-              fontFamily: C.font,
-              fontWeight: 900,
-              background: 'linear-gradient(135deg, #b6ff00 0%, #1e7bff 100%)',
-              boxShadow: '0 3px 10px rgba(182,255,0,0.35)',
+              fontWeight: 700,
+              background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
             }}
           >
             SE
           </div>
 
           {/* User info */}
-          <div className="sidebar-user-info overflow-hidden">
+          <div className="sidebar-user-info overflow-hidden flex-1">
             <p
               className="whitespace-nowrap truncate leading-tight"
-              style={{ fontFamily: C.font, fontSize: 13, fontWeight: 800, color: C.footerName }}
+              style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--theme-text-main)' }}
             >
               Sharma Enterprises
             </p>
             <p
               className="whitespace-nowrap truncate"
-              style={{ fontFamily: C.font, fontSize: 10.5, fontWeight: 600, color: C.footerRole }}
+              style={{ fontSize: 11.5, fontWeight: 400, color: 'var(--theme-text-muted)' }}
             >
               Business Owner
             </p>
           </div>
+
+          <ChevronRight
+            size={14}
+            className="sidebar-user-info shrink-0"
+            style={{ color: 'var(--theme-text-light)' }}
+          />
         </div>
       </div>
 

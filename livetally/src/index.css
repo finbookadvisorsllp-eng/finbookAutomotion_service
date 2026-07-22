@@ -1,88 +1,108 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;0,14..32,900&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 
 @custom-variant dark (&:is(.dark *));
 
+/* ═══════════════════════════════════════════════════════════════
+   DESIGN SYSTEM TOKENS
+   Premium ERP SaaS — Light-first, calm, executive, spacious
+   ═══════════════════════════════════════════════════════════════ */
+
 @theme {
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
-  --font-sidebar: 'Nunito', 'Inter', system-ui, sans-serif;
+  --font-sidebar: 'Inter', system-ui, -apple-system, sans-serif;
 
-  /* Sidebar Brand Colors — Bisque + Blue Light Palette */
-  --color-sidebar-text: #0e2240;
-  /* deep navy — primary text */
-  --color-sidebar-text-muted: #2c5282;
-  /* strong blue — secondary text */
-  --color-sidebar-text-label: #1a56a8;
-  /* bright cobalt — section labels */
-  --color-sidebar-hover: rgba(37, 99, 235, 0.11);
-  --color-sidebar-active-bg: rgba(37, 99, 235, 0.16);
-  --color-sidebar-active-text: #1741c8;
-  /* vivid royal blue — active label */
-  --color-sidebar-border: rgba(100, 160, 230, 0.40);
+  /* ── Layout Dimensions ── */
+  --sidebar-width: 260px;
+  --sidebar-collapsed-width: 72px;
+  --header-height: 56px;
 
-  /* Layout — Compact Scale */
-  --sidebar-width: 228px;
-  --sidebar-collapsed-width: 58px;
-  --header-height: 50px;
-
-  /* Refined Border Radii */
-  --radius-sm: 0.25rem;
-  --radius-md: 0.375rem;
-  --radius-lg: 0.5rem;
-  --radius-xl: 0.625rem;
-  --radius-2xl: 0.75rem;
-  --radius-3xl: 1rem;
+  /* ── Border Radius System (8pt grid) ── */
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 14px;
+  --radius-2xl: 16px;
+  --radius-3xl: 20px;
+  --radius-4xl: 24px;
 }
 
 :root {
-  /* ── Light Theme Variables ── */
-  --theme-bg: linear-gradient(135deg, #ffe4c4 0%, #d4e9f7 55%, #add8e6 100%);
-  --theme-sidebar-bg: linear-gradient(160deg, rgba(255, 220, 180, 0.88) 0%, rgba(200, 228, 252, 0.82) 52%, rgba(173, 216, 230, 0.85) 100%);
-  --theme-sidebar-glow: linear-gradient(170deg, rgba(255, 255, 255, 0.38) 0%, rgba(255, 255, 255, 0.10) 50%, rgba(173, 216, 230, 0.12) 100%);
-  --theme-header-bg: rgba(255, 228, 196, 0.78);
-  --theme-card-bg: rgba(255, 255, 255, 0.95);
-  --theme-card-border: rgba(226, 232, 240, 0.8);
+  /* ── Canvas & Surfaces ── */
+  --theme-bg: #FAFBFC;
+  --theme-sidebar-bg: #FFFFFF;
+  --theme-sidebar-glow: none;
+  --theme-header-bg: rgba(255, 255, 255, 0.82);
+  --theme-card-bg: #FFFFFF;
+  --theme-card-border: rgba(0, 0, 0, 0.06);
+  --theme-surface-secondary: #F4F6F8;
+
+  /* ── Text Hierarchy ── */
   --theme-text-main: #0f172a;
+  --theme-text-secondary: #374151;
   --theme-text-muted: #64748b;
   --theme-text-light: #94a3b8;
-  /* Report tables — visible borders + high-contrast text (light) */
-  --report-border: #cbd5e1;
-  --report-divider: #e2e8f0;
-  --report-head-bg: #eef2f7;
-  --report-head-text: #1e293b;
-  --report-row-hover: #f1f5f9;
+
+  /* ── Accent Colors ── */
+  --theme-accent: #2563eb;
+  --theme-accent-light: rgba(37, 99, 235, 0.08);
+  --theme-accent-hover: rgba(37, 99, 235, 0.12);
+  --theme-success: #10b981;
+  --theme-warning: #f59e0b;
+  --theme-danger: #f43f5e;
+  --theme-info: #0ea5e9;
+
+  /* ── Shadow System (3-tier) ── */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
+  --shadow-xl: 0 16px 40px rgba(0, 0, 0, 0.10), 0 4px 12px rgba(0, 0, 0, 0.04);
+
+  /* ── Report Tables ── */
+  --report-border: #e2e8f0;
+  --report-divider: #f1f5f9;
+  --report-head-bg: #F9FAFB;
+  --report-head-text: #374151;
+  --report-row-hover: #F9FAFB;
   --report-text: #0f172a;
-  --report-text-soft: #334155;
+  --report-text-soft: #374151;
   --report-text-muted: #64748b;
-  /* Date-range picker (light) */
+
+  /* ── Date Range Picker ── */
   --dp-bg: #ffffff;
-  --dp-preset-bg: #f8fafc;
-  --dp-border: #cbd5e1;
+  --dp-preset-bg: #f9fafb;
+  --dp-border: #e5e7eb;
   --dp-text: #0f172a;
   --dp-text-muted: #94a3b8;
-  --dp-hover: #f1f5f9;
+  --dp-hover: #f3f4f6;
   --dp-accent: #2563eb;
   --dp-accent-text: #ffffff;
   --dp-range-bg: #dbeafe;
   --dp-range-text: #1e40af;
   --dp-preset-active-bg: #eff6ff;
   --dp-preset-active-text: #2563eb;
-  --theme-kpi-bg: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-  --theme-kpi-border: rgba(186, 230, 253, 0.5);
-  /* AI CFO panel border — stronger than the pale kpi border so glass edges show
-     in light mode (dark mode overrides this back to the kpi border). */
-  --aicfo-border: rgba(51, 65, 85, 0.22);
-  --theme-kpi-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), inset 0 1px 8px rgba(255, 220, 180, 0.35), inset 0 -1px 8px rgba(173, 216, 230, 0.28);
-  --theme-kpi-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.08), inset 0 1px 8px rgba(255, 220, 180, 0.40), inset 0 -1px 8px rgba(173, 216, 230, 0.35);
 
-  --color-sidebar-text: #0e2240;
-  --color-sidebar-text-muted: #2c5282;
-  --color-sidebar-text-label: #1a56a8;
-  --color-sidebar-hover: rgba(37, 99, 235, 0.11);
-  --color-sidebar-active-bg: rgba(37, 99, 235, 0.16);
-  --color-sidebar-active-text: #1741c8;
+  /* ── KPI Cards ── */
+  --theme-kpi-bg: #FFFFFF;
+  --theme-kpi-border: rgba(0, 0, 0, 0.06);
+  --theme-kpi-shadow: var(--shadow-sm);
+  --theme-kpi-shadow-hover: var(--shadow-md);
 
+  /* ── AI CFO ── */
+  --aicfo-border: rgba(0, 0, 0, 0.08);
+
+  /* ── Sidebar Colors ── */
+  --color-sidebar-text: #0f172a;
+  --color-sidebar-text-muted: #374151;
+  --color-sidebar-text-label: #94a3b8;
+  --color-sidebar-hover: #F4F6F8;
+  --color-sidebar-active-bg: rgba(37, 99, 235, 0.08);
+  --color-sidebar-active-text: #2563eb;
+  --color-sidebar-border: rgba(0, 0, 0, 0.06);
+
+  /* ── Tailwind Color Aliases ── */
   --color-slate-50: #f8fafc;
   --color-slate-100: #f1f5f9;
   --color-slate-200: #e2e8f0;
@@ -95,37 +115,44 @@
   --color-amber-500: #f59e0b;
   --color-red-500: #ef4444;
 
-  /* Chart Variables */
+  /* ── Chart Colors ── */
   --chart-rev-stroke: #2563eb;
-  --chart-exp-stroke: #ef4444;
+  --chart-exp-stroke: #f43f5e;
   --chart-prof-stroke: #10b981;
   --chart-cf-op: #2563eb;
   --chart-cf-net: #10b981;
-  --chart-grad-opacity-top: 0.25;
+  --chart-grad-opacity-top: 0.15;
   --chart-grad-opacity-bottom: 0;
-  --chart-stroke-width: 1.5;
+  --chart-stroke-width: 2;
   --chart-grid-stroke: #f1f5f9;
   --chart-tooltip-bg: #ffffff;
-  --chart-tooltip-border: #e2e8f0;
-  --chart-tooltip-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --chart-tooltip-border: #e5e7eb;
+  --chart-tooltip-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
   --chart-fill-opacity: 0;
-  --chart-active-dot-r: 3;
-  --chart-active-dot-stroke-width: 0;
-  --chart-active-dot-fill: var(--chart-rev-stroke);
+  --chart-active-dot-r: 4;
+  --chart-active-dot-stroke-width: 2;
+  --chart-active-dot-fill: #ffffff;
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   DARK THEME — Preserved exactly from original
+   ═══════════════════════════════════════════════════════════════ */
 .dark {
-  /* ── Dark Neon Theme Variables ── */
   --theme-bg: #050505;
   --theme-sidebar-bg: #0b0b0f;
   --theme-sidebar-glow: linear-gradient(170deg, rgba(182, 255, 0, 0.05) 0%, rgba(30, 123, 255, 0.02) 50%, rgba(182, 255, 0, 0.05) 100%);
   --theme-header-bg: rgba(11, 11, 15, 0.85);
   --theme-card-bg: #121218;
   --theme-card-border: rgba(182, 255, 0, 0.25);
+  --theme-surface-secondary: #1a1a22;
   --theme-text-main: #ffffff;
+  --theme-text-secondary: #cbd5e1;
   --theme-text-muted: #a0a0a8;
   --theme-text-light: #5a5a62;
-  /* Report tables — visible borders + high-contrast text (dark) */
+  --theme-accent: #b6ff00;
+  --theme-accent-light: rgba(182, 255, 0, 0.10);
+  --theme-accent-hover: rgba(182, 255, 0, 0.15);
+
   --report-border: rgba(255, 255, 255, 0.16);
   --report-divider: rgba(255, 255, 255, 0.08);
   --report-head-bg: rgba(255, 255, 255, 0.05);
@@ -134,7 +161,7 @@
   --report-text: #ffffff;
   --report-text-soft: #cbd5e1;
   --report-text-muted: #94a3b8;
-  /* Date-range picker (dark) */
+
   --dp-bg: #121218;
   --dp-preset-bg: rgba(255, 255, 255, 0.02);
   --dp-border: rgba(255, 255, 255, 0.16);
@@ -147,14 +174,13 @@
   --dp-range-text: #93c5fd;
   --dp-preset-active-bg: rgba(59, 130, 246, 0.15);
   --dp-preset-active-text: #93c5fd;
+
   --theme-kpi-bg: linear-gradient(135deg, #121218 0%, #1a1a22 100%);
   --theme-kpi-border: rgba(182, 255, 0, 0.25);
-  /* Dark mode is good as-is — keep the AI CFO border identical to the kpi border. */
   --aicfo-border: rgba(182, 255, 0, 0.25);
   --theme-kpi-shadow: 0 1px 4px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(182, 255, 0, 0.05);
   --theme-kpi-shadow-hover: 0 0 25px rgba(182, 255, 0, 0.18), inset 0 1px 0 rgba(182, 255, 0, 0.1);
 
-  /* Override Sidebar specific colors for dark mode */
   --color-sidebar-text: #ffffff;
   --color-sidebar-text-muted: #a0a0a8;
   --color-sidebar-text-label: #b6ff00;
@@ -162,20 +188,17 @@
   --color-sidebar-active-bg: rgba(182, 255, 0, 0.15);
   --color-sidebar-active-text: #b6ff00;
 
-  /* ── Tailwind V4 Color Overrides for Dark Mode ── */
   --color-slate-900: var(--theme-text-main);
   --color-slate-800: var(--theme-text-main);
   --color-slate-700: var(--theme-text-muted);
   --color-slate-600: var(--theme-text-muted);
   --color-slate-500: var(--theme-text-light);
   --color-slate-400: var(--theme-text-light);
-
   --color-slate-50: #121218;
   --color-slate-100: #1a1a22;
   --color-slate-200: rgba(182, 255, 0, 0.25);
   --color-slate-300: rgba(182, 255, 0, 0.45);
   --color-white: #121218;
-
   --color-blue-400: #1e7bff;
   --color-blue-500: #1e7bff;
   --color-blue-600: #1e7bff;
@@ -185,7 +208,6 @@
   --color-red-500: #ff3366;
   --color-amber-500: #fff200;
 
-  /* Chart Variables */
   --chart-rev-stroke: #b6ff00;
   --chart-exp-stroke: #1e7bff;
   --chart-prof-stroke: #fff200;
@@ -204,11 +226,10 @@
   --chart-active-dot-fill: #050505;
 }
 
-/*
- * ── ALL custom base styles go inside @layer base ──
- */
+/* ═══════════════════════════════════════════════════════════════
+   BASE LAYER
+   ═══════════════════════════════════════════════════════════════ */
 @layer base {
-
   html {
     scroll-behavior: smooth;
   }
@@ -218,8 +239,9 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     background: var(--theme-bg);
-    background-attachment: fixed;
     color: var(--theme-text-main);
+    line-height: 1.5;
+    letter-spacing: -0.011em;
   }
 
   #root {
@@ -227,10 +249,10 @@
     min-height: 100vh;
   }
 
-  /* ── Scrollbars ── */
+  /* ── Scrollbars — subtle, unobtrusive ── */
   ::-webkit-scrollbar {
-    width: 4px;
-    height: 4px;
+    width: 6px;
+    height: 6px;
   }
 
   ::-webkit-scrollbar-track {
@@ -238,29 +260,79 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    background: #1a1a22;
-    border: 1px solid rgba(182, 255, 0, 0.15);
-    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.12);
+    border-radius: 100px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.20);
+  }
+
+  .dark ::-webkit-scrollbar-thumb {
+    background: #1a1a22;
+    border: 1px solid rgba(182, 255, 0, 0.15);
+  }
+
+  .dark ::-webkit-scrollbar-thumb:hover {
     background: rgba(182, 255, 0, 0.25);
   }
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   COMPONENT LAYER
+   ═══════════════════════════════════════════════════════════════ */
 @layer components {
 
-  /* ── App Layout ── */
+  /* ════════════════════════════════════════════
+     APP LAYOUT & AMBIENT BACKGROUND
+     ════════════════════════════════════════════ */
   .app-layout {
     display: flex;
     min-height: 100vh;
     position: relative;
     overflow: hidden;
     background: var(--theme-bg);
-    background-attachment: fixed;
   }
 
-  /* ── Sidebar ── */
+  /* Ambient gradient blobs — atmosphere without distraction */
+  .app-layout::before,
+  .app-layout::after {
+    content: '';
+    position: fixed;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 0;
+    filter: blur(120px);
+  }
+
+  .app-layout::before {
+    width: 600px;
+    height: 600px;
+    top: -100px;
+    right: -100px;
+    background: radial-gradient(circle, rgba(37, 99, 235, 0.04) 0%, transparent 70%);
+  }
+
+  .app-layout::after {
+    width: 500px;
+    height: 500px;
+    bottom: -80px;
+    left: 20%;
+    background: radial-gradient(circle, rgba(16, 185, 129, 0.03) 0%, transparent 70%);
+  }
+
+  .dark .app-layout::before,
+  .dark .app-layout::after {
+    display: none;
+  }
+
+  .dark .app-layout {
+    background: var(--theme-bg);
+  }
+
+  /* ════════════════════════════════════════════
+     SIDEBAR
+     ════════════════════════════════════════════ */
   .sidebar {
     position: fixed;
     top: 0;
@@ -268,34 +340,20 @@
     height: 100vh;
     width: var(--sidebar-width);
     font-family: var(--font-sidebar);
-    /* Dynamic Theme Gradient */
     background: var(--theme-sidebar-bg);
-    backdrop-filter: blur(20px) saturate(2.0);
-    -webkit-backdrop-filter: blur(20px) saturate(2.0);
+    border-right: 1px solid var(--color-sidebar-border);
     display: flex;
     flex-direction: column;
     z-index: 100;
     transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1),
       transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     overflow: hidden;
-    border-right: none;
-    box-shadow: none;
     transform: translateX(-100%);
-  }
-
-
-  /* Subtle white inner sheen */
-  .sidebar::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: var(--theme-sidebar-glow);
-    pointer-events: none;
-    z-index: 0;
   }
 
   .sidebar.mobile-open {
     transform: translateX(0);
+    box-shadow: var(--shadow-xl);
   }
 
   @media (min-width: 1024px) {
@@ -308,7 +366,9 @@
     }
   }
 
-  /* ── Main Area ── */
+  /* ════════════════════════════════════════════
+     MAIN AREA
+     ════════════════════════════════════════════ */
   .main-area {
     flex: 1;
     min-width: 0;
@@ -316,6 +376,8 @@
     flex-direction: column;
     transition: margin-left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     margin-left: 0;
+    position: relative;
+    z-index: 1;
   }
 
   @media (min-width: 1024px) {
@@ -328,7 +390,9 @@
     }
   }
 
-  /* ── Header ── */
+  /* ════════════════════════════════════════════
+     HEADER
+     ════════════════════════════════════════════ */
   .app-header {
     position: fixed;
     top: 0;
@@ -336,10 +400,9 @@
     left: 0;
     height: var(--header-height);
     background: var(--theme-header-bg);
-    backdrop-filter: blur(20px) saturate(1.8);
-    -webkit-backdrop-filter: blur(20px) saturate(1.8);
+    backdrop-filter: blur(16px) saturate(1.6);
+    -webkit-backdrop-filter: blur(16px) saturate(1.6);
     border-bottom: 1px solid var(--theme-card-border);
-    box-shadow: none;
     z-index: 90;
     transition: left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   }
@@ -354,10 +417,12 @@
     }
   }
 
-  /* ── Content Area — Ultra Compact ── */
+  /* ════════════════════════════════════════════
+     CONTENT AREA — Generous Spacing
+     ════════════════════════════════════════════ */
   .content-area {
     margin-top: var(--header-height);
-    padding: 10px 12px;
+    padding: 16px;
     flex: 1;
     overflow-y: auto;
     min-height: calc(100vh - var(--header-height));
@@ -370,22 +435,24 @@
 
   @media (min-width: 768px) {
     .content-area {
-      padding: 12px 16px;
+      padding: 20px 24px;
     }
   }
 
   @media (min-width: 1280px) {
     .content-area {
-      padding: 14px 20px;
+      padding: 24px 32px;
     }
   }
 
-  /* ── Overlay for mobile ── */
+  /* ════════════════════════════════════════════
+     MOBILE OVERLAY
+     ════════════════════════════════════════════ */
   .mobile-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(10, 15, 30, 0.6);
-    backdrop-filter: blur(4px);
+    background: rgba(15, 23, 42, 0.4);
+    backdrop-filter: blur(6px);
     z-index: 90;
     opacity: 0;
     pointer-events: none;
@@ -397,54 +464,112 @@
     pointer-events: auto;
   }
 
-
-  /* ── Table row ── */
-  .table-row-hover:hover {
-    background: var(--color-slate-100);
+  /* ════════════════════════════════════════════
+     CARD SYSTEM — Premium floating surfaces
+     ════════════════════════════════════════════ */
+  .erp-card {
+    background: var(--theme-card-bg);
+    border-radius: var(--radius-3xl);
+    border: 1px solid var(--theme-card-border);
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  .row-overdue {
-    background: rgba(255, 51, 102, 0.1);
+  .erp-card-hover:hover {
+    box-shadow: var(--shadow-md);
   }
 
-  .row-overdue:hover {
-    background: rgba(255, 51, 102, 0.15);
-  }
-
-  /* ── Nav active indicator ── */
-  .nav-active-bar {
-    position: absolute;
-    left: 0;
-    top: 5px;
-    bottom: 5px;
-    width: 3px;
-    background: #b6ff00;
-    border-radius: 0 4px 4px 0;
-    box-shadow: 0 0 10px rgba(182, 255, 0, 0.5);
-  }
-
-  /* ── Dashboard Glass Card ── */
+  /* Legacy glass-card — kept for backward-compat with non-redesigned pages */
   .glass-card {
     background: var(--theme-card-bg);
-    border-radius: var(--radius-xl);
+    border-radius: var(--radius-3xl);
     border: 1px solid var(--theme-card-border);
-    box-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.05);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .glass-card:hover {
-    box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(182, 255, 0, 0.1), 0 0 15px rgba(182, 255, 0, 0.1);
-    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
   }
 
-  /* ── Reusable report table system (theme-aware, visible borders) ── */
+  /* ════════════════════════════════════════════
+     CARD HEADER
+     ════════════════════════════════════════════ */
+  .card-header {
+    padding: 16px 20px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--theme-card-border);
+  }
+
+  .card-header h2 {
+    color: var(--theme-text-main);
+  }
+
+  .card-header p {
+    color: var(--theme-text-muted);
+  }
+
+  /* ════════════════════════════════════════════
+     NAV ACTIVE INDICATOR
+     ════════════════════════════════════════════ */
+  .nav-active-bar {
+    position: absolute;
+    left: 0;
+    top: 6px;
+    bottom: 6px;
+    width: 3px;
+    background: var(--color-sidebar-active-text);
+    border-radius: 0 6px 6px 0;
+  }
+
+  .dark .nav-active-bar {
+    box-shadow: 0 0 10px rgba(182, 255, 0, 0.5);
+  }
+
+  /* ════════════════════════════════════════════
+     TABLE ROW HOVER
+     ════════════════════════════════════════════ */
+  .table-row-hover:hover {
+    background: var(--report-row-hover);
+  }
+
+  .row-overdue {
+    background: rgba(244, 63, 94, 0.06);
+  }
+
+  .row-overdue:hover {
+    background: rgba(244, 63, 94, 0.10);
+  }
+
+  /* ════════════════════════════════════════════
+     SIDEBAR COLLAPSED — HIDE LABELS
+     ════════════════════════════════════════════ */
+  @media (min-width: 1024px) {
+    .sidebar.collapsed .nav-group-label,
+    .sidebar.collapsed .nav-item-label,
+    .sidebar.collapsed .nav-item-badge,
+    .sidebar.collapsed .sidebar-logo-text,
+    .sidebar.collapsed .sidebar-user-info,
+    .sidebar.collapsed .nav-group-chevron {
+      opacity: 0;
+      pointer-events: none;
+      position: absolute;
+      width: 0;
+      height: 0;
+      overflow: hidden;
+    }
+  }
+
+  /* ════════════════════════════════════════════
+     REPORT TABLE SYSTEM (Preserved)
+     ════════════════════════════════════════════ */
   .report-card {
     background: var(--theme-card-bg);
     border: 1px solid var(--report-border);
-    border-radius: var(--radius-xl);
-    box-shadow: 0 2px 10px -4px rgba(0, 0, 0, 0.12);
+    border-radius: var(--radius-3xl);
+    box-shadow: var(--shadow-sm);
     overflow: hidden;
   }
 
@@ -457,18 +582,18 @@
   .report-table thead th {
     background: var(--report-head-bg);
     color: var(--report-head-text);
-    font-weight: 700;
+    font-weight: 600;
     font-size: 11px;
-    letter-spacing: 0.02em;
+    letter-spacing: 0.04em;
     text-transform: uppercase;
-    padding: 11px 16px;
-    border-bottom: 2px solid var(--report-border);
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--report-border);
     white-space: nowrap;
   }
 
   .report-table tbody td {
     padding: 10px 16px;
-    font-size: 12.5px;
+    font-size: 13px;
     font-weight: 500;
     color: var(--report-text);
     border-bottom: 1px solid var(--report-divider);
@@ -488,11 +613,11 @@
 
   .report-table tfoot td {
     padding: 12px 16px;
-    font-size: 12.5px;
-    font-weight: 800;
+    font-size: 13px;
+    font-weight: 700;
     color: var(--report-text);
     background: var(--report-head-bg);
-    border-top: 2px solid var(--report-border);
+    border-top: 1px solid var(--report-border);
   }
 
   .report-num {
@@ -503,7 +628,7 @@
 
   .report-link {
     color: #2563eb;
-    font-weight: 700;
+    font-weight: 600;
     cursor: pointer;
     background: none;
     border: none;
@@ -526,7 +651,7 @@
 
   .report-strong {
     color: var(--report-text);
-    font-weight: 800;
+    font-weight: 700;
   }
 
   .report-pos {
@@ -547,14 +672,16 @@
     color: #f87171;
   }
 
-  /* ── Reusable date-range picker (theme-aware) ── */
+  /* ════════════════════════════════════════════
+     DATE-RANGE PICKER (Preserved)
+     ════════════════════════════════════════════ */
   .dp-trigger {
     display: inline-flex;
     align-items: center;
     height: 36px;
     background: var(--dp-bg);
     border: 1px solid var(--dp-border);
-    border-radius: 8px;
+    border-radius: var(--radius-lg);
     overflow: hidden;
   }
 
@@ -584,7 +711,7 @@
     height: 100%;
     padding: 0 12px;
     color: var(--dp-text);
-    font-weight: 700;
+    font-weight: 600;
     font-size: 13px;
     white-space: nowrap;
   }
@@ -600,8 +727,8 @@
   .dp-panel {
     background: var(--dp-bg);
     border: 1px solid var(--dp-border);
-    border-radius: 12px;
-    box-shadow: 0 18px 50px -12px rgba(0, 0, 0, 0.4);
+    border-radius: var(--radius-2xl);
+    box-shadow: var(--shadow-xl);
     display: flex;
     overflow: hidden;
   }
@@ -622,9 +749,9 @@
     text-align: left;
     padding: 8px 12px;
     font-size: 12.5px;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     color: var(--dp-text-muted);
-    font-weight: 600;
+    font-weight: 500;
     transition: background 0.15s, color 0.15s;
   }
 
@@ -636,7 +763,7 @@
   .dp-preset.active {
     background: var(--dp-preset-active-bg);
     color: var(--dp-preset-active-text);
-    font-weight: 700;
+    font-weight: 600;
   }
 
   .dp-body {
@@ -647,7 +774,7 @@
 
   .dp-nav-btn {
     padding: 5px;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     color: var(--dp-text-muted);
     transition: background 0.15s, color 0.15s;
   }
@@ -664,16 +791,16 @@
 
   .dp-range-heading {
     font-size: 12.5px;
-    font-weight: 700;
+    font-weight: 600;
     color: var(--dp-text);
   }
 
   .dp-label-btn {
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 600;
     color: var(--dp-text);
     padding: 2px 8px;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     transition: color 0.15s;
   }
 
@@ -683,7 +810,7 @@
 
   .dp-weekday {
     font-size: 10px;
-    font-weight: 700;
+    font-weight: 600;
     color: var(--dp-text-muted);
     text-align: center;
     height: 22px;
@@ -700,7 +827,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     transition: background 0.12s;
   }
 
@@ -720,20 +847,20 @@
   }
 
   .dp-day.range-start {
-    border-top-left-radius: 6px;
-    border-bottom-left-radius: 6px;
+    border-top-left-radius: var(--radius-sm);
+    border-bottom-left-radius: var(--radius-sm);
   }
 
   .dp-day.range-end {
-    border-top-right-radius: 6px;
-    border-bottom-right-radius: 6px;
+    border-top-right-radius: var(--radius-sm);
+    border-bottom-right-radius: var(--radius-sm);
   }
 
   .dp-day.is-selected {
     background: var(--dp-accent);
     color: var(--dp-accent-text);
-    font-weight: 700;
-    border-radius: 6px;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
   }
 
   .dp-day.is-disabled {
@@ -744,8 +871,8 @@
   .dp-grid-btn {
     padding: 9px 0;
     font-size: 12px;
-    font-weight: 700;
-    border-radius: 6px;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
     border: 1px solid var(--dp-border);
     color: var(--dp-text);
     background: var(--dp-bg);
@@ -774,15 +901,15 @@
 
   .dp-range-label {
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 600;
     color: var(--dp-text);
   }
 
   .dp-btn-cancel {
     padding: 7px 16px;
     font-size: 12px;
-    font-weight: 700;
-    border-radius: 6px;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
     color: var(--dp-text);
     background: var(--dp-hover);
     transition: filter 0.15s;
@@ -795,8 +922,8 @@
   .dp-btn-apply {
     padding: 7px 18px;
     font-size: 12px;
-    font-weight: 700;
-    border-radius: 6px;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
     color: var(--dp-accent-text);
     background: var(--dp-accent);
     transition: filter 0.15s;
@@ -806,46 +933,16 @@
     filter: brightness(1.08);
   }
 
-  .card-header {
-    padding: 12px 14px 8px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    border-bottom: 1px solid var(--theme-card-border);
-  }
-
-  .card-header h2 {
-    color: var(--theme-text-main);
-  }
-
-  .card-header p {
-    color: var(--theme-text-muted);
-  }
-
-  /* ── Sidebar Collapsed Visibility ── */
-  @media (min-width: 1024px) {
-
-    .sidebar.collapsed .nav-group-label,
-    .sidebar.collapsed .nav-item-label,
-    .sidebar.collapsed .nav-item-badge,
-    .sidebar.collapsed .sidebar-logo-text,
-    .sidebar.collapsed .sidebar-user-info,
-    .sidebar.collapsed .nav-group-chevron {
-      opacity: 0;
-      pointer-events: none;
-      position: absolute;
-      width: 0;
-      height: 0;
-      overflow: hidden;
-    }
-  }
-
-  /* ── Login Gradient ── */
+  /* ════════════════════════════════════════════
+     LOGIN GRADIENT (Preserved)
+     ════════════════════════════════════════════ */
   .login-gradient {
     background: linear-gradient(135deg, #0a0f1e 0%, #1e293b 50%, #0a0f1e 100%);
   }
 
-  /* ── Scrollbar Hide ── */
+  /* ════════════════════════════════════════════
+     SCROLLBAR HIDE
+     ════════════════════════════════════════════ */
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
@@ -856,14 +953,16 @@
   }
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   UTILITIES
+   ═══════════════════════════════════════════════════════════════ */
 @layer utilities {
-
   .animate-fade-in {
-    animation: fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) both;
+    animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1) both;
   }
 
   .animate-slide-up {
-    animation: slideUp 0.35s cubic-bezier(0.4, 0, 0.2, 1) both;
+    animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1) both;
   }
 
   .sync-dot-pulse {
@@ -873,65 +972,72 @@
   .animate-marquee {
     animation: marquee 35s linear infinite;
   }
+
+  /* ── Skeleton Loading ── */
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      var(--theme-surface-secondary) 25%,
+      rgba(0, 0, 0, 0.04) 50%,
+      var(--theme-surface-secondary) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+    border-radius: var(--radius-sm);
+  }
+
+  .dark .skeleton {
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.04) 25%,
+      rgba(255, 255, 255, 0.08) 50%,
+      rgba(255, 255, 255, 0.04) 75%
+    );
+    background-size: 200% 100%;
+  }
 }
 
-/* ── Keyframes ── */
+/* ═══════════════════════════════════════════════════════════════
+   KEYFRAMES
+   ═══════════════════════════════════════════════════════════════ */
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes pulse {
-
-  0%,
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-
-  50% {
-    opacity: .6;
-    transform: scale(1.4);
-  }
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: .6; transform: scale(1.4); }
 }
 
 @keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+  to { transform: rotate(360deg); }
 }
 
 @keyframes marquee {
-  0% {
-    transform: translateX(0%);
-  }
-
-  100% {
-    transform: translateX(-50%);
-  }
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
 }
 
-/* ─────────────────────────── AI CFO — premium motion ─────────────────────────── */
-@layer utilities {
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
 
-  /* Frosted-glass surface (glassmorphism). Uses theme vars so it works light+dark. */
+/* ═══════════════════════════════════════════════════════════════
+   AI CFO — Premium Motion (Preserved)
+   ═══════════════════════════════════════════════════════════════ */
+@layer utilities {
   .aicfo-glass {
     background: color-mix(in srgb, var(--theme-kpi-bg) 82%, transparent);
     backdrop-filter: blur(16px) saturate(1.4);
@@ -971,12 +1077,10 @@
     animation: aicfoShimmer 1.4s linear infinite;
   }
 
-  /* Animated conic gradient for the launcher's living halo. */
   .aicfo-halo {
     animation: aicfoSpin 6s linear infinite;
   }
 
-  /* Input wrapper with a soft accent glow on focus. */
   .aicfo-input {
     transition: box-shadow 0.2s ease, border-color 0.2s ease;
   }
@@ -988,66 +1092,35 @@
 }
 
 @keyframes aicfoFloat {
-
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-
-  50% {
-    transform: translateY(-6px);
-  }
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
 }
 
 @keyframes aicfoPop {
-  from {
-    opacity: 0;
-    transform: scale(0.9) translateY(8px);
-  }
-
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
+  from { opacity: 0; transform: scale(0.9) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
 }
 
 @keyframes aicfoGlow {
-
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 rgba(182, 255, 0, 0.45), 0 8px 24px rgba(30, 123, 255, 0.35);
-  }
-
-  50% {
-    box-shadow: 0 0 0 10px rgba(182, 255, 0, 0), 0 10px 30px rgba(30, 123, 255, 0.5);
-  }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(182, 255, 0, 0.45), 0 8px 24px rgba(30, 123, 255, 0.35); }
+  50% { box-shadow: 0 0 0 10px rgba(182, 255, 0, 0), 0 10px 30px rgba(30, 123, 255, 0.5); }
 }
 
 @keyframes aicfoBlink {
-  50% {
-    opacity: 0;
-  }
+  50% { opacity: 0; }
 }
 
 @keyframes aicfoShimmer {
-  0% {
-    background-position: 200% 0;
-  }
-
-  100% {
-    background-position: -200% 0;
-  }
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 @keyframes aicfoSpin {
-  to {
-    transform: rotate(360deg);
-  }
+  to { transform: rotate(360deg); }
 }
 
 /* Respect users who prefer reduced motion. */
 @media (prefers-reduced-motion: reduce) {
-
   .aicfo-float,
   .aicfo-pop,
   .aicfo-glow-ring,
