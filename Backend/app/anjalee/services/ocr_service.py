@@ -2,7 +2,10 @@ import time
 import cv2
 import fitz  # PyMuPDF
 import numpy as np
-from rapidocr_onnxruntime import RapidOCR
+try:
+    from rapidocr_onnxruntime import RapidOCR
+except ImportError:
+    RapidOCR = None
 import pdfplumber
 import logging
 import threading
@@ -20,6 +23,8 @@ class OcrService:
     def get_ocr_engine(cls):
         """Lazy initialization of RapidOCR instance as a singleton."""
         if cls._ocr_instance is None:
+            if RapidOCR is None:
+                raise RuntimeError("rapidocr-onnxruntime package is not installed.")
             logger.info("Initializing RapidOCR engine...")
             try:
                 cls._ocr_instance = RapidOCR()

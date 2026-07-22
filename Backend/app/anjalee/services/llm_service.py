@@ -11,10 +11,12 @@ class LLMService:
     def __init__(self):
         if not settings.NVIDIA_API_KEY:
             logger.warning("NVIDIA_API_KEY is not configured. LLM calls will fail.")
-        self.client = OpenAI(
-            base_url=settings.NVIDIA_BASE_URL,
-            api_key=settings.NVIDIA_API_KEY
-        )
+            self.client = None
+        else:
+            self.client = OpenAI(
+                base_url=settings.NVIDIA_BASE_URL,
+                api_key=settings.NVIDIA_API_KEY
+            )
         self.model = settings.LLM_MODEL
 
     def _clean_json_string(self, content: str) -> str:
@@ -438,10 +440,12 @@ class DocumentAIService:
     def __init__(self):
         if not settings.NVIDIA_API_KEY:
             logger.warning("NVIDIA_API_KEY not configured. DocumentAI calls will fail.")
-        self.client = OpenAI(
-            base_url=settings.NVIDIA_BASE_URL,
-            api_key=settings.NVIDIA_API_KEY
-        )
+            self.client = None
+        else:
+            self.client = OpenAI(
+                base_url=settings.NVIDIA_BASE_URL,
+                api_key=settings.NVIDIA_API_KEY
+            )
         self.model = settings.LLM_MODEL
 
     def _clean_json(self, content: str) -> str:
@@ -719,10 +723,12 @@ class DynamicDocumentAI:
     def __init__(self):
         if not settings.NVIDIA_API_KEY:
             logger.warning("NVIDIA_API_KEY not configured. DynamicDocumentAI calls will fail.")
-        self.client = OpenAI(
-            base_url=settings.NVIDIA_BASE_URL,
-            api_key=settings.NVIDIA_API_KEY
-        )
+            self.client = None
+        else:
+            self.client = OpenAI(
+                base_url=settings.NVIDIA_BASE_URL,
+                api_key=settings.NVIDIA_API_KEY
+            )
         self.model = settings.LLM_MODEL
 
     def generate_dynamic_schema(self, ocr_text: str, our_company_name: str = "", our_company_gstin: str = "", filename: str = "") -> dict:

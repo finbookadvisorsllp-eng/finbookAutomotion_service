@@ -169,13 +169,18 @@ class BaseAgent:
     """
 
     def __init__(self):
-        self.client = OpenAI(
-            base_url=settings.NVIDIA_BASE_URL,
-            api_key=settings.NVIDIA_API_KEY,
-        )
+        if not settings.NVIDIA_API_KEY:
+            self.client = None
+        else:
+            self.client = OpenAI(
+                base_url=settings.NVIDIA_BASE_URL,
+                api_key=settings.NVIDIA_API_KEY,
+            )
         self.model = settings.LLM_MODEL
 
     def _call_llm(self, system_prompt: str, user_prompt: str) -> str:
+        if not self.client:
+            raise RuntimeError("NVIDIA_API_KEY is not configured. LLM calls will fail.")
         completion = self.client.chat.completions.create(
             model=self.model,
             messages=[
