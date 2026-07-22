@@ -45,6 +45,9 @@ class SalesVoucherService:
         if not tcs_amount and payload.tcsDetails:
             tcs_amount = sum(float(item.get("amount") or 0.0) for item in payload.tcsDetails)
 
+        # Sum TDS details if provided
+        tds_amount = sum(float(item.get("amount") or 0.0) for item in payload.tdsDetails) if payload.tdsDetails else 0.0
+
         # 5. GST and Totals Calculations
         tax_results = calculate_taxes(
             company_state=company_state,
@@ -53,7 +56,9 @@ class SalesVoucherService:
             inventory_entries=inventory_entries_dict,
             tcs_amount=tcs_amount,
             round_off_amount=payload.roundOffAmount,
-            additional_charges=payload.additionalCharges
+            additional_charges=payload.additionalCharges,
+            tds_amount=tds_amount,
+            voucher_type=payload.voucherType or "sales_invoice"
         )
 
         # 6. Map to MongoDB schema
@@ -67,6 +72,7 @@ class SalesVoucherService:
             "creditNoteDate": payload.creditNoteDate,
             "salesLedger": payload.salesLedger,
             "consigneeLedger": payload.consigneeLedger,
+            "consigneeGstin": payload.consigneeGstin or "",
             "partyLedgerId": ObjectId(party_details["id"]) if party_details["id"] else None,
             "partyLedgerName": party_details["name"],
             "partyGSTIN": party_details["gstin"] or payload.partyGSTIN or "",
@@ -79,36 +85,54 @@ class SalesVoucherService:
             "cgstAmount": tax_results["cgstAmount"],
             "sgstAmount": tax_results["sgstAmount"],
             "igstAmount": tax_results["igstAmount"],
+            "cessAmount": tax_results.get("cessAmount", 0.0),
             "tcsAmount": tcs_amount,
             "roundOffAmount": payload.roundOffAmount,
             "grandTotal": tax_results["grandTotal"],
             "entryTab": payload.entryTab or ("with_item" if inventory_entries_dict else "without_item"),
             "gstRegistration": payload.gstRegistration,
+            "entryMode": payload.entryMode or "manual",
+            "ocrMetadata": payload.ocrMetadata,
+            "bulkMetadata": payload.bulkMetadata,
             "salesEntries": [
                 {
-                    "ledgerId": ObjectId(entry.ledgerId) if entry.ledgerId else None,
-                    "ledgerName": entry.ledgerName,
-                    "description": entry.description or "",
-                    "hsnSacCode": entry.hsnSacCode or "",
-                    "gstRate": entry.gstRate,
-                    "amount": entry.amount
-                } for entry in payload.salesEntries
+                    "ledgerId": ObjectId(entry.get("ledgerId")) if entry.get("ledgerId") else None,
+                    "ledgerName": entry.get("ledgerName"),
+                    "description": entry.get("description") or "",
+                    "hsnSacCode": entry.get("hsnSacCode") or "",
+                    "gstRate": entry.get("gstRate") or 0.0,
+                    "amount": entry.get("amount") or 0.0,
+                    "taxableAmount": entry.get("taxableAmount") or entry.get("amount") or 0.0,
+                    "cgst": entry.get("cgst") or 0.0,
+                    "sgst": entry.get("sgst") or 0.0,
+                    "igst": entry.get("igst") or 0.0,
+                    "cess": entry.get("cess") or 0.0,
+                    "totalTax": entry.get("totalTax") or 0.0
+                } for entry in tax_results["salesEntries"]
             ],
             "inventoryEntries": [
                 {
-                    "stockItemId": ObjectId(entry.stockItemId) if entry.stockItemId else None,
-                    "stockItem": entry.stockItem,
-                    "description": entry.description or "",
-                    "hsnSacCode": entry.hsnSacCode or "",
-                    "billQuantity": entry.billQuantity,
-                    "billRate": entry.billRate,
-                    "discountPercent": entry.discountPercent,
-                    "amount": entry.amount,
-                    "rcm": entry.rcm,
-                    "taxabilityType": entry.taxabilityType,
-                    "gstRate": entry.gstRate
-                } for entry in payload.inventoryEntries
-            ] if payload.inventoryEntries else [],
+                    "stockItemId": ObjectId(entry.get("stockItemId")) if entry.get("stockItemId") else None,
+                    "stockItem": entry.get("stockItem"),
+                    "description": entry.get("description") or "",
+                    "hsnSacCode": entry.get("hsnSacCode") or "",
+                    "billQuantity": entry.get("billQuantity") or 0.0,
+                    "billRate": entry.get("billRate") or 0.0,
+                    "discountPercent": entry.get("discountPercent") or 0.0,
+                    "amount": entry.get("amount") or 0.0,
+                    "rcm": entry.get("rcm") or False,
+                    "taxabilityType": entry.get("taxabilityType") or "Taxable",
+                    "gstRate": entry.get("gstRate") or 0.0,
+                    "ratio": entry.get("ratio") or 0.0,
+                    "distributedCharge": entry.get("distributedCharge") or 0.0,
+                    "taxableAmount": entry.get("taxableAmount") or 0.0,
+                    "cgst": entry.get("cgst") or 0.0,
+                    "sgst": entry.get("sgst") or 0.0,
+                    "igst": entry.get("igst") or 0.0,
+                    "cess": entry.get("cess") or 0.0,
+                    "totalTax": entry.get("totalTax") or 0.0
+                } for entry in tax_results["inventoryEntries"]
+            ] if tax_results["inventoryEntries"] else [],
             "additionalCharges": payload.additionalCharges or [],
             "tcsDetails": payload.tcsDetails or [],
             "tdsDetails": payload.tdsDetails or [],
@@ -132,7 +156,8 @@ class SalesVoucherService:
         limit: int = 50,
         voucher_type: Optional[str] = None,
         status: Optional[str] = None,
-        search: Optional[str] = None
+        search: Optional[str] = None,
+        company_id: Optional[str] = None
     ) -> Dict[str, Any]:
         skip = (page - 1) * limit
         query = {}
@@ -213,6 +238,10 @@ class SalesVoucherService:
         if not tcs_amount and tcs_details:
             tcs_amount = sum(float(item.get("amount") or 0.0) for item in tcs_details)
 
+        # Sum TDS details if provided
+        tds_details = merged_doc.get("tdsDetails") or []
+        tds_amount = sum(float(item.get("amount") or 0.0) for item in tds_details)
+
         # Recalculate taxes
         tax_results = calculate_taxes(
             company_state=merged_doc.get("companyState") or "Madhya Pradesh",
@@ -221,7 +250,9 @@ class SalesVoucherService:
             inventory_entries=inventory_entries_dict,
             tcs_amount=tcs_amount,
             round_off_amount=merged_doc.get("roundOffAmount") or 0.0,
-            additional_charges=merged_doc.get("additionalCharges")
+            additional_charges=merged_doc.get("additionalCharges"),
+            tds_amount=tds_amount,
+            voucher_type=merged_doc.get("voucherType") or "sales_invoice"
         )
 
         # Fields to set in update
@@ -234,6 +265,7 @@ class SalesVoucherService:
             "creditNoteDate": merged_doc.get("creditNoteDate"),
             "salesLedger": merged_doc.get("salesLedger"),
             "consigneeLedger": merged_doc.get("consigneeLedger"),
+            "consigneeGstin": merged_doc.get("consigneeGstin") or "",
             "partyLedgerId": ObjectId(party_details["id"]) if party_details["id"] else None,
             "partyLedgerName": party_details["name"],
             "partyGSTIN": party_details["gstin"] or merged_doc.get("partyGSTIN") or "",
@@ -246,25 +278,35 @@ class SalesVoucherService:
             "cgstAmount": tax_results["cgstAmount"],
             "sgstAmount": tax_results["sgstAmount"],
             "igstAmount": tax_results["igstAmount"],
+            "cessAmount": tax_results.get("cessAmount", 0.0),
             "tcsAmount": tcs_amount,
             "roundOffAmount": merged_doc.get("roundOffAmount") or 0.0,
             "grandTotal": tax_results["grandTotal"],
             "entryTab": merged_doc.get("entryTab") or ("with_item" if inventory_entries_dict else "without_item"),
             "gstRegistration": merged_doc.get("gstRegistration"),
+            "entryMode": merged_doc.get("entryMode") or "manual",
+            "ocrMetadata": merged_doc.get("ocrMetadata"),
+            "bulkMetadata": merged_doc.get("bulkMetadata"),
             "salesEntries": [
                 {
-                    "ledgerId": ObjectId(entry["ledgerId"]) if entry.get("ledgerId") else None,
-                    "ledgerName": entry["ledgerName"],
+                    "ledgerId": ObjectId(entry.get("ledgerId")) if entry.get("ledgerId") else None,
+                    "ledgerName": entry.get("ledgerName"),
                     "description": entry.get("description") or "",
                     "hsnSacCode": entry.get("hsnSacCode") or "",
                     "gstRate": entry.get("gstRate") or 0.0,
-                    "amount": entry.get("amount") or 0.0
-                } for entry in sales_entries_dict
+                    "amount": entry.get("amount") or 0.0,
+                    "taxableAmount": entry.get("taxableAmount") or entry.get("amount") or 0.0,
+                    "cgst": entry.get("cgst") or 0.0,
+                    "sgst": entry.get("sgst") or 0.0,
+                    "igst": entry.get("igst") or 0.0,
+                    "cess": entry.get("cess") or 0.0,
+                    "totalTax": entry.get("totalTax") or 0.0
+                } for entry in tax_results["salesEntries"]
             ],
             "inventoryEntries": [
                 {
-                    "stockItemId": ObjectId(entry["stockItemId"]) if entry.get("stockItemId") else None,
-                    "stockItem": entry["stockItem"],
+                    "stockItemId": ObjectId(entry.get("stockItemId")) if entry.get("stockItemId") else None,
+                    "stockItem": entry.get("stockItem"),
                     "description": entry.get("description") or "",
                     "hsnSacCode": entry.get("hsnSacCode") or "",
                     "billQuantity": entry.get("billQuantity") or 0.0,
@@ -273,9 +315,17 @@ class SalesVoucherService:
                     "amount": entry.get("amount") or 0.0,
                     "rcm": entry.get("rcm") or False,
                     "taxabilityType": entry.get("taxabilityType") or "Taxable",
-                    "gstRate": entry.get("gstRate") or 0.0
-                } for entry in inventory_entries_dict
-            ] if inventory_entries_dict else [],
+                    "gstRate": entry.get("gstRate") or 0.0,
+                    "ratio": entry.get("ratio") or 0.0,
+                    "distributedCharge": entry.get("distributedCharge") or 0.0,
+                    "taxableAmount": entry.get("taxableAmount") or 0.0,
+                    "cgst": entry.get("cgst") or 0.0,
+                    "sgst": entry.get("sgst") or 0.0,
+                    "igst": entry.get("igst") or 0.0,
+                    "cess": entry.get("cess") or 0.0,
+                    "totalTax": entry.get("totalTax") or 0.0
+                } for entry in tax_results["inventoryEntries"]
+            ] if tax_results["inventoryEntries"] else [],
             "additionalCharges": merged_doc.get("additionalCharges") or [],
             "tcsDetails": merged_doc.get("tcsDetails") or [],
             "tdsDetails": merged_doc.get("tdsDetails") or [],
@@ -294,10 +344,15 @@ class SalesVoucherService:
                 detail="Failed to update voucher"
             )
 
+        from app.anjalee.services.tally.tally_service import TallyPushService
+        await TallyPushService.handle_voucher_update(self.repo.db, voucher_id, "sales_vouchers")
+
         updated_doc = await self.repo.find_voucher_by_id(voucher_id)
         return serialize_doc(updated_doc)
 
     async def delete_voucher(self, voucher_id: str) -> None:
+        from app.anjalee.services.tally.tally_service import TallyPushService
+        await TallyPushService.delete_payload_by_voucher_id(self.repo.db, voucher_id)
         success = await self.repo.delete_voucher(voucher_id)
         if not success:
             raise HTTPException(
@@ -308,12 +363,12 @@ class SalesVoucherService:
     async def get_party_ledgers(self, company_id: Optional[str] = None) -> List[Dict[str, Any]]:
         return await self.repo.get_party_ledgers(company_id=company_id)
 
-    async def get_sales_ledgers(self) -> List[Dict[str, Any]]:
-        return await self.repo.get_sales_ledgers()
+    async def get_sales_ledgers(self, company_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        return await self.repo.get_sales_ledgers(company_id=company_id)
 
-    async def get_stock_items(self) -> List[Dict[str, Any]]:
+    async def get_stock_items(self, company_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """Return stock items with name and hsnCode from the stockItems collection."""
-        return await self.repo.get_stock_items()
+        return await self.repo.get_stock_items(company_id=company_id)
 
     async def get_invoices_by_party(self, party_name: str) -> List[Dict[str, Any]]:
         """Change by Anjalee: Fetch all sales_invoice vouchers for a party — used for Credit Note reference dropdown."""
@@ -361,25 +416,78 @@ class SalesVoucherService:
         }
 
     async def update_status(self, voucher_id: str, status_val: str, note: Optional[str] = "") -> Dict[str, Any]:
-        update_op = {
-            "$set": {"status": status_val.upper(), "updatedAt": datetime.utcnow()},
-            "$push": {
-                "activityLog": {
-                    "action": f"status_change_{status_val.lower()}",
-                    "note": note,
-                    "at": datetime.utcnow()
+        from app.anjalee.services.tally.tally_service import TallyPushService
+        if status_val.lower() == "approved":
+            update_op = {
+                "$set": {"status": "APPROVED", "updatedAt": datetime.utcnow()},
+                "$push": {
+                    "activityLog": {
+                        "action": "status_change_approved",
+                        "note": note,
+                        "at": datetime.utcnow()
+                    }
                 }
             }
-        }
-        success = await self.repo.update_voucher_custom(voucher_id, update_op)
-        if not success:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Sales voucher with ID {voucher_id} not found"
-            )
+            await self.repo.update_voucher_custom(voucher_id, update_op)
             
-        doc = await self.repo.find_voucher_by_id(voucher_id)
-        return serialize_doc(doc)
+            try:
+                await TallyPushService.generate_and_save_xml(self.repo.db, voucher_id, "sales_vouchers")
+                doc = await self.repo.find_voucher_by_id(voucher_id)
+                return serialize_doc(doc)
+            except Exception as e:
+                fail_op = {
+                    "$set": {"status": "FAILED_TALLY", "updatedAt": datetime.utcnow()},
+                    "$push": {
+                        "activityLog": {
+                            "action": "tally_push_failed",
+                            "note": f"Tally XML generation or validation failed: {str(e)}",
+                            "at": datetime.utcnow()
+                        }
+                    }
+                }
+                await self.repo.update_voucher_custom(voucher_id, fail_op)
+                doc = await self.repo.find_voucher_by_id(voucher_id)
+                return serialize_doc(doc)
+                
+        elif status_val.lower() in ["posted_to_tally", "pushed"]:
+            try:
+                await TallyPushService.push_saved_payload_to_tally(self.repo.db, voucher_id, "sales_vouchers")
+                doc = await self.repo.find_voucher_by_id(voucher_id)
+                return serialize_doc(doc)
+            except Exception as e:
+                fail_op = {
+                    "$set": {"status": "FAILED_TALLY", "updatedAt": datetime.utcnow()},
+                    "$push": {
+                        "activityLog": {
+                            "action": "tally_push_failed",
+                            "note": f"Tally XML push failed: {str(e)}",
+                            "at": datetime.utcnow()
+                        }
+                    }
+                }
+                await self.repo.update_voucher_custom(voucher_id, fail_op)
+                doc = await self.repo.find_voucher_by_id(voucher_id)
+                return serialize_doc(doc)
+        else:
+            update_op = {
+                "$set": {"status": status_val.upper(), "updatedAt": datetime.utcnow()},
+                "$push": {
+                    "activityLog": {
+                        "action": f"status_change_{status_val.lower()}",
+                        "note": note,
+                        "at": datetime.utcnow()
+                    }
+                }
+            }
+            success = await self.repo.update_voucher_custom(voucher_id, update_op)
+            if not success:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Sales voucher with ID {voucher_id} not found"
+                )
+                
+            doc = await self.repo.find_voucher_by_id(voucher_id)
+            return serialize_doc(doc)
 
     async def add_comment(self, voucher_id: str, note: str) -> None:
         update_op = {

@@ -1,0 +1,71 @@
+Impeccable Critique — finbook python_service UI
+
+Register: product (design serves the task). Method: deterministic detector + manual design review (no browser automation in this session → Assessment independence: degraded, 
+    spawn_agent unavailable; visual/contrast checks are static-analysis, not rendered).
+
+Design Health (Nielsen 10)
+
+┌───────┬──────────────────────────┬───────┬──────────────────────────────────────────────────────────────────────────────────┐
+│   #   │        Heuristic         │ Score │                                    Key issue                                     │
+├───────┼──────────────────────────┼───────┼──────────────────────────────────────────────────────────────────────────────────┤
+│ 1     │ Visibility of status     │ 3     │ Good — toasts, button spinners, Tally/Sync pills, save popups, DataTable loading │
+├───────┼──────────────────────────┼───────┼──────────────────────────────────────────────────────────────────────────────────┤
+│ 2     │ Match real world         │ 3     │ Strong — accurate accounting domain (voucher/ledger/GST/Tally), ₹ en-IN          │
+├───────┼──────────────────────────┼───────┼──────────────────────────────────────────────────────────────────────────────────┤
+│ 3     │ User control / freedom   │ 3     │ Unsaved-changes guard, draft/cancel/back; delete is confirm-not-undo             │
+├───────┼──────────────────────────┼───────┼──────────────────────────────────────────────────────────────────────────────────┤
+│ 4     │ Consistency & standards  │ 2     │ Weakest. 3 button shapes, 3 field systems, 3 tab styles, M3 maturity gradient    │
+├───────┼──────────────────────────┼───────┼──────────────────────────────────────────────────────────────────────────────────┤
+│ 5     │ Error prevention         │ 3     │ Confirm dialogs, required-field + balance validation, disabled-when-unbalanced   │
+├───────┼──────────────────────────┼───────┼──────────────────────────────────────────────────────────────────────────────────┤
+│ 6     │ Recognition > recall     │ 3     │ Labeled fields, searchable dropdowns, ⌘K nav, sticky headers                     │
+├───────┼──────────────────────────┼───────┼──────────────────────────────────────────────────────────────────────────────────┤
+│ 7     │ Flexibility / efficiency │ 3     │ Power-user dense; ⌘K, "/" focus, pins, clone, bulk approve                       │
+├───────┼──────────────────────────┼───────┼──────────────────────────────────────────────────────────────────────────────────┤
+│ 8     │ Aesthetic / minimalist   │ 2     │ M3 is clean, but 176 sub-10px uppercase micro-labels = noise                     │
+├───────┼──────────────────────────┼───────┼──────────────────────────────────────────────────────────────────────────────────┤
+│ 9     │ Error recovery           │ 2     │ Error toasts exist but generic; little inline field-level error                  │
+├───────┼──────────────────────────┼───────┼──────────────────────────────────────────────────────────────────────────────────┤
+│ 10    │ Help & docs              │ 2     │ Icon tooltips + a couple info banners; thin empty-state teaching                 │
+├───────┼──────────────────────────┼───────┼──────────────────────────────────────────────────────────────────────────────────┤
+│ Total │                          │ 26/40 │ Solid, with consistency + legibility debt                                        │
+└───────┴──────────────────────────┴───────┴──────────────────────────────────────────────────────────────────────────────────┘
+
+Anti-patterns verdict
+
+Not AI-slop — detector is clean (2 hits: one border-b-2 tab underline in ApprovalCenter:1574; "Inter" — a false positive, the product register explicitly permits Inter). The 
+    2026-redesign + M3 work removed glassmorphism, heavy shadows, scale-anims, hardcoded hues. But a Stripe/Linear-fluent user would pause at three things below.
+
+Priority issues
+
+P0
+1. No reduced-motion fallback — zero @media (prefers-reduced-motion) in the whole app. Ripple, sliding layoutId pills, framer whileTap, StatCard count-up all fire unconditionally. 
+    Impeccable + WCAG: not optional. → one global @media(prefers-reduced-motion: reduce){ *{animation:none!important; transition:none!important} } + guard count-up.
+2. Sub-10px muted labels fail legibility — text-[7px]×4, [7.5px]×19, [8px]×13, [8.5px]×25 (+[9px]×115), most in --app-muted uppercase. Below the legible floor at that 
+    color/size. → floor micro-labels at 10px and/or darken to --app-text.
+3. Button vocabulary is inconsistent — raw accent buttons split 17 rounded-lg vs 8 rounded-full, plus m3-btn pills in the voucher forms. The same "Save" is three shapes. → route 
+    all through ui/Button (it's already M3).
+
+P1
+4. M3 maturity gradient — Manual Voucher Entry is deeply M3 (state layers, ripple, sliding indicators); the other ~75 screens got only the token+radius+Button remap, so they read 
+    as M3-tinted-ERP. Either finish per-screen or own the seam.
+5. Three field systems — ui/Input + three private InputField/SearchableDropdown copies (Sales/Purchase/FundFlow). Same control, 4 code paths = drift. → consolidate onto the 
+    ui/ primitives.
+6. Token drift — 12 files still hardcode text-slate-* instead of --app-*.
+7. Dark sidebar + M3-light content seam — deliberate, but the dark rail beside the now-M3-light voucher form is a sharper contrast than elsewhere.
+
+P2
+8. Modal-heavy — BankPanel alone has 6 modal variants; AddCompanyModal/RolePanel full-screen. Product register: exhaust inline/progressive first.
+9. Per-form <style> blocks redefine .themed-scrollbar globally (Sales/Purchase/FundFlow) — leaks scrollbar styling app-wide while mounted; reinvented affordance.
+10. --app-accent-gradient on logo/avatar/icon tiles — M3 prefers flat tonal fills.
+
+Strengths
+
+- Single source of truth: everything reads --app-*; theming is one file.
+- M3 done well where done — correct state layers (currentColor trick), click-point ripple, spring sliding indicators.
+- Domain accuracy + appropriate density for accountants (product register rewards this).
+- Real a11y groundwork: icon aria-labels, focus-ring util, sidebar ⌘K, semantic status colors.
+
+---
+Highest leverage, lowest risk to fix now: P0 #1 (reduced-motion, ~6 lines global) and P0 #2 (micro-label floor, one perl) — both token/global levers, no per-screen work. #3 (button 
+consolidation) is higher-value but touches ~25 call sites.

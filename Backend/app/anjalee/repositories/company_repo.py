@@ -23,41 +23,53 @@ class CompanyRepository(BaseRepository):
     def find_one_company(self) -> Optional[Dict[str, Any]]:
         return self.db[COMPANIES_COLLECTION].find_one()
 
-    def get_ledgers_by_group(self, group_name: str) -> List[str]:
+    def get_ledgers_by_group(self, group_name: str, company_id: Optional[Any] = None) -> List[str]:
         try:
+            query = {"groupName": group_name}
+            if company_id:
+                query["companyId"] = company_id
             return [
                 doc.get("ledgerName")
-                for doc in self.db[LEDGERS_COLLECTION].find({"groupName": group_name}, {"ledgerName": 1})
+                for doc in self.db[LEDGERS_COLLECTION].find(query, {"ledgerName": 1})
                 if doc.get("ledgerName")
             ]
         except Exception:
             return []
 
-    def get_ledgers_by_groups(self, groups: List[str]) -> List[str]:
+    def get_ledgers_by_groups(self, groups: List[str], company_id: Optional[Any] = None) -> List[str]:
         try:
+            query = {"groupName": {"$in": groups}}
+            if company_id:
+                query["companyId"] = company_id
             return [
                 doc.get("ledgerName")
-                for doc in self.db[LEDGERS_COLLECTION].find({"groupName": {"$in": groups}}, {"ledgerName": 1})
+                for doc in self.db[LEDGERS_COLLECTION].find(query, {"ledgerName": 1})
                 if doc.get("ledgerName")
             ]
         except Exception:
             return []
 
-    def get_stock_items(self) -> List[str]:
+    def get_stock_items(self, company_id: Optional[Any] = None) -> List[str]:
         try:
+            query = {}
+            if company_id:
+                query["companyId"] = company_id
             return [
                 doc.get("itemName")
-                for doc in self.db[STOCK_ITEMS_COLLECTION].find({}, {"itemName": 1})
+                for doc in self.db[STOCK_ITEMS_COLLECTION].find(query, {"itemName": 1})
                 if doc.get("itemName")
             ]
         except Exception:
             return []
 
-    def get_stock_item_details(self) -> List[Dict[str, Any]]:
-        """Return stock items with name, hsnCode, and gstRate for autofill."""
+    def get_stock_item_details(self, company_id: Optional[Any] = None) -> List[Dict[str, Any]]:
+        """Return stock items with name, hsnCode, and gstRate for autofillScoping."""
         try:
             results = []
-            for doc in self.db[STOCK_ITEMS_COLLECTION].find({}, {"itemName": 1, "hsnCode": 1, "hsnDetails": 1, "gstDetails": 1, "taxRate": 1}):
+            query = {}
+            if company_id:
+                query["companyId"] = company_id
+            for doc in self.db[STOCK_ITEMS_COLLECTION].find(query, {"itemName": 1, "hsnCode": 1, "hsnDetails": 1, "gstDetails": 1, "taxRate": 1}):
                 name = doc.get("itemName", "")
                 if not name:
                     continue
@@ -80,16 +92,19 @@ class CompanyRepository(BaseRepository):
         except Exception:
             return []
 
-    def get_tcs_ledgers(self) -> List[str]:
+    def get_tcs_ledgers(self, company_id: Optional[Any] = None) -> List[str]:
         try:
+            query = {
+                "$or": [
+                    {"groupName": "Duties & Taxes"},
+                    {"ledgerName": {"$regex": "TCS", "$options": "i"}}
+                ]
+            }
+            if company_id:
+                query["companyId"] = company_id
             return [
                 doc.get("ledgerName")
-                for doc in self.db[LEDGERS_COLLECTION].find({
-                    "$or": [
-                        {"groupName": "Duties & Taxes"},
-                        {"ledgerName": {"$regex": "TCS", "$options": "i"}}
-                    ]
-                }, {"ledgerName": 1})
+                for doc in self.db[LEDGERS_COLLECTION].find(query, {"ledgerName": 1})
                 if doc.get("ledgerName")
             ]
         except Exception:

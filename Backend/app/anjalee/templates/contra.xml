@@ -1,0 +1,51 @@
+<ENVELOPE>
+    <HEADER>
+        <TALLYREQUEST>Import Data</TALLYREQUEST>
+    </HEADER>
+    <BODY>
+        <IMPORTDATA>
+            <REQUESTDESC>
+                <REPORTNAME>Vouchers</REPORTNAME>
+                <STATICVARIABLES>
+                    <SVCURRENTCOMPANY>{{companyName}}</SVCURRENTCOMPANY>
+                </STATICVARIABLES>
+            </REQUESTDESC>
+            <REQUESTDATA>
+                <TALLYMESSAGE xmlns:UDF="TallyUDF">
+                    <VOUCHER VCHTYPE="{{voucherType}}" ACTION="{{action}}" OBJVIEW="Accounting Voucher View">
+                        <!-- ============================= -->
+                        <!-- Voucher Header               -->
+                        <!-- ============================= -->
+                        <DATE>{{voucherDate}}</DATE>
+                        <EFFECTIVEDATE>{{voucherDate}}</EFFECTIVEDATE>
+                        <ISINVOICE>No</ISINVOICE>
+                        <VOUCHERTYPENAME>{{voucherType}}</VOUCHERTYPENAME>
+                        <PERSISTEDVIEW>{{persistedView}}</PERSISTEDVIEW>
+                        <VOUCHERNUMBER>{{voucherNumber}}</VOUCHERNUMBER>
+                        <REFERENCE>{{referenceNumber}}</REFERENCE>
+                        {{narration}}
+                        {{basicShipDeliveryNote}}
+
+                        <!-- ============================= -->
+                        <!-- Party                        -->
+                        <!-- ============================= -->
+                        <PARTYNAME>{{partyName}}</PARTYNAME>
+                        {{partyLedgerName}}
+                        <PARTYMAILINGNAME>{{partyName}}</PARTYMAILINGNAME>
+                        <BASICBUYERNAME>{{partyName}}</BASICBUYERNAME>
+
+                        <!-- ============================= -->
+                        <!-- Inventory                    -->
+                        <!-- ============================= -->
+                        {{inventoryEntries}}
+
+                        <!-- ============================= -->
+                        <!-- Ledgers                       -->
+                        <!-- ============================= -->
+                        {{ledgerEntries}}
+                    </VOUCHER>
+                </TALLYMESSAGE>
+            </REQUESTDATA>
+        </IMPORTDATA>
+    </BODY>
+</ENVELOPE>

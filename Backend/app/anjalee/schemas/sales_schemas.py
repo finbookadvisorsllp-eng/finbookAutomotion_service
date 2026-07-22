@@ -22,6 +22,14 @@ class SalesVoucherInventoryEntry(BaseModel):
     rcm: bool = False
     taxabilityType: str = "Taxable"
     gstRate: float = 0.0
+    ratio: Optional[float] = 0.0
+    distributedCharge: Optional[float] = 0.0
+    taxableAmount: Optional[float] = 0.0
+    cgst: Optional[float] = 0.0
+    sgst: Optional[float] = 0.0
+    igst: Optional[float] = 0.0
+    cess: Optional[float] = 0.0
+    totalTax: Optional[float] = 0.0
 
 class GstSummary(BaseModel):
     taxableValue: float = 0.0
@@ -40,6 +48,7 @@ class SalesVoucherCreate(BaseModel):
     creditNoteDate: Optional[str] = None
     salesLedger: Optional[str] = None
     consigneeLedger: Optional[str] = None
+    consigneeGstin: Optional[str] = None
     partyLedgerId: Optional[str] = None
     partyLedgerName: str
     partyGSTIN: Optional[str] = None
@@ -57,6 +66,9 @@ class SalesVoucherCreate(BaseModel):
     tdsDetails: Optional[List[dict]] = []
     narration: Optional[str] = ""
     status: Optional[str] = "DRAFT"
+    entryMode: Optional[str] = "manual"
+    ocrMetadata: Optional[dict] = None
+    bulkMetadata: Optional[dict] = None
 
 class SalesVoucherUpdate(BaseModel):
     voucherNumber: Optional[str] = None
@@ -69,6 +81,7 @@ class SalesVoucherUpdate(BaseModel):
     creditNoteDate: Optional[str] = None
     salesLedger: Optional[str] = None
     consigneeLedger: Optional[str] = None
+    consigneeGstin: Optional[str] = None
     partyLedgerId: Optional[str] = None
     partyLedgerName: Optional[str] = None
     partyGSTIN: Optional[str] = None
@@ -86,6 +99,9 @@ class SalesVoucherUpdate(BaseModel):
     tdsDetails: Optional[List[dict]] = None
     narration: Optional[str] = None
     status: Optional[str] = None
+    entryMode: Optional[str] = None
+    ocrMetadata: Optional[dict] = None
+    bulkMetadata: Optional[dict] = None
 
 class SalesVoucherResponse(BaseModel):
     id: str = Field(alias="_id")
@@ -100,6 +116,7 @@ class SalesVoucherResponse(BaseModel):
     creditNoteDate: Optional[str] = None
     salesLedger: Optional[str] = None
     consigneeLedger: Optional[str] = None
+    consigneeGstin: Optional[str] = None
     partyLedgerId: Optional[str] = None
     partyLedgerName: Optional[str] = None
     partyGSTIN: Optional[str] = None
@@ -125,6 +142,9 @@ class SalesVoucherResponse(BaseModel):
     gstSummary: GstSummary = Field(default_factory=GstSummary)
     narration: Optional[str] = ""
     status: str = "DRAFT"
+    entryMode: Optional[str] = "manual"
+    ocrMetadata: Optional[dict] = None
+    bulkMetadata: Optional[dict] = None
     createdAt: Optional[Any] = None
     updatedAt: Optional[Any] = None
 

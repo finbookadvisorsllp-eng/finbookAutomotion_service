@@ -1,50 +1,32 @@
 import { useMemo, useState } from 'react'
-import {
-  Search,
-  Plus,
-  FilePlus2,
-  ArrowDownToLine,
-  Pencil,
-  Trash2,
-  Eye,
-  RefreshCw,
-  Settings2,
-} from 'lucide-react'
-import AddCompanyModal from './AddCompanyModal'
+import { Plus, X, Pencil, Eye, RefreshCw, Building2, CheckCircle, Calendar, Layers } from 'lucide-react'
 import { useCompanies, useCreateCompany } from './hooks'
-
-
-const initialRows = [
-  {
-    id: 1,
-    subscription: 'Subscribed\nvalid till Dec 17 2024',
-    businessName: 'FRIENDS GRAFIX',
-    gstNumber: '23AAFFF6731J1L7',
-    state: 'Madhya Pradesh',
-    accountants: '',
-    owner: '',
-    credits: 'unlimited',
-    status: 'active',
-  },
-]
+import { toast } from 'sonner'
+import DataTable from '../ui/DataTable'
+import StatCard from '../ui/StatCard'
+import Badge from '../ui/Badge'
+import AddCompanyModal from './AddCompanyModal'
 
 const emptyForm = {
   gstNo: '',
   panNo: '',
   businessName: '',
+  legalName: '',
   address: '',
-  locality: '',
-  state: '',
-  city: '',
+  state: 'Madhya Pradesh',
   country: 'India',
-  industry: '',
+  financialYear: '2026-2027',
+  contactPerson: '',
+  mobile: '',
+  email: '',
+  status: 'active',
 }
 
 function CompaniesPanel({ onIconAction }) {
   const [search, setSearch] = useState('')
-  const { data: companyList } = useCompanies()
+  const { data: companyList, refetch } = useCompanies()
   const createCompanyMutation = useCreateCompany()
-  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [showCreateForm, setShowCreateForm] = useState(false)
   const [formValues, setFormValues] = useState(emptyForm)
 
   const rows = useMemo(() => {
@@ -52,15 +34,16 @@ function CompaniesPanel({ onIconAction }) {
     return companyList.map((company, index) => ({
       id: index + 1,
       mongoId: company.id,
-      subscription: company.createdAt
-        ? `Subscribed\nvalid till ${new Date(new Date(company.createdAt).setFullYear(new Date(company.createdAt).getFullYear() + 1)).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
-        : 'Subscribed\nvalid till Dec 17 2026',
       businessName: company.name,
+      legalName: company.name + ' Ltd.',
       gstNumber: company.gstin || 'N/A',
+      pan: company.gstin ? company.gstin.substring(2, 12) : 'N/A',
       state: 'Madhya Pradesh',
-      accountants: '',
-      owner: '',
-      credits: 'unlimited',
+      country: 'India',
+      financialYear: '2026-27',
+      contactPerson: 'Anjali Gupta',
+      mobile: '+91 98765 43210',
+      email: 'contact@friendsgrafix.com',
       status: 'active',
     }))
   }, [companyList])
@@ -80,157 +63,91 @@ function CompaniesPanel({ onIconAction }) {
     if (onIconAction) onIconAction(name, payload)
   }
 
-  const handleSaveCompany = async () => {
-    const companyName = formValues.businessName || 'New Company'
+  const handleSaveCompany = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!formValues.businessName) {
+      toast.error('Company Name is required.');
+      return;
+    }
+    const companyName = formValues.businessName
     const gst = formValues.gstNo || ''
     try {
       await createCompanyMutation.mutateAsync({ name: companyName, gstin: gst })
-      setIsModalOpen(false)
+      setShowCreateForm(false)
       setFormValues(emptyForm)
       handleIconClick('save-company', { companyName, gst })
+      refetch()
     } catch (err) {
       console.error('Failed to save company:', err)
     }
   }
 
+  const handleFieldChange = (key, val) => {
+    setFormValues(prev => ({ ...prev, [key]: val }));
+  };
+
+  const stats = [
+    { label: 'Active Companies', value: rows.length, icon: Building2 },
+    { label: 'Registered GSTINs', value: rows.filter(r => r.gstNumber !== 'N/A').length, icon: CheckCircle },
+    { label: 'Fiscal Years Active', value: '1 FY', icon: Calendar },
+    { label: 'Tenant Slots', value: 'Unlimited', icon: Layers },
+  ];
+
+  const columns = [
+    { key: 'id', header: 'Sr', width: '52px', align: 'center', render: (r) => <span style={{ color: 'var(--app-muted)' }}>{r.id}</span> },
+    { key: 'businessName', header: 'Company Name', sortable: true, render: (r) => <span className="font-bold" style={{ color: 'var(--app-heading)' }}>{r.businessName}</span> },
+    { key: 'gstNumber', header: 'GSTIN', sortable: true, render: (r) => <span className="font-mono font-semibold">{r.gstNumber}</span> },
+    { key: 'state', header: 'State', render: (r) => <span style={{ color: 'var(--app-muted)' }}>{r.state}</span> },
+    { key: 'financialYear', header: 'Financial Year', render: (r) => <span className="font-semibold">{r.financialYear}</span> },
+    { key: 'status', header: 'Status', align: 'center', render: () => <Badge tone="success">active</Badge> },
+    { key: 'act', header: '', align: 'center', width: '90px', render: (r) => (
+      <div className="flex items-center justify-center gap-1">
+        <button onClick={() => handleIconClick('edit', r)} title="Edit" aria-label="Edit" className="p-1 rounded-md hover:bg-[var(--app-control-hover)] hover:text-[var(--app-accent)]" style={{ color: 'var(--app-muted)' }}><Pencil size={11} /></button>
+        <button onClick={() => handleIconClick('view', r)} title="View" aria-label="View" className="p-1 rounded-md hover:bg-[var(--app-control-hover)] hover:text-[var(--app-accent)]" style={{ color: 'var(--app-muted)' }}><Eye size={12} /></button>
+      </div>
+    ) },
+  ];
+
   return (
-    <section className="rounded-xl border flex flex-col h-full overflow-hidden rise-in" style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-panel-bg)' }}>
-      <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: 'var(--app-border)' }}>
-        <div className="flex items-center gap-3">
-          <h2 className="text-[15px] font-semibold tracking-tight" style={{ color: 'var(--app-heading)' }}>
-            Companies
-          </h2>
-          <button
-            type="button"
-            onClick={() => setIsModalOpen(true)}
-            className="inline-flex h-7 items-center gap-1 rounded-md px-2.5 text-[11.5px] font-semibold text-white shadow-sm focus-ring"
-            style={{ background: 'var(--app-accent-gradient)' }}
-            aria-label="Add company"
-          >
-            <Plus size={12} /> New company
-          </button>
-          <button
-            type="button"
-            onClick={() => handleIconClick('add-document', null)}
-            className="inline-flex h-7 items-center gap-1 rounded-md border px-2.5 text-[11.5px] font-medium focus-ring"
-            style={{ borderColor: 'var(--app-border)', color: 'var(--app-text)', backgroundColor: 'var(--app-control-bg)' }}
-            aria-label="Add document"
-          >
-            <FilePlus2 size={11} /> Document
-          </button>
-        </div>
+    <div className="flex flex-col gap-2.5 h-full overflow-hidden p-1 text-[13px] text-[var(--app-text)]">
 
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--app-muted)' }} />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search…"
-              className="h-8 w-[220px] rounded-lg border pl-8 pr-2.5 text-[12px] outline-none focus-ring"
-              style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-control-bg)', color: 'var(--app-heading)' }}
-            />
+      {/* Header */}
+      <div className="rounded-xl border px-3 py-2.5 flex items-center justify-between gap-3 shrink-0 bg-[var(--app-panel-bg)] border-[var(--app-border)] shadow-sm">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="h-9 w-9 rounded-xl flex items-center justify-center text-white shrink-0" style={{ background: 'var(--app-accent-gradient)', boxShadow: 'var(--app-shadow)' }}>
+            <Building2 size={17} strokeWidth={2.2} />
           </div>
-          <button
-            type="button"
-            onClick={() => handleIconClick('sync', null)}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border focus-ring transition-colors hover:bg-[var(--app-control-hover)]"
-            style={{ borderColor: 'var(--app-border)', color: 'var(--app-text)', backgroundColor: 'var(--app-control-bg)' }}
-            aria-label="Sync"
-          >
-            <RefreshCw size={13} />
-          </button>
-          <button
-            type="button"
-            onClick={() => handleIconClick('settings', null)}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border focus-ring transition-colors hover:bg-[var(--app-control-hover)]"
-            style={{ borderColor: 'var(--app-border)', color: 'var(--app-text)', backgroundColor: 'var(--app-control-bg)' }}
-            aria-label="Settings"
-          >
-            <Settings2 size={13} />
-          </button>
+          <div className="min-w-0">
+            <h1 className="text-[17px] font-extrabold tracking-tight text-[var(--app-heading)] leading-none">Company Management</h1>
+            <p className="text-[10px] text-[var(--app-muted)] mt-1 truncate">Configure tenants, businesses, GSTIN registrations and fiscal scopes.</p>
+          </div>
         </div>
+        <button onClick={() => setShowCreateForm(p => !p)} className="h-8 px-3 m3-interactive bg-[var(--app-accent)] hover:opacity-90 text-white font-bold text-[11px] rounded-lg flex items-center gap-1.5 transition-all shrink-0 shadow-xs">
+          {showCreateForm ? <X size={13} /> : <Plus size={13} />}
+          {showCreateForm ? 'Close' : 'Create Company'}
+        </button>
       </div>
 
-      <div className="flex-1 themed-scrollbar overflow-auto">
-        <table className="min-w-[1180px] w-full border-collapse text-[11px]">
-          <thead style={{ backgroundColor: 'var(--app-table-head-bg)', color: '#e3e3ed' }}>
-            <tr>
-              <th className="w-8 border-b border-r px-2 py-1.5" style={{ borderColor: 'var(--app-row-border)' }}>
-                <input type="checkbox" />
-              </th>
-              <th className="border-b border-r px-2 py-1.5 text-left" style={{ borderColor: 'var(--app-row-border)' }}>Sr No.</th>
-              <th className="border-b border-r px-2 py-1.5 text-left" style={{ borderColor: 'var(--app-row-border)' }}>Subscriptions</th>
-              <th className="border-b border-r px-2 py-1.5 text-left" style={{ borderColor: 'var(--app-row-border)' }}>Business Name</th>
-              <th className="border-b border-r px-2 py-1.5 text-left" style={{ borderColor: 'var(--app-row-border)' }}>GST Number</th>
-              <th className="border-b border-r px-2 py-1.5 text-left" style={{ borderColor: 'var(--app-row-border)' }}>State</th>
-              <th className="border-b border-r px-2 py-1.5 text-left" style={{ borderColor: 'var(--app-row-border)' }}>Accountants</th>
-              <th className="border-b border-r px-2 py-1.5 text-left" style={{ borderColor: 'var(--app-row-border)' }}>Business Owner</th>
-              <th className="border-b border-r px-2 py-1.5 text-left" style={{ borderColor: 'var(--app-row-border)' }}>Credits Available</th>
-              <th className="border-b border-r px-2 py-1.5 text-left" style={{ borderColor: 'var(--app-row-border)' }}>Status</th>
-              <th className="border-b px-2 py-1.5 text-left" style={{ borderColor: 'var(--app-row-border)' }}>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredRows.map((row) => (
-              <tr key={row.id} className="transition hover:bg-[var(--app-row-hover)]">
-                <td className="border-b border-r px-2 py-1.5 text-center" style={{ borderColor: 'var(--app-row-border)' }}>
-                  <input type="checkbox" />
-                </td>
-                <td className="border-b border-r px-2 py-1.5 text-center" style={{ borderColor: 'var(--app-row-border)', color: '#e3e3ed' }}>
-                  {row.id}
-                </td>
-                <td className="border-b border-r px-2 py-1.5" style={{ borderColor: 'var(--app-row-border)' }}>
-                  <span className="inline-block rounded-md border px-2.5 py-0.5 text-center leading-4" style={{ borderColor: '#00b16a', color: '#00a363' }}>
-                    {row.subscription.split('\n').map((line) => (
-                      <span key={line} className="block">{line}</span>
-                    ))}
-                  </span>
-                </td>
-                <td className="border-b border-r px-2 py-1.5" style={{ borderColor: 'var(--app-row-border)', color: 'var(--app-muted)' }}>{row.businessName}</td>
-                <td className="border-b border-r px-2 py-1.5" style={{ borderColor: 'var(--app-row-border)', color: 'var(--app-muted)' }}>{row.gstNumber}</td>
-                <td className="border-b border-r px-2 py-1.5" style={{ borderColor: 'var(--app-row-border)', color: 'var(--app-muted)' }}>{row.state}</td>
-                <td className="border-b border-r px-2 py-1.5" style={{ borderColor: 'var(--app-row-border)', color: 'var(--app-muted)' }}>{row.accountants}</td>
-                <td className="border-b border-r px-2 py-1.5" style={{ borderColor: 'var(--app-row-border)', color: 'var(--app-muted)' }}>{row.owner}</td>
-                <td className="border-b border-r px-2 py-1.5" style={{ borderColor: 'var(--app-row-border)', color: 'var(--app-muted)' }}>{row.credits}</td>
-                <td className="border-b border-r px-2 py-1.5" style={{ borderColor: 'var(--app-row-border)', color: 'var(--app-muted)' }}>{row.status}</td>
-                <td className="border-b px-2 py-1.5" style={{ borderColor: 'var(--app-row-border)' }}>
-                  <div className="flex items-center gap-1.5">
-                    <button type="button" onClick={() => handleIconClick('download', row)} className="inline-flex h-5 w-5 items-center justify-center rounded-full border" style={{ borderColor: '#cbeedc', color: '#22a566' }}><ArrowDownToLine size={10} /></button>
-                    <button type="button" onClick={() => handleIconClick('edit', row)} className="inline-flex h-5 w-5 items-center justify-center rounded-full border" style={{ borderColor: '#d3ecd9', color: '#31af5f' }}><Pencil size={10} /></button>
-                    <button type="button" onClick={() => handleIconClick('delete', row)} className="inline-flex h-5 w-5 items-center justify-center rounded-full border" style={{ borderColor: '#f3d3d3', color: '#d36666' }}><Trash2 size={10} /></button>
-                    <button type="button" onClick={() => handleIconClick('view', row)} className="inline-flex h-5 w-5 items-center justify-center rounded-full border" style={{ borderColor: '#cae6f8', color: '#4e9dcf' }}><Eye size={10} /></button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {/* KPI cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 shrink-0">
+        {stats.map((s, i) => <StatCard key={s.label} index={i} label={s.label} value={s.value} icon={s.icon} />)}
       </div>
 
-      <div className="flex items-center justify-center gap-3 border-t px-4 py-1.5 text-[11px]" style={{ borderColor: 'var(--app-row-border)', color: 'var(--app-text)' }}>
-        <span>1 - 1 of 1</span>
-        <button type="button" onClick={() => handleIconClick('prev-page', null)}>{'<'}</button>
-        <button type="button" onClick={() => handleIconClick('next-page', null)}>{'>'}</button>
-        <select
-          defaultValue="10"
-          className="rounded border px-2 py-0.5 text-xs outline-none"
-          style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-control-bg)', color: 'var(--app-muted)' }}
-        >
-          <option value="10">10</option>
-          <option value="20">20</option>
-          <option value="50">50</option>
-        </select>
-      </div>
+      <AddCompanyModal open={showCreateForm} onClose={() => setShowCreateForm(false)} formValues={formValues} onFieldChange={handleFieldChange} onSave={handleSaveCompany} />
 
-      <AddCompanyModal
-        open={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        formValues={formValues}
-        onFieldChange={(key, value) => setFormValues((prev) => ({ ...prev, [key]: value }))}
-        onSave={handleSaveCompany}
-      />
-    </section>
+      {/* Company table */}
+      <div className="flex-1 min-h-0">
+        <DataTable
+          minWidth="900px"
+          data={filteredRows}
+          rowKey={(r) => r.id}
+          emptyText="No registered companies found."
+          columns={columns}
+          search={{ value: search, onChange: setSearch, placeholder: 'Search companies…' }}
+          filters={<button type="button" onClick={() => refetch()} title="Refresh" aria-label="Refresh" className="h-8 w-8 flex items-center justify-center border rounded-lg text-[var(--app-muted)] border-[var(--app-border)] hover:bg-[var(--app-control-hover)] transition-colors"><RefreshCw size={13} /></button>}
+        />
+      </div>
+    </div>
   )
 }
 

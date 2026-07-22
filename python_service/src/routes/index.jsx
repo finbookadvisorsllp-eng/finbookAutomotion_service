@@ -1,18 +1,23 @@
 import { lazy } from 'react'
-import { createBrowserRouter, useNavigate, useOutletContext } from 'react-router-dom'
+import { createBrowserRouter, useNavigate, useOutletContext, Navigate, useLocation } from 'react-router-dom'
 import ProtectedRoute from './ProtectedRoute'
+import { useAppStore } from '../stores/useAppStore'
 
 // Layout is eager (always needed). Every panel below is lazy — each becomes its
 // own JS chunk, so the initial bundle stays small no matter how many features grow.
 import Dashboard from '../components/dashboard/Dashboard'
 
-const Login = lazy(() => import('../components/auth/Login'))
+import Login from '../components/auth/Login'
+import OrgSelect from '../components/auth/OrgSelect'
+import Landing from '../components/auth/Landing'
 
 const DashboardTable = lazy(() => import('../components/dashboard/DashboardTable'))
 const CompaniesPanel = lazy(() => import('../components/companies/CompaniesPanel'))
 const EntityPanel = lazy(() => import('../components/entities/EntityPanel'))
 const SalesPanel = lazy(() => import('../components/sales/SalesPanel'))
 const CreateSales = lazy(() => import('../components/sales/CreateSales'))
+const VoucherEntryEngine = lazy(() => import('../components/vouchers/VoucherEntryEngine'))
+const ManualEntryPanel = lazy(() => import('../components/vouchers/ManualEntryPanel'))
 const SalesOrder = lazy(() => import('../components/sales/SalesOrder'))
 const SalesInvoice = lazy(() => import('../components/sales/SalesInvoice'))
 const CreditNote = lazy(() => import('../components/sales/CreditNote'))
@@ -26,6 +31,16 @@ const RolePanel = lazy(() => import('../components/roles/RolePanel'))
 const MyDocumentsPanel = lazy(() => import('../components/documents/MyDocumentsPanel'))
 const MasterDataPanel = lazy(() => import('../components/master-data/MasterDataPanel'))
 
+// New Bulk Upload and Automation Panels
+const BulkUploadPanel = lazy(() => import('../components/bulk-upload/BulkUploadPanel'))
+const AiProcessingCenter = lazy(() => import('../components/automation/AiProcessingCenter'))
+const ApprovalCenter = lazy(() => import('../components/automation/ApprovalCenter'))
+const TextToEntry = lazy(() => import('../components/automation/TextToEntry'))
+const TallyConnectorPanel = lazy(() => import('../components/tally/TallyConnectorPanel'))
+const DocumentArchivePanel = lazy(() => import('../components/documents/DocumentArchivePanel'))
+const ClientManagementPanel = lazy(() => import('../components/companies/ClientManagementPanel'))
+const ConfigurationPanel = lazy(() => import('../components/companies/ConfigurationPanel'))
+
 // Each route element reads isDark from the layout's Outlet context and gets a
 // navigate fn for onBack / onAdd callbacks. Panels themselves stay unchanged.
 const useDashCtx = () => {
@@ -36,13 +51,13 @@ const useDashCtx = () => {
 
 const UserDataRoute = () => { const { isDark } = useDashCtx(); return <DashboardTable isDark={isDark} /> }
 const CompaniesRoute = () => <CompaniesPanel />
-const BusinessUsersRoute = () => <EntityPanel title="Business Owner" nameColumn="Business Owner Name" emptyText="No Account Data Found." />
+const BusinessUsersRoute = () => <ClientManagementPanel />
 const AccountantsRoute = () => <EntityPanel title="Accountants" nameColumn="Accountant Name" emptyText="No Account Data Found." />
 
 const SalesInboxRoute = () => { const { isDark, navigate } = useDashCtx(); return <SalesPanel mode="Inbox" isDark={isDark} onAdd={() => navigate('/sales/new')} /> }
 const SalesReviewRoute = () => { const { isDark } = useDashCtx(); return <SalesPanel mode="Review" isDark={isDark} /> }
 const SalesArchiveRoute = () => { const { isDark } = useDashCtx(); return <SalesPanel mode="Archive" isDark={isDark} /> }
-const CreateSalesRoute = () => { const { isDark, navigate } = useDashCtx(); return <CreateSales isDark={isDark} onBack={() => navigate('/sales/inbox')} /> }
+const CreateSalesRoute = () => { const { isDark } = useDashCtx(); return <ManualEntryPanel isDark={isDark} /> }
 const SalesOrderRoute = () => { const { isDark } = useDashCtx(); return <SalesOrder isDark={isDark} /> }
 const SalesInvoiceRoute = () => { const { isDark } = useDashCtx(); return <SalesInvoice isDark={isDark} /> }
 const CreditNoteRoute = () => { const { isDark } = useDashCtx(); return <CreditNote isDark={isDark} /> }
@@ -68,6 +83,7 @@ const BankArchiveRoute = () => { const { isDark } = useDashCtx(); return <BankPa
 
 const ManageRolesRoute = () => { const { isDark } = useDashCtx(); return <RolePanel mode="Manage Roles" isDark={isDark} /> }
 const ManagePermissionsRoute = () => { const { isDark } = useDashCtx(); return <RolePanel mode="Manage User Permission" isDark={isDark} /> }
+const ConfigurationRoute = () => { const { isDark } = useDashCtx(); return <ConfigurationPanel /> }
 
 const MyDocumentsRoute = () => { const { isDark } = useDashCtx(); return <MyDocumentsPanel isDark={isDark} /> }
 
@@ -76,6 +92,19 @@ const StockLedgerRoute = () => { const { isDark } = useDashCtx(); return <Master
 
 export const router = createBrowserRouter([
   { path: '/login', element: <Login /> },
+  { path: '/org-select', element: <OrgSelect /> },
+  {
+    path: '/home',
+    element: (
+      <ProtectedRoute>
+        <Landing />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/landing',
+    element: <Navigate to="/home" replace />,
+  },
   {
     path: '/',
     element: (
@@ -84,11 +113,34 @@ export const router = createBrowserRouter([
       </ProtectedRoute>
     ),
     children: [
-      { index: true, element: <UserDataRoute /> },
+      { index: true, element: <Navigate to="/home" replace /> },
+      { path: 'dashboard', element: <UserDataRoute /> },
 
       { path: 'companies', element: <CompaniesRoute /> },
       { path: 'users/business', element: <BusinessUsersRoute /> },
       { path: 'users/accountants', element: <AccountantsRoute /> },
+
+      // Bulk Upload
+      { path: 'bulk-upload', element: <BulkUploadPanel /> },
+
+      // Automation
+      { path: 'automation/ai-processing', element: <AiProcessingCenter /> },
+      { path: 'automation/approval-center', element: <ApprovalCenter /> },
+      { path: 'automation/text-to-entry', element: <TextToEntry /> },
+
+      // Tally Integration
+      { path: 'tally/connector', element: <TallyConnectorPanel /> },
+
+      // Documents
+      { path: 'documents/archive', element: <DocumentArchivePanel /> },
+
+      // Administration
+      { path: 'admin/companies', element: <CompaniesRoute /> },
+      { path: 'admin/clients', element: <BusinessUsersRoute /> },
+      { path: 'admin/users-roles', element: <ManageRolesRoute /> },
+
+      // Settings
+      { path: 'settings/configuration', element: <ConfigurationRoute /> },
 
       { path: 'sales/inbox', element: <SalesInboxRoute /> },
       { path: 'sales/review', element: <SalesReviewRoute /> },

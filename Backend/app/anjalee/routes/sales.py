@@ -27,19 +27,34 @@ async def create_voucher(
 @router.get("", response_model=dict)
 @router.get("/", response_model=dict)
 async def list_vouchers(
+    request: Request,
     voucherType: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
+    companyId: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
-    limit: int = Query(50, ge=1, le=100),
+    limit: int = Query(50, ge=1, le=500),
     service: SalesVoucherService = Depends(get_sales_voucher_service)
 ):
+    company_header = companyId or request.headers.get("x-company-id") or request.headers.get("x-company")
+    if not company_header:
+        auth_header = request.headers.get("authorization") or request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            try:
+                from app.core.security import decode_token
+                token = auth_header.split(" ")[1]
+                claims = decode_token(token)
+                company_header = claims.get("orgId") or claims.get("companyId")
+            except Exception:
+                pass
+
     result = await service.list_vouchers(
         page=page,
         limit=limit,
         voucher_type=voucherType,
         status=status,
-        search=search
+        search=search,
+        company_id=company_header
     )
     return {
         "success": True,
@@ -74,9 +89,11 @@ async def get_party_ledgers(
 
 @router.get("/sales-ledgers", response_model=dict)
 async def get_sales_ledgers(
+    request: Request,
     service: SalesVoucherService = Depends(get_sales_voucher_service)
 ):
-    data = await service.get_sales_ledgers()
+    company_header = request.headers.get("x-company-id") or request.headers.get("x-company")
+    data = await service.get_sales_ledgers(company_id=company_header)
     return {"success": True, "data": data}
 
 @router.get("/next-invoice-number", response_model=dict)
@@ -108,10 +125,12 @@ async def get_invoices_by_party(
 
 @router.get("/stock-items", response_model=dict)
 async def get_stock_items(
+    request: Request,
     service: SalesVoucherService = Depends(get_sales_voucher_service)
 ):
     """Return all stock items with name and hsnCode from the stockItems collection."""
-    data = await service.get_stock_items()
+    company_header = request.headers.get("x-company-id") or request.headers.get("x-company")
+    data = await service.get_stock_items(company_id=company_header)
     return {"success": True, "data": data}
 
 @router.get("/{voucher_id}", response_model=dict)
@@ -147,10 +166,29 @@ async def update_status(
     service: SalesVoucherService = Depends(get_sales_voucher_service)
 ):
     data = await service.update_status(voucher_id, payload.status, payload.note)
+    if data.get("status") == "FAILED_TALLY":
+        activity_log = data.get("activityLog") or []
+        error_note = "Push to Tally failed."
+        for log in reversed(activity_log):
+            if log.get("action") == "tally_push_failed" or "tally_push_failed" in log.get("action", ""):
+                error_note = log.get("note") or error_note
+                break
+        from fastapi.responses import JSONResponse
+        from fastapi.encoders import jsonable_encoder
+        return JSONResponse(
+            status_code=400,
+            content=jsonable_encoder({
+                "success": False,
+                "message": error_note,
+                "data": data
+            })
+        )
+
     return {
         "success": True,
         "data": data
     }
+
 
 @router.post("/{voucher_id}/comments", response_model=dict)
 async def add_comment(

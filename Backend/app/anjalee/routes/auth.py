@@ -1,16 +1,13 @@
-from fastapi import APIRouter, Depends
-from app.anjalee.schemas.auth_schemas import LoginRequest, LoginResponse
-from app.anjalee.services.auth_service import AuthService
+from fastapi import APIRouter
+from fastapi.responses import RedirectResponse
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-def get_auth_service() -> AuthService:
-    return AuthService()
-
-@router.post("/login", response_model=LoginResponse)
-async def login(payload: LoginRequest, service: AuthService = Depends(get_auth_service)):
+@router.post("/login")
+async def login():
     """
-    Standard authentication endpoint.
-    Delegates credentials check to the AuthService.
+    Legacy authentication endpoint.
+    Redirects with HTTP 307 (Temporary Redirect) to preserve request method and body
+    to the new shared auth handler at `/api/auth/login`.
     """
-    return service.authenticate_user(payload)
+    return RedirectResponse(url="/api/auth/login", status_code=307)

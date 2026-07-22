@@ -27,19 +27,34 @@ async def get_summary_stats(
 
 @router.get("")
 async def list_transactions(
+    request: Request,
     voucherType: Optional[str] = None,
     status: Optional[str] = None,
     search: Optional[str] = None,
+    companyId: Optional[str] = Query(None),
     page: int = 1,
     limit: int = 50,
     service: FundFlowService = Depends(get_fundflow_service)
 ):
+    company_header = companyId or request.headers.get("x-company-id") or request.headers.get("x-company")
+    if not company_header:
+        auth_header = request.headers.get("authorization") or request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            try:
+                from app.core.security import decode_token
+                token = auth_header.split(" ")[1]
+                claims = decode_token(token)
+                company_header = claims.get("orgId") or claims.get("companyId")
+            except Exception:
+                pass
+
     result = service.list_transactions(
         voucher_type=voucherType,
         status=status,
         search=search,
         page=page,
-        limit=limit
+        limit=limit,
+        company_id=company_header
     )
     return {
         "success": True,
@@ -158,6 +173,14 @@ async def get_fundflow_ledgers(
             prefix = gstin[:2]
             gst_state = STATE_CODES.get(prefix, "")
 
+        address = pd.get("address") or []
+        add1 = address[0] if len(address) > 0 else ""
+        add2 = address[1] if len(address) > 1 else ""
+        city = pd.get("city") or (address[-1] if len(address) > 0 else "")
+        is_synced = l.get("auditInfo", {}).get("syncedFromTally", False)
+        if is_synced is None:
+            is_synced = False
+
         results.append({
             "id": str(l["_id"]),
             "name": ledger_name,
@@ -166,7 +189,11 @@ async def get_fundflow_ledgers(
             "gstin": gstin,
             "gstState": gst_state,
             "registrationType": registration_type,
-            "phone": phone
+            "phone": phone,
+            "add1": add1,
+            "add2": add2,
+            "city": city,
+            "isSynced": is_synced
         })
 
     # Fetch Duties & Taxes ledgers
@@ -229,8 +256,8 @@ async def get_fundflow_ledgers(
                 })
                 cost_categories.add(category)
         cost_categories = list(cost_categories)
-    else:
-        # Fallback values if database collection is empty
+    elif not company_header:
+        # Fallback values only if no specific company header was requested
         cost_categories = ['Primary Cost Category', 'Marketing', 'Operations']
         cost_centers = [
             {"name": 'Mumbai Branch', "category": 'Primary Cost Category'},
@@ -296,6 +323,33 @@ async def get_fundflow_party_details(
     if lb:
         closing_debit = lb.closing_debit
         closing_credit = lb.closing_credit
+    else:
+        opening_bal = ledger.get("balances", {}).get("openingBalance") or {}
+        op_amt = float(opening_bal.get("amount") or 0.0)
+        op_type = opening_bal.get("type") or "DEBIT"
+        if op_type == "DEBIT":
+            closing_debit = op_amt
+        else:
+            closing_credit = op_amt
+            
+    # Calculate additional movements from the fundflow collection
+    ff_payments = list(db["fundflow"].find({
+        "status": {"$ne": "deleted"},
+        "partyLedger": partyName
+    }))
+    
+    additional_debit = 0.0
+    additional_credit = 0.0
+    for ff in ff_payments:
+        ff_amt = float(ff.get("amount") or 0.0)
+        v_type = ff.get("voucherType")
+        if v_type == "cash_payment":  # Payment (Debit party)
+            additional_debit += ff_amt
+        elif v_type == "bank_payment":  # Receipt (Credit party)
+            additional_credit += ff_amt
+            
+    closing_debit += additional_debit
+    closing_credit += additional_credit
     
     outstanding_amt = 0.0
     outstanding_type = "Dr"
@@ -305,11 +359,6 @@ async def get_fundflow_party_details(
     else:
         outstanding_amt = round(closing_credit - closing_debit, 2)
         outstanding_type = "Cr"
-        
-    if outstanding_amt == 0.0:
-        opening_bal = ledger.get("balances", {}).get("openingBalance") or {}
-        outstanding_amt = float(opening_bal.get("amount") or 0.0)
-        outstanding_type = "Dr" if (opening_bal.get("type") or "DEBIT") == "DEBIT" else "Cr"
 
     pending_bills = []
     
@@ -334,15 +383,48 @@ async def get_fundflow_party_details(
                 v_date = str(dt)[:10]
         
         totals_obj = v.get("totals") or {}
-        amount = float(totals_obj.get("totalAmount") or totals_obj.get("totalDebit") or totals_obj.get("totalCredit") or 0.0)
+        bill_amount = float(totals_obj.get("totalAmount") or totals_obj.get("totalDebit") or totals_obj.get("totalCredit") or 0.0)
+        bill_no = v.get("voucherNumber") or v.get("voucherGuid") or ""
         
-        pending_bills.append({
-            "billNo": v.get("voucherNumber") or v.get("voucherGuid") or "",
-            "date": v_date,
-            "billAmount": amount,
-            "pendingAmount": amount,
-            "source": "tally"
-        })
+        # Calculate paid amount from fundflow collection
+        paid_amount = 0.0
+        ff_records = list(db["fundflow"].find({
+            "status": {"$ne": "deleted"},
+            "billRows": {
+                "$elemMatch": {
+                    "$or": [
+                        {"billNo": bill_no},
+                        {"billRef": bill_no}
+                    ]
+                }
+            }
+        }))
+        for ff in ff_records:
+            for row in ff.get("billRows") or []:
+                row_ref = row.get("billNo") or row.get("billRef") or ""
+                if row_ref == bill_no:
+                    paid_amount += float(row.get("allocationAmount") or row.get("allocatedAmount") or row.get("allocation_amount") or 0.0)
+                    
+        outstanding = round(bill_amount - paid_amount, 2)
+        
+        if outstanding > 0:
+            due_date = ""
+            if v.get("dueDate"):
+                due_date = v["dueDate"].strftime("%Y-%m-%d") if hasattr(v["dueDate"], "strftime") else str(v["dueDate"])[:10]
+            elif dates_obj.get("dueDate"):
+                due_date = dates_obj["dueDate"].strftime("%Y-%m-%d") if hasattr(dates_obj["dueDate"], "strftime") else str(dates_obj["dueDate"])[:10]
+            else:
+                due_date = v_date
+
+            pending_bills.append({
+                "billNo": bill_no,
+                "date": v_date,
+                "billAmount": bill_amount,
+                "paidAmount": paid_amount,
+                "pendingAmount": outstanding,
+                "dueDate": due_date,
+                "source": "tally"
+            })
         
     # Query purchase_vouchers
     purch_vouchers = list(db["purchase_vouchers"].find({
@@ -359,14 +441,46 @@ async def get_fundflow_party_details(
             v_date = v_date.strftime("%Y-%m-%d")
         elif not isinstance(v_date, str):
             v_date = ""
-        amount = float(pv.get("grandTotal") or 0.0)
-        pending_bills.append({
-            "billNo": pv.get("voucherNumber") or pv.get("invoiceNumber") or "",
-            "date": v_date,
-            "billAmount": amount,
-            "pendingAmount": amount,
-            "source": "purchase_voucher"
-        })
+        bill_amount = float(pv.get("grandTotal") or 0.0)
+        bill_no = pv.get("voucherNumber") or pv.get("invoiceNumber") or ""
+        
+        # Calculate paid amount from fundflow collection
+        paid_amount = 0.0
+        ff_records = list(db["fundflow"].find({
+            "status": {"$ne": "deleted"},
+            "billRows": {
+                "$elemMatch": {
+                    "$or": [
+                        {"billNo": bill_no},
+                        {"billRef": bill_no}
+                    ]
+                }
+            }
+        }))
+        for ff in ff_records:
+            for row in ff.get("billRows") or []:
+                row_ref = row.get("billNo") or row.get("billRef") or ""
+                if row_ref == bill_no:
+                    paid_amount += float(row.get("allocationAmount") or row.get("allocatedAmount") or row.get("allocation_amount") or 0.0)
+                    
+        outstanding = round(bill_amount - paid_amount, 2)
+        
+        if outstanding > 0:
+            due_date = pv.get("dueDate") or pv.get("paymentDueDate") or ""
+            if isinstance(due_date, datetime):
+                due_date = due_date.strftime("%Y-%m-%d")
+            elif not isinstance(due_date, str):
+                due_date = v_date
+
+            pending_bills.append({
+                "billNo": bill_no,
+                "date": v_date,
+                "billAmount": bill_amount,
+                "paidAmount": paid_amount,
+                "pendingAmount": outstanding,
+                "dueDate": due_date,
+                "source": "purchase_voucher"
+            })
 
     # Query sales_vouchers
     sal_vouchers = list(db["sales_vouchers"].find({
@@ -383,14 +497,46 @@ async def get_fundflow_party_details(
             v_date = v_date.strftime("%Y-%m-%d")
         elif not isinstance(v_date, str):
             v_date = ""
-        amount = float(sv.get("grandTotal") or 0.0)
-        pending_bills.append({
-            "billNo": sv.get("voucherNumber") or "",
-            "date": v_date,
-            "billAmount": amount,
-            "pendingAmount": amount,
-            "source": "sales_voucher"
-        })
+        bill_amount = float(sv.get("grandTotal") or 0.0)
+        bill_no = sv.get("voucherNumber") or ""
+        
+        # Calculate paid amount from fundflow collection
+        paid_amount = 0.0
+        ff_records = list(db["fundflow"].find({
+            "status": {"$ne": "deleted"},
+            "billRows": {
+                "$elemMatch": {
+                    "$or": [
+                        {"billNo": bill_no},
+                        {"billRef": bill_no}
+                    ]
+                }
+            }
+        }))
+        for ff in ff_records:
+            for row in ff.get("billRows") or []:
+                row_ref = row.get("billNo") or row.get("billRef") or ""
+                if row_ref == bill_no:
+                    paid_amount += float(row.get("allocationAmount") or row.get("allocatedAmount") or row.get("allocation_amount") or 0.0)
+                    
+        outstanding = round(bill_amount - paid_amount, 2)
+        
+        if outstanding > 0:
+            due_date = sv.get("dueDate") or ""
+            if isinstance(due_date, datetime):
+                due_date = due_date.strftime("%Y-%m-%d")
+            elif not isinstance(due_date, str):
+                due_date = v_date
+
+            pending_bills.append({
+                "billNo": bill_no,
+                "date": v_date,
+                "billAmount": bill_amount,
+                "paidAmount": paid_amount,
+                "pendingAmount": outstanding,
+                "dueDate": due_date,
+                "source": "sales_voucher"
+            })
 
     seen_bills = set()
     unique_bills = []
@@ -413,7 +559,10 @@ async def get_fundflow_party_details(
             "phone": phone,
             "outstandingBalance": outstanding_amt,
             "outstandingType": outstanding_type,
-            "pendingBills": unique_bills[:10]
+            "pendingBills": unique_bills[:10],
+            "isCostCentresOn": ledger.get("flags", {}).get("isCostCentresOn", False),
+            "gstApplicable": ledger.get("taxDetails", {}).get("gstApplicable", False) or bool(gstin),
+            "tdsApplicable": ledger.get("tdsDetails", {}).get("tdsApplicable", False)
         }
     }
 
@@ -458,11 +607,30 @@ async def update_status(
     payload: StatusUpdate,
     service: FundFlowService = Depends(get_fundflow_service)
 ):
-    data = service.update_status(id, payload)
+    data = await service.update_status(id, payload)
+    if data.get("status") == "FAILED_TALLY":
+        activity_log = data.get("activityLog") or []
+        error_note = "Push to Tally failed."
+        for log in reversed(activity_log):
+            if log.get("action") == "tally_push_failed" or "tally_push_failed" in log.get("action", ""):
+                error_note = log.get("note") or error_note
+                break
+        from fastapi.responses import JSONResponse
+        from fastapi.encoders import jsonable_encoder
+        return JSONResponse(
+            status_code=400,
+            content=jsonable_encoder({
+                "success": False,
+                "message": error_note,
+                "data": data
+            })
+        )
+
     return {
         "success": True,
         "data": data
     }
+
 
 @router.post("/{id}/comments")
 async def add_comment(

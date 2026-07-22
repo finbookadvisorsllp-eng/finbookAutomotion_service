@@ -1,7 +1,7 @@
 # Business constants for the anjalee module
 SALES_COLLECTION = "sales_vouchers"
 PURCHASE_COLLECTION = "purchase_vouchers"
-FUNDFLOW_COLLECTION = "fund_flow_transactions"
+FUNDFLOW_COLLECTION = "fund_flow_vouchers"
 COUNTERS_COLLECTION = "counters"
 COMPANIES_COLLECTION = "companies"
 VOUCHERS_COLLECTION = "vouchers"
@@ -23,7 +23,7 @@ PURCHASE_PREFIXES = {
 }
 
 FUNDFLOW_PREFIXES = {
-    "bank_payment": "BP",
-    "cash_payment": "CP",
-    "contra": "CT"
+    "bank_payment": "RV",
+    "cash_payment": "PV",
+    "contra": "CV"
 }

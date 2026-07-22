@@ -32,7 +32,7 @@ const FormSection = ({ title, children, isDark }) => {
 const SummaryItem = ({ label, value, isLast, isDark }) => (
   <div className="flex items-center gap-1.5 px-3 h-8">
     <span className="text-[10px] font-bold opacity-70 uppercase tracking-tight" style={{ color: 'var(--app-text)' }}>{label}:</span>
-    <span className="text-[11px] font-bold px-2 py-0.5 rounded border border-indigo-100 shadow-sm" style={{ background: 'var(--app-accent-soft)', color: 'var(--app-accent)' }}>{value}</span>
+    <span className="text-[11px] font-bold px-2 py-0.5 rounded border border-[var(--app-border)] shadow-sm" style={{ background: 'var(--app-accent-soft)', color: 'var(--app-accent)' }}>{value}</span>
     {!isLast && <div className="ml-3 w-[1px] h-4 opacity-10" style={{ backgroundColor: 'var(--app-text)' }} />}
   </div>
 );
@@ -46,7 +46,7 @@ const InputField = ({ label, icon: Icon, placeholder, type = "text", isDark, val
         type={type}
         defaultValue={value}
         placeholder={placeholder}
-        className="w-full h-8 rounded-md border text-[11px] outline-none transition-all focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100"
+        className="w-full h-8 rounded-md border text-[11px] outline-none transition-all focus:border-[var(--app-accent)] focus:ring-1 focus:ring-[var(--app-accent-soft)]"
         style={{ 
           backgroundColor: isDark ? 'var(--app-control-bg)' : '#ffffff', 
           borderColor: 'var(--app-border)',
@@ -66,7 +66,7 @@ const CreateQuotation = ({ isDark, onBack }) => {
         <h1 className="text-xl font-extrabold tracking-tighter" style={{ color: 'var(--app-accent)' }}>Quotation - Transaction mode</h1>
         <div className="flex items-center gap-2">
           <button 
-            className="flex items-center gap-1.5 px-6 py-2 rounded-full text-[11px] font-bold shadow-[0_4px_12px_rgba(0,0,0,0.1)] transition-all hover:scale-105 active:scale-95 group text-white border-none"
+            className="flex items-center gap-1.5 px-6 py-2 rounded-full text-[11px] font-bold shadow-[0_4px_12px_rgba(0,0,0,0.1)] transition-all group text-white border-none"
             style={{ background: 'var(--app-accent-gradient)' }}
           >
             <Save size={14} className="group-hover:rotate-12 transition-transform" /> Save Changes
@@ -87,7 +87,7 @@ const CreateQuotation = ({ isDark, onBack }) => {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-4 pb-8">
+      <div className="flex-1 overflow-y-auto pr-2 themed-scrollbar space-y-4 pb-8">
         {/* Toggle Bar */}
         <div className="flex items-center gap-5 p-4 rounded-2xl border shadow-sm transition-all hover:shadow-md" 
           style={{ borderColor: 'var(--app-border)', backgroundColor: isDark ? 'var(--app-panel-bg)' : '#ffffff' }}>
@@ -139,7 +139,7 @@ const CreateQuotation = ({ isDark, onBack }) => {
                   <td className="p-2 border-b" style={{ borderColor: 'var(--app-row-border)' }}>
                     <div className="relative group">
                       <Search className="absolute right-2 top-1/2 -translate-y-1/2 opacity-20 group-focus-within:opacity-100" size={12} />
-                      <input className="w-full h-8 border rounded px-2 text-[11px] outline-none transition focus:border-indigo-400" 
+                      <input className="w-full h-8 border rounded px-2 text-[11px] outline-none transition focus:border-[var(--app-accent)]" 
                         style={{ borderColor: 'var(--app-border)', backgroundColor: isDark ? 'var(--app-control-bg)' : '#ffffff', color: 'var(--app-text)' }} />
                     </div>
                   </td>
@@ -181,14 +181,14 @@ const CreateQuotation = ({ isDark, onBack }) => {
               </tbody>
             </table>
           </div>
-          <div className="mt-3 p-3 flex flex-wrap items-center justify-between bg-indigo-50/30 rounded-lg border border-indigo-100 text-[10px] font-bold uppercase tracking-wider text-indigo-900">
-            <div className="flex items-center gap-2">Number Of Entries: <span className="bg-indigo-600 text-white px-2 py-0.5 rounded shadow-sm">1</span></div>
+          <div className="mt-3 p-3 flex flex-wrap items-center justify-between bg-[var(--app-accent-soft)] rounded-lg border border-[var(--app-border)] text-[10px] font-bold uppercase tracking-wider text-[var(--app-accent)]">
+            <div className="flex items-center gap-2">Number Of Entries: <span className="bg-[var(--app-accent)] text-white px-2 py-0.5 rounded shadow-sm">1</span></div>
             <div className="flex gap-6">
-              <span>BaseTotal: <span className="text-indigo-600 ml-1">0.00</span></span>
-              <span>CGST: <span className="text-indigo-600 ml-1">0.00</span></span>
-              <span>SGST: <span className="text-indigo-600 ml-1">0.00</span></span>
-              <span>IGST: <span className="text-indigo-600 ml-1">0.00</span></span>
-              <span>Sub Total: <span className="text-indigo-600 ml-1">0.00</span></span>
+              <span>BaseTotal: <span className="text-[var(--app-accent)] ml-1">0.00</span></span>
+              <span>CGST: <span className="text-[var(--app-accent)] ml-1">0.00</span></span>
+              <span>SGST: <span className="text-[var(--app-accent)] ml-1">0.00</span></span>
+              <span>IGST: <span className="text-[var(--app-accent)] ml-1">0.00</span></span>
+              <span>Sub Total: <span className="text-[var(--app-accent)] ml-1">0.00</span></span>
             </div>
           </div>
         </FormSection>
@@ -213,7 +213,7 @@ const CreateQuotation = ({ isDark, onBack }) => {
                   <td className="p-2 border-b" style={{ borderColor: 'var(--app-row-border)' }}>
                     <div className="relative group">
                       <Search className="absolute right-2 top-1/2 -translate-y-1/2 opacity-20 group-focus-within:opacity-100" size={12} />
-                      <input className="w-full h-8 border rounded px-2 text-[11px] outline-none transition focus:border-indigo-400" 
+                      <input className="w-full h-8 border rounded px-2 text-[11px] outline-none transition focus:border-[var(--app-accent)]" 
                         style={{ borderColor: 'var(--app-border)', backgroundColor: isDark ? 'var(--app-control-bg)' : '#ffffff', color: 'var(--app-text)' }} />
                     </div>
                   </td>
@@ -238,13 +238,13 @@ const CreateQuotation = ({ isDark, onBack }) => {
       <div className="flex justify-end gap-3 mt-auto pt-2 shrink-0 px-1 border-t" style={{ borderColor: 'var(--app-row-border)' }}>
         <button 
           onClick={onBack}
-          className="px-6 py-2 rounded-full border text-[11px] font-bold transition-all hover:bg-gray-50 active:scale-95"
+          className="px-6 py-2 rounded-full border text-[11px] font-bold transition-all hover:bg-gray-50"
           style={{ borderColor: 'var(--app-border)', backgroundColor: isDark ? 'var(--app-control-bg)' : '#ffffff', color: 'var(--app-text)' }}
         >
           Cancel
         </button>
         <button 
-          className="px-10 py-2.5 rounded-full text-[11px] font-extrabold shadow-[0_4px_15px_rgba(0,0,0,0.15)] transition-all hover:brightness-110 hover:translate-y-[-1px] active:scale-95 text-white border-none"
+          className="px-10 py-2.5 rounded-full text-[11px] font-extrabold shadow-[0_4px_15px_rgba(0,0,0,0.15)] transition-all hover:brightness-110 hover:translate-y-[-1px] text-white border-none"
           style={{ background: 'var(--app-accent-gradient)' }}
         >
           Save Quotation

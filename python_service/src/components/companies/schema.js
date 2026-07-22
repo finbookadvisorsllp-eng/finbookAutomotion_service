@@ -6,7 +6,7 @@ export const CompanySchema = z.object({
   id: z.string(),
   name: z.string().min(1),
   gstin: z.string().nullable().optional(),
-  createdAt: z.string().optional(),
-})
+  createdAt: z.string().nullable().optional(),
+}).passthrough()
 
 export const CompanyListSchema = z.array(CompanySchema)

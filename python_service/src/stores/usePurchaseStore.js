@@ -34,84 +34,239 @@ const calculateFormTotals = (form) => {
   let cgstTotal = 0;
   let sgstTotal = 0;
   let igstTotal = 0;
+  let cessTotal = 0;
+  let itemAmount = 0;
+  let ledgerAmount = 0;
 
   // Compare first 2 chars of partyGstin and gstRegistration to determine if interstate
+  const getStateCode = (gstRegistration) => {
+    if (!gstRegistration) return '';
+    const numMatch = gstRegistration.match(/\b\d{2}\b/);
+    if (numMatch) return numMatch[0];
+    
+    const regLower = gstRegistration.toLowerCase();
+    const states = {
+      'jammu': '01', 'himachal': '02', 'punjab': '03', 'chandigarh': '04', 'uttarakhand': '05',
+      'haryana': '06', 'delhi': '07', 'rajasthan': '08', 'uttar pradesh': '09', 'bihar': '10',
+      'sikkim': '11', 'arunachal': '12', 'nagaland': '13', 'manipur': '14', 'mizoram': '15',
+      'tripura': '16', 'meghalaya': '17', 'assam': '18', 'west bengal': '19', 'jharkhand': '20',
+      'odisha': '21', 'chhattisgarh': '22', 'madhya pradesh': '23', 'gujarat': '24', 'daman': '25',
+      'dadra': '26', 'maharashtra': '27', 'andhra': '28', 'karnataka': '29', 'goa': '30',
+      'lakshadweep': '31', 'kerala': '32', 'tamil nadu': '33', 'puducherry': '34', 'andaman': '35',
+      'telangana': '36', 'ladakh': '38'
+    };
+    for (const [stateName, code] of Object.entries(states)) {
+      if (regLower.includes(stateName)) return code;
+    }
+    return '';
+  };
+
   const partyState = form.partyGstin?.trim().substring(0, 2);
-  const companyState = form.gstRegistration ? (form.gstRegistration.includes('Maharashtra') ? '27' : '23') : '';
+  const companyState = getStateCode(form.gstRegistration) || '23';
   const isInterstate = partyState && companyState && partyState !== companyState;
 
-  if (form.entryTab === 'with_item' && Array.isArray(form.productLines)) {
-    form.productLines.forEach((line) => {
-      const qty = parseFloat(line.billQuantity) || 0;
-      const rate = parseFloat(line.billRate) || 0;
-      const disc = parseFloat(line.discountPercent) || 0;
-      const amount = parseFloat((qty * rate * (1 - disc / 100)).toFixed(2));
-      line.amount = amount;
-      const gstRate = parseFloat(line.gstRate) || 0;
-
-      baseTotal += amount;
-      if (line.taxabilityType === 'Taxable' && !line.rcm) {
-        if (isInterstate) {
-          igstTotal += (amount * gstRate) / 100;
-        } else {
-          cgstTotal += (amount * (gstRate / 2)) / 100;
-          sgstTotal += (amount * (gstRate / 2)) / 100;
-        }
-      }
-    });
-  }
-
-  if (form.entryTab === 'without_item' && Array.isArray(form.purchaseLines)) {
-    form.purchaseLines.forEach((line) => {
-      const amount = parseFloat(line.amount) || 0;
-      const gstRate = parseFloat(line.gstRate) || 0;
-
-      baseTotal += amount;
-      if (isInterstate) {
-        igstTotal += (amount * gstRate) / 100;
+  // Extract CESS rate from any CESS ledger in additionalCharges or purchaseLines
+  let cessRate = 0;
+  let hasCessLedger = false;
+  let cessLedgerAmt = 0;
+  const allChargesForCess = [...(form.purchaseLines || []), ...(form.additionalCharges || [])];
+  allChargesForCess.forEach((c) => {
+    const nameUpper = (c.ledgerName || c.purchaseLedger || '').toUpperCase();
+    if (nameUpper.includes('CESS')) {
+      hasCessLedger = true;
+      const match = nameUpper.match(/(\d+(?:\.\d+)?)\s*%/);
+      if (match) {
+        cessRate = parseFloat(match[1]);
       } else {
-        cgstTotal += (amount * (gstRate / 2)) / 100;
-        sgstTotal += (amount * (gstRate / 2)) / 100;
+        cessLedgerAmt += parseFloat(c.amount) || 0;
       }
-    });
-  }
+    }
+  });
 
-  let additionalTotal = 0;
-  let runningTaxable = baseTotal;
+  // Calculate total additional charges (non-tax ledgers)
+  let totalAdditionalCharges = 0;
   if (Array.isArray(form.additionalCharges)) {
     form.additionalCharges.forEach((c) => {
       const nameUpper = (c.ledgerName || '').toUpperCase();
-      const isTaxLedger = nameUpper.includes('CGST') || nameUpper.includes('SGST') || nameUpper.includes('IGST') || nameUpper.includes('UTGST');
+      const isTaxLedger = nameUpper.includes('CGST') || nameUpper.includes('SGST') || nameUpper.includes('IGST') || nameUpper.includes('UTGST') || nameUpper.includes('CESS');
+      if (!isTaxLedger) {
+        totalAdditionalCharges += parseFloat(c.amount) || 0;
+      }
+    });
+  }
+
+  if (Array.isArray(form.purchaseLines)) {
+    form.purchaseLines.forEach((c) => {
+      const nameUpper = (c.ledgerName || c.purchaseLedger || '').toUpperCase();
+      const isTaxLedger = nameUpper.includes('CGST') || nameUpper.includes('SGST') || nameUpper.includes('IGST') || nameUpper.includes('UTGST') || nameUpper.includes('CESS');
+      if (!isTaxLedger) {
+        const amt = parseFloat(c.amount) || 0;
+        ledgerAmount += amt;
+        totalAdditionalCharges += amt;
+      }
+    });
+  }
+
+  if (form.entryTab === 'with_item') {
+    if (Array.isArray(form.productLines)) {
+      form.productLines.forEach((line) => {
+        const qty = parseFloat(line.billQuantity) || 0;
+        const rate = parseFloat(line.billRate) || 0;
+        const disc = parseFloat(line.discountPercent) || 0;
+        const amount = parseFloat((qty * rate * (1 - disc / 100)).toFixed(2));
+        line.amount = amount;
+        itemAmount += amount;
+      });
+    }
+
+    // Step 3, 4, 5, 6: Distribute additional charges and calculate tax item-wise
+    if (Array.isArray(form.productLines)) {
+      const itemLen = form.productLines.length;
+      form.productLines.forEach((line) => {
+        const amount = line.amount || 0;
+        const ratio = itemAmount > 0 ? (amount / itemAmount) : (1 / itemLen);
+        const distributedCharge = parseFloat((ratio * totalAdditionalCharges).toFixed(2));
+        const taxableAmount = parseFloat((amount + distributedCharge).toFixed(2));
+        const gstRate = parseFloat(line.gstRate) || 0;
+
+        let cgst = 0;
+        let sgst = 0;
+        let igst = 0;
+        let cess = 0;
+
+        if (line.taxabilityType === 'Taxable' && !line.rcm) {
+          const gstAmt = taxableAmount * gstRate / 100;
+          if (isInterstate) {
+            igst = parseFloat(gstAmt.toFixed(2));
+          } else {
+            cgst = parseFloat((gstAmt / 2).toFixed(2));
+            sgst = parseFloat((gstAmt / 2).toFixed(2));
+          }
+          
+          // Calculate CESS
+          let lineCessRate = parseFloat(line.cessRate || line.cess_rate) || 0;
+          if (lineCessRate <= 0) {
+            lineCessRate = cessRate;
+          }
+          if (lineCessRate > 0) {
+            cess = parseFloat((taxableAmount * lineCessRate / 100).toFixed(2));
+          }
+        }
+
+        // Set all required data model fields
+        line.itemAmount = parseFloat(amount.toFixed(2));
+        line.gstRate = gstRate;
+        line.ratio = parseFloat(ratio.toFixed(4));
+        line.distributedCharge = distributedCharge;
+        line.taxableAmount = taxableAmount;
+        line.cgst = cgst;
+        line.sgst = sgst;
+        line.igst = igst;
+        line.cess = cess;
+        line.totalTax = parseFloat((cgst + sgst + igst + cess).toFixed(2));
+      });
+
+      cgstTotal = form.productLines.reduce((sum, l) => sum + (l.cgst || 0), 0);
+      sgstTotal = form.productLines.reduce((sum, l) => sum + (l.sgst || 0), 0);
+      igstTotal = form.productLines.reduce((sum, l) => sum + (l.igst || 0), 0);
+      cessTotal = form.productLines.reduce((sum, l) => sum + (l.cess || 0), 0);
+      baseTotal = form.productLines.reduce((sum, l) => sum + (l.taxableAmount || 0), 0);
+    }
+  }
+
+  if (form.entryTab === 'without_item' && Array.isArray(form.purchaseLines)) {
+    let purchaseLedgerGstRate = 0;
+    if (form.purchaseLedger) {
+      const m = form.purchaseLedger.match(/(\d+)\s*%/);
+      if (m) purchaseLedgerGstRate = parseFloat(m[1]);
+      else if (/exempt|nil|zero/i.test(form.purchaseLedger)) purchaseLedgerGstRate = 0;
+    }
+
+    form.purchaseLines.forEach((line) => {
+      const nameUpper = (line.purchaseLedger || '').toUpperCase();
+      const isTaxLedger = nameUpper.includes('CGST') || nameUpper.includes('SGST') || nameUpper.includes('IGST') || nameUpper.includes('UTGST') || nameUpper.includes('CESS');
+      if (isTaxLedger) return;
+
+      const amount = parseFloat(line.amount) || 0;
+      const gstRate = purchaseLedgerGstRate > 0 ? purchaseLedgerGstRate : (parseFloat(line.gstRate) || 0);
+
+      ledgerAmount += amount;
+      let cgst = 0;
+      let sgst = 0;
+      let igst = 0;
+      let cess = 0;
+
+      const gstAmt = amount * gstRate / 100;
+      if (isInterstate) {
+        igst = parseFloat(gstAmt.toFixed(2));
+      } else {
+        cgst = parseFloat((gstAmt / 2).toFixed(2));
+        sgst = parseFloat((gstAmt / 2).toFixed(2));
+      }
+
+      // Calculate CESS
+      let lineCessRate = parseFloat(line.cessRate || line.cess_rate) || 0;
+      if (lineCessRate <= 0) {
+        lineCessRate = cessRate;
+      }
+      if (lineCessRate > 0) {
+        cess = parseFloat((amount * lineCessRate / 100).toFixed(2));
+      }
+
+      cgstTotal += cgst;
+      sgstTotal += sgst;
+      igstTotal += igst;
+      cessTotal += cess;
+
+      line.taxableAmount = amount;
+      line.cgst = cgst;
+      line.sgst = sgst;
+      line.igst = igst;
+      line.cess = cess;
+      line.totalTax = parseFloat((cgst + sgst + igst + cess).toFixed(2));
+    });
+    baseTotal = ledgerAmount;
+  }
+
+  // Fallback to manual CESS ledger amount if calculated is 0 but ledger is present
+  if (cessTotal === 0 && hasCessLedger && cessLedgerAmt > 0) {
+    cessTotal = cessLedgerAmt;
+  }
+
+  // Sum additional charges
+  let additionalTotal = 0;
+  if (Array.isArray(form.additionalCharges)) {
+    form.additionalCharges.forEach((c) => {
+      const nameUpper = (c.ledgerName || '').toUpperCase();
+      const isTaxLedger = nameUpper.includes('CGST') || nameUpper.includes('SGST') || nameUpper.includes('IGST') || nameUpper.includes('UTGST') || nameUpper.includes('CESS');
 
       if (isTaxLedger) {
-        c.taxableValue = runningTaxable.toFixed(2);
-        const match = c.ledgerName.match(/(\d+(?:\.\d+)?)\s*%/);
-        const rate = match ? parseFloat(match[1]) : null;
-        if (rate !== null) {
-          c.amount = parseFloat((runningTaxable * rate / 100).toFixed(2));
-        } else {
-          // Fallback if no percentage in name: use cgstTotal/sgstTotal/igstTotal if available, or 0
-          if (nameUpper.includes('CGST')) {
-            c.amount = parseFloat((cgstTotal || 0).toFixed(2));
-          } else if (nameUpper.includes('SGST') || nameUpper.includes('UTGST')) {
-            c.amount = parseFloat((sgstTotal || 0).toFixed(2));
-          } else if (nameUpper.includes('IGST')) {
-            c.amount = parseFloat((igstTotal || 0).toFixed(2));
-          }
+        c.taxableValue = baseTotal.toFixed(2);
+        if (nameUpper.includes('CGST')) {
+          c.amount = parseFloat((cgstTotal || 0).toFixed(2));
+        } else if (nameUpper.includes('SGST') || nameUpper.includes('UTGST')) {
+          c.amount = parseFloat((sgstTotal || 0).toFixed(2));
+        } else if (nameUpper.includes('IGST')) {
+          c.amount = parseFloat((igstTotal || 0).toFixed(2));
+        } else if (nameUpper.includes('CESS')) {
+          c.amount = parseFloat((cessTotal || 0).toFixed(2));
         }
       } else {
         c.taxableValue = "0.00";
-        runningTaxable += parseFloat(c.amount) || 0;
       }
       additionalTotal += parseFloat(c.amount) || 0;
     });
   }
 
-  const subTotal = baseTotal + cgstTotal + sgstTotal + igstTotal + additionalTotal;
-
   let tdsTotal = 0;
   if (Array.isArray(form.tdsDetails)) {
-    form.tdsDetails.forEach((t) => { tdsTotal += parseFloat(t.amount) || 0; });
+    form.tdsDetails.forEach((t) => {
+      const baseAmt = parseFloat(baseTotal || 0);
+      const rate = t.rate !== undefined ? parseFloat(t.rate) : 2;
+      t.assessableValue = baseAmt;
+      t.amount = parseFloat((baseAmt * rate / 100).toFixed(2));
+      tdsTotal += t.amount;
+    });
   }
 
   let tcsTotal = 0;
@@ -125,28 +280,99 @@ const calculateFormTotals = (form) => {
     });
   }
 
+  // Pre-calculate HSN summary & Ledger summary tables
+  const hsnMap = {};
+  const lines = form.entryTab === 'with_item' ? (form.productLines || []) : (form.purchaseLines || []);
+  lines.forEach((line) => {
+    const hsn = (line.hsnSacCode || '').trim() || '-';
+    if (!hsnMap[hsn]) {
+      hsnMap[hsn] = { hsn, taxableValue: 0, cgst: 0, sgst: 0, igst: 0, cess: 0 };
+    }
+    hsnMap[hsn].taxableValue += (form.entryTab === 'with_item' ? line.taxableAmount : line.amount) || 0;
+    hsnMap[hsn].cgst += line.cgst || 0;
+    hsnMap[hsn].sgst += line.sgst || 0;
+    hsnMap[hsn].igst += line.igst || 0;
+    hsnMap[hsn].cess += line.cess || 0;
+  });
+
+  const hsnTaxDetails = Object.values(hsnMap).map(row => ({
+    hsn: row.hsn,
+    taxableValue: parseFloat(row.taxableValue.toFixed(2)),
+    cgst: parseFloat(row.cgst.toFixed(2)),
+    sgst: parseFloat(row.sgst.toFixed(2)),
+    igst: parseFloat(row.igst.toFixed(2)),
+    cess: parseFloat(row.cess.toFixed(2)),
+  }));
+
+  const ledgerMap = {};
+  if (form.entryTab === 'without_item' && Array.isArray(form.purchaseLines)) {
+    form.purchaseLines.forEach((line) => {
+      const nameUpper = (line.purchaseLedger || '').toUpperCase();
+      const isTax = nameUpper.includes('CGST') || nameUpper.includes('SGST') || nameUpper.includes('IGST') || nameUpper.includes('UTGST') || nameUpper.includes('CESS');
+      if (isTax) return;
+
+      const ledgerName = (line.purchaseLedger || '').trim() || '-';
+      if (!ledgerMap[ledgerName]) {
+        ledgerMap[ledgerName] = { ledgerName, taxableValue: 0, cgst: 0, sgst: 0, igst: 0, cess: 0 };
+      }
+      ledgerMap[ledgerName].taxableValue += line.amount || 0;
+      ledgerMap[ledgerName].cgst += line.cgst || 0;
+      ledgerMap[ledgerName].sgst += line.sgst || 0;
+      ledgerMap[ledgerName].igst += line.igst || 0;
+      ledgerMap[ledgerName].cess += line.cess || 0;
+    });
+  }
+
+  const ledgerTaxDetails = Object.values(ledgerMap).map(row => ({
+    ledgerName: row.ledgerName,
+    taxableValue: parseFloat(row.taxableValue.toFixed(2)),
+    cgst: parseFloat(row.cgst.toFixed(2)),
+    sgst: parseFloat(row.sgst.toFixed(2)),
+    igst: parseFloat(row.igst.toFixed(2)),
+    cess: parseFloat(row.cess.toFixed(2)),
+  }));
+
+  let subTotal = 0;
+  let grandTotal = 0;
+  let roundOff = 0;
+
+  subTotal = baseTotal + cgstTotal + sgstTotal + igstTotal + cessTotal;
+  if (form.entryTab !== 'with_item') {
+    subTotal += additionalTotal;
+  }
+  
   const beforeRound = subTotal + tcsTotal - tdsTotal;
-  const grandTotal = Math.round(beforeRound);
-  const roundOff = grandTotal - beforeRound;
+  let roundOffVal = form.roundOff !== undefined ? parseFloat(form.roundOff) : (Math.round(beforeRound) - beforeRound);
+  if (isNaN(roundOffVal)) {
+    roundOffVal = Math.round(beforeRound) - beforeRound;
+  }
+  grandTotal = Math.round(beforeRound + roundOffVal);
+  roundOff = roundOffVal;
 
   // Build GST breakup details
   const gstDetails = [];
   if (cgstTotal > 0) gstDetails.push({ gstType: 'CGST', ledgerName: 'Input CGST', rate: 0, amount: parseFloat(cgstTotal.toFixed(2)) });
   if (sgstTotal > 0) gstDetails.push({ gstType: 'SGST', ledgerName: 'Input SGST', rate: 0, amount: parseFloat(sgstTotal.toFixed(2)) });
   if (igstTotal > 0) gstDetails.push({ gstType: 'IGST', ledgerName: 'Input IGST', rate: 0, amount: parseFloat(igstTotal.toFixed(2)) });
+  if (cessTotal > 0) gstDetails.push({ gstType: 'CESS', ledgerName: 'Cess Ledger', rate: 0, amount: parseFloat(cessTotal.toFixed(2)) });
 
   return {
     ...form,
+    itemAmount: itemAmount.toFixed(2),
+    ledgerAmount: ledgerAmount.toFixed(2),
     baseTotal: baseTotal.toFixed(2),
     subTotal: subTotal.toFixed(2),
     cgstTotal: cgstTotal.toFixed(2),
     sgstTotal: sgstTotal.toFixed(2),
     igstTotal: igstTotal.toFixed(2),
+    cessTotal: cessTotal.toFixed(2),
     tdsTotal: tdsTotal.toFixed(2),
     tcsTotal: tcsTotal.toFixed(2),
     roundOff: roundOff.toFixed(2),
     grandTotal: grandTotal.toFixed(2),
     gstDetails,
+    hsnTaxDetails,
+    ledgerTaxDetails,
   };
 };
 
@@ -203,6 +429,8 @@ export const usePurchaseStore = create((set, get) => ({
     stockItemDetails: {},
     tdsLedgers: [],
     additionalChargeLedgers: [],
+    taxLedgers: [],
+    allLedgers: [],
     voucherTypes: [],
     voucherTypesFull: [],
     purchaseOrders: [],
@@ -318,6 +546,10 @@ export const usePurchaseStore = create((set, get) => ({
 
       const formValues = {
         ...doc,
+        consigneeGstin: doc.consigneeGstin || '',
+        entryMode: doc.entryMode || 'manual',
+        ocrMetadata: doc.ocrMetadata || null,
+        bulkMetadata: doc.bulkMetadata || null,
         voucherType: normalizeVoucherType(doc.voucherType),
         voucherDate: formatDate(doc.voucherDate || doc.invoiceDate),
         invoiceDate: formatDate(doc.invoiceDate || doc.voucherDate),
@@ -386,6 +618,15 @@ export const usePurchaseStore = create((set, get) => ({
             .filter(Boolean);
 
           if (partyRes.success && purchaseRes.success) {
+            const stockRes = await purchaseApi.getStockItems().catch(() => ({ success: false, data: [] }));
+            const stockItemsRaw = (stockRes.success && stockRes.data) ? stockRes.data : [];
+            const stockNames = stockItemsRaw.map(item => item.name).filter(Boolean);
+            const stockItemDetails = {};
+            stockItemsRaw.forEach(item => {
+              if (item.name) {
+                stockItemDetails[item.name] = { hsnCode: item.hsnCode || '', gstRate: item.gstRate || 0, unit: item.unit || '', qty: item.qty || 0 };
+              }
+            });
             const partyNames = partyRes.data.map(l => l.name);
             const purchaseNames = purchaseRes.data.map(l => l.name);
             const partyDetails = {};
@@ -394,20 +635,15 @@ export const usePurchaseStore = create((set, get) => ({
                 id: l.id,
                 gstin: l.gstin,
                 gstState: l.gstState,
-                registrationType: l.registrationType
+                registrationType: l.registrationType,
+                address: l.address || [],
+                email: l.email || '',
+                phone: l.phone || '',
+                panNumber: l.panNumber || '',
+                groupName: l.groupName || ''
               };
             });
 
-            // Build stockItems list and stockItemDetails keyed by name for HSN autofill
-            const stockRes = await purchaseApi.getStockItems().catch(() => ({ success: false, data: [] }));
-            const stockItemsRaw = (stockRes.success && stockRes.data) ? stockRes.data : [];
-            const stockNames = stockItemsRaw.map(item => item.name).filter(Boolean);
-            const stockItemDetails = {};
-            stockItemsRaw.forEach(item => {
-              if (item.name) {
-                stockItemDetails[item.name] = { hsnCode: item.hsnCode || '', gstRate: item.gstRate || 0, unit: item.unit || '' };
-              }
-            });
 
             set({
               masterData: {
@@ -797,7 +1033,9 @@ export const usePurchaseStore = create((set, get) => ({
           const { id: _id, ...rest } = firstLine;
           productLines = [rest];
         }
-        purchaseLines = [];
+        // Preserve purchaseLines (ledger details) for with_item mode
+        const activePurchaseLines = (form.purchaseLines || []).filter(l => l.purchaseLedger && l.purchaseLedger.trim() !== '');
+        purchaseLines = activePurchaseLines.map(({ id: _id, ...rest }) => rest);
       } else {
         const activeLines = (form.purchaseLines || []).filter(l => l.purchaseLedger && l.purchaseLedger.trim() !== '');
         if (activeLines.length > 0) {
@@ -812,11 +1050,14 @@ export const usePurchaseStore = create((set, get) => ({
 
       const payload = {
         ...form,
+        consigneeGstin: form.consigneeGstin || undefined,
+        ocrMetadata: form.ocrMetadata || undefined,
+        bulkMetadata: form.bulkMetadata || undefined,
         invoiceNumber: form.voucherNumber || form.invoiceNumber || '',
         debitNoteDate: form.debitNoteDate || undefined,
         referenceNumber: form.referenceNumber || '',
-        status: asDraft ? 'draft' : 'pending_review',
-        entryMode: 'manual',
+        status: asDraft ? 'draft' : 'pending_approval',
+        entryMode: form.entryMode || 'manual',
         productLines,
         purchaseLines,
         additionalCharges: (form.additionalCharges || []).map(({ id: _id, ...rest }) => rest),
@@ -855,6 +1096,10 @@ export const usePurchaseStore = create((set, get) => ({
 
         const updatedFormValues = {
           ...savedDoc,
+          consigneeGstin: savedDoc.consigneeGstin || '',
+          entryMode: savedDoc.entryMode || 'manual',
+          ocrMetadata: savedDoc.ocrMetadata || null,
+          bulkMetadata: savedDoc.bulkMetadata || null,
           voucherType: normalizeVoucherType(savedDoc.voucherType),
           voucherDate: formatDate(savedDoc.voucherDate || savedDoc.invoiceDate),
           invoiceDate: formatDate(savedDoc.invoiceDate || savedDoc.voucherDate),
@@ -896,7 +1141,7 @@ export const usePurchaseStore = create((set, get) => ({
   pushToReview: async (id) => {
     set((s) => ({ loading: { ...s.loading, status: true } }));
     try {
-      const res = await purchaseApi.updateStatus(id, 'pending_review');
+      const res = await purchaseApi.updateStatus(id, 'pending_approval');
       set({ selectedTransaction: res.data });
       return { success: true };
     } catch (err) {

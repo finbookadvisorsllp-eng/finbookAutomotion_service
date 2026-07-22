@@ -1,0 +1,320 @@
+import React, { useState } from 'react';
+import { Plus, Users, User, Trash2, Pencil, CheckCircle, X, Shield, Mail, MapPin, Layers } from 'lucide-react';
+import { toast } from 'sonner';
+import DataTable from '../ui/DataTable';
+import StatCard from '../ui/StatCard';
+import Badge from '../ui/Badge';
+
+export default function ClientManagementPanel() {
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  // Client Form state
+  const [form, setForm] = useState({
+    name: '',
+    company: 'Finbook Advisors LLP',
+    gstin: '',
+    pan: '',
+    email: '',
+    phone: '',
+    address: '',
+    city: '',
+    state: '',
+    country: 'India',
+    notes: ''
+  });
+
+  const [clientsList, setClientsList] = useState([
+    { id: 'client-1', name: 'Rahul Sharma', company: 'Greenline Ventures', mobile: '+91 98765 43210', email: 'rahul@greeline.com', assignedUsers: 'Operator A, Operator B', status: 'Active' },
+    { id: 'client-2', name: 'Anjali Gupta', company: 'Apex Holdings', mobile: '+91 98123 45678', email: 'anjali@apex.com', assignedUsers: 'Operator A', status: 'Active' },
+    { id: 'client-3', name: 'Vikram Singh', company: 'Finolax Advisors', mobile: '+91 95555 12345', email: 'vikram@finolax.com', assignedUsers: 'System AI', status: 'Inactive' }
+  ]);
+
+  const stats = [
+    { label: 'Total Profiles', value: clientsList.length, icon: Users },
+    { label: 'Active Clients', value: clientsList.filter(c => c.status === 'Active').length, icon: CheckCircle },
+    { label: 'Assigned Entities', value: new Set(clientsList.map(c => c.company)).size, icon: Layers },
+    { label: 'Pending Invites', value: 1, icon: Mail },
+  ];
+
+  const columns = [
+    { key: 'sr', header: 'Sr', width: '52px', align: 'center', render: (_r, i) => <span style={{ color: 'var(--app-muted)' }}>{i + 1}</span> },
+    { key: 'name', header: 'Client Name', sortable: true, render: (c) => <span className="font-bold" style={{ color: 'var(--app-heading)' }}>{c.name}</span> },
+    { key: 'company', header: 'Company', sortable: true, render: (c) => <span style={{ color: 'var(--app-text)' }}>{c.company}</span> },
+    { key: 'mobile', header: 'Mobile', render: (c) => <span className="font-mono">{c.mobile}</span> },
+    { key: 'email', header: 'Email', sortable: true, render: (c) => <span style={{ color: 'var(--app-text)' }}>{c.email}</span> },
+    { key: 'assignedUsers', header: 'Assigned Users', render: (c) => <span className="italic text-[12px]" style={{ color: 'var(--app-muted)' }}>{c.assignedUsers}</span> },
+    { key: 'status', header: 'Status', align: 'center', sortable: true, sortValue: (c) => c.status, render: (c) => <Badge tone={c.status === 'Active' ? 'success' : 'neutral'}>{c.status}</Badge> },
+    { key: 'act', header: '', align: 'center', width: '84px', render: (c) => (
+      <div className="flex items-center justify-center gap-1">
+        <button title="Edit" aria-label="Edit" className="p-1 rounded-md hover:bg-[var(--app-control-hover)] hover:text-[var(--app-accent)]" style={{ color: 'var(--app-muted)' }}><Pencil size={11} /></button>
+        <button onClick={() => handleDeleteClient(c.id)} title="Delete" aria-label="Delete" className="p-1 rounded-md hover:bg-[var(--app-control-hover)] hover:text-rose-500" style={{ color: 'var(--app-muted)' }}><Trash2 size={12} /></button>
+      </div>
+    ) },
+  ];
+
+  const handleCreateClient = (e) => {
+    e.preventDefault();
+    if (!form.name || !form.email) {
+      toast.error('Name and Email are required.');
+      return;
+    }
+    const newClient = {
+      id: 'client-' + Date.now(),
+      name: form.name,
+      company: form.company,
+      mobile: form.phone || 'N/A',
+      email: form.email,
+      assignedUsers: 'Operator A',
+      status: 'Active'
+    };
+    setClientsList(prev => [...prev, newClient]);
+    setForm({ name: '', company: 'Finbook Advisors LLP', gstin: '', pan: '', email: '', phone: '', address: '', city: '', state: '', country: 'India', notes: '' });
+    setShowCreateForm(false);
+    toast.success('Client profile created successfully!');
+  };
+
+  const handleDeleteClient = (id) => {
+    setClientsList(prev => prev.filter(c => c.id !== id));
+    toast.success('Client profile deleted');
+  };
+
+  const filteredClients = clientsList.filter(c => 
+    c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    c.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    c.company.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  return (
+    <div className="flex flex-col gap-2.5 h-full overflow-hidden p-1 text-[13px] text-[var(--app-text)]">
+
+      {/* Header */}
+      <div className="rounded-xl border px-3 py-2.5 flex items-center justify-between gap-3 shrink-0 bg-[var(--app-panel-bg)] border-[var(--app-border)] shadow-sm">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="h-9 w-9 rounded-xl flex items-center justify-center text-white shrink-0" style={{ background: 'var(--app-accent-gradient)', boxShadow: 'var(--app-shadow)' }}>
+            <Users size={17} strokeWidth={2.2} />
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-[17px] font-extrabold tracking-tight text-[var(--app-heading)] leading-none">Client Management</h1>
+            <p className="text-[10px] text-[var(--app-muted)] mt-1 truncate">Configure client portfolios, tax profiles and assigned operation roles.</p>
+          </div>
+        </div>
+        <button onClick={() => setShowCreateForm(p => !p)} className="h-8 px-3 m3-interactive bg-[var(--app-accent)] hover:opacity-90 text-white font-bold text-[11px] rounded-lg flex items-center gap-1.5 transition-all shrink-0 shadow-xs">
+          {showCreateForm ? <X size={13} /> : <Plus size={13} />}
+          {showCreateForm ? 'Close' : 'New Client'}
+        </button>
+      </div>
+
+      {/* KPI cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 shrink-0">
+        {stats.map((s, i) => <StatCard key={s.label} index={i} label={s.label} value={s.value} icon={s.icon} />)}
+      </div>
+
+      {/* Client Pop-up Modal */}
+      {showCreateForm && (
+        <div className="fixed inset-0 z-50 flex items-start md:items-center justify-center bg-black/50 backdrop-blur-[2px] p-0 md:p-4 overflow-y-auto select-none">
+          <div className="bg-[var(--app-panel-bg)] border-0 md:border border-[var(--app-border)] rounded-none md:rounded-xl shadow-2xl max-w-5xl w-full h-full md:h-auto md:max-h-[95vh] flex flex-col my-0 md:my-4 overflow-hidden">
+            {/* Header */}
+            <div className="px-4 py-2.5 border-b border-[var(--app-border)] flex justify-between items-center shrink-0 bg-[var(--app-panel-bg)] rounded-t-none md:rounded-t-xl">
+              <div>
+                <h2 className="text-base md:text-lg font-bold text-slate-900 dark:text-white">Create New Client</h2>
+                <p className="text-[10px] md:text-xs text-[var(--app-muted)] mt-0.5">Add a new client profile in one view</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCreateForm(false)}
+                className="text-[var(--app-muted)] hover:text-[var(--app-text)] dark:hover:text-[var(--app-muted)] transition-colors p-1 hover:bg-[var(--app-control-hover)] rounded-lg"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Form Body */}
+            <form onSubmit={handleCreateClient} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+              {/* Fields - grouped into 3 columns, no scrolling needed on typical displays */}
+              <div className="flex-1 p-3 md:p-4 space-y-3 overflow-y-auto md:overflow-visible">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  
+                  {/* Column 1: Profile Info */}
+                  <div className="space-y-3">
+                    <div className="space-y-2 border rounded-xl p-3 bg-[var(--app-content-bg)] border-[var(--app-border)]">
+                      <div className="flex items-center gap-1.5 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold border-b border-[var(--app-border)] pb-1 mb-2">
+                        <User size={13} />
+                        <span className="text-[11px] uppercase tracking-wider font-black">1. Profile Info</span>
+                      </div>
+
+                      <div>
+                        <label className="text-[9px] font-bold text-[var(--app-muted)] mb-0.5 block uppercase tracking-wide">Client Name *</label>
+                        <input
+                          type="text"
+                          required
+                          value={form.name}
+                          onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
+                          placeholder="e.g. Rahul Sharma"
+                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[9px] font-bold text-[var(--app-muted)] mb-0.5 block uppercase tracking-wide">Email Address *</label>
+                        <input
+                          type="email"
+                          required
+                          value={form.email}
+                          onChange={(e) => setForm(prev => ({ ...prev, email: e.target.value }))}
+                          placeholder="e.g. rahul@greeline.com"
+                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[9px] font-bold text-[var(--app-muted)] mb-0.5 block uppercase tracking-wide">Phone Number</label>
+                        <input
+                          type="text"
+                          value={form.phone}
+                          onChange={(e) => setForm(prev => ({ ...prev, phone: e.target.value }))}
+                          placeholder="e.g. +91 98765 43210"
+                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Column 2: Tax & Company Details */}
+                  <div className="space-y-3">
+                    <div className="space-y-2 border rounded-xl p-3 bg-[var(--app-content-bg)] border-[var(--app-border)]">
+                      <div className="flex items-center gap-1.5 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold border-b border-[var(--app-border)] pb-1 mb-2">
+                        <Shield size={13} />
+                        <span className="text-[11px] uppercase tracking-wider font-black">2. Entity Details</span>
+                      </div>
+
+                      <div>
+                        <label className="text-[9px] font-bold text-[var(--app-muted)] mb-0.5 block uppercase tracking-wide">Company Name *</label>
+                        <input
+                          type="text"
+                          required
+                          value={form.company}
+                          onChange={(e) => setForm(prev => ({ ...prev, company: e.target.value }))}
+                          placeholder="e.g. Greenline Ventures"
+                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[9px] font-bold text-[var(--app-muted)] mb-0.5 block uppercase tracking-wide">GSTIN Number</label>
+                        <input
+                          type="text"
+                          value={form.gstin}
+                          onChange={(e) => setForm(prev => ({ ...prev, gstin: e.target.value }))}
+                          placeholder="e.g. 23AAFFF6731J1L7"
+                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[9px] font-bold text-[var(--app-muted)] mb-0.5 block uppercase tracking-wide">PAN Number</label>
+                        <input
+                          type="text"
+                          value={form.pan}
+                          onChange={(e) => setForm(prev => ({ ...prev, pan: e.target.value }))}
+                          placeholder="e.g. AAFFF6731J"
+                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Column 3: Address & Notes */}
+                  <div className="space-y-3">
+                    <div className="space-y-2 border rounded-xl p-3 bg-[var(--app-content-bg)] border-[var(--app-border)]">
+                      <div className="flex items-center gap-1.5 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold border-b border-[var(--app-border)] pb-1 mb-2">
+                        <MapPin size={13} />
+                        <span className="text-[11px] uppercase tracking-wider font-black">3. Location & Notes</span>
+                      </div>
+
+                      <div>
+                        <label className="text-[9px] font-bold text-[var(--app-muted)] mb-0.5 block uppercase tracking-wide">Address</label>
+                        <input
+                          type="text"
+                          value={form.address}
+                          onChange={(e) => setForm(prev => ({ ...prev, address: e.target.value }))}
+                          placeholder="e.g. 102 Metro Plaza"
+                          className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[9px] font-bold text-[var(--app-muted)] mb-0.5 block uppercase tracking-wide">City</label>
+                          <input
+                            type="text"
+                            value={form.city}
+                            onChange={(e) => setForm(prev => ({ ...prev, city: e.target.value }))}
+                            placeholder="e.g. Indore"
+                            className="w-full h-8 rounded-lg border px-2 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-bold text-[var(--app-muted)] mb-0.5 block uppercase tracking-wide">State</label>
+                          <input
+                            type="text"
+                            value={form.state}
+                            onChange={(e) => setForm(prev => ({ ...prev, state: e.target.value }))}
+                            placeholder="e.g. MP"
+                            className="w-full h-8 rounded-lg border px-2 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-[9px] font-bold text-[var(--app-muted)] mb-0.5 block uppercase tracking-wide">Notes</label>
+                        <textarea
+                          rows={1.5}
+                          value={form.notes}
+                          onChange={(e) => setForm(prev => ({ ...prev, notes: e.target.value }))}
+                          placeholder="e.g. Premium subscriber client"
+                          className="w-full rounded-lg border px-2 py-1 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)] resize-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+              {/* Modal Footer Buttons */}
+              <div className="flex justify-end gap-2 p-3 md:p-4 border-t border-[var(--app-border)] text-[10px] font-bold uppercase tracking-wider shrink-0 bg-[var(--app-panel-bg)] rounded-b-none md:rounded-b-xl">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateForm(false)}
+                  className="px-4 py-1.5 border rounded-lg hover:bg-[var(--app-control-hover)] text-[var(--app-text)] transition-colors"
+                  style={{ borderColor: 'var(--app-border)' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-1.5 m3-interactive bg-[var(--app-cta)] hover:opacity-90 text-white rounded-full shadow-sm transition-all font-bold"
+                >
+                  Save Client
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Client table */}
+      <div className="flex-1 min-h-0">
+        <DataTable
+          minWidth="900px"
+          data={filteredClients}
+          rowKey={(c) => c.id}
+          emptyText="No client profiles found."
+          columns={columns}
+          search={{ value: searchQuery, onChange: setSearchQuery, placeholder: 'Search clients…' }}
+        />
+      </div>
+    </div>
+  );
+}

@@ -85,52 +85,20 @@ class SalesVoucherRepository:
         return current_seq + 1
 
     async def get_dynamic_next_sequence(self, voucher_type: str, prefix: str, consume: bool = False) -> int:
-        # Resolve voucher type matching (similar to list_vouchers)
-        types = [voucher_type, voucher_type.replace("_", " "), voucher_type.replace(" ", "_")]
-        types = list(set(types))
-        regex_pattern = "^(" + "|".join(types) + ")$"
+        # Get current counter value
+        counter = await self.db[COUNTERS_COLLECTION].find_one({"_id": prefix})
+        current_seq = counter["seq"] if counter else 0
         
-        # Query matching vouchers
-        query = {
-            "voucherType": {"$regex": regex_pattern, "$options": "i"},
-            "voucherNumber": {"$regex": f"^{prefix}-"},
-            "isDeleted": {"$ne": True}
-        }
-        cursor = self.db[SALES_VOUCHERS_COLLECTION].find(query, {"voucherNumber": 1})
-        docs = await cursor.to_list(length=1000)
-        
-        max_seq = 0
-        for d in docs:
-            v_num = d.get("voucherNumber", "")
-            parts = v_num.split("-")
-            if len(parts) >= 3:
-                try:
-                    # The last part is the sequence number
-                    seq_val = int(parts[-1])
-                    if seq_val > max_seq:
-                        max_seq = seq_val
-                except ValueError:
-                    pass
-                    
-        next_seq = max_seq + 1
-        
-        # If no documents are found, fallback to the database counter
-        if max_seq == 0:
-            counter = await self.db[COUNTERS_COLLECTION].find_one({"_id": prefix})
-            if counter:
-                next_seq = counter["seq"] + 1
-            else:
-                next_seq = 1
-                
         if consume:
-            # Sync/update the counter in COUNTERS_COLLECTION
+            next_seq = current_seq + 1
             await self.db[COUNTERS_COLLECTION].update_one(
                 {"_id": prefix},
                 {"$set": {"seq": next_seq}},
                 upsert=True
             )
-            
-        return next_seq
+            return next_seq
+        else:
+            return current_seq + 1
 
     async def get_company_state(self) -> str:
         # Lookup first company doc
@@ -201,7 +169,7 @@ class SalesVoucherRepository:
         return {"id": "", "name": str(party_ledger_id_or_name), "gstin": "", "gstState": "", "registrationType": "Consumer"}
 
     async def get_party_ledgers(self, company_id: Optional[str] = None) -> List[Dict[str, Any]]:
-        party_groups = ["Sundry Debtors", "Sundry Creditors", "Bank Accounts", "Cash-in-Hand"]
+        party_groups = ["Sundry Debtors", "Sundry Creditors"]
         query = {"groupName": {"$in": party_groups}}
         
         comp = None
@@ -284,18 +252,47 @@ class SalesVoucherRepository:
                 prefix = gstin[:2]
                 gst_state = STATE_CODES.get(prefix, "")
                 
+            pd_full = l.get("partyDetails") or {}
             results.append({
                 "id": str(l["_id"]),
                 "name": ledger_name,
                 "ledgerName": ledger_name,
                 "gstin": gstin,
                 "gstState": gst_state,
-                "registrationType": registration_type
+                "registrationType": registration_type,
+                "address": pd_full.get("address") or [],
+                "email": pd_full.get("email") or "",
+                "phone": pd_full.get("phone") or "",
+                "panNumber": pd_full.get("panNumber") or l.get("panNumber") or pd_full.get("panNo") or "",
+                "groupName": l.get("groupName") or ""
             })
         return results
 
-    async def get_sales_ledgers(self) -> List[Dict[str, Any]]:
-        cursor = self.db[LEDGERS_COLLECTION].find({"groupName": "Sales Accounts"})
+    async def get_sales_ledgers(self, company_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        query = {"groupName": "Sales Accounts"}
+        
+        comp = None
+        if company_id:
+            if len(company_id) == 24:
+                try:
+                    comp = await self.db[COMPANIES_COLLECTION].find_one({"_id": ObjectId(company_id)})
+                except Exception:
+                    pass
+            if not comp:
+                comp = await self.db[COMPANIES_COLLECTION].find_one({
+                    "$or": [
+                        {"companyName": company_id},
+                        {"basicCompantFormalName": company_id}
+                    ]
+                })
+        
+        if not comp:
+            comp = await self.db[COMPANIES_COLLECTION].find_one()
+
+        if comp:
+            query["companyId"] = comp["_id"]
+
+        cursor = self.db[LEDGERS_COLLECTION].find(query)
         ledgers = await cursor.to_list(length=1000)
         
         import re
@@ -319,55 +316,135 @@ class SalesVoucherRepository:
             })
         return results
 
-    async def get_stock_items(self) -> List[Dict[str, Any]]:
-        """Fetch stock items with name and HSN code from hsnSacDetails.hsnCode field."""
+    async def get_stock_items(self, company_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Fetch stock items with name and HSN code from hsnSacDetails.hsnCode field, scoped by company."""
         try:
+            query = {}
+            comp = None
+            if company_id:
+                if len(company_id) == 24:
+                    try:
+                        comp = await self.db[COMPANIES_COLLECTION].find_one({"_id": ObjectId(company_id)})
+                    except Exception:
+                        pass
+                if not comp:
+                    comp = await self.db[COMPANIES_COLLECTION].find_one({
+                        "$or": [
+                            {"companyName": company_id},
+                            {"basicCompantFormalName": company_id}
+                        ]
+                    })
+            
+            if not comp:
+                comp = await self.db[COMPANIES_COLLECTION].find_one()
+
+            if comp:
+                query["companyId"] = comp["_id"]
+
             cursor = self.db[STOCK_ITEMS_COLLECTION].find(
-                {},
+                query,
                 {"itemName": 1, "hsnSacDetails": 1, "gstSettings": 1, "hsnCode": 1, "taxRate": 1,
-                 "unit": 1, "unitOfMeasure": 1, "baseUnit": 1}
+                 "unit": 1, "unitOfMeasure": 1, "baseUnit": 1, "inventory": 1, "stockGroupName": 1, "auditInfo": 1}
             )
             docs = await cursor.to_list(length=2000)
             results = []
             for doc in docs:
-                name = doc.get("itemName", "")
-                if not name:
-                    continue
-                # Primary: hsnSacDetails.hsnCode/hsn  Fallback: top-level hsnCode
-                hsn_sac = doc.get("hsnSacDetails") or {}
-                hsn_code = (
-                    hsn_sac.get("hsnCode")
-                    or hsn_sac.get("hsn")
-                    or doc.get("hsnCode")
-                    or ""
-                )
-                # Primary: gstSettings.gstRate/igstRate  Fallback: cgstRate + sgstRate, then top-level taxRate
-                gst_settings = doc.get("gstSettings") or {}
-                gst_rate = gst_settings.get("gstRate") or gst_settings.get("igstRate")
-                if gst_rate is None or gst_rate == 0:
-                    cgst = gst_settings.get("cgstRate")
-                    sgst = gst_settings.get("sgstRate")
-                    cgst_val = float(cgst) if cgst is not None else 0.0
-                    sgst_val = float(sgst) if sgst is not None else 0.0
-                    gst_rate = cgst_val + sgst_val
-                if not gst_rate:
-                    gst_rate = doc.get("taxRate") or 0
+                try:
+                    name = doc.get("itemName", "")
+                    if not name:
+                        continue
+                    # Primary: hsnSacDetails.hsnCode/hsn  Fallback: top-level hsnCode
+                    hsn_sac = doc.get("hsnSacDetails") or {}
+                    hsn_code = (
+                        hsn_sac.get("hsnCode")
+                        or hsn_sac.get("hsn")
+                        or doc.get("hsnCode")
+                        or ""
+                    )
+                    # Primary: gstSettings.gstRate/igstRate  Fallback: cgstRate + sgstRate, then top-level taxRate
+                    gst_settings = doc.get("gstSettings") or {}
+                    gst_rate = gst_settings.get("gstRate") or gst_settings.get("igstRate")
+                    if gst_rate is None or gst_rate == 0:
+                        cgst = gst_settings.get("cgstRate")
+                        sgst = gst_settings.get("sgstRate")
+                        try:
+                            cgst_val = float(cgst) if cgst is not None else 0.0
+                        except (ValueError, TypeError):
+                            cgst_val = 0.0
+                        try:
+                            sgst_val = float(sgst) if sgst is not None else 0.0
+                        except (ValueError, TypeError):
+                            sgst_val = 0.0
+                        gst_rate = cgst_val + sgst_val
+                    if not gst_rate:
+                        gst_rate = doc.get("taxRate") or 0
 
-                # unit field is a nested object: {baseUnit: "Nos", alternateUnit: ...}
-                # Fallback to top-level baseUnit or unitOfMeasure string if needed
-                unit_raw = doc.get("unit")
-                if isinstance(unit_raw, dict):
-                    unit = unit_raw.get("baseUnit") or ""
-                elif isinstance(unit_raw, str):
-                    unit = unit_raw
-                else:
-                    unit = doc.get("baseUnit") or doc.get("unitOfMeasure") or ""
-                results.append({
-                    "name": name,
-                    "hsnCode": str(hsn_code),
-                    "gstRate": float(gst_rate),
-                    "unit": str(unit)
-                })
+                    try:
+                        gst_rate = float(gst_rate)
+                    except (ValueError, TypeError):
+                        # Try parsing digits
+                        import re
+                        if isinstance(gst_rate, str):
+                            m = re.search(r"(\d+(?:\.\d+)?)", gst_rate)
+                            gst_rate = float(m.group(1)) if m else 0.0
+                        else:
+                            gst_rate = 0.0
+
+                    # unit field is a nested object: {baseUnit: "Nos", alternateUnit: ...}
+                    # Fallback to top-level baseUnit or unitOfMeasure string if needed
+                    unit_raw = doc.get("unit")
+                    if isinstance(unit_raw, dict):
+                        unit = unit_raw.get("baseUnit") or ""
+                    elif isinstance(unit_raw, str):
+                        unit = unit_raw
+                    else:
+                        unit = doc.get("baseUnit") or doc.get("unitOfMeasure") or ""
+
+                    try:
+                        qty = float(((doc.get("inventory") or {}).get("openingStock") or {}).get("quantity") or 0.0)
+                    except (ValueError, TypeError):
+                        qty = 0.0
+
+                    try:
+                        value = float(((doc.get("inventory") or {}).get("openingStock") or {}).get("value") or 0.0)
+                    except (ValueError, TypeError):
+                        value = 0.0
+
+                    rate_raw = ((doc.get("inventory") or {}).get("openingStock") or {}).get("rate") or 0.0
+                    try:
+                        rate = float(rate_raw)
+                    except (ValueError, TypeError):
+                        rate = 0.0
+                        if isinstance(rate_raw, str):
+                            import re
+                            m = re.match(r"^\s*([+-]?\d+(?:\.\d+)?)\s*", rate_raw)
+                            if m:
+                                try:
+                                    rate = float(m.group(1))
+                                except ValueError:
+                                    pass
+
+                    if rate == 0.0 and qty > 0.0:
+                        rate = round(value / qty, 2)
+                    group = doc.get("stockGroupName") or ""
+                    is_synced = doc.get("auditInfo", {}).get("syncedFromTally", False)
+                    if is_synced is None:
+                        is_synced = False
+
+                    results.append({
+                        "name": name,
+                        "hsnCode": str(hsn_code),
+                        "gstRate": float(gst_rate),
+                        "unit": str(unit),
+                        "group": group,
+                        "qty": qty,
+                        "rate": rate,
+                        "value": value,
+                        "isSynced": is_synced
+                    })
+                except Exception as doc_err:
+                    import logging
+                    logging.warning(f"Error parsing stock item document: {doc_err}")
             return results
         except Exception as e:
             return []
