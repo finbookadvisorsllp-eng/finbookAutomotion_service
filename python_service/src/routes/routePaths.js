@@ -8,6 +8,7 @@ export const LOGIN_PATH = '/login'
 export const LABEL_TO_PATH = {
   
   'Dashboard': '/dashboard',
+  'AI Report': '/reports/ai-report',
 
   // Manage
   'Manage Company': '/companies',

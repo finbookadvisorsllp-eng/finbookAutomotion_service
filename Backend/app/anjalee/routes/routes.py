@@ -21,6 +21,8 @@ async def health():
 
 # Module Routes (Public)
 api_router.include_router(auth.router)
+from . import agent_platform
+api_router.include_router(agent_platform.router)
 
 # Protected business routers
 from fastapi import Depends

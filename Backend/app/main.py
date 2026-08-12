@@ -10,9 +10,16 @@ app = FastAPI(
     version="1.0.0"
 )
 
+from app.anjalee.agents.platform import daily_scheduler
+
 @app.on_event("startup")
 def startup_event():
     warm_up_tenant_cache()
+    daily_scheduler.start()
+
+@app.on_event("shutdown")
+def shutdown_event():
+    daily_scheduler.stop()
 
 # ─── CORS Configuration ───
 # Allow access from localhost frontend development servers

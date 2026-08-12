@@ -16,3 +16,15 @@ opencv-python-headless>=4.9.0
 PyMuPDF>=1.23.0
 numpy>=1.26.0
 openai
+langgraph
+langchain
+langchain-core
+langchain-community
+langchain-openai
+litellm
+apscheduler
+langsmith
+loguru
+rich
+tenacity
+orjson

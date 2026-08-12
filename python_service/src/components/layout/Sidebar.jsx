@@ -5,7 +5,7 @@ import {
   Search, Pin, X,
   Inbox, Eye, Archive, ClipboardList, PenLine, Upload, ScanLine, CheckCheck,
   ArrowUpRight, ArrowDownLeft, SlidersHorizontal, Package, FolderArchive,
-  Building2, Users, ShieldCheck, ReceiptText, FileMinus, Circle,
+  Building2, Users, ShieldCheck, ReceiptText, FileMinus, Circle, Sparkles,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'motion/react'
 import { useAppStore } from '../../stores/useAppStore'
@@ -16,6 +16,11 @@ import { useAppStore } from '../../stores/useAppStore'
 // organise the routes that already existed but had no nav entry.
 const NAV = [
   { label: 'Dashboard', icon: LayoutDashboard },
+  {
+    label: 'Reports', icon: Sparkles, children: [
+      'AI Report',
+    ],
+  },
   {
     label: 'Voucher Entry', icon: FileText, children: [
       'Manual Voucher Entry', 'Bulk Upload', 'OCR Upload', 'Text to Entry','Approval Center', 
@@ -48,6 +53,7 @@ const NAV = [
 
 // Per-leaf icon (replaces the dot bullet). Keyed by leaf label.
 const LEAF_ICONS = {
+  'AI Report': Sparkles,
   'Manual Voucher Entry': PenLine, 'Bulk Upload': Upload, 'OCR Upload': ScanLine, 'Text to Entry': FileText, 'Approval Center': CheckCheck, 
   'Sales Inbox': Inbox, 'Sales Review': Eye, 'Sales Archive': Archive, 'Sales Order': ClipboardList, 'Sales Invoice': ReceiptText, 'Credit Note (Sales Return)': FileMinus,
   'Purchase Inbox': Inbox, 'Purchase Review': Eye, 'Purchase Archive': Archive, 'Purchase Order': ClipboardList, 'Purchase Invoice': ReceiptText, 'Debit Note (Purchase Return)': FileMinus,
@@ -150,6 +156,7 @@ function SectionLabel({ children }) {
 
 const LEAF_TO_MODULE_ID = {
   'Dashboard': 'dashboard',
+  'AI Report': 'aiReport',
   'Manual Voucher Entry': 'manualVoucher',
   'Bulk Upload': 'bulkUpload',
   'OCR Upload': 'ocrUpload',
@@ -188,6 +195,7 @@ const LEAF_TO_MODULE_ID = {
 }
 
 function checkLeafViewPermission(leafLabel, permissions, role) {
+  if (leafLabel === 'AI Report' || leafLabel === 'Reports') return true
   const modId = LEAF_TO_MODULE_ID[leafLabel]
   if (!modId) return true
 

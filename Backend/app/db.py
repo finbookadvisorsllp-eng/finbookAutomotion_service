@@ -161,6 +161,9 @@ def resolve_db_name(company_ref: str) -> str:
     if company_ref.lower() in ("undefined", "null", ""):
         return settings.DEFAULT_DB_NAME
 
+    if company_ref.startswith("finbook_"):
+        return company_ref
+
     from bson import ObjectId
 
     # 1. Directly query MongoDB 'iam.organizations' for latest 'dbName' mapping

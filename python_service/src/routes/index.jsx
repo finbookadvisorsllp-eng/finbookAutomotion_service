@@ -40,6 +40,7 @@ const TallyConnectorPanel = lazy(() => import('../components/tally/TallyConnecto
 const DocumentArchivePanel = lazy(() => import('../components/documents/DocumentArchivePanel'))
 const ClientManagementPanel = lazy(() => import('../components/companies/ClientManagementPanel'))
 const ConfigurationPanel = lazy(() => import('../components/companies/ConfigurationPanel'))
+const AIReportPage = lazy(() => import('../components/reports/AIReportPage'))
 
 // Each route element reads isDark from the layout's Outlet context and gets a
 // navigate fn for onBack / onAdd callbacks. Panels themselves stay unchanged.
@@ -127,6 +128,9 @@ export const router = createBrowserRouter([
       { path: 'automation/ai-processing', element: <AiProcessingCenter /> },
       { path: 'automation/approval-center', element: <ApprovalCenter /> },
       { path: 'automation/text-to-entry', element: <TextToEntry /> },
+
+      // AI Reports
+      { path: 'reports/ai-report', element: <AIReportPage /> },
 
       // Tally Integration
       { path: 'tally/connector', element: <TallyConnectorPanel /> },

@@ -65,16 +65,17 @@ async def seed():
         print(f"  Email:    {user_email}")
         print(f"  Password: {raw_password}")
     else:
-        # Verify user is linked to the seeded organization
+        # Update password hash for seeded user to guarantee password123 works
+        raw_password = "password123"
+        hashed = hash_password(raw_password)
         linked_orgs = existing_user.get("organizations", [])
         if org_id not in linked_orgs:
-            print(f"Linking existing user {user_email} to organization {org_id}...")
             linked_orgs.append(org_id)
-            await db["users"].update_one(
-                {"_id": existing_user["_id"]},
-                {"$set": {"organizations": linked_orgs}}
-            )
-        print(f"User '{user_email}' already exists.")
+        await db["users"].update_one(
+            {"_id": existing_user["_id"]},
+            {"$set": {"passwordHash": hashed, "organizations": linked_orgs}}
+        )
+        print(f"User '{user_email}' updated with password '{raw_password}'.")
 
     print("IAM Seeding completed successfully.")
 
