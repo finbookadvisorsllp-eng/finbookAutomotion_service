@@ -89,9 +89,15 @@ const ConfigurationRoute = () => { const { isDark } = useDashCtx(); return <Conf
 const MyDocumentsRoute = () => { const { isDark } = useDashCtx(); return <MyDocumentsPanel isDark={isDark} /> }
 
 const PartyLedgerRoute = () => { const { isDark } = useDashCtx(); return <MasterDataPanel mode="Party Ledger" isDark={isDark} /> }
+const LedgerGroupRoute = () => { const { isDark } = useDashCtx(); return <MasterDataPanel mode="Ledger Group" isDark={isDark} /> }
 const StockLedgerRoute = () => { const { isDark } = useDashCtx(); return <MasterDataPanel mode="Stock Ledger" isDark={isDark} /> }
+const StockGroupRoute = () => { const { isDark } = useDashCtx(); return <MasterDataPanel mode="Stock Group" isDark={isDark} /> }
+const CostCategoryRoute = () => { const { isDark } = useDashCtx(); return <MasterDataPanel mode="Cost Category" isDark={isDark} /> }
+const CostCenterRoute = () => { const { isDark } = useDashCtx(); return <MasterDataPanel mode="Cost Center" isDark={isDark} /> }
+const BomMasterRoute = () => { const { isDark } = useDashCtx(); return <MasterDataPanel mode="BOM Master" isDark={isDark} /> }
 
 export const router = createBrowserRouter([
+
   { path: '/login', element: <Login /> },
   { path: '/org-select', element: <OrgSelect /> },
   {
@@ -179,7 +185,13 @@ export const router = createBrowserRouter([
       { path: 'documents', element: <MyDocumentsRoute /> },
 
       { path: 'master/party-ledger', element: <PartyLedgerRoute /> },
+      { path: 'master/ledger-group', element: <LedgerGroupRoute /> },
       { path: 'master/stock-ledger', element: <StockLedgerRoute /> },
+      { path: 'master/stock-group', element: <StockGroupRoute /> },
+      { path: 'master/cost-category', element: <CostCategoryRoute /> },
+      { path: 'master/cost-center', element: <CostCenterRoute /> },
+      { path: 'master/bom', element: <BomMasterRoute /> },
+
 
       { path: '*', element: <UserDataRoute /> },
     ],

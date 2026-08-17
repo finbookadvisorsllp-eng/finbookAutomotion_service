@@ -166,19 +166,38 @@ def resolve_db_name(company_ref: str) -> str:
 
     from bson import ObjectId
 
-    # 1. Directly query MongoDB 'iam.organizations' for latest 'dbName' mapping
+    # 1. Directly query MongoDB 'iam.organizations' and 'iam.users' for latest 'dbName' mapping
     try:
         iam_db = client["iam"]
         query_conditions = [
             {"slug": company_ref},
             {"name": company_ref},
-            {"displayName": company_ref}
+            {"displayName": company_ref},
+            {"email": company_ref},
+            {"email": company_ref.lower()}
         ]
         if len(company_ref) == 24 and re.match(r"^[0-9a-fA-F]{24}$", company_ref):
             try:
                 query_conditions.append({"_id": ObjectId(company_ref)})
             except Exception:
                 pass
+
+        # Also check if company_ref matches a user email in iam.users -> get organizationId
+        user_doc = iam_db["users"].find_one({
+            "$or": [
+                {"email": company_ref},
+                {"email": company_ref.lower()}
+            ]
+        })
+        if user_doc and user_doc.get("organizationId"):
+            user_org_id = user_doc["organizationId"]
+            if isinstance(user_org_id, ObjectId):
+                query_conditions.append({"_id": user_org_id})
+            elif isinstance(user_org_id, str) and len(user_org_id) == 24:
+                try:
+                    query_conditions.append({"_id": ObjectId(user_org_id)})
+                except Exception:
+                    pass
 
         org_doc = iam_db["organizations"].find_one({"$or": query_conditions})
         if org_doc and org_doc.get("dbName"):
@@ -187,6 +206,7 @@ def resolve_db_name(company_ref: str) -> str:
             if org_doc.get("_id"): _tenant_cache[str(org_doc["_id"])] = db_name
             if org_doc.get("slug"): _tenant_cache[org_doc["slug"].strip()] = db_name
             if org_doc.get("name"): _tenant_cache[org_doc["name"].strip()] = db_name
+            if org_doc.get("email"): _tenant_cache[org_doc["email"].strip()] = db_name
             return db_name
     except Exception as e:
         print(f"Error resolving tenant DB in IAM: {e}")
@@ -195,49 +215,28 @@ def resolve_db_name(company_ref: str) -> str:
     if company_ref in _tenant_cache:
         return _tenant_cache[company_ref]
 
-    # 3. If reference is a 24-char ObjectId, assign fallback isolated tenant database name
-    if len(company_ref) == 24 and re.match(r"^[0-9a-fA-F]{24}$", company_ref):
-        db_name = settings.tenant_db_name(company_ref.lower())
-        _tenant_cache[company_ref] = db_name
-        return db_name
-
-    # Quick check to ignore common placeholders / undefined / null references
+    # 3. Quick check to ignore common placeholders / undefined / null references
     if company_ref.lower() in ("undefined", "null", "default", "main company ltd", "subsidiary pvt ltd", ""):
         _tenant_cache[company_ref] = settings.DEFAULT_DB_NAME
         return settings.DEFAULT_DB_NAME
 
-    # 3. Check salesforecasting_system.organizations for slug or name match
+    # 4. Scan all tenant databases for a matching companyName or company _id
     try:
-        org_doc = client["salesforecasting_system"]["organizations"].find_one({
-            "$or": [
-                {"slug": company_ref},
-                {"name": company_ref}
-            ]
-        })
-        if org_doc:
-            db_name = org_doc.get("dbName") or f"sf_tenant_{str(org_doc['_id'])}"
-            _tenant_cache[company_ref] = db_name
-            return db_name
+        all_dbs = client.list_database_names()
+        for db_name in all_dbs:
+            if db_name.startswith("sf_tenant") or db_name.startswith("finbook") or db_name.startswith("tenant_"):
+                query_comp = [{"companyName": company_ref}, {"basicCompantFormalName": company_ref}]
+                if len(company_ref) == 24 and re.match(r"^[0-9a-fA-F]{24}$", company_ref):
+                    try:
+                        query_comp.append({"_id": ObjectId(company_ref)})
+                    except Exception:
+                        pass
+                comp_doc = client[db_name]["companies"].find_one({"$or": query_comp})
+                if comp_doc:
+                    _tenant_cache[company_ref] = db_name
+                    return db_name
     except Exception:
         pass
-
-    # 4. Scan all sf_tenant_* databases for a matching companyName (only if cache is not fully warmed)
-    if not _cache_warmed:
-        try:
-            all_dbs = client.list_database_names()
-            for db_name in all_dbs:
-                if db_name.startswith(settings.TENANT_DB_PREFIX):
-                    comp_doc = client[db_name]["companies"].find_one({
-                        "$or": [
-                            {"companyName": company_ref},
-                            {"basicCompantFormalName": company_ref}
-                        ]
-                    })
-                    if comp_doc:
-                        _tenant_cache[company_ref] = db_name
-                        return db_name
-        except Exception:
-            pass
 
     # 5. If slug or name is unknown, clean slug and assign isolated tenant database name
     clean_slug = re.sub(r'[^a-z0-9]+', '_', company_ref.lower()).strip('_')
@@ -293,6 +292,7 @@ async def get_async_db(request: Request):
     """
     company_ref = extract_company_ref_from_request(request)
     db_name = resolve_db_name(company_ref)
+    
     
     if db_name not in _indexed_dbs:
         _indexed_dbs.add(db_name)

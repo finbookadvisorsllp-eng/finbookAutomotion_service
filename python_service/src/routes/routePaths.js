@@ -86,9 +86,17 @@ export const LABEL_TO_PATH = {
   'Bank Transaction': '/bank/inbox',
 
   // Masters
+  'Masters': '/master/party-ledger',
   'Ledger Master': '/master/party-ledger',
+  'Ledger Group': '/master/ledger-group',
   'Item Master': '/master/stock-ledger',
+  'Stock Group': '/master/stock-group',
+  'Cost Category': '/master/cost-category',
+  'Cost Center': '/master/cost-center',
+  'BOM Master': '/master/bom',
+  'Bill of Materials': '/master/bom',
 }
+
 
 export const PATH_TO_LABEL = {
   ...Object.fromEntries(

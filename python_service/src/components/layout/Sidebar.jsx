@@ -5,7 +5,7 @@ import {
   Search, Pin, X,
   Inbox, Eye, Archive, ClipboardList, PenLine, Upload, ScanLine, CheckCheck,
   ArrowUpRight, ArrowDownLeft, SlidersHorizontal, Package, FolderArchive,
-  Building2, Users, ShieldCheck, ReceiptText, FileMinus, Circle, Sparkles,
+  Building2, Users, ShieldCheck, ReceiptText, FileMinus, Circle, Sparkles, Layers,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'motion/react'
 import { useAppStore } from '../../stores/useAppStore'
@@ -46,7 +46,7 @@ const NAV = [
       'Manage Bank', 'Manage Rule', 'Inbox', 'Bank Review', 'Bank Archive',
     ],
   },
-  { label: 'Masters', icon: BookOpen, children: ['Ledger Master', 'Item Master'] },
+  { label: 'Masters', icon: BookOpen },
   { label: 'Integrations', icon: Plug, children: ['Tally Connector', 'Document Archive'] },
   { label: 'Administration', icon: Settings, children: ['Companies', 'Clients', 'User & Role Management', 'Configuration'] },
 ]
@@ -59,7 +59,7 @@ const LEAF_ICONS = {
   'Purchase Inbox': Inbox, 'Purchase Review': Eye, 'Purchase Archive': Archive, 'Purchase Order': ClipboardList, 'Purchase Invoice': ReceiptText, 'Debit Note (Purchase Return)': FileMinus,
   'Payment': ArrowUpRight, 'Receipt': ArrowDownLeft, 'Contra': ArrowLeftRight, 'Fund Flow Review': Eye, 'Fund Flow Archive': Archive,
   'Manage Bank': Landmark, 'Manage Rule': SlidersHorizontal, 'Inbox': Inbox, 'Bank Review': Eye, 'Bank Archive': Archive,
-  'Ledger Master': BookOpen, 'Item Master': Package,
+  'Masters': BookOpen,
   'Tally Connector': Plug, 'Document Archive': FolderArchive,
   'Companies': Building2, 'Clients': Users, 'User & Role Management': ShieldCheck, 'Configuration': Settings,
 }
@@ -184,6 +184,7 @@ const LEAF_TO_MODULE_ID = {
   'Inbox': 'manageBank',
   'Bank Review': 'manageBank',
   'Bank Archive': 'manageBank',
+  'Masters': 'ledgerMaster',
   'Ledger Master': 'ledgerMaster',
   'Item Master': 'itemMaster',
   'Tally Connector': 'tallyConnector',

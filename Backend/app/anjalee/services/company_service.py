@@ -213,20 +213,92 @@ class CompanyService:
         if not tax_ledgers and not is_specific_company:
             tax_ledgers = ["CGST Output", "SGST Output", "IGST Output", "CGST Input", "SGST Input", "IGST Input"]
 
-        # Get all ledgers dynamically from the database
+        # Get all ledgers dynamically from the database (both 'ledgers' and 'ledgers_entry' collections)
         all_ledgers = []
         if comp_db_id:
             try:
                 query = {"companyId": comp_db_id}
-                all_ledgers = [
+                ledgers_from_main = [
                     doc.get("ledgerName")
                     for doc in self.repo.db["ledgers"].find(query, {"ledgerName": 1})
                     if doc.get("ledgerName")
                 ]
+                ledgers_from_entry = [
+                    doc.get("ledgerName")
+                    for doc in self.repo.db["ledgers_entry"].find(query, {"ledgerName": 1})
+                    if doc.get("ledgerName")
+                ]
+                all_ledgers = list(set(ledgers_from_main + ledgers_from_entry))
             except Exception:
                 pass
         if not all_ledgers:
             all_ledgers = list(set(sales_ledgers + party_ledgers + additional_charge_ledgers + tcs_ledgers))
+
+        # Helper function to convert any nested ObjectId / datetime objects to JSON primitives
+        def serialize_mongo_doc(doc):
+            from bson import ObjectId
+            from datetime import datetime
+            if isinstance(doc, dict):
+                return {k: serialize_mongo_doc(v) for k, v in doc.items()}
+            elif isinstance(doc, list):
+                return [serialize_mongo_doc(v) for v in doc]
+            elif isinstance(doc, ObjectId):
+                return str(doc)
+            elif isinstance(doc, datetime):
+                return doc.isoformat()
+            return doc
+
+        # Query dynamic master collections for the requested company (both standard and *_entry collections)
+        stock_categories = []
+        cost_centers = []
+        cost_categories = []
+        units = []
+        stock_groups = []
+        ledger_groups = []
+
+        try:
+            if comp_db_id:
+                query = {"$or": [{"companyId": comp_db_id}, {"companyId": str(comp_db_id)}]}
+            else:
+                query = {}
+
+            
+            # Helper to query and tag docs
+            def fetch_and_tag(std_col, entry_col):
+                std_docs = [dict(serialize_mongo_doc(d), isWebEntry=False, sourceCollection=std_col) for d in self.repo.db[std_col].find(query)]
+                entry_docs = [dict(serialize_mongo_doc(d), isWebEntry=True, sourceCollection=entry_col) for d in self.repo.db[entry_col].find(query)]
+                return entry_docs + std_docs
+
+
+            # Stock Categories
+            stock_categories = fetch_and_tag("stockCategories", "stockcategories_entry")
+
+            # Cost Centers
+            cost_centers = fetch_and_tag("costCenters", "costcenters_entry")
+
+            # Cost Categories
+            raw_cat = list(self.repo.db["costCategories"].find(query))
+            cost_categories = [c.get("name") or c.get("costCategoryName") for c in raw_cat if c.get("name") or c.get("costCategoryName")]
+
+            # Units
+            units = fetch_and_tag("units", "units_entry")
+
+            # Stock Groups
+            stock_groups = fetch_and_tag("stockGroups", "stockgroups_entry")
+
+            # Groups / Ledger Groups
+            ledger_groups = fetch_and_tag("groups", "groups_entry")
+
+            # BOMs (Bill of Materials)
+            boms = fetch_and_tag("boms", "boms_entry")
+
+            # Stock Items
+            stock_items_full = fetch_and_tag("stockItems", "stockitems_entry")
+            if stock_items_full:
+                stock_items = [s.get("itemName") or s.get("name") for s in stock_items_full if s.get("itemName") or s.get("name")]
+
+        except Exception as e:
+            print(f"Error querying dynamic company master collections: {e}")
 
         return {
             "salesLedgers": sorted(list(set(sales_ledgers))),
@@ -240,8 +312,17 @@ class CompanyService:
             "taxLedgers": sorted(list(set(tax_ledgers))),
             "allLedgers": sorted(list(set(all_ledgers))),
             "voucherTypes": sorted(list(set(voucher_types))),
-            "voucherTypesFull": voucher_types_full
+            "voucherTypesFull": voucher_types_full,
+            "stockCategories": stock_categories,
+            "costCenters": cost_centers,
+            "costCategories": cost_categories,
+            "units": units,
+            "stockGroups": stock_groups,
+            "ledgerGroups": ledger_groups,
+            "boms": boms,
+            "stockItemsFull": stock_items_full
         }
+
 
 
     def get_company_dashboard_summary(self, start_date_str: str = None, end_date_str: str = None, party_ledger: str = None, company_id: str = None) -> Dict[str, Any]:

@@ -49,6 +49,14 @@ protected_router.include_router(ai_chat.router)
 from . import voucher
 protected_router.include_router(voucher.router)
 
+# Ledgers Entry router
+from . import ledgers
+api_router.include_router(ledgers.router)
+
+# Master Entry router (stockitems_entry, units_entry, stockgroups_entry, stockcategories_entry, groups_entry, costcenters_entry)
+from . import masters
+api_router.include_router(masters.router)
+
 api_router.include_router(protected_router)
 
 
