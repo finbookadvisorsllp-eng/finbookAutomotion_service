@@ -21,13 +21,7 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res,
   (error) => {
-    const status = error.response?.status
-    if (status === 401) {
-      useAppStore.getState().logout()
-      if (!location.pathname.startsWith('/login')) {
-        window.location.assign('/login')
-      }
-    }
+    // Preserve active session state; only logout when user manually clicks Logout button!
     return Promise.reject(error)
   }
 )

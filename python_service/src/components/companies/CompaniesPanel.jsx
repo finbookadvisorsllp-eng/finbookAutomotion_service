@@ -122,18 +122,15 @@ function CompaniesPanel({ onIconAction }) {
             <p className="text-[10px] text-[var(--app-muted)] mt-1 truncate">Configure tenants, businesses, GSTIN registrations and fiscal scopes.</p>
           </div>
         </div>
-        <button onClick={() => setShowCreateForm(p => !p)} className="h-8 px-3 m3-interactive bg-[var(--app-accent)] hover:opacity-90 text-white font-bold text-[11px] rounded-lg flex items-center gap-1.5 transition-all shrink-0 shadow-xs">
-          {showCreateForm ? <X size={13} /> : <Plus size={13} />}
-          {showCreateForm ? 'Close' : 'Create Company'}
-        </button>
+        <span className="text-[11px] font-bold px-2.5 py-1 rounded-md bg-[var(--app-accent-soft)] text-[var(--app-accent)] border border-[var(--app-border)] shrink-0">
+          Workspaces Scope
+        </span>
       </div>
 
       {/* KPI cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 shrink-0">
         {stats.map((s, i) => <StatCard key={s.label} index={i} label={s.label} value={s.value} icon={s.icon} />)}
       </div>
-
-      <AddCompanyModal open={showCreateForm} onClose={() => setShowCreateForm(false)} formValues={formValues} onFieldChange={handleFieldChange} onSave={handleSaveCompany} />
 
       {/* Company table */}
       <div className="flex-1 min-h-0">

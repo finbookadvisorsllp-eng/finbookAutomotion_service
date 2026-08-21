@@ -1,14 +1,45 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  FolderTree, Search, ChevronDown, Check, ArrowLeft, Save, 
-  CheckCircle2, AlertCircle, Settings, X
+  FolderTree, ArrowLeft, CheckCircle2, AlertCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
 
+// Helper to check circular parent relationships in Stock Categories
+const isCircularParentCategory = (selectedParentName, currentCategoryName, stockCategoriesList) => {
+  if (!selectedParentName || !currentCategoryName || selectedParentName === 'Primary' || selectedParentName === 'Primary / Root Category') {
+    return false;
+  }
+  
+  if (selectedParentName.toLowerCase().trim() === currentCategoryName.toLowerCase().trim()) {
+    return true; // Self-parent
+  }
+
+  let curr = selectedParentName;
+  const visited = new Set();
+
+  while (curr && curr !== 'Primary' && curr !== 'Primary / Root Category') {
+    if (curr.toLowerCase().trim() === currentCategoryName.toLowerCase().trim()) {
+      return true; // Circular dependency detected!
+    }
+    if (visited.has(curr.toLowerCase().trim())) {
+      break;
+    }
+    visited.add(curr.toLowerCase().trim());
+
+    const parentObj = (stockCategoriesList || []).find(c => 
+      (c.stockCategoryName || c.categoryName || c.name || '').toLowerCase().trim() === curr.toLowerCase().trim()
+    );
+    if (!parentObj) break;
+
+    curr = parentObj.parentCategory || parentObj.parentCategoryName || parentObj.parentName || 'Primary';
+  }
+
+  return false;
+};
+
 /**
  * StockCategoryMasterForm
- * Component for creating and editing Stock Categories in the Masters module.
- * Takes full screen width and includes a [ Configure Form ] modal for toggling form sections.
+ * Universal, Tally Prime-style Stock Category Master form.
  */
 export default function StockCategoryMasterForm({
   initialData = null,
@@ -17,57 +48,41 @@ export default function StockCategoryMasterForm({
   onSave,
   onClose
 }) {
-  // Configure Form Modal Preferences (Persisted in localStorage)
-  const [showConfigModal, setShowConfigModal] = useState(false);
-  const [config, setConfig] = useState(() => {
-    const saved = localStorage.getItem('stock_category_form_config');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) {}
+  // Form State
+  const [formData, setFormData] = useState(() => {
+    if (initialData) {
+      const pName = initialData.parentCategory || initialData.parentCategoryName || initialData.parentName || 'Primary';
+      return {
+        stockCategoryName: initialData.stockCategoryName || initialData.categoryName || initialData.name || '',
+        alias: initialData.alias || (Array.isArray(initialData.nameAliases) ? initialData.nameAliases[0] : '') || '',
+        parentCategory: pName === 'Primary / Root Category' ? 'Primary' : pName,
+        status: (initialData.status || 'Active').toLowerCase() === 'inactive' ? 'Inactive' : 'Active'
+      };
     }
+
     return {
-      cfgCategoryCode: true,
-      cfgParentCategory: true
+      stockCategoryName: '',
+      alias: '',
+      parentCategory: 'Primary',
+      status: 'Active'
     };
   });
 
-  useEffect(() => {
-    localStorage.setItem('stock_category_form_config', JSON.stringify(config));
-  }, [config]);
-
-  // Form State
-  const [formData, setFormData] = useState({
-    stockCategoryName: '',
-    stockCategoryCode: '',
-    parentCategory: 'Primary / Root Category',
-    status: 'ACTIVE'
-  });
-
-  // Parent Category Search State
-  const [parentSearchQuery, setParentSearchQuery] = useState('');
-  const [showParentDropdown, setShowParentDropdown] = useState(false);
-
-  // Errors
   const [errors, setErrors] = useState({});
 
-  // Pre-fill on Edit / Auto-generate code on Create
-  useEffect(() => {
-    if (isEdit && initialData) {
-      setFormData({
-        stockCategoryName: initialData.stockCategoryName || initialData.name || '',
-        stockCategoryCode: initialData.stockCategoryCode || initialData.code || '',
-        parentCategory: initialData.parentCategory || initialData.parentName || 'Primary / Root Category',
-        status: (initialData.status || 'ACTIVE').toUpperCase()
-      });
-    } else {
-      const nextNum = (stockCategoriesList.length + 1).toString().padStart(4, '0');
-      setFormData(prev => ({
-        ...prev,
-        stockCategoryCode: `SCAT-${nextNum}`
-      }));
-    }
-  }, [isEdit, initialData, stockCategoriesList.length]);
+  // Parent Category Options
+  const parentCategoryOptions = useMemo(() => {
+    const set = new Set(['Primary']);
+    (stockCategoriesList || []).forEach(c => {
+      const name = c.stockCategoryName || c.categoryName || c.name;
+      if (name && typeof name === 'string' && name.trim() && name !== 'Primary') {
+        set.add(name.trim());
+      }
+    });
+    return Array.from(set).sort();
+  }, [stockCategoriesList]);
 
-  // Field Update Helper
+  // Update Field Helper
   const updateField = (key, val) => {
     setFormData(prev => ({ ...prev, [key]: val }));
     if (errors[key]) {
@@ -78,20 +93,33 @@ export default function StockCategoryMasterForm({
   // Validation
   const validate = () => {
     const newErrors = {};
-    const trimmedName = formData.stockCategoryName.trim();
+    const cleanName = formData.stockCategoryName.trim();
+    const currentId = initialData?._id || initialData?.id;
 
-    if (!trimmedName) {
+    if (!cleanName) {
       newErrors.stockCategoryName = 'Stock Category Name is required';
     } else {
-      const duplicate = stockCategoriesList.find(c => {
-        const cName = (c.stockCategoryName || c.name || '').trim().toLowerCase();
-        const currentId = initialData?.id || initialData?.sr;
-        const itemObjId = c.id || c.sr;
-        return cName === trimmedName.toLowerCase() && currentId !== itemObjId;
+      // Case-insensitive duplicate check within company
+      const duplicate = (stockCategoriesList || []).find(c => {
+        if (!c) return false;
+        const cId = c._id || c.id;
+        if (currentId && cId && String(cId) === String(currentId)) return false;
+
+        const existingName = (c.stockCategoryName || c.categoryName || c.name || '').trim().toLowerCase();
+        return existingName === cleanName.toLowerCase();
       });
 
       if (duplicate) {
-        newErrors.stockCategoryName = 'A Stock Category with this name already exists';
+        newErrors.stockCategoryName = `Stock Category "${cleanName}" already exists`;
+      }
+    }
+
+    // Check Self & Circular Parent
+    if (formData.parentCategory && formData.parentCategory !== 'Primary') {
+      if (isEdit && formData.parentCategory.toLowerCase().trim() === cleanName.toLowerCase()) {
+        newErrors.parentCategory = 'A Stock Category cannot be its own parent';
+      } else if (isEdit && isCircularParentCategory(formData.parentCategory, cleanName, stockCategoriesList)) {
+        newErrors.parentCategory = `Selecting "${formData.parentCategory}" creates a circular parent relationship`;
       }
     }
 
@@ -108,11 +136,11 @@ export default function StockCategoryMasterForm({
       return;
     }
 
-    const parentName = formData.parentCategory === 'Primary / Root Category' || formData.parentCategory === 'Primary' ? 'Primary' : formData.parentCategory;
-    const parentObj = stockCategoriesList.find(c => (c.stockCategoryName || c.name) === parentName);
+    const parentName = formData.parentCategory === 'Primary / Root Category' || !formData.parentCategory ? 'Primary' : formData.parentCategory;
+    const parentObj = (stockCategoriesList || []).find(c => (c.stockCategoryName || c.categoryName || c.name) === parentName);
 
     const level = parentName === 'Primary' ? 1 : (parentObj?.level ? parentObj.level + 1 : 2);
-    const categoryPath = parentName === 'Primary' 
+    const categoryPath = parentName === 'Primary'
       ? `Primary > ${formData.stockCategoryName.trim()}`
       : `${parentObj?.categoryPath || ('Primary > ' + parentName)} > ${formData.stockCategoryName.trim()}`;
 
@@ -120,75 +148,52 @@ export default function StockCategoryMasterForm({
       _id: initialData?._id || initialData?.id,
       id: initialData?._id || initialData?.id,
       sourceCollection: initialData?.sourceCollection || 'stockcategories_entry',
+
       stockCategoryName: formData.stockCategoryName.trim(),
-      stockCategoryCode: formData.stockCategoryCode.trim(),
+      categoryName: formData.stockCategoryName.trim(),
+      name: formData.stockCategoryName.trim(),
+      alias: formData.alias.trim(),
       parentCategory: parentName,
+      parentCategoryName: parentName,
       parentName: parentName,
       categoryPath: categoryPath,
       level: level,
       status: formData.status
     };
 
-    onSave(payload);
-    toast.success(isEdit ? 'Stock Category updated successfully!' : 'Stock Category created successfully!');
+    if (onSave) {
+      onSave(payload);
+      toast.success(isEdit ? `Stock Category "${formData.stockCategoryName}" updated!` : `Stock Category "${formData.stockCategoryName}" created!`);
+    }
   };
 
-  // Filter Parent Category Options
-  const filteredParents = useMemo(() => {
-    const available = stockCategoriesList.filter(c => {
-      const cName = c.stockCategoryName || c.name || '';
-      return !isEdit || cName.toLowerCase() !== formData.stockCategoryName.toLowerCase();
-    });
-
-    const q = parentSearchQuery.toLowerCase().trim();
-    if (!q) return ['Primary / Root Category', ...available.map(c => c.stockCategoryName || c.name)];
-    
-    const matches = available
-      .map(c => c.stockCategoryName || c.name)
-      .filter(n => n.toLowerCase().includes(q));
-    
-    return ['Primary / Root Category', ...matches];
-  }, [stockCategoriesList, parentSearchQuery, isEdit, formData.stockCategoryName]);
-
   return (
-    <div className="h-full w-full flex flex-col bg-[var(--app-content-bg)] text-[var(--app-text)] font-sans overflow-hidden animate-in fade-in duration-300">
+    <div className="h-full w-full flex flex-col bg-[var(--app-panel-bg)] text-[var(--app-text)] font-sans overflow-hidden animate-in fade-in duration-200">
       
-      {/* 1. Header Navigation Bar (Full Width) */}
-      <div className="shrink-0 px-6 py-3.5 border-b border-[var(--app-border)] bg-[var(--app-panel-bg)] flex items-center justify-between shadow-xs">
+      {/* Top Header Bar */}
+      <div className="shrink-0 px-5 py-3 border-b border-[var(--app-border)] bg-[var(--app-panel-bg)] flex items-center justify-between shadow-2xs">
         <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg border border-[var(--app-border)] hover:bg-[var(--app-control-hover)] text-[var(--app-text)] transition-colors"
+            className="p-1.5 rounded-lg border border-[var(--app-border)] hover:bg-[var(--app-control-hover)] text-[var(--app-text)] transition-colors shrink-0"
             title="Back to Stock Categories List"
           >
-            <ArrowLeft size={16} />
+            <ArrowLeft size={15} />
           </button>
           <div>
-            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--app-muted)]">
-              <span>Masters</span>
+            <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--app-muted)]">
+              <span>Stock Categories</span>
               <span>/</span>
-              <span>Stock Category</span>
-              <span>/</span>
-              <span className="text-[var(--app-accent)] font-bold">{isEdit ? 'Edit' : 'Create'}</span>
+              <span className="text-[var(--app-accent)]">{isEdit ? 'Edit Category' : 'New Category'}</span>
             </div>
-            <h1 className="text-base md:text-xl font-extrabold text-[var(--app-heading)] tracking-tight">
-              {isEdit ? 'Edit Stock Category Master' : 'Create Stock Category Master'}
+            <h1 className="text-base font-extrabold text-[var(--app-heading)] tracking-tight">
+              {isEdit ? `Edit: ${formData.stockCategoryName || 'Category'}` : 'Create Stock Category'}
             </h1>
           </div>
         </div>
 
-        {/* Header Action Controls */}
-        <div className="flex items-center gap-2.5">
-          <button
-            type="button"
-            onClick={() => setShowConfigModal(true)}
-            className="px-3.5 py-1.5 rounded-lg border border-[var(--app-accent-soft)] bg-[var(--app-accent-soft)] text-[var(--app-accent)] hover:opacity-90 transition-all text-xs font-bold flex items-center gap-1.5 shadow-2xs"
-            title="Configure visible form sections and settings"
-          >
-            <Settings size={14} />
-            <span>Configure Form</span>
-          </button>
+        <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={onClose}
@@ -199,7 +204,7 @@ export default function StockCategoryMasterForm({
           <button
             type="button"
             onClick={handleSubmit}
-            className="px-4 py-1.5 rounded-lg bg-[var(--app-accent)] text-white text-xs font-bold shadow-xs hover:opacity-90 transition-all flex items-center gap-1.5"
+            className="px-4 py-1.5 rounded-lg bg-[var(--app-accent)] text-white text-xs font-bold shadow-xs hover:opacity-90 transition-all flex items-center gap-1.5 cursor-pointer"
           >
             <CheckCircle2 size={14} />
             <span>{isEdit ? 'Update Category' : 'Save Category'}</span>
@@ -207,141 +212,104 @@ export default function StockCategoryMasterForm({
         </div>
       </div>
 
-      {/* 2. Full Width Form Body */}
-      <div className="flex-1 overflow-y-auto no-scrollbar p-6 w-full space-y-5">
-        
-        {/* BASIC INFORMATION */}
-        <div className="rounded-2xl border border-[var(--app-border)] bg-[var(--app-panel-bg)] p-5 shadow-xs space-y-4">
-          <div className="flex items-center justify-between border-b border-[var(--app-border)] pb-2.5">
-            <div className="flex items-center gap-2 text-[var(--app-accent)] font-bold text-xs uppercase tracking-wider">
+      {/* Main Form Body */}
+      <div className="flex-1 overflow-y-auto p-4 md:p-6 flex justify-center">
+        <form onSubmit={handleSubmit} className="w-full max-w-xl space-y-4">
+          
+          {/* Card: Basic Information */}
+          <div className="rounded-xl border border-[var(--app-border)] bg-[var(--app-panel-bg)] p-4 md:p-5 shadow-xs space-y-4">
+            <div className="flex items-center gap-2 border-b border-[var(--app-border)] pb-2.5 text-[var(--app-accent)] font-bold text-xs uppercase tracking-wider">
               <FolderTree size={15} />
-              <span>BASIC CATEGORY DETAILS</span>
-            </div>
-            <span className="text-[10px] font-semibold text-[var(--app-muted)]">* Required fields</span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
-            
-            {/* Stock Category Name * */}
-            <div className="md:col-span-2 space-y-1">
-              <label className="block text-[10px] font-extrabold uppercase tracking-wider text-[var(--app-muted)]">
-                Stock Category Name <span className="text-red-500">*</span>
-              </label>
-              <input
-                autoFocus
-                type="text"
-                value={formData.stockCategoryName}
-                onChange={(e) => updateField('stockCategoryName', e.target.value)}
-                placeholder="e.g. Dell, HP, Small, Medium, Red, Blue, Electronics"
-                className={`w-full h-9.5 rounded-lg border bg-[var(--app-control-bg)] px-3 text-xs font-semibold text-[var(--app-heading)] outline-none transition-all ${
-                  errors.stockCategoryName 
-                    ? 'border-red-500 focus:border-red-500 ring-1 ring-red-500/20' 
-                    : 'border-[var(--app-border)] focus:border-[var(--app-accent)]'
-                }`}
-              />
-              {errors.stockCategoryName && (
-                <p className="text-[10px] font-bold text-red-500 flex items-center gap-1 mt-0.5">
-                  <AlertCircle size={11} />
-                  <span>{errors.stockCategoryName}</span>
-                </p>
-              )}
+              <span>Category Details</span>
             </div>
 
-            {/* Stock Category Code (Rendered if active in Configure Form) */}
-            {config.cfgCategoryCode && (
-              <div className="space-y-1 animate-in fade-in duration-200">
+            {/* Row 1: Category Name & Alias */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="sm:col-span-2 space-y-1">
                 <label className="block text-[10px] font-extrabold uppercase tracking-wider text-[var(--app-muted)]">
-                  Stock Category Code
+                  Category Name <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  autoFocus
+                  type="text"
+                  value={formData.stockCategoryName}
+                  onChange={(e) => updateField('stockCategoryName', e.target.value)}
+                  placeholder="e.g. Premium, 5G, Budget, Imported, High End"
+                  className={`w-full h-9 rounded-lg border bg-[var(--app-control-bg)] px-3 text-xs font-semibold text-[var(--app-heading)] outline-none transition-all ${
+                    errors.stockCategoryName 
+                      ? 'border-rose-500 focus:border-rose-500 ring-1 ring-rose-500/20' 
+                      : 'border-[var(--app-border)] focus:border-[var(--app-accent)]'
+                  }`}
+                />
+                {errors.stockCategoryName && (
+                  <p className="text-[10px] font-bold text-rose-500 mt-0.5 flex items-center gap-1">
+                    <AlertCircle size={11} />
+                    <span>{errors.stockCategoryName}</span>
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-[10px] font-extrabold uppercase tracking-wider text-[var(--app-muted)] flex items-center justify-between">
+                  <span>Alias</span>
+                  <span className="text-[9px] text-[var(--app-muted)]">(Optional)</span>
                 </label>
                 <input
                   type="text"
-                  value={formData.stockCategoryCode}
-                  onChange={(e) => updateField('stockCategoryCode', e.target.value.toUpperCase())}
-                  placeholder="e.g. SCAT-0001"
-                  className="w-full h-9.5 rounded-lg border border-[var(--app-border)] bg-[var(--app-control-bg)] px-3 text-xs font-mono font-bold text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)] transition-all"
+                  value={formData.alias}
+                  onChange={(e) => updateField('alias', e.target.value)}
+                  placeholder="e.g. PREM"
+                  className="w-full h-9 rounded-lg border border-[var(--app-border)] bg-[var(--app-control-bg)] px-3 text-xs font-semibold text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)]"
                 />
               </div>
-            )}
-
-            {/* Status */}
-            <div className="space-y-1">
-              <label className="block text-[10px] font-extrabold uppercase tracking-wider text-[var(--app-muted)]">
-                Status
-              </label>
-              <select
-                value={formData.status}
-                onChange={(e) => updateField('status', e.target.value)}
-                className="w-full h-9.5 rounded-lg border border-[var(--app-border)] bg-[var(--app-control-bg)] px-2.5 text-xs font-bold text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)] transition-all"
-              >
-                <option value="ACTIVE">ACTIVE</option>
-                <option value="INACTIVE">INACTIVE</option>
-              </select>
             </div>
 
-            {/* Under / Parent Stock Category (Rendered if active in Configure Form) */}
-            {config.cfgParentCategory && (
-              <div className="md:col-span-4 space-y-1 relative animate-in fade-in duration-200">
+            {/* Row 2: Under Category & Status */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="sm:col-span-2 space-y-1">
                 <label className="block text-[10px] font-extrabold uppercase tracking-wider text-[var(--app-muted)]">
-                  Under / Parent Stock Category
+                  Parent Category <span className="text-rose-500">*</span>
                 </label>
-
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setShowParentDropdown(p => !p)}
-                    className="w-full h-9.5 rounded-lg border border-[var(--app-border)] bg-[var(--app-control-bg)] px-3 text-xs font-semibold text-[var(--app-heading)] flex items-center justify-between outline-none hover:border-[var(--app-accent)] transition-all"
-                  >
-                    <span className="truncate">{formData.parentCategory}</span>
-                    <ChevronDown size={14} className="text-[var(--app-muted)] shrink-0" />
-                  </button>
-
-                  {showParentDropdown && (
-                    <div className="absolute left-0 right-0 top-10 z-30 rounded-xl border border-[var(--app-border)] bg-[var(--app-panel-bg)] shadow-xl p-2 space-y-2">
-                      <div className="relative">
-                        <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--app-muted)]" />
-                        <input
-                          type="text"
-                          value={parentSearchQuery}
-                          onChange={(e) => setParentSearchQuery(e.target.value)}
-                          placeholder="Search parent stock category..."
-                          className="w-full h-7.5 rounded-lg border border-[var(--app-border)] bg-[var(--app-control-bg)] pl-7 pr-2 text-xs text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)]"
-                        />
-                      </div>
-
-                      <div className="max-h-40 overflow-y-auto no-scrollbar space-y-0.5">
-                        {filteredParents.map(parentName => (
-                          <button
-                            key={parentName}
-                            type="button"
-                            onClick={() => {
-                              updateField('parentCategory', parentName);
-                              setShowParentDropdown(false);
-                              setParentSearchQuery('');
-                            }}
-                            className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center justify-between transition-colors ${
-                              formData.parentCategory === parentName 
-                                ? 'bg-[var(--app-accent-soft)] text-[var(--app-accent)] font-bold' 
-                                : 'hover:bg-[var(--app-control-hover)] text-[var(--app-text)]'
-                            }`}
-                          >
-                            <span>{parentName}</span>
-                            {formData.parentCategory === parentName && <Check size={12} />}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
+                <select
+                  value={formData.parentCategory}
+                  onChange={(e) => updateField('parentCategory', e.target.value)}
+                  className={`w-full h-9 rounded-lg border bg-[var(--app-control-bg)] px-2.5 text-xs font-bold text-[var(--app-heading)] outline-none transition-all cursor-pointer ${
+                    errors.parentCategory ? 'border-rose-500' : 'border-[var(--app-border)] focus:border-[var(--app-accent)]'
+                  }`}
+                >
+                  <option value="Primary">Primary (Root Level Category)</option>
+                  {parentCategoryOptions
+                    .filter(c => c !== 'Primary' && (!isEdit || c.toLowerCase().trim() !== formData.stockCategoryName.toLowerCase().trim()))
+                    .map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                </select>
+                {errors.parentCategory && (
+                  <p className="text-[10px] font-bold text-rose-500 mt-0.5">{errors.parentCategory}</p>
+                )}
               </div>
-            )}
 
+              <div className="space-y-1">
+                <label className="block text-[10px] font-extrabold uppercase tracking-wider text-[var(--app-muted)]">
+                  Status
+                </label>
+                <select
+                  value={formData.status}
+                  onChange={(e) => updateField('status', e.target.value)}
+                  className="w-full h-9 rounded-lg border border-[var(--app-border)] bg-[var(--app-control-bg)] px-2.5 text-xs font-bold text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)] cursor-pointer"
+                >
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
+                </select>
+              </div>
+            </div>
           </div>
-        </div>
 
+        </form>
       </div>
 
-      {/* 3. Sticky Bottom Action Bar */}
-      <div className="shrink-0 px-6 py-3.5 border-t border-[var(--app-border)] bg-[var(--app-panel-bg)] flex items-center justify-between shadow-lg">
+      {/* Sticky Bottom Action Bar */}
+      <div className="shrink-0 px-5 py-3 border-t border-[var(--app-border)] bg-[var(--app-panel-bg)] flex items-center justify-between shadow-lg">
         <button
           type="button"
           onClick={onClose}
@@ -353,72 +321,12 @@ export default function StockCategoryMasterForm({
         <button
           type="button"
           onClick={handleSubmit}
-          className="px-5 py-2 rounded-lg bg-[var(--app-accent)] text-white text-xs font-bold shadow-sm hover:opacity-90 transition-all flex items-center gap-1.5"
+          className="px-5 py-2 rounded-lg bg-[var(--app-accent)] text-white text-xs font-bold shadow-sm hover:opacity-90 transition-all flex items-center gap-1.5 cursor-pointer"
         >
           <CheckCircle2 size={14} />
-          <span>{isEdit ? 'Update Category' : 'Save Category'}</span>
+          <span>{isEdit ? 'Update Stock Category' : 'Save Stock Category'}</span>
         </button>
       </div>
-
-      {/* 4. CONFIGURE FORM MODAL DIALOG */}
-      {showConfigModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-md rounded-2xl border border-[var(--app-border)] bg-[var(--app-panel-bg)] p-5 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-[var(--app-border)] pb-3">
-              <div className="flex items-center gap-2 text-[var(--app-heading)] font-extrabold text-sm">
-                <Settings size={16} className="text-[var(--app-accent)]" />
-                <span>Configure Stock Category Form</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowConfigModal(false)}
-                className="p-1 rounded-lg border border-[var(--app-border)] hover:bg-[var(--app-control-hover)] text-[var(--app-muted)] hover:text-[var(--app-heading)]"
-              >
-                <X size={15} />
-              </button>
-            </div>
-
-            <p className="text-xs text-[var(--app-muted)]">
-              Enable or disable optional form fields. Active items will render directly on the form UI.
-            </p>
-
-            <div className="space-y-2 text-xs">
-              <label className="flex items-center justify-between p-2.5 rounded-xl border border-[var(--app-border)] bg-[var(--app-control-bg)] hover:bg-[var(--app-control-hover)] cursor-pointer">
-                <span className="font-semibold text-[var(--app-heading)]">Category Code Field</span>
-                <input
-                  type="checkbox"
-                  checked={config.cfgCategoryCode}
-                  onChange={(e) => setConfig(prev => ({ ...prev, cfgCategoryCode: e.target.checked }))}
-                  className="w-4 h-4 rounded accent-[var(--app-accent)]"
-                />
-              </label>
-
-              <label className="flex items-center justify-between p-2.5 rounded-xl border border-[var(--app-border)] bg-[var(--app-control-bg)] hover:bg-[var(--app-control-hover)] cursor-pointer">
-                <span className="font-semibold text-[var(--app-heading)]">Parent Stock Category Field</span>
-                <input
-                  type="checkbox"
-                  checked={config.cfgParentCategory}
-                  onChange={(e) => setConfig(prev => ({ ...prev, cfgParentCategory: e.target.checked }))}
-                  className="w-4 h-4 rounded accent-[var(--app-accent)]"
-                />
-              </label>
-            </div>
-
-            <div className="pt-3 border-t border-[var(--app-border)] flex justify-end">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowConfigModal(false);
-                  toast.success('Form settings updated successfully!');
-                }}
-                className="px-4 py-2 rounded-xl bg-[var(--app-accent)] text-white text-xs font-bold shadow-xs hover:opacity-90 transition-all"
-              >
-                Apply Settings
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
     </div>
   );

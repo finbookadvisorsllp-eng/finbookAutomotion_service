@@ -211,7 +211,7 @@ def resolve_db_name(company_ref: str) -> str:
     except Exception as e:
         print(f"Error resolving tenant DB in IAM: {e}")
 
-    # 2. Check in-memory tenant cache if not specified in DB doc
+    # 2. Check in-memory tenant cache
     if company_ref in _tenant_cache:
         return _tenant_cache[company_ref]
 
@@ -220,7 +220,7 @@ def resolve_db_name(company_ref: str) -> str:
         _tenant_cache[company_ref] = settings.DEFAULT_DB_NAME
         return settings.DEFAULT_DB_NAME
 
-    # 4. Scan all tenant databases for a matching companyName or company _id
+    # 4. Scan all existing tenant databases for a matching companyName, basicCompantFormalName, or _id
     try:
         all_dbs = client.list_database_names()
         for db_name in all_dbs:
@@ -238,14 +238,20 @@ def resolve_db_name(company_ref: str) -> str:
     except Exception:
         pass
 
-    # 5. If slug or name is unknown, clean slug and assign isolated tenant database name
+    # 5. If 24-character ObjectId string, map directly to dedicated tenant database (for new companies)
+    if len(company_ref) == 24 and re.match(r"^[0-9a-fA-F]{24}$", company_ref):
+        db_name = f"finbook_tenant_{company_ref}"
+        _tenant_cache[company_ref] = db_name
+        return db_name
+
+    # 6. If slug or name is unknown, clean slug and assign isolated tenant database name
     clean_slug = re.sub(r'[^a-z0-9]+', '_', company_ref.lower()).strip('_')
     if clean_slug:
         db_name = settings.tenant_db_name(clean_slug)
         _tenant_cache[company_ref] = db_name
         return db_name
 
-    # Fallback to the default database name and cache it to prevent subsequent heavy scans
+    # Fallback to default database name
     _tenant_cache[company_ref] = settings.DEFAULT_DB_NAME
     return settings.DEFAULT_DB_NAME
 

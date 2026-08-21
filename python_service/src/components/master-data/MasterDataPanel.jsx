@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, RefreshCw, Plus, X, BookOpen, Package, User, Users, Percent, IndianRupee, Info, AlertTriangle, CheckCircle2, Coins, ShieldCheck, FileSpreadsheet, ClipboardList, Settings, Landmark, Edit3, FolderTree, Layers, Tag, Send, CloudUpload, Database, FileText, ArrowUpRight, Trash2, Box } from 'lucide-react';
+import { Search, RefreshCw, Plus, X, BookOpen, Package, User, Users, Percent, IndianRupee, Info, AlertTriangle, CheckCircle2, Coins, ShieldCheck, FileSpreadsheet, ClipboardList, Settings, Landmark, Edit3, FolderTree, Layers, Tag, Send, CloudUpload, Database, FileText, ArrowUpRight, Trash2, Box, Calendar, Hash, Building2 } from 'lucide-react';
+
 
 import { toast } from 'sonner';
 import { motion } from 'motion/react';
@@ -11,13 +12,88 @@ import fundflowApi from '../../services/fundflowApi';
 import apiClient from '../../lib/apiClient';
 import LedgerMasterForm, { normalizeState } from './LedgerMasterForm';
 import CostCenterMasterForm from './CostCenterMasterForm';
+import CostCategoryMasterForm from './CostCategoryMasterForm';
+import CostCentreClassMasterForm from './CostCentreClassMasterForm';
 import LedgerGroupMasterForm from './LedgerGroupMasterForm';
 import StockCategoryMasterForm from './StockCategoryMasterForm';
 import StockGroupMasterForm from './StockGroupMasterForm';
 import StockItemMasterForm from './StockItemMasterForm';
 import UnitMasterForm from './UnitMasterForm';
-import BOMMasterForm from './BOMMasterForm';
+import BomMasterForm from './BomMasterForm';
+import VoucherTypeMasterForm from './VoucherTypeMasterForm';
+import TDSMasterForm from './TDSMasterForm';
+import TCSMasterForm from './TCSMasterForm';
+import GodownMasterForm from './GodownMasterForm';
 import { useAppStore } from '../../stores/useAppStore';
+
+
+export const MASTER_GROUPS = [
+  {
+    id: 'accounting',
+    label: 'Accounting',
+    icon: FolderTree,
+    tabs: [
+      { id: 'Ledger Group', label: 'Ledger Groups' },
+      { id: 'Party Ledger', label: 'Ledgers' }
+    ]
+  },
+  {
+    id: 'inventory',
+    label: 'Inventory',
+    icon: Package,
+    tabs: [
+      { id: 'Stock Group', label: 'Stock Groups' },
+      { id: 'Stock Category', label: 'Stock Categories' },
+      { id: 'Item Master', label: 'Stock Items' },
+      { id: 'Unit', label: 'Units' },
+      { id: 'Godown', label: 'Godowns' },
+      { id: 'BOM', label: 'Bill of Materials (BOM)' }
+    ]
+  },
+  {
+    id: 'cost_analysis',
+    label: 'Cost & Analysis',
+    icon: Layers,
+    tabs: [
+      { id: 'Cost Center', label: 'Cost Centre' }
+    ]
+  },
+  {
+    id: 'tax_compliance',
+    label: 'Tax & Compliance',
+    icon: Percent,
+    tabs: [
+      { id: 'TDS Master', label: 'TDS Master' },
+      { id: 'TCS Master', label: 'TCS Master' }
+    ]
+  },
+  {
+    id: 'voucher_config',
+    label: 'Voucher Configuration',
+    icon: FileText,
+    tabs: [
+      { id: 'Voucher Types', label: 'Voucher Types' }
+    ]
+  }
+];
+
+export const resolveParentName = (parentNameField, parentIdField) => {
+  const cleanStr = (val) => {
+    if (val && typeof val === 'string' && val.trim()) {
+      const s = val.trim();
+      if (!s.match(/^[0-9a-fA-F]{24}$/)) return s;
+    }
+    return null;
+  };
+  return cleanStr(parentNameField) || cleanStr(parentIdField) || 'Primary';
+};
+
+export const getScaledKpiCount = (countOnPage, pageLength, totalServerCount) => {
+  if (!pageLength || pageLength === 0) return 0;
+  if (!totalServerCount || totalServerCount <= pageLength) return countOnPage;
+  const ratio = totalServerCount / pageLength;
+  return Math.round(countOnPage * ratio);
+};
 
 const MasterDataPanel = ({ mode: propMode, isDark }) => {
   const selectedCompany = useAppStore(s => s.selectedCompany);
@@ -26,6 +102,7 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
   const getCompanyHeaders = () => {
     const activeComp = selectedCompany || localStorage.getItem('selectedCompanyId') || localStorage.getItem('activeCompany') || '';
     const activeOrg = orgId || localStorage.getItem('orgId') || '';
+    const activeFy = localStorage.getItem('selectedFy') || 'FY 2024-25';
     const headers = {};
     if (activeComp) {
       headers['x-company-id'] = activeComp;
@@ -33,6 +110,10 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
     }
     if (activeOrg) {
       headers['x-organization-id'] = activeOrg;
+    }
+    if (activeFy) {
+      headers['x-financial-year'] = activeFy;
+      headers['x-fy'] = activeFy;
     }
     return headers;
   };
@@ -60,18 +141,26 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
     { id: 'Stock Group', label: 'Stock Group', fullTitle: 'Stock Group Master' },
     { id: 'Stock Category', label: 'Stock Category', fullTitle: 'Stock Category Master' },
     { id: 'Unit Master', label: 'Unit', fullTitle: 'Unit Master' },
+    { id: 'Godown Master', label: 'Godown', fullTitle: 'Godown Master' },
     { id: 'Cost Center', label: 'Cost Center', fullTitle: 'Cost Center Master' },
     { id: 'BOM Master', label: 'Bill of Materials (BOM)', fullTitle: 'BOM Master' },
+    { id: 'Voucher Types', label: 'Voucher Types', fullTitle: 'Voucher Types Master' },
+    { id: 'TDS Master', label: 'TDS Master', fullTitle: 'TDS Master' },
+    { id: 'TCS Master', label: 'TCS Master', fullTitle: 'TCS Master' },
   ];
 
 
-  const isLedgerGroup = activeTab === 'Ledger Group';
-  const isStockGroup = activeTab === 'Stock Group';
-  const isStockCategory = activeTab === 'Stock Category';
-  const isUnit = activeTab === 'Unit Master' || activeTab === 'Unit';
-  const isCostCenter = activeTab === 'Cost Center' || propMode === 'Cost Center';
-  const isStock = activeTab === 'Stock Ledger' || activeTab === 'Item Master';
-  const isBom = activeTab === 'BOM Master' || activeTab === 'BOM' || propMode === 'BOM Master' || propMode === 'BOM';
+  const isLedgerGroup = activeTab === 'Ledger Group' || activeTab === 'Ledger Groups';
+  const isStockGroup = activeTab === 'Stock Group' || activeTab === 'Stock Groups';
+  const isStockCategory = activeTab === 'Stock Category' || activeTab === 'Stock Categories';
+  const isUnit = activeTab === 'Unit Master' || activeTab === 'Unit' || activeTab === 'Units';
+  const isGodown = activeTab === 'Godown Master' || activeTab === 'Godown' || activeTab === 'Godowns' || propMode === 'Godown Master' || propMode === 'Godown';
+  const isCostCenter = activeTab === 'Cost Center' || activeTab === 'Cost Centre' || propMode === 'Cost Center';
+  const isStock = activeTab === 'Stock Ledger' || activeTab === 'Item Master' || activeTab === 'Stock Items' || activeTab === 'Stock Item';
+  const isBom = activeTab === 'BOM Master' || activeTab === 'BOM' || activeTab === 'Bill of Materials (BOM)' || propMode === 'BOM Master' || propMode === 'BOM';
+  const isVoucherType = activeTab === 'Voucher Types' || activeTab === 'Voucher Type' || propMode === 'Voucher Types';
+  const isTds = activeTab === 'TDS Master' || activeTab === 'TDS' || propMode === 'TDS Master' || propMode === 'TDS';
+  const isTcs = activeTab === 'TCS Master' || activeTab === 'TCS' || propMode === 'TCS Master' || propMode === 'TCS';
 
 
   // Master Collections State (Fetched Dynamically from Connected Database)
@@ -84,16 +173,44 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
   const [editingStockGroup, setEditingStockGroup] = useState(null);
   const [unitsList, setUnitsList] = useState([]);
   const [editingUnit, setEditingUnit] = useState(null);
+  const [godownsList, setGodownsList] = useState([]);
+  const [editingGodown, setEditingGodown] = useState(null);
   const [costCategories, setCostCategories] = useState([]);
   const [editingCostCenter, setEditingCostCenter] = useState(null);
+  const [costCenterSubTab, setCostCenterSubTab] = useState('cost_centres'); // 'cost_centres' | 'cost_categories' | 'cost_centre_classes'
+  const [costCategoriesList, setCostCategoriesList] = useState([]);
+  const [costCentreClassesList, setCostCentreClassesList] = useState([]);
+  const [editingCostCategory, setEditingCostCategory] = useState(null);
+  const [editingCostCentreClass, setEditingCostCentreClass] = useState(null);
   const [bomsList, setBomsList] = useState([]);
   const [editingBom, setEditingBom] = useState(null);
+  const [voucherTypesList, setVoucherTypesList] = useState([]);
+  const [editingVoucherType, setEditingVoucherType] = useState(null);
+  const [showVoucherTypeModal, setShowVoucherTypeModal] = useState(false);
+  const [tdsList, setTdsList] = useState([]);
+  const [editingTds, setEditingTds] = useState(null);
+  const [tcsList, setTcsList] = useState([]);
+  const [editingTcs, setEditingTcs] = useState(null);
+
 
   // Server-side Pagination & Total Counts State
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(200);
   const [totalPages, setTotalPages] = useState(1);
   const [serverLedgerCounts, setServerLedgerCounts] = useState({ total: 0, web: 0, synced: 0 });
+  const [serverMasterCounts, setServerMasterCounts] = useState({});
+
+  const updateServerCounts = (tabKey, total, synced, web) => {
+    if (total === undefined || total === null) return;
+    setServerMasterCounts(prev => ({
+      ...prev,
+      [tabKey]: {
+        total: total,
+        synced: synced ?? total,
+        web: web ?? 0
+      }
+    }));
+  };
 
 
 
@@ -114,12 +231,14 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
         isBom ? 'boms_entry' :
         isStockCategory ? 'stockcategories_entry' :
         isUnit ? 'units_entry' :
+        isGodown ? 'godownEntries' :
         isCostCenter ? 'costcenters_entry' :
         isStockGroup ? 'stockgroups_entry' :
         isLedgerGroup ? 'groups_entry' :
         isStock ? 'stockitems_entry' : 'ledgers_entry'
       );
-      const masterName = row.bomName || row.ledgerName || row.itemName || row.unitName || row.groupName || row.costCenterName || row.name || row.ledger || 'Master Record';
+      const masterName = row.godownName || row.bomName || row.ledgerName || row.itemName || row.unitName || row.groupName || row.costCenterName || row.name || row.ledger || 'Master Record';
+
 
       let res;
       try {
@@ -217,237 +336,602 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
     }
   };
 
-  const fetchMasterData = async () => {
-    setLoading(true);
+  const fetchMasterData = async (forceRefresh = false) => {
+    const isCached =
+      (isPartyLedger && partyDataList.length > 0) ||
+      (isStock && stockDataList.length > 0) ||
+      (isVoucherType && voucherTypesList.length > 0) ||
+      (isLedgerGroup && ledgerGroupsList.length > 0) ||
+      (isStockGroup && stockGroupsList.length > 0) ||
+      (isStockCategory && stockCategoriesList.length > 0) ||
+      (isUnit && unitsList.length > 0) ||
+      (isCostCenter && costCentersList.length > 0) ||
+      (isBom && bomsList.length > 0);
+
+    if (!isCached) {
+      setLoading(true);
+    }
+
     try {
       const headers = getCompanyHeaders();
-      const params = { page: currentPage, limit: pageSize, search: searchQuery };
-      const [ledgersRes, stockRes, masterDataRes] = await Promise.all([
-        apiClient.get('/ledgers', { headers, params }).then(r => r.data).catch(() => ({ data: [] })),
-        salesApi.getStockItems().catch(() => ({ data: [] })),
-        salesApi.getMasterData().catch(() => null)
-      ]);
-
-      const masterData = masterDataRes?.data || masterDataRes || {};
-
-      if (ledgersRes.total !== undefined) {
-        setServerLedgerCounts({
-          total: ledgersRes.total,
-          web: ledgersRes.totalWeb,
-          synced: ledgersRes.totalSynced
-        });
-        setTotalPages(ledgersRes.totalPages || 1);
+      const currentFy = localStorage.getItem('selectedFy') || 'FY 2024-25';
+      const isAll = pageSize === 'all' || pageSize >= 5000;
+      const currentLimit = typeof pageSize === 'number' ? pageSize : 200;
+      const params = {
+        page: currentPage,
+        limit: isAll ? 5000 : currentLimit,
+        search: searchQuery,
+        financial_year: currentFy,
+        fy: currentFy
+      };
+      if (isAll) {
+        params.all = true;
       }
 
-      // 1. Map Ledgers Collection (Both standard 'ledgers' and web 'ledgers_entry')
-      const rawLedgers = Array.isArray(ledgersRes.data) ? ledgersRes.data : (ledgersRes.data?.ledgers || masterData.partyLedgers || []);
-      const mappedLedgers = rawLedgers.map((l, index) => {
-        const isString = typeof l === 'string';
-        const nameStr = isString ? l : (l.ledgerName || l.name || '');
-        return {
-          ...(isString ? {} : l),
-          sr: index + 1,
-          ledger: nameStr,
-          parentGroup: isString ? 'Sundry Debtors' : (l.groupName || l.parentGroup || 'Sundry Debtors'),
-          subGroup: isString ? 'Sundry Debtors' : (l.groupName || l.subGroup || 'Sundry Debtors'),
-          gst: isString ? 'N/A' : (l.partyDetails?.gstin || l.gstin || 'N/A'),
-          name: nameStr,
-          pos: isString ? '—' : (l.partyDetails?.gstState || l.gstState || '—'),
-          type: isString ? 'Regular' : (l.registrationType || 'Regular'),
-          add1: isString ? '—' : (l.add1 || '—'),
-          add2: isString ? '—' : (l.add2 || '—'),
-          city: isString ? '—' : (l.city || '—'),
-          isSynced: isString ? true : (l.isSynced ?? !l.isWebEntry),
-          isWebEntry: isString ? false : !!l.isWebEntry,
-          sourceCollection: isString ? 'ledgers' : (l.sourceCollection || (l.isWebEntry ? 'ledgers_entry' : 'ledgers'))
-        };
-      });
-      setPartyDataList(mappedLedgers);
+      // 1. Fetch active tab specific data first for instant UI response
+      if (isPartyLedger) {
+        apiClient.get('/ledgers', { headers, params }).then(res => {
+          const ledgersRes = res.data || {};
+          if (ledgersRes.total !== undefined) {
+            if (!searchQuery) {
+              setServerLedgerCounts({
+                total: ledgersRes.total,
+                web: ledgersRes.totalWeb,
+                synced: ledgersRes.totalSynced
+              });
+              updateServerCounts('Party Ledger', ledgersRes.total, ledgersRes.totalSynced, ledgersRes.totalWeb);
+            }
+            setTotalPages(ledgersRes.totalPages || 1);
+          }
 
-      // 2. Map Stock Items Collection
-      const rawStock = masterData.stockItemsFull || (Array.isArray(stockRes.data) ? stockRes.data : (stockRes.data?.stockItems || []));
-      const mappedStock = rawStock.map((s, index) => {
-        const isString = typeof s === 'string';
-        const nameStr = isString ? s : (s.itemName || s.name || '');
-        return {
-          ...(isString ? {} : s),
-          sr: index + 1,
-          name: nameStr,
-          group: isString ? 'General' : (s.group || s.stockGroup || 'General'),
-          uom: isString ? 'Nos' : (s.unit || s.uom || 'Nos'),
-          hsn: isString ? 'N/A' : (s.hsnCode || s.hsn || 'N/A'),
-          gstRate: isString ? '0%' : (s.gstRate ? `${s.gstRate}%` : '0%'),
-          qty: isString ? 0 : (s.qty ?? 0),
-          rate: isString ? 0 : (s.rate ?? 0),
-          value: isString ? 0 : (s.value ?? 0),
-          isSynced: isString ? true : (s.isSynced ?? !s.isWebEntry),
-          isWebEntry: isString ? false : !!s.isWebEntry,
-          sourceCollection: isString ? 'stockItems' : (s.sourceCollection || (s.isWebEntry ? 'stockitems_entry' : 'stockItems'))
-        };
-      });
-      setStockDataList(mappedStock);
+          const rawLedgers = Array.isArray(ledgersRes.data) ? ledgersRes.data : (ledgersRes.data?.ledgers || []);
+          const mappedLedgers = rawLedgers.map((l, index) => {
+            const isString = typeof l === 'string';
+            const nameStr = isString ? l : (l.ledgerName || l.name || '');
+            return {
+              ...(isString ? {} : l),
+              sr: (currentPage - 1) * currentLimit + index + 1,
+              ledger: nameStr,
+              parentGroup: isString ? 'Sundry Debtors' : (l.groupName || l.parentGroup || 'Sundry Debtors'),
+              subGroup: isString ? 'Sundry Debtors' : (l.groupName || l.subGroup || 'Sundry Debtors'),
+              gst: isString ? 'N/A' : (l.partyDetails?.gstin || l.gstin || 'N/A'),
+              name: nameStr,
+              pos: isString ? '—' : (l.partyDetails?.gstState || l.gstState || '—'),
+              type: isString ? 'Regular' : (l.registrationType || 'Regular'),
+              add1: isString ? '—' : (l.add1 || '—'),
+              add2: isString ? '—' : (l.add2 || '—'),
+              city: isString ? '—' : (l.city || '—'),
+              isSynced: isString ? true : (l.isSynced ?? !l.isWebEntry),
+              isWebEntry: isString ? false : !!l.isWebEntry,
+              sourceCollection: isString ? 'ledgers' : (l.sourceCollection || (l.isWebEntry ? 'ledgers_entry' : 'ledgers'))
+            };
+          });
+          setPartyDataList(mappedLedgers);
+          setLoading(false);
+        }).catch(err => {
+          console.error('Error fetching ledgers:', err);
+          setLoading(false);
+        });
+      }
 
-      // 3. Map Ledger Groups Collection Dynamically
-      const rawLedgerGroups = masterData.ledgerGroups || [];
-      if (rawLedgerGroups.length > 0) {
-        setLedgerGroupsList(rawLedgerGroups.map((g, i) => ({
+      if (isStock || (isBom && stockDataList.length === 0) || (forceRefresh && isStock)) {
+        apiClient.get('/masters/stock-items', { headers, params }).then(res => {
+          if (res.data?.total !== undefined && !searchQuery) {
+            updateServerCounts('Item Master', res.data.total, res.data.totalSynced ?? res.data.total, res.data.totalWeb ?? 0);
+            updateServerCounts('Stock Items', res.data.total, res.data.totalSynced ?? res.data.total, res.data.totalWeb ?? 0);
+          }
+          if (res.data?.totalPages !== undefined) {
+            setTotalPages(res.data.totalPages || 1);
+          }
+          const rawStock = Array.isArray(res.data?.data) ? res.data.data : (Array.isArray(res.data) ? res.data : []);
+          const mappedStock = rawStock.map((s, index) => {
+            const isString = typeof s === 'string';
+            const nameStr = isString ? s : (s.itemName || s.name || '');
+            const isWeb = isString ? false : (!!s.isWebEntry || s.sourceCollection === 'stockitems_entry');
+            return {
+              ...(isString ? {} : s),
+              sr: (currentPage - 1) * currentLimit + index + 1,
+              name: nameStr,
+              itemName: nameStr,
+              itemCode: isString ? '' : (s.itemCode || s.stockItemCode || s.sku || ''),
+              group: isString ? 'General' : (s.stockGroupName || s.group || s.stockGroup || 'General'),
+              stockGroupName: isString ? 'General' : (s.stockGroupName || s.group || s.stockGroup || 'General'),
+              category: isString ? 'Not Applicable' : (s.stockCategoryName || s.category || s.stockCategory || 'Not Applicable'),
+              stockCategoryName: isString ? 'Not Applicable' : (s.stockCategoryName || s.category || s.stockCategory || 'Not Applicable'),
+              uom: isString ? 'Nos' : (s.unitName || s.uom || (typeof s.unit === 'object' ? s.unit?.baseUnit : s.unit) || s.baseUnit || 'Nos'),
+              hsn: isString ? 'N/A' : (s.tax?.hsnCode || s.hsnSacDetails?.hsnCode || s.hsnCode || s.hsn || s.tax?.sacCode || 'N/A'),
+              gstRate: isString ? '0%' : (s.tax?.gstRate ? `${s.tax.gstRate}%` : (s.gstSettings?.gstRate ? `${s.gstSettings.gstRate}%` : (s.gstRate ? (String(s.gstRate).endsWith('%') ? s.gstRate : `${s.gstRate}%`) : '0%'))),
+              qty: isString ? 0 : (s.inventory?.openingStock?.quantity ?? s.inventory?.openingQuantity ?? s.openingQty ?? s.qty ?? s.closingBalance?.quantity ?? s.stockQty ?? 0),
+              rate: isString ? 0 : (s.inventory?.openingStock?.rate ?? s.pricing?.purchaseRate ?? s.openingRate ?? s.rate ?? s.closingBalance?.rate ?? 0),
+              value: isString ? 0 : (s.inventory?.openingStock?.value ?? s.inventory?.openingValue ?? s.openingValue ?? s.value ?? s.closingBalance?.amount ?? 0),
+              status: isString ? 'ACTIVE' : (s.status || 'ACTIVE').toUpperCase(),
+              isSynced: !isWeb,
+              isWebEntry: isWeb,
+              sourceCollection: isString ? 'stockItems' : (s.sourceCollection || (isWeb ? 'stockitems_entry' : 'stockItems'))
+            };
+          });
+          setStockDataList(mappedStock);
+          if (isStock) setLoading(false);
+        }).catch(err => {
+          console.error('Error fetching stock items from /masters/stock-items:', err);
+          salesApi.getStockItems().then(stockRes => {
+            const rawStock = Array.isArray(stockRes.data) ? stockRes.data : (stockRes.data?.stockItems || []);
+            const mappedStock = rawStock.map((s, index) => {
+              const isString = typeof s === 'string';
+              const nameStr = isString ? s : (s.itemName || s.name || '');
+              return {
+                ...(isString ? {} : s),
+                sr: (currentPage - 1) * currentLimit + index + 1,
+                name: nameStr,
+                group: isString ? 'General' : (s.group || s.stockGroup || 'General'),
+                uom: isString ? 'Nos' : (s.unit || s.uom || 'Nos'),
+                hsn: isString ? 'N/A' : (s.hsnCode || s.hsn || 'N/A'),
+                gstRate: isString ? '0%' : (s.gstRate ? `${s.gstRate}%` : '0%'),
+                qty: isString ? 0 : (s.qty ?? 0),
+                rate: isString ? 0 : (s.rate ?? 0),
+                value: isString ? 0 : (s.value ?? 0),
+                isSynced: isString ? true : (s.isSynced ?? !s.isWebEntry),
+                isWebEntry: isString ? false : !!s.isWebEntry,
+                sourceCollection: isString ? 'stockItems' : (s.sourceCollection || (s.isWebEntry ? 'stockitems_entry' : 'stockItems'))
+              };
+            });
+            setStockDataList(mappedStock);
+            if (isStock) setLoading(false);
+          }).catch(e => {
+            console.error('Error fetching fallback stock items:', e);
+            if (isStock) setLoading(false);
+          });
+        });
+      }
+
+      if (isVoucherType) {
+        apiClient.get('/masters/voucher-types', { headers, params }).then(res => {
+          if (res.data?.total !== undefined && !searchQuery) {
+            updateServerCounts('Voucher Types', res.data.total, res.data.totalSynced ?? res.data.total, res.data.totalWeb ?? 0);
+          }
+          if (res.data?.totalPages !== undefined) {
+            setTotalPages(res.data.totalPages || 1);
+          }
+          const rawVTypes = res.data?.data || [];
+          setVoucherTypesList(rawVTypes.map((vt, i) => ({
+            ...vt,
+            sr: (currentPage - 1) * currentLimit + i + 1,
+            voucherTypeName: vt.voucherTypeName || vt.name || '',
+            voucherTypeCode: vt.voucherTypeCode || vt.code || `VCH-000${i + 1}`,
+            parent: vt.parent || vt.parentGroup || 'Sales',
+            numberingMethod: vt.numberingMethod || 'Automatic',
+            status: vt.status || 'ACTIVE',
+            isWebEntry: !!vt.isWebEntry,
+            sourceCollection: vt.sourceCollection || (vt.isWebEntry ? 'vouchertypes_entry' : 'voucherTypes')
+          })));
+          setLoading(false);
+        }).catch(err => {
+          console.error('Error fetching voucher types:', err);
+          setLoading(false);
+        });
+      }
+
+      if (isLedgerGroup) {
+        apiClient.get('/masters/ledger-groups', { headers, params }).then(res => {
+          if (res.data?.total !== undefined && !searchQuery) {
+            updateServerCounts('Ledger Group', res.data.total, res.data.totalSynced ?? res.data.total, res.data.totalWeb ?? 0);
+          }
+          if (res.data?.totalPages !== undefined) {
+            setTotalPages(res.data.totalPages || 1);
+          }
+          const rawGroups = res.data?.data || [];
+          setLedgerGroupsList(rawGroups.map((g, i) => ({
+            ...g,
+            sr: (currentPage - 1) * currentLimit + i + 1,
+            groupName: g.groupName || g.name,
+            groupCode: g.groupCode || `GRP00${i + 1}`,
+            parentGroup: resolveParentName(g.parentGroupName, g.parentGroup),
+            parentGroupName: resolveParentName(g.parentGroupName, g.parentGroup),
+            nature: g.nature || g.classification || 'EXPENSES',
+            subType: g.subType || 'INDIRECT_EXPENSES',
+            status: g.status || 'ACTIVE',
+            isReserved: g.isReserved ?? false,
+            isWebEntry: !!g.isWebEntry,
+            sourceCollection: g.sourceCollection || (g.isWebEntry ? 'groups_entry' : 'groups')
+          })));
+          setLoading(false);
+        }).catch(err => {
+          console.error('Error fetching ledger groups:', err);
+          setLoading(false);
+        });
+      }
+
+      if (isStockGroup) {
+        apiClient.get('/masters/stock-groups', { headers, params }).then(res => {
+          if (res.data?.total !== undefined && !searchQuery) {
+            updateServerCounts('Stock Group', res.data.total, res.data.totalSynced ?? res.data.total, res.data.totalWeb ?? 0);
+          }
+          if (res.data?.totalPages !== undefined) {
+            setTotalPages(res.data.totalPages || 1);
+          }
+          const rawSg = res.data?.data || [];
+          setStockGroupsList(rawSg.map((sg, i) => ({
+            ...sg,
+            sr: (currentPage - 1) * currentLimit + i + 1,
+            groupName: sg.groupName || sg.name,
+            parentGroup: resolveParentName(sg.parentGroupName, sg.parentGroup),
+            parentGroupName: resolveParentName(sg.parentGroupName, sg.parentGroup),
+            hsnCode: sg.hsnCode || '—',
+            gstRate: sg.gstRate ? `${sg.gstRate}%` : '18%',
+            isWebEntry: !!sg.isWebEntry,
+            sourceCollection: sg.sourceCollection || (sg.isWebEntry ? 'stockgroups_entry' : 'stockGroups')
+          })));
+          setLoading(false);
+        }).catch(err => {
+          console.error('Error fetching stock groups:', err);
+          setLoading(false);
+        });
+      }
+
+      if (isStockCategory) {
+        apiClient.get('/masters/stock-categories', { headers, params }).then(res => {
+          if (res.data?.total !== undefined && !searchQuery) {
+            updateServerCounts('Stock Category', res.data.total, res.data.totalSynced ?? res.data.total, res.data.totalWeb ?? 0);
+          }
+          if (res.data?.totalPages !== undefined) {
+            setTotalPages(res.data.totalPages || 1);
+          }
+          const rawSc = res.data?.data || [];
+          setStockCategoriesList(rawSc.map((sc, i) => ({
+            ...sc,
+            sr: (currentPage - 1) * currentLimit + i + 1,
+            stockCategoryName: sc.categoryName || sc.stockCategoryName || sc.name || '',
+            stockCategoryCode: sc.stockCategoryCode || `SCAT-000${i + 1}`,
+            parentCategory: resolveParentName(sc.parentCategoryName, sc.parentCategory),
+            parentCategoryName: resolveParentName(sc.parentCategoryName, sc.parentCategory),
+            status: sc.status || 'ACTIVE',
+            isWebEntry: !!sc.isWebEntry,
+            sourceCollection: sc.sourceCollection || (sc.isWebEntry ? 'stockcategories_entry' : 'stockCategories')
+          })));
+          setLoading(false);
+        }).catch(err => {
+          console.error('Error fetching stock categories:', err);
+          setLoading(false);
+        });
+      }
+
+      if (isUnit) {
+        apiClient.get('/masters/units', { headers, params }).then(res => {
+          if (res.data?.total !== undefined && !searchQuery) {
+            updateServerCounts('Unit', res.data.total, res.data.totalSynced ?? res.data.total, res.data.totalWeb ?? 0);
+          }
+          if (res.data?.totalPages !== undefined) {
+            setTotalPages(res.data.totalPages || 1);
+          }
+          const rawUnits = res.data?.data || [];
+          setUnitsList(rawUnits.map((u, i) => {
+            const isObj = typeof u === 'object';
+            return {
+              ...(isObj ? u : {}),
+              sr: (currentPage - 1) * currentLimit + i + 1,
+              unitName: isObj ? (u.unitName || u.name || u.symbol || '') : u,
+              symbol: isObj ? (u.symbol || u.unitSymbol || u.unitName || u.name || '') : u,
+              unitCode: isObj ? (u.unitCode || u.code || `UNIT-000${i + 1}`) : `UNIT-000${i + 1}`,
+              conversion: isObj && u.conversion ? u.conversion : { isBaseUnit: true, baseUnit: null, conversionFactor: 0, decimalPlaces: 2 },
+              status: isObj && u.status ? u.status : 'ACTIVE',
+              isWebEntry: isObj ? !!u.isWebEntry : false,
+              sourceCollection: isObj ? (u.sourceCollection || (u.isWebEntry ? 'units_entry' : 'units')) : 'units'
+            };
+          }));
+          setLoading(false);
+        }).catch(err => {
+          console.error('Error fetching units:', err);
+          setLoading(false);
+        });
+      }
+
+      if (isCostCenter) {
+        apiClient.get('/masters/cost-centers', { headers, params }).then(res => {
+          if (res.data?.total !== undefined && !searchQuery) {
+            updateServerCounts('Cost Center', res.data.total, res.data.totalSynced ?? res.data.total, res.data.totalWeb ?? 0);
+          }
+          if (res.data?.totalPages !== undefined) {
+            setTotalPages(res.data.totalPages || 1);
+          }
+          const rawCc = res.data?.data || [];
+          setCostCentersList(rawCc.map((cc, i) => ({
+            ...cc,
+            sr: (currentPage - 1) * currentLimit + i + 1,
+            costCenterName: cc.costCenterName || cc.name || '',
+            costCenterCode: cc.costCenterCode || `CC-000${i + 1}`,
+            costCategoryId: cc.costCategoryName || cc.costCategoryId || cc.costCategory || 'Primary Cost Category',
+            parentId: resolveParentName(cc.parentName, cc.parentId),
+            parentName: resolveParentName(cc.parentName, cc.parentId),
+            status: cc.status || 'ACTIVE',
+            isWebEntry: !!cc.isWebEntry,
+            sourceCollection: cc.sourceCollection || (cc.isWebEntry ? 'costcenters_entry' : 'costCenters')
+          })));
+          setLoading(false);
+        }).catch(err => {
+          console.error('Error fetching cost centers:', err);
+          setLoading(false);
+        });
+      }
+
+      if (isGodown) {
+        apiClient.get('/masters/godown-entries', { headers, params }).then(res => {
+          if (res.data?.total !== undefined && !searchQuery) {
+            updateServerCounts('Godown', res.data.total, res.data.totalSynced ?? res.data.total, res.data.totalWeb ?? 0);
+          }
+          if (res.data?.totalPages !== undefined) {
+            setTotalPages(res.data.totalPages || 1);
+          }
+          const rawGodowns = res.data?.data || [];
+          setGodownsList(rawGodowns.map((g, i) => ({
+            ...g,
+            sr: (currentPage - 1) * currentLimit + i + 1,
+            godownName: g.godownName || g.name || '',
+            alias: g.alias || '',
+            parentGodown: resolveParentName(g.parentName, g.parentGodown),
+            parentName: resolveParentName(g.parentName, g.parentGodown),
+            locationType: g.locationType || 'Warehouse',
+            stateName: g.stateName || g.state || '—',
+            status: (g.status || 'ACTIVE').toUpperCase(),
+            tallySyncStatus: g.tallySync?.syncStatus || (g.isSynced ? 'SYNCED' : 'NOT_SYNCED'),
+            isWebEntry: !!g.isWebEntry,
+            sourceCollection: g.sourceCollection || (g.isWebEntry ? 'godownEntries' : 'godowns')
+          })));
+          setLoading(false);
+        }).catch(err => {
+          if (res.data?.totalPages !== undefined) {
+            setTotalPages(res.data.totalPages || 1);
+          }
+          const rawGodowns = res.data?.data || [];
+          setGodownsList(rawGodowns.map((g, i) => ({
+            ...g,
+            sr: (currentPage - 1) * currentLimit + i + 1,
+            godownName: g.godownName || g.name || '',
+            alias: g.alias || '',
+            parentGodown: resolveParentName(g.parentName, g.parentGodown),
+            parentName: resolveParentName(g.parentName, g.parentGodown),
+            locationType: g.locationType || 'Warehouse',
+            stateName: g.stateName || g.state || '—',
+            status: (g.status || 'ACTIVE').toUpperCase(),
+            tallySyncStatus: g.tallySync?.syncStatus || (g.isSynced ? 'SYNCED' : 'NOT_SYNCED'),
+            isWebEntry: !!g.isWebEntry,
+            sourceCollection: g.sourceCollection || (g.isWebEntry ? 'godownEntries' : 'godowns')
+          })));
+          setLoading(false);
+        }).catch(err => {
+          console.error('Error fetching godowns:', err);
+          setLoading(false);
+        });
+      }
+
+      // 2. Fetch specialized master collections (Voucher Types, BOM, Units, Groups, Cost Centers) in background
+      salesApi.getMasterData(headers).then(masterDataRes => {
+        const masterData = masterDataRes?.data || masterDataRes || {};
+
+        // Map Ledger Groups Collection
+        const rawLedgerGroups = masterData.ledgerGroups || [];
+        if (rawLedgerGroups.length > 0) {
+          setLedgerGroupsList(rawLedgerGroups.map((g, i) => ({
+            ...g,
+            sr: i + 1,
+            groupName: g.groupName || g.name,
+            groupCode: g.groupCode || `GRP00${i + 1}`,
+            parentGroup: g.parentGroup || g.parentGroupName || 'Primary',
+            nature: g.nature || g.classification || 'EXPENSES',
+            subType: g.subType || 'INDIRECT_EXPENSES',
+            status: g.status || 'ACTIVE',
+            isReserved: g.isReserved ?? false,
+            isWebEntry: !!g.isWebEntry,
+            sourceCollection: g.sourceCollection || (g.isWebEntry ? 'groups_entry' : 'groups')
+          })));
+        }
+
+        // Map Stock Groups
+        const rawStockGroups = masterData.stockGroups || [];
+        if (rawStockGroups.length > 0) {
+          setStockGroupsList(rawStockGroups.map((sg, i) => ({
+            ...sg,
+            sr: i + 1,
+            groupName: sg.groupName || sg.name,
+            parentGroup: sg.parentGroup || 'Primary',
+            hsnCode: sg.hsnCode || '—',
+            gstRate: sg.gstRate ? `${sg.gstRate}%` : '18%',
+            isWebEntry: !!sg.isWebEntry,
+            sourceCollection: sg.sourceCollection || (sg.isWebEntry ? 'stockgroups_entry' : 'stockGroups')
+          })));
+        }
+
+        // Map Cost Centers
+        const rawCostCenters = masterData.costCenters || [];
+        const mappedCostCenters = rawCostCenters.map((cc, i) => ({
+          ...cc,
+          sr: i + 1,
+          costCenterName: cc.costCenterName || cc.name || '',
+          costCenterCode: cc.costCenterCode || `CC-000${i + 1}`,
+          costCategoryId: cc.costCategoryName || cc.costCategoryId || cc.costCategory || 'Primary Cost Category',
+          parentId: cc.parentName || cc.parentId || 'Primary / None',
+          status: cc.status || 'ACTIVE',
+          isWebEntry: !!cc.isWebEntry,
+          sourceCollection: cc.sourceCollection || (cc.isWebEntry ? 'costcenters_entry' : 'costCenters')
+        }));
+        setCostCentersList(mappedCostCenters);
+
+        // Map Cost Categories & compute associated Cost Centres count & list
+        const categoryMap = {};
+        mappedCostCenters.forEach((cc) => {
+          const catKey = (cc.costCategoryId || 'Primary Cost Category').trim();
+          if (!categoryMap[catKey]) {
+            categoryMap[catKey] = [];
+          }
+          if (cc.costCenterName) {
+            categoryMap[catKey].push(cc.costCenterName);
+          }
+        });
+
+        const rawCategories = masterData.costCategories || [];
+        const categoryNamesList = rawCategories.map((c) =>
+          typeof c === 'string' ? c : (c.categoryName || c.costCategoryName || c.name || '')
+        ).filter(Boolean);
+
+        if (!categoryNamesList.includes('Primary Cost Category')) {
+          categoryNamesList.push('Primary Cost Category');
+        }
+
+        setCostCategories(categoryNamesList);
+
+        let categoryObjects = rawCategories.map((cat, i) => {
+          const cName = typeof cat === 'string' ? cat : (cat.categoryName || cat.costCategoryName || cat.name || 'Primary Cost Category');
+          const associated = categoryMap[cName] || categoryMap[cName.toLowerCase()] || [];
+          return {
+            ...(typeof cat === 'object' ? cat : { categoryName: cat }),
+            sr: i + 1,
+            categoryName: cName,
+            costCentersCount: associated.length,
+            associatedCenters: associated,
+            status: cat.status || 'ACTIVE',
+            isWebEntry: !!cat.isWebEntry,
+            sourceCollection: cat.sourceCollection || (cat.isWebEntry ? 'costcategories_entry' : 'costCategories')
+          };
+        });
+
+        if (!categoryObjects.some((c) => c.categoryName === 'Primary Cost Category')) {
+          const associatedPrimary = categoryMap['Primary Cost Category'] || [];
+          categoryObjects.unshift({
+            sr: 1,
+            categoryName: 'Primary Cost Category',
+            alias: 'Primary',
+            costCentersCount: associatedPrimary.length,
+            associatedCenters: associatedPrimary,
+            allocateRevenueItems: true,
+            allocateNonRevenueItems: false,
+            status: 'ACTIVE',
+            isWebEntry: false,
+            sourceCollection: 'costCategories'
+          });
+          categoryObjects = categoryObjects.map((c, idx) => ({ ...c, sr: idx + 1 }));
+        }
+
+        setCostCategoriesList(categoryObjects);
+
+        // Map Stock Categories
+        const rawStockCategories = masterData.stockCategories || [];
+        setStockCategoriesList(rawStockCategories.map((sc, i) => ({
+          ...sc,
+          sr: i + 1,
+          stockCategoryName: sc.categoryName || sc.stockCategoryName || sc.name || '',
+          stockCategoryCode: sc.stockCategoryCode || `SCAT-000${i + 1}`,
+          parentCategory: sc.parentCategoryName || sc.parentCategory || sc.parentName || 'Primary / Root Category',
+          status: sc.status || 'ACTIVE',
+          isWebEntry: !!sc.isWebEntry,
+          sourceCollection: sc.sourceCollection || (sc.isWebEntry ? 'stockcategories_entry' : 'stockCategories')
+        })));
+
+        // Map Units
+        const rawUnits = masterData.units || masterData.unitMaster || masterData.unitsList || [];
+        if (rawUnits.length > 0) {
+          setUnitsList(rawUnits.map((u, i) => {
+            const isObj = typeof u === 'object';
+            return {
+              ...(isObj ? u : {}),
+              sr: i + 1,
+              unitName: isObj ? (u.unitName || u.name || u.symbol || '') : u,
+              symbol: isObj ? (u.symbol || u.unitSymbol || u.unitName || u.name || '') : u,
+              unitCode: isObj ? (u.unitCode || u.code || `UNIT-000${i + 1}`) : `UNIT-000${i + 1}`,
+              conversion: isObj && u.conversion ? u.conversion : { isBaseUnit: true, baseUnit: null, conversionFactor: 0, decimalPlaces: 2 },
+              status: isObj && u.status ? u.status : 'ACTIVE',
+              isWebEntry: isObj ? !!u.isWebEntry : false,
+              sourceCollection: isObj ? (u.sourceCollection || (u.isWebEntry ? 'units_entry' : 'units')) : 'units'
+            };
+          }));
+        }
+
+        // Map Godowns (Existing Data from godowns vs Web Entries from godownEntries)
+        const rawGodowns = masterData.godowns || [];
+        setGodownsList(rawGodowns.map((g, i) => ({
           ...g,
           sr: i + 1,
-          groupName: g.groupName || g.name,
-          groupCode: g.groupCode || `GRP00${i + 1}`,
-          parentGroup: g.parentGroup || g.parentGroupName || 'Primary',
-          nature: g.nature || g.classification || 'EXPENSES',
-          subType: g.subType || 'INDIRECT_EXPENSES',
-          status: g.status || 'ACTIVE',
-          isReserved: g.isReserved ?? false,
+          godownName: g.godownName || g.name || '',
+          alias: g.alias || '',
+          parentGodown: g.parentName || g.parentGodown || g.parentCategory || 'Primary',
+          locationType: g.locationType || 'Warehouse',
+          stateName: g.stateName || g.state || '—',
+          status: (g.status || 'ACTIVE').toUpperCase(),
+          tallySyncStatus: g.tallySync?.syncStatus || (g.isSynced ? 'SYNCED' : 'NOT_SYNCED'),
           isWebEntry: !!g.isWebEntry,
-          sourceCollection: g.sourceCollection || (g.isWebEntry ? 'groups_entry' : 'groups')
+          sourceCollection: g.sourceCollection || (g.isWebEntry ? 'godownEntries' : 'godowns')
         })));
-      } else {
-        // Derive dynamic groups from database ledgers
-        const derivedGroupsMap = {};
-        mappedLedgers.forEach(l => {
-          if (l.parentGroup && !derivedGroupsMap[l.parentGroup]) {
-            derivedGroupsMap[l.parentGroup] = {
-              groupName: l.parentGroup,
-              groupCode: `GRP00${Object.keys(derivedGroupsMap).length + 1}`,
-              parentGroup: 'Primary',
-              nature: l.parentGroup.includes('Debtor') || l.parentGroup.includes('Asset') ? 'ASSETS' : l.parentGroup.includes('Creditor') || l.parentGroup.includes('Liability') ? 'LIABILITIES' : 'EXPENSES',
-              subType: 'PRIMARY',
-              status: 'ACTIVE',
-              isReserved: true,
-              isWebEntry: false,
-              sourceCollection: 'groups'
-            };
-          }
-        });
-        const derivedGroupsList = Object.values(derivedGroupsMap).map((g, i) => ({ sr: i + 1, ...g }));
-        setLedgerGroupsList(derivedGroupsList);
-      }
 
-      // 4. Map Stock Groups Collection Dynamically
-      const rawStockGroups = masterData.stockGroups || [];
-      if (rawStockGroups.length > 0) {
-        setStockGroupsList(rawStockGroups.map((sg, i) => ({
-          ...sg,
+
+        // Map BOMs
+
+        const rawBoms = masterData.boms || [];
+        setBomsList(rawBoms.map((b, i) => ({
+          ...b,
           sr: i + 1,
-          groupName: sg.groupName || sg.name,
-          parentGroup: sg.parentGroup || 'Primary',
-          hsnCode: sg.hsnCode || '—',
-          gstRate: sg.gstRate ? `${sg.gstRate}%` : '18%',
-          isWebEntry: !!sg.isWebEntry,
-          sourceCollection: sg.sourceCollection || (sg.isWebEntry ? 'stockgroups_entry' : 'stockGroups')
+          bomName: b.bomName || b.name || '',
+          finishedItemName: b.finishedItemName || b.stockItemName || '',
+          basicQty: b.basicQty ? `${b.basicQty} ${b.unit || ''}` : '1 Pcs',
+          componentsCount: b.componentsCount || (b.items ? b.items.length : 0),
+          status: b.status || 'ACTIVE',
+          isWebEntry: !!b.isWebEntry,
+          sourceCollection: b.sourceCollection || (b.isWebEntry ? 'boms_entry' : 'stockItems')
         })));
-      } else {
-        const derivedStockMap = {};
-        mappedStock.forEach(s => {
-          if (s.group && !derivedStockMap[s.group]) {
-            derivedStockMap[s.group] = {
-              groupName: s.group,
-              parentGroup: 'Primary',
-              hsnCode: s.hsn || '—',
-              gstRate: s.gstRate || '18%',
-              isWebEntry: false,
-              sourceCollection: 'stockGroups'
+
+        // Map Voucher Types
+        const rawVoucherTypes = masterData.voucherTypesFullList || masterData.voucherTypesFull || [];
+        if (rawVoucherTypes.length > 0) {
+          setVoucherTypesList(rawVoucherTypes.map((vt, i) => {
+            const isObj = typeof vt === 'object';
+            return {
+              ...(isObj ? vt : {}),
+              sr: i + 1,
+              voucherTypeName: isObj ? (vt.voucherTypeName || vt.name || '') : vt,
+              voucherTypeCode: isObj ? (vt.voucherTypeCode || vt.code || `VCH-000${i + 1}`) : `VCH-000${i + 1}`,
+              parent: isObj ? (vt.parent || vt.parentGroup || 'Sales') : 'Sales',
+              numberingMethod: isObj ? (vt.numberingMethod || vt.numbering || 'Automatic') : 'Automatic',
+              status: isObj && vt.status ? vt.status : 'ACTIVE',
+              isWebEntry: isObj ? !!vt.isWebEntry : false,
+              sourceCollection: isObj ? (vt.sourceCollection || (vt.isWebEntry ? 'vouchertypes_entry' : 'voucherTypes')) : 'voucherTypes'
             };
-          }
-        });
-        const derivedStockList = Object.values(derivedStockMap).map((sg, i) => ({ sr: i + 1, ...sg }));
-        setStockGroupsList(derivedStockList);
-      }
+          }));
+        }
 
-      // 5. Map Cost Centers Collection Dynamically (Unconditional Update)
-      const rawCostCenters = masterData.costCenters || [];
-      setCostCentersList(rawCostCenters.map((cc, i) => ({
-        ...cc,
-        sr: i + 1,
-        costCenterName: cc.costCenterName || cc.name || '',
-        costCenterCode: cc.costCenterCode || `CC-000${i + 1}`,
-        costCategoryId: cc.costCategoryName || cc.costCategoryId || cc.costCategory || 'Primary Cost Category',
-        parentId: cc.parentName || cc.parentId || 'Primary / None',
-        status: cc.status || 'ACTIVE',
-        isWebEntry: !!cc.isWebEntry,
-        sourceCollection: cc.sourceCollection || (cc.isWebEntry ? 'costcenters_entry' : 'costCenters')
-      })));
+        // Map TDS Masters
+        const rawTds = masterData.tdsMasters || masterData.tds || [];
+        setTdsList(rawTds.map((t, i) => ({
+          ...t,
+          sr: i + 1,
+          tdsName: t.tdsName || t.name || '',
+          sectionCode: t.sectionCode || t.section || '194J',
+          applicableRate: t.applicableRate ?? t.rate ?? 10,
+          thresholdLimit: t.thresholdLimit ?? t.threshold ?? 50000,
+          deducteeTypes: Array.isArray(t.deducteeTypes) ? t.deducteeTypes : (t.deducteeTypes ? [t.deducteeTypes] : ['Company Resident', 'Individual/HUF']),
+          status: t.status || 'ACTIVE',
+          isWebEntry: !!t.isWebEntry,
+          sourceCollection: t.sourceCollection || (t.isWebEntry ? 'tds_entry' : 'tdsMasters')
+        })));
 
-      // 6. Map Cost Categories Dynamically (Unconditional Update)
-      const rawCategories = masterData.costCategories || [];
-      setCostCategories(rawCategories.length > 0 ? rawCategories : ['Primary Cost Category']);
-
-      // 7. Map Stock Categories Collection Dynamically (Strict DB Collection Only)
-      const rawStockCategories = masterData.stockCategories || [];
-      setStockCategoriesList(rawStockCategories.map((sc, i) => ({
-        ...sc,
-        sr: i + 1,
-        stockCategoryName: sc.categoryName || sc.stockCategoryName || sc.name || '',
-        stockCategoryCode: sc.stockCategoryCode || `SCAT-000${i + 1}`,
-        parentCategory: sc.parentCategoryName || sc.parentCategory || sc.parentName || 'Primary / Root Category',
-        status: sc.status || 'ACTIVE',
-        isWebEntry: !!sc.isWebEntry,
-        sourceCollection: sc.sourceCollection || (sc.isWebEntry ? 'stockcategories_entry' : 'stockCategories')
-      })));
-
-      // 8. Map Units Collection Dynamically (or derive from Stock Item collection unit key if units collection is empty)
-      const rawUnits = masterData.units || masterData.unitMaster || masterData.unitsList || [];
-      if (rawUnits.length > 0) {
-        setUnitsList(rawUnits.map((u, i) => {
-          const isObj = typeof u === 'object';
-          return {
-            ...(isObj ? u : {}),
-            sr: i + 1,
-            unitName: isObj ? (u.unitName || u.name || u.symbol || '') : u,
-            symbol: isObj ? (u.symbol || u.unitSymbol || u.unitName || u.name || '') : u,
-            unitCode: isObj ? (u.unitCode || u.code || `UNIT-000${i + 1}`) : `UNIT-000${i + 1}`,
-            conversion: isObj && u.conversion ? u.conversion : { isBaseUnit: true, baseUnit: null, conversionFactor: 0, decimalPlaces: 2 },
-            status: isObj && u.status ? u.status : 'ACTIVE',
-            isWebEntry: isObj ? !!u.isWebEntry : false,
-            sourceCollection: isObj ? (u.sourceCollection || (u.isWebEntry ? 'units_entry' : 'units')) : 'units'
-          };
-        }));
-      } else {
-        // Fallback: derive dynamic unique units from Stock Item collection unit keys
-        const derivedUnitsMap = {};
-        const allStockItems = [...mappedStock, ...(stockRes.data || []), ...(masterDataRes?.stockItems || [])];
-        allStockItems.forEach(s => {
-          const unitVal = typeof s.unit === 'object' 
-            ? (s.unit?.baseUnit || s.unit?.unitName || s.unit?.name || '')
-            : (s.unit || s.baseUnit || s.uom || s.unitName || '');
-
-          if (unitVal && typeof unitVal === 'string' && unitVal.trim() && !derivedUnitsMap[unitVal.trim()]) {
-            const uName = unitVal.trim();
-            derivedUnitsMap[uName] = {
-              unitName: uName,
-              symbol: uName,
-              unitCode: `UNIT-000${Object.keys(derivedUnitsMap).length + 1}`,
-              conversion: { isBaseUnit: true, baseUnit: null, conversionFactor: 0, decimalPlaces: 0 },
-              status: 'ACTIVE'
-            };
-          }
-        });
-
-        const derivedUnitsList = Object.values(derivedUnitsMap).map((u, i) => ({ sr: i + 1, ...u }));
-        setUnitsList(derivedUnitsList);
-      }
-
-      // 9. Map BOMs Collection Dynamically
-      const rawBoms = masterData.boms || [];
-      setBomsList(rawBoms.map((b, i) => ({
-        ...b,
-        sr: i + 1,
-        bomName: b.bomName || b.name || '',
-        finishedItemName: b.finishedItemName || b.stockItemName || '',
-        basicQty: b.basicQty ? `${b.basicQty} ${b.unit || ''}` : '1 Pcs',
-        componentsCount: b.componentsCount || (b.items ? b.items.length : 0),
-        status: b.status || 'ACTIVE',
-        isWebEntry: !!b.isWebEntry,
-        sourceCollection: b.sourceCollection || (b.isWebEntry ? 'boms_entry' : 'boms')
-      })));
-
+        // Map TCS Masters
+        const rawTcs = masterData.tcsMasters || masterData.tcs || [];
+        setTcsList(rawTcs.map((t, i) => ({
+          ...t,
+          sr: i + 1,
+          tcsName: t.tcsName || t.name || '',
+          sectionCode: t.sectionCode || t.section || '206C(1H)',
+          applicableRate: t.applicableRate ?? t.rate ?? 0.1,
+          thresholdLimit: t.thresholdLimit ?? t.threshold ?? 5000000,
+          buyerTypes: Array.isArray(t.buyerTypes) ? t.buyerTypes : (t.buyerTypes ? [t.buyerTypes] : ['Company Resident', 'Resident Buyer']),
+          status: t.status || 'ACTIVE',
+          isWebEntry: !!t.isWebEntry,
+          sourceCollection: t.sourceCollection || (t.isWebEntry ? 'tcs_entry' : 'tcsMasters')
+        })));
+      }).catch(err => {
+        console.error('Error fetching master data prefetch:', err);
+      }).finally(() => {
+        setLoading(false);
+      });
 
     } catch (err) {
-      console.error('Error fetching dynamic master data:', err);
-      toast.error('Failed to load master data');
-    } finally {
+      console.error('Error in fetchMasterData execution:', err);
       setLoading(false);
     }
   };
@@ -462,12 +946,55 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
       ]);
       setActiveTab(targetId);
     }
-    fetchMasterData();
   }, [propMode]);
+
+  const clearAllStateLists = () => {
+    setPartyDataList([]);
+    setStockDataList([]);
+    setVoucherTypesList([]);
+    setLedgerGroupsList([]);
+    setStockGroupsList([]);
+    setStockCategoriesList([]);
+    setUnitsList([]);
+    setGodownsList([]);
+    setCostCentersList([]);
+    setCostCategoriesList([]);
+    setCostCentreClassesList([]);
+    setBomsList([]);
+    setTdsList([]);
+    setTcsList([]);
+  };
+
+  useEffect(() => {
+    clearAllStateLists();
+    setCurrentPage(1);
+    fetchMasterData(true);
+  }, [selectedCompany, orgId]);
+
+  useEffect(() => {
+    fetchMasterData();
+  }, [currentPage, pageSize, activeTab, searchQuery]);
+
+  useEffect(() => {
+    const handleAutoRefresh = () => {
+      clearAllStateLists();
+      setCurrentPage(1);
+      fetchMasterData(true);
+    };
+    window.addEventListener('company-changed', handleAutoRefresh);
+    window.addEventListener('auth-changed', handleAutoRefresh);
+    window.addEventListener('fy-changed', handleAutoRefresh);
+    return () => {
+      window.removeEventListener('company-changed', handleAutoRefresh);
+      window.removeEventListener('auth-changed', handleAutoRefresh);
+      window.removeEventListener('fy-changed', handleAutoRefresh);
+    };
+  }, []);
 
   useEffect(() => {
     setSelectedLedgerKeys([]);
-  }, [activeTab, masterSourceTab, searchQuery]);
+    setCurrentPage(1);
+  }, [activeTab, masterSourceTab, searchQuery, pageSize]);
 
   const handleRowClick = (row) => {
     if (isStock) {
@@ -561,13 +1088,20 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
     }
   };
 
-  // 1. Save Stock Item -> POST /masters/stock-items (saves to stockitems_entry)
+  // 1. Save / Update Stock Item -> POST or PUT /masters/stock-items
   const handleSaveStockItem = async (savedItem) => {
     try {
-      const res = await apiClient.post('/masters/stock-items', savedItem);
+      const itemId = savedItem._id || savedItem.id || editingStockItem?._id || editingStockItem?.id;
+      let res;
+      if (itemId) {
+        res = await apiClient.put(`/masters/stock-items/${itemId}`, savedItem);
+      } else {
+        res = await apiClient.post('/masters/stock-items', savedItem);
+      }
       if (res.data && res.data.success) {
-        toast.success('Stock item saved to database successfully!');
-        fetchMasterData();
+        toast.success(itemId ? 'Stock item updated successfully!' : 'Stock item saved to database successfully!');
+        setMasterSourceTab('web_entry');
+        fetchMasterData(true);
         setShowCreateForm(false);
         setEditingStockItem(null);
       } else {
@@ -585,7 +1119,8 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
       const res = await apiClient.post('/masters/units', savedUnit);
       if (res.data && res.data.success) {
         toast.success('Unit saved to database successfully!');
-        fetchMasterData();
+        setMasterSourceTab('web_entry');
+        fetchMasterData(true);
         setShowCreateForm(false);
         setEditingUnit(null);
       } else {
@@ -603,7 +1138,8 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
       const res = await apiClient.post('/masters/stock-groups', savedGroup);
       if (res.data && res.data.success) {
         toast.success('Stock group saved to database successfully!');
-        fetchMasterData();
+        setMasterSourceTab('web_entry');
+        fetchMasterData(true);
         setShowCreateForm(false);
         setEditingStockGroup(null);
       } else {
@@ -621,7 +1157,8 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
       const res = await apiClient.post('/masters/stock-categories', savedCategory);
       if (res.data && res.data.success) {
         toast.success('Stock category saved to database successfully!');
-        fetchMasterData();
+        setMasterSourceTab('web_entry');
+        fetchMasterData(true);
         setShowCreateForm(false);
         setEditingStockCategory(null);
       } else {
@@ -639,7 +1176,8 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
       const res = await apiClient.post('/masters/ledger-groups', savedGroup);
       if (res.data && res.data.success) {
         toast.success('Ledger group saved to database successfully!');
-        fetchMasterData();
+        setMasterSourceTab('web_entry');
+        fetchMasterData(true);
         setShowCreateForm(false);
         setEditingLedgerGroup(null);
       } else {
@@ -657,7 +1195,8 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
       const res = await apiClient.post('/masters/cost-centers', savedCc);
       if (res.data && res.data.success) {
         toast.success('Cost center saved to database successfully!');
-        fetchMasterData();
+        setMasterSourceTab('web_entry');
+        fetchMasterData(true);
         setShowCreateForm(false);
         setEditingCostCenter(null);
       } else {
@@ -699,13 +1238,14 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
         isBom ? 'boms_entry' :
         isStockCategory ? 'stockcategories_entry' :
         isUnit ? 'units_entry' :
+        isGodown ? 'godownEntries' :
         isCostCenter ? 'costcenters_entry' :
         isStockGroup ? 'stockgroups_entry' :
         isLedgerGroup ? 'groups_entry' :
         isStock ? 'stockitems_entry' : 'ledgers_entry'
       );
       const itemId = item._id || item.id || item.sr;
-      const itemName = masterName || item.bomName || item.ledgerName || item.itemName || item.unitName || item.groupName || item.costCenterName || item.name || 'Master Record';
+      const itemName = masterName || item.godownName || item.bomName || item.ledgerName || item.itemName || item.unitName || item.groupName || item.costCenterName || item.name || 'Master Record';
 
       const res = await apiClient.post('/masters/push-to-tally', {
         collectionName: targetCol,
@@ -717,7 +1257,7 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
 
       if (res.data && res.data.success) {
         toast.success(`🎉 Master "${itemName}" pushed to Tally successfully!`);
-        fetchMasterData();
+        fetchMasterData(true);
       } else {
         toast.error(res?.data?.message || 'Failed to push to Tally');
       }
@@ -733,17 +1273,19 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
         ? bomsList
         : isStockCategory
           ? stockCategoriesList
-          : isUnit
-            ? unitsList
-            : isCostCenter
-              ? costCentersList
-              : isStockGroup
-                ? stockGroupsList
-                : isLedgerGroup
-                  ? ledgerGroupsList
-                  : isStock
-                    ? stockDataList
-                    : partyDataList;
+          : isGodown
+            ? godownsList
+            : isUnit
+              ? unitsList
+              : isCostCenter
+                ? costCentersList
+                : isStockGroup
+                  ? stockGroupsList
+                  : isLedgerGroup
+                    ? ledgerGroupsList
+                    : isStock
+                      ? stockDataList
+                      : partyDataList;
 
       const webEntries = activeList.filter(r => r.isWebEntry);
       if (webEntries.length === 0) {
@@ -765,16 +1307,18 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
 
   // Delete Web Entry Master Record
   const handleDeleteWebEntry = async (item) => {
-    const itemName = item.bomName || item.ledgerName || item.itemName || item.unitName || item.groupName || item.costCenterName || item.name || item.ledger || 'Master Record';
+    const itemName = item.godownName || item.bomName || item.ledgerName || item.itemName || item.unitName || item.groupName || item.costCenterName || item.name || item.ledger || 'Master Record';
     const collectionName = item.sourceCollection || (
       isBom ? 'boms_entry' :
       isStockCategory ? 'stockcategories_entry' :
       isUnit ? 'units_entry' :
+      isGodown ? 'godownEntries' :
       isCostCenter ? 'costcenters_entry' :
       isStockGroup ? 'stockgroups_entry' :
       isLedgerGroup ? 'groups_entry' :
       isStock ? 'stockitems_entry' : 'ledgers_entry'
     );
+
 
     const itemId = item._id || item.id;
 
@@ -791,7 +1335,7 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
 
       if (res.data && res.data.success) {
         toast.success(`🗑️ Master "${itemName}" deleted successfully!`);
-        fetchMasterData();
+        fetchMasterData(true);
       } else {
         toast.error(res?.data?.message || 'Failed to delete entry');
       }
@@ -804,97 +1348,334 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
 
   // Active filtered source list for KPI cards matching the sub-tab (synced vs web_entry)
   const activeSourceList = useMemo(() => {
-    const list = isBom
-      ? bomsList
-      : isStockCategory
-        ? stockCategoriesList
-        : isCostCenter
-          ? costCentersList
-          : isUnit
-            ? unitsList
-            : isStockGroup
-              ? stockGroupsList
-              : isLedgerGroup
-                ? ledgerGroupsList
-                : isStock
-                  ? stockDataList
-                  : partyDataList;
-    return list.filter(r => masterSourceTab === 'web_entry' ? !!r.isWebEntry : !r.isWebEntry);
-  }, [masterSourceTab, isBom, bomsList, isStockCategory, stockCategoriesList, isCostCenter, costCentersList, isUnit, unitsList, isStockGroup, stockGroupsList, isLedgerGroup, ledgerGroupsList, isStock, stockDataList, partyDataList]);
+    const list = isTds
+      ? tdsList
+      : isTcs
+        ? tcsList
+        : isVoucherType
+          ? voucherTypesList
+          : isBom
+            ? bomsList
+            : isStockCategory
+              ? stockCategoriesList
+              : isGodown
+                ? godownsList
+                : isCostCenter
+                  ? (costCenterSubTab === 'cost_categories' ? costCategoriesList : (costCenterSubTab === 'cost_centre_classes' ? costCentreClassesList : costCentersList))
+                  : isUnit
+                    ? unitsList
+                    : isStockGroup
+                      ? stockGroupsList
+                      : isLedgerGroup
+                        ? ledgerGroupsList
+                        : isStock
+                          ? stockDataList
+                          : partyDataList;
+    return list.filter(r => masterSourceTab === 'web_entry' ? (!!r.isWebEntry && !r.isSystemPredefined) : (!r.isWebEntry || !!r.isSystemPredefined));
+  }, [masterSourceTab, isTds, tdsList, isTcs, tcsList, isVoucherType, voucherTypesList, isBom, bomsList, isStockCategory, stockCategoriesList, isGodown, godownsList, isCostCenter, costCenterSubTab, costCentersList, costCategoriesList, costCentreClassesList, isUnit, unitsList, isStockGroup, stockGroupsList, isLedgerGroup, ledgerGroupsList, isStock, stockDataList, partyDataList]);
 
-  // Statistics Display Config (uses activeSourceList)
-  const bomStats = useMemo(() => [
-    { label: 'Total BOM Masters', value: activeSourceList.length, icon: Box },
-    { label: 'Active Assemblies', value: activeSourceList.filter(b => (b.status || 'ACTIVE').toUpperCase() !== 'INACTIVE').length, icon: CheckCircle2 },
-    { label: 'Finished Stock Items', value: activeSourceList.filter(b => b.finishedItemName).length, icon: Package },
-    { label: 'Total Components', value: activeSourceList.reduce((acc, b) => acc + (b.componentsCount || (b.items ? b.items.length : 0)), 0), icon: Layers },
-  ], [activeSourceList]);
+  const isPartyLedger = !isLedgerGroup && !isStockGroup && !isStockCategory && !isUnit && !isGodown && !isCostCenter && !isStock && !isBom && !isVoucherType && !isTds && !isTcs;
 
-  const ledgerStats = useMemo(() => [
-    { label: 'Total Ledgers', value: (serverLedgerCounts.total || activeSourceList.length).toLocaleString('en-IN'), icon: Users },
-    { label: 'Sundry Debtors', value: activeSourceList.filter(p => p.parentGroup === 'Sundry Debtors').length, icon: User },
-    { label: 'Sundry Creditors', value: activeSourceList.filter(p => p.parentGroup === 'Sundry Creditors').length, icon: BookOpen },
-    { label: 'Unsynced', value: activeSourceList.filter(p => !p.isSynced).length, icon: AlertTriangle },
-  ], [activeSourceList, serverLedgerCounts.total]);
+  const activeTabKey = isPartyLedger
+    ? 'Party Ledger'
+    : (isLedgerGroup
+      ? 'Ledger Group'
+      : (isStockGroup
+        ? 'Stock Group'
+        : (isStockCategory
+          ? 'Stock Category'
+          : (isUnit
+            ? 'Unit'
+            : (isGodown
+              ? 'Godown'
+              : (isCostCenter
+                ? 'Cost Center'
+                : (isStock
+                  ? 'Item Master'
+                  : (isBom
+                    ? 'BOM'
+                    : (isVoucherType
+                      ? 'Voucher Types'
+                      : (isTds
+                        ? 'TDS Master'
+                        : (isTcs ? 'TCS Master' : activeTab)))))))))));
 
-  const ledgerGroupStats = useMemo(() => [
-    { label: 'Total Ledger Groups', value: activeSourceList.length, icon: Layers },
-    { label: 'Primary Groups', value: activeSourceList.filter(g => !g.parentGroup || g.parentGroup === 'Primary' || g.parentGroup === 'Primary / Root Group').length, icon: BookOpen },
-    { label: 'Sub Groups', value: activeSourceList.filter(g => g.parentGroup && g.parentGroup !== 'Primary' && g.parentGroup !== 'Primary / Root Group').length, icon: Users },
-    { label: 'Active Groups', value: activeSourceList.filter(g => (g.status || 'ACTIVE').toUpperCase() !== 'INACTIVE').length, icon: CheckCircle2 },
-  ], [activeSourceList]);
+  const currentTabCounts = isPartyLedger
+    ? serverLedgerCounts
+    : (serverMasterCounts[activeTabKey] || serverMasterCounts[activeTab] || {});
 
-  const stockStats = useMemo(() => [
-    { label: 'Total Items', value: activeSourceList.length, icon: Package },
-    { label: 'Active Items', value: activeSourceList.filter(s => s.qty > 0 || (s.status || 'ACTIVE').toUpperCase() === 'ACTIVE').length, icon: CheckCircle2 },
-    { label: 'Out of Stock', value: activeSourceList.filter(s => (s.qty || 0) === 0).length, icon: AlertTriangle },
-    { label: 'Stock Value', value: `₹${activeSourceList.reduce((acc, s) => acc + (s.value || 0), 0).toLocaleString('en-IN')}`, icon: Coins },
-  ], [activeSourceList]);
+  const syncedCount = isPartyLedger
+    ? (serverLedgerCounts.synced ?? activeSourceList.length)
+    : (currentTabCounts?.synced ?? activeSourceList.length);
 
-  const stockGroupStats = useMemo(() => [
-    { label: 'Total Stock Groups', value: activeSourceList.length, icon: Layers },
-    { label: 'Primary Groups', value: activeSourceList.filter(g => !g.parentGroup || g.parentGroup === 'Primary' || g.parentGroup === 'Primary / Root Group').length, icon: Package },
-    { label: 'Sub Groups', value: activeSourceList.filter(g => g.parentGroup && g.parentGroup !== 'Primary' && g.parentGroup !== 'Primary / Root Group').length, icon: FolderTree },
-    { label: 'Active Groups', value: activeSourceList.filter(g => (g.status || 'ACTIVE').toUpperCase() !== 'INACTIVE').length, icon: CheckCircle2 },
-  ], [activeSourceList]);
+  const webEntryCount = isPartyLedger
+    ? (serverLedgerCounts.web ?? 0)
+    : (currentTabCounts?.web ?? 0);
 
-  const stockCategoryStats = useMemo(() => [
-    { label: 'Total Stock Categories', value: activeSourceList.length, icon: FolderTree },
-    { label: 'Primary Categories', value: activeSourceList.filter(c => !c.parentCategory || c.parentCategory === 'Primary' || c.parentCategory === 'Primary / Root Category').length, icon: Layers },
-    { label: 'Sub Categories', value: activeSourceList.filter(c => c.parentCategory && c.parentCategory !== 'Primary' && c.parentCategory !== 'Primary / Root Category').length, icon: Tag },
-    { label: 'Active Categories', value: activeSourceList.filter(c => (c.status || 'ACTIVE').toUpperCase() !== 'INACTIVE').length, icon: CheckCircle2 },
-  ], [activeSourceList]);
+  const activeMasterCount = currentTabCounts && currentTabCounts.total !== undefined
+    ? (masterSourceTab === 'web_entry' ? (currentTabCounts.web || 0) : (currentTabCounts.synced ?? currentTabCounts.total ?? 0))
+    : activeSourceList.length;
 
-  const costCenterStats = useMemo(() => [
-    { label: 'Total Cost Centers', value: activeSourceList.length, icon: Layers },
-    { label: 'Active', value: activeSourceList.filter(c => (c.status || 'ACTIVE').toUpperCase() !== 'INACTIVE').length, icon: CheckCircle2 },
-    { label: 'Cost Categories', value: costCategories.length, icon: FolderTree },
-    { label: 'Sub-Centers', value: activeSourceList.filter(c => c.parentId && c.parentId !== 'Primary / None').length, icon: Users },
-  ], [activeSourceList, costCategories]);
+  // Statistics Display Config (uses activeSourceList with getScaledKpiCount scaling)
+  const tdsStats = useMemo(() => {
+    const totalCount = activeMasterCount || activeSourceList.length;
+    const pageLen = activeSourceList.length;
+    const activeOnPage = activeSourceList.filter(t => String(t.status || 'ACTIVE').toUpperCase() !== 'INACTIVE').length;
+    const scaledActive = getScaledKpiCount(activeOnPage, pageLen, totalCount);
+    return [
+      { label: 'Total TDS Masters', value: totalCount.toLocaleString('en-IN'), icon: FileText },
+      { label: 'Active Rates', value: scaledActive.toLocaleString('en-IN'), icon: CheckCircle2 },
+      { label: 'Avg Rate %', value: pageLen > 0 ? (activeSourceList.reduce((acc, curr) => acc + (parseFloat(curr.applicableRate ?? curr.rate) || 0), 0) / pageLen).toFixed(1) + '%' : '0%', icon: Percent },
+      { label: 'Sections Configured', value: new Set(activeSourceList.map(t => t.sectionCode || t.section)).size, icon: Tag },
+    ];
+  }, [activeSourceList, activeMasterCount]);
+
+  const tcsStats = useMemo(() => {
+    const totalCount = activeMasterCount || activeSourceList.length;
+    const pageLen = activeSourceList.length;
+    const activeOnPage = activeSourceList.filter(t => String(t.status || 'ACTIVE').toUpperCase() !== 'INACTIVE').length;
+    const scaledActive = getScaledKpiCount(activeOnPage, pageLen, totalCount);
+    return [
+      { label: 'Total TCS Masters', value: totalCount.toLocaleString('en-IN'), icon: FileText },
+      { label: 'Active Rates', value: scaledActive.toLocaleString('en-IN'), icon: CheckCircle2 },
+      { label: 'Avg Rate %', value: pageLen > 0 ? (activeSourceList.reduce((acc, curr) => acc + (parseFloat(curr.applicableRate ?? curr.rate) || 0), 0) / pageLen).toFixed(1) + '%' : '0%', icon: Percent },
+      { label: 'Sections Configured', value: new Set(activeSourceList.map(t => t.sectionCode || t.section)).size, icon: Tag },
+    ];
+  }, [activeSourceList, activeMasterCount]);
+
+  const voucherTypeStats = useMemo(() => {
+    const totalCount = activeMasterCount || activeSourceList.length;
+    const pageLen = activeSourceList.length;
+    const activeOnPage = activeSourceList.filter(v => String(v.status || 'ACTIVE').toUpperCase() !== 'INACTIVE').length;
+    const scaledActive = getScaledKpiCount(activeOnPage, pageLen, totalCount);
+    const autoOnPage = activeSourceList.filter(v => String(v.numberingMethod || 'Automatic').toLowerCase().includes('auto')).length;
+    const scaledAuto = getScaledKpiCount(autoOnPage, pageLen, totalCount);
+    const scaledManual = totalCount - scaledAuto;
+    return [
+      { label: 'Total Voucher Types', value: totalCount.toLocaleString('en-IN'), icon: FileText },
+      { label: 'Active Types', value: scaledActive.toLocaleString('en-IN'), icon: CheckCircle2 },
+      { label: 'Automatic Numbering', value: scaledAuto.toLocaleString('en-IN'), icon: Hash },
+      { label: 'Manual Numbering', value: scaledManual.toLocaleString('en-IN'), icon: Settings },
+    ];
+  }, [activeSourceList, activeMasterCount]);
+
+  const bomStats = useMemo(() => {
+    const totalCount = activeMasterCount || activeSourceList.length;
+    const pageLen = activeSourceList.length;
+    const activeOnPage = activeSourceList.filter(b => (b.status || 'ACTIVE').toUpperCase() !== 'INACTIVE').length;
+    const scaledActive = getScaledKpiCount(activeOnPage, pageLen, totalCount);
+    const finishedOnPage = activeSourceList.filter(b => b.finishedItemName).length;
+    const scaledFinished = getScaledKpiCount(finishedOnPage, pageLen, totalCount);
+    const compsOnPage = activeSourceList.reduce((acc, b) => acc + (b.componentsCount || (b.items ? b.items.length : 0)), 0);
+    const scaledComps = getScaledKpiCount(compsOnPage, pageLen, totalCount);
+    return [
+      { label: 'Total BOM Masters', value: totalCount.toLocaleString('en-IN'), icon: Box },
+      { label: 'Active Assemblies', value: scaledActive.toLocaleString('en-IN'), icon: CheckCircle2 },
+      { label: 'Finished Stock Items', value: scaledFinished.toLocaleString('en-IN'), icon: Package },
+      { label: 'Total Components', value: scaledComps.toLocaleString('en-IN'), icon: Layers },
+    ];
+  }, [activeSourceList, activeMasterCount]);
+
+  const godownStats = useMemo(() => {
+    const totalCount = activeMasterCount || activeSourceList.length;
+    const pageLen = activeSourceList.length;
+    const primaryOnPage = activeSourceList.filter(g => {
+      const p = (g.parentGodown || g.parentName || '').toString().toLowerCase();
+      return !p || p === 'primary' || p === 'primary / root godown' || p === 'root' || g.isPrimary;
+    }).length;
+    const scaledPrimary = getScaledKpiCount(primaryOnPage, pageLen, totalCount);
+    const scaledSub = totalCount - scaledPrimary;
+    const activeOnPage = activeSourceList.filter(g => (g.status || 'ACTIVE').toUpperCase() !== 'INACTIVE').length;
+    const scaledActive = getScaledKpiCount(activeOnPage, pageLen, totalCount);
+    return [
+      { label: 'Total Godowns', value: totalCount.toLocaleString('en-IN'), icon: Building2 },
+      { label: 'Primary Godowns', value: scaledPrimary.toLocaleString('en-IN'), icon: Layers },
+      { label: 'Sub-Godowns', value: scaledSub.toLocaleString('en-IN'), icon: FolderTree },
+      { label: 'Active Godowns', value: scaledActive.toLocaleString('en-IN'), icon: CheckCircle2 },
+    ];
+  }, [activeSourceList, activeMasterCount]);
+
+  const ledgerStats = useMemo(() => {
+    const totalCount = activeMasterCount || activeSourceList.length;
+    const pageLen = activeSourceList.length;
+    const debtorsOnPage = activeSourceList.filter(p => p.parentGroup === 'Sundry Debtors').length;
+    const scaledDebtors = getScaledKpiCount(debtorsOnPage, pageLen, totalCount);
+    const creditorsOnPage = activeSourceList.filter(p => p.parentGroup === 'Sundry Creditors').length;
+    const scaledCreditors = getScaledKpiCount(creditorsOnPage, pageLen, totalCount);
+    const unsyncedOnPage = activeSourceList.filter(p => !p.isSynced).length;
+    const scaledUnsynced = getScaledKpiCount(unsyncedOnPage, pageLen, totalCount);
+    return [
+      { label: 'Total Ledgers', value: totalCount.toLocaleString('en-IN'), icon: Users },
+      { label: 'Sundry Debtors', value: scaledDebtors.toLocaleString('en-IN'), icon: User },
+      { label: 'Sundry Creditors', value: scaledCreditors.toLocaleString('en-IN'), icon: BookOpen },
+      { label: 'Unsynced', value: scaledUnsynced.toLocaleString('en-IN'), icon: AlertTriangle },
+    ];
+  }, [activeSourceList, activeMasterCount]);
+
+  const ledgerGroupStats = useMemo(() => {
+    const totalCount = activeMasterCount || activeSourceList.length;
+    const pageLen = activeSourceList.length;
+    const primaryOnPage = activeSourceList.filter(g => {
+      const p = (g.parentGroup || g.parentGroupName || '').toString().toLowerCase();
+      return !p || p === 'primary' || p === 'primary / root group' || p === 'root' || g.isPrimary;
+    }).length;
+    const scaledPrimary = getScaledKpiCount(primaryOnPage, pageLen, totalCount);
+    const scaledSub = totalCount - scaledPrimary;
+    const activeOnPage = activeSourceList.filter(g => (g.status || 'ACTIVE').toUpperCase() !== 'INACTIVE').length;
+    const scaledActive = getScaledKpiCount(activeOnPage, pageLen, totalCount);
+    return [
+      { label: 'Total Ledger Groups', value: totalCount.toLocaleString('en-IN'), icon: Layers },
+      { label: 'Primary Groups', value: scaledPrimary.toLocaleString('en-IN'), icon: BookOpen },
+      { label: 'Sub Groups', value: scaledSub.toLocaleString('en-IN'), icon: Users },
+      { label: 'Active Groups', value: scaledActive.toLocaleString('en-IN'), icon: CheckCircle2 },
+    ];
+  }, [activeSourceList, activeMasterCount]);
+
+  const stockStats = useMemo(() => {
+    const totalCount = activeMasterCount || activeSourceList.length;
+    const pageLen = activeSourceList.length;
+    const activeOnPage = activeSourceList.filter(s => (s.status || 'ACTIVE').toUpperCase() !== 'INACTIVE').length;
+    const scaledActive = getScaledKpiCount(activeOnPage, pageLen, totalCount);
+    const outOfStockOnPage = activeSourceList.filter(s => (s.qty ?? s.inventory?.openingStock?.quantity ?? 0) <= 0).length;
+    const scaledOutOfStock = getScaledKpiCount(outOfStockOnPage, pageLen, totalCount);
+    const pageStockValue = activeSourceList.reduce((acc, s) => acc + (s.value ?? s.inventory?.openingStock?.value ?? 0), 0);
+    const scaledStockValue = getScaledKpiCount(pageStockValue, pageLen, totalCount);
+    return [
+      { label: 'Total Items', value: totalCount.toLocaleString('en-IN'), icon: Package },
+      { label: 'Active Items', value: scaledActive.toLocaleString('en-IN'), icon: CheckCircle2 },
+      { label: 'Out of Stock', value: scaledOutOfStock.toLocaleString('en-IN'), icon: AlertTriangle },
+      { label: 'Stock Value', value: `₹${scaledStockValue.toLocaleString('en-IN')}`, icon: Coins },
+    ];
+  }, [activeSourceList, activeMasterCount]);
+
+  const stockGroupStats = useMemo(() => {
+    const totalCount = activeMasterCount || activeSourceList.length;
+    const pageLen = activeSourceList.length;
+    const primaryOnPage = activeSourceList.filter(g => {
+      const p = (g.parentGroup || g.parentGroupName || '').toString().toLowerCase();
+      return !p || p === 'primary' || p === 'primary / root group' || p === 'root' || g.isPrimary;
+    }).length;
+    const scaledPrimary = getScaledKpiCount(primaryOnPage, pageLen, totalCount);
+    const scaledSub = totalCount - scaledPrimary;
+    const activeOnPage = activeSourceList.filter(g => (g.status || 'ACTIVE').toUpperCase() !== 'INACTIVE').length;
+    const scaledActive = getScaledKpiCount(activeOnPage, pageLen, totalCount);
+    return [
+      { label: 'Total Stock Groups', value: totalCount.toLocaleString('en-IN'), icon: Layers },
+      { label: 'Primary Groups', value: scaledPrimary.toLocaleString('en-IN'), icon: Package },
+      { label: 'Sub Groups', value: scaledSub.toLocaleString('en-IN'), icon: FolderTree },
+      { label: 'Active Groups', value: scaledActive.toLocaleString('en-IN'), icon: CheckCircle2 },
+    ];
+  }, [activeSourceList, activeMasterCount]);
+
+  const stockCategoryStats = useMemo(() => {
+    const totalCount = activeMasterCount || activeSourceList.length;
+    const pageLen = activeSourceList.length;
+    const primaryOnPage = activeSourceList.filter(c => {
+      const p = (c.parentCategory || c.parentCategoryName || '').toString().toLowerCase();
+      return !p || p === 'primary' || p === 'primary / root category' || p === 'root' || c.isPrimary;
+    }).length;
+    const scaledPrimary = getScaledKpiCount(primaryOnPage, pageLen, totalCount);
+    const scaledSub = totalCount - scaledPrimary;
+    const activeOnPage = activeSourceList.filter(c => (c.status || 'ACTIVE').toUpperCase() !== 'INACTIVE').length;
+    const scaledActive = getScaledKpiCount(activeOnPage, pageLen, totalCount);
+    return [
+      { label: 'Total Stock Categories', value: totalCount.toLocaleString('en-IN'), icon: FolderTree },
+      { label: 'Primary Categories', value: scaledPrimary.toLocaleString('en-IN'), icon: Layers },
+      { label: 'Sub Categories', value: scaledSub.toLocaleString('en-IN'), icon: Tag },
+      { label: 'Active Categories', value: scaledActive.toLocaleString('en-IN'), icon: CheckCircle2 },
+    ];
+  }, [activeSourceList, activeMasterCount]);
+
+  const costCenterStats = useMemo(() => {
+    const totalCount = activeMasterCount || activeSourceList.length;
+    const pageLen = activeSourceList.length;
+    if (costCenterSubTab === 'cost_categories') {
+      const totalCentersAllocated = activeSourceList.reduce((acc, c) => acc + (c.costCentersCount || (c.associatedCenters || []).length || 0), 0);
+      return [
+        { label: 'Total Cost Categories', value: pageLen.toLocaleString('en-IN'), icon: FolderTree },
+        { label: 'Active Categories', value: activeSourceList.filter(c => (c.status || 'ACTIVE').toUpperCase() !== 'INACTIVE').length.toLocaleString('en-IN'), icon: CheckCircle2 },
+        { label: 'Allocated Cost Centres', value: totalCentersAllocated.toLocaleString('en-IN'), icon: Layers },
+        { label: 'Revenue Allocation', value: activeSourceList.filter(c => c.allocateRevenueItems).length.toLocaleString('en-IN'), icon: CheckCircle2 },
+      ];
+    }
+    if (costCenterSubTab === 'cost_centre_classes') {
+      return [
+        { label: 'Total Classes', value: pageLen.toLocaleString('en-IN'), icon: Layers },
+        { label: 'Active Classes', value: activeSourceList.filter(c => (c.status || 'ACTIVE').toUpperCase() !== 'INACTIVE').length.toLocaleString('en-IN'), icon: CheckCircle2 },
+        { label: 'Categories Linked', value: new Set(activeSourceList.map(c => c.categoryName || c.costCategoryName).filter(Boolean)).size.toLocaleString('en-IN'), icon: FolderTree },
+        { label: 'Sub-Classes', value: '0', icon: Tag },
+      ];
+    }
+    const activeOnPage = activeSourceList.filter(c => (c.status || 'ACTIVE').toUpperCase() !== 'INACTIVE').length;
+    const scaledActive = getScaledKpiCount(activeOnPage, pageLen, totalCount);
+    const subOnPage = activeSourceList.filter(c => c.parentId && c.parentId !== 'Primary / None' && c.parentId !== 'Primary').length;
+    const scaledSub = getScaledKpiCount(subOnPage, pageLen, totalCount);
+
+    return [
+      { label: 'Total Cost Centers', value: totalCount.toLocaleString('en-IN'), icon: Layers },
+      { label: 'Active', value: scaledActive.toLocaleString('en-IN'), icon: CheckCircle2 },
+      { label: 'Cost Categories', value: costCategories.length.toLocaleString('en-IN'), icon: FolderTree },
+      { label: 'Sub-Centers', value: scaledSub.toLocaleString('en-IN'), icon: Users },
+    ];
+  }, [costCenterSubTab, activeSourceList, activeMasterCount, costCategories]);
+
+  // Helper to determine if a unit is Compound vs Simple according to MongoDB doc
+  const checkIsCompoundUnit = (u) => {
+    if (!u || typeof u !== 'object') return false;
+    const uType = String(u.unitType || u.type || '').toLowerCase();
+    if (uType === 'compound') return true;
+    if (uType === 'simple') return false;
+
+    if (u.flags?.isCompound === true) return true;
+    if (u.flags?.isCompound === false) return false;
+
+    if (u.firstUnit || u.compound?.firstUnit) return true;
+
+    const cFactor = Number(u.conversionFactor || u.compound?.conversionFactor || u.conversion?.conversionFactor);
+    if (cFactor && cFactor > 1 && (u.secondUnit || u.compound?.secondUnit || u.conversion?.baseUnit)) {
+      return true;
+    }
+
+    return false;
+  };
 
   // Statistics Display Config
-  const unitStats = useMemo(() => [
-    { label: 'Total Units', value: activeSourceList.length, icon: Layers },
-    { label: 'Base Units', value: activeSourceList.filter(u => (typeof u === 'object' ? u.conversion?.isBaseUnit !== false : true)).length, icon: Package },
-    { label: 'Derived Units', value: activeSourceList.filter(u => (typeof u === 'object' ? u.conversion?.isBaseUnit === false : false)).length, icon: Tag },
-    { label: 'Active Units', value: activeSourceList.filter(u => (typeof u === 'object' ? (u.status || 'ACTIVE').toUpperCase() !== 'INACTIVE' : true)).length, icon: CheckCircle2 },
-  ], [activeSourceList]);
+  const unitStats = useMemo(() => {
+    const compoundCount = activeSourceList.filter(u => checkIsCompoundUnit(u)).length;
+    const simpleCount = activeSourceList.length - compoundCount;
+    return [
+      { label: 'Total Units', value: (activeMasterCount || activeSourceList.length).toLocaleString('en-IN'), icon: Layers },
+      { label: 'Simple Units', value: simpleCount, icon: Package },
+      { label: 'Compound Units', value: compoundCount, icon: Tag },
+      { label: 'Active Units', value: activeSourceList.filter(u => (typeof u === 'object' ? (u.status || 'ACTIVE').toUpperCase() !== 'INACTIVE' : true)).length, icon: CheckCircle2 },
+    ];
+  }, [activeSourceList, activeMasterCount]);
 
-  const activeStats = isBom
-    ? bomStats
-    : isStockCategory
-      ? stockCategoryStats
-      : isCostCenter
-        ? costCenterStats
-        : isUnit
-          ? unitStats
-          : isStockGroup
-            ? stockGroupStats
-            : isLedgerGroup
-              ? ledgerGroupStats
-              : isStock
-                ? stockStats
-                : ledgerStats;
+
+  const activeStats = isTds
+    ? tdsStats
+    : isTcs
+      ? tcsStats
+      : isVoucherType
+        ? voucherTypeStats
+        : isBom
+          ? bomStats
+          : isGodown
+            ? godownStats
+            : isStockCategory
+              ? stockCategoryStats
+              : isCostCenter
+                ? costCenterStats
+                : isUnit
+                  ? unitStats
+                  : isStockGroup
+                    ? stockGroupStats
+                    : isLedgerGroup
+                      ? ledgerGroupStats
+                      : isStock
+                        ? stockStats
+                        : ledgerStats;
+
 
 
   const toggleLedgerGroupStatus = (row) => {
@@ -1085,40 +1866,42 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
 
   // Active master list based on active top tab
   const activeMasterList = useMemo(() => {
+    if (isTds) return tdsList;
+    if (isTcs) return tcsList;
+    if (isVoucherType) return voucherTypesList;
     if (isBom) return bomsList;
     if (isStockCategory) return stockCategoriesList;
     if (isUnit) return unitsList;
-    if (isCostCenter) return costCentersList;
+    if (isGodown) return godownsList;
+    if (isCostCenter) return (costCenterSubTab === 'cost_categories' ? costCategoriesList : (costCenterSubTab === 'cost_centre_classes' ? costCentreClassesList : costCentersList));
     if (isLedgerGroup) return ledgerGroupsList;
     if (isStockGroup) return stockGroupsList;
     if (isStock) return stockDataList;
     return partyDataList;
-  }, [isBom, bomsList, isStockCategory, stockCategoriesList, isUnit, unitsList, isCostCenter, costCentersList, isLedgerGroup, ledgerGroupsList, isStockGroup, stockGroupsList, isStock, stockDataList, partyDataList]);
+  }, [isTds, tdsList, isTcs, tcsList, isVoucherType, voucherTypesList, isBom, bomsList, isStockCategory, stockCategoriesList, isUnit, unitsList, isGodown, godownsList, isCostCenter, costCenterSubTab, costCentersList, costCategoriesList, costCentreClassesList, isLedgerGroup, ledgerGroupsList, isStockGroup, stockGroupsList, isStock, stockDataList, partyDataList]);
 
 
-  // Tab counts
-  const syncedCount = useMemo(() => serverLedgerCounts.synced || activeMasterList.filter(r => !r.isWebEntry).length, [activeMasterList, serverLedgerCounts.synced]);
-  const webEntryCount = useMemo(() => serverLedgerCounts.web || activeMasterList.filter(r => !!r.isWebEntry).length, [activeMasterList, serverLedgerCounts.web]);
+
 
   // Filtered rows for the active tab & source sub-tab.
   const rows = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    
     // First split by masterSourceTab ('synced' vs 'web_entry')
-    const sourceFiltered = activeMasterList.filter(r => masterSourceTab === 'web_entry' ? !!r.isWebEntry : !r.isWebEntry);
+    const sourceFiltered = activeMasterList.filter(r => masterSourceTab === 'web_entry' ? (!!r.isWebEntry && !r.isSystemPredefined) : (!r.isWebEntry || !!r.isSystemPredefined));
 
-    return sourceFiltered.filter((r) => {
-      if (onlyUnsynced && r.isSynced) return false;
-      if (!q) return true;
-      if (isStockCategory) return `${r.stockCategoryName || r.name} ${r.stockCategoryCode || r.code} ${r.parentCategory || r.parentName}`.toLowerCase().includes(q);
-      if (isUnit) return `${typeof r === 'string' ? r : `${r.unitName} ${r.symbol} ${r.unitCode}`}`.toLowerCase().includes(q);
-      if (isCostCenter) return `${r.costCenterName} ${r.costCenterCode} ${r.costCategoryId} ${r.parentId}`.toLowerCase().includes(q);
-      if (isLedgerGroup) return `${r.groupName} ${r.groupCode} ${r.parentGroup} ${r.nature}`.toLowerCase().includes(q);
-      if (isStockGroup) return `${r.groupName} ${r.parentGroup} ${r.hsnCode}`.toLowerCase().includes(q);
-      if (isStock) return `${r.name}${r.group}${r.hsn}`.toLowerCase().includes(q);
-      return `${r.ledger}${r.parentGroup}${r.gst}`.toLowerCase().includes(q);
-    });
-  }, [activeMasterList, masterSourceTab, searchQuery, onlyUnsynced, isStockCategory, isUnit, isCostCenter, isLedgerGroup, isStockGroup, isStock]);
+    if (onlyUnsynced) {
+      return sourceFiltered.filter(r => !r.isSynced);
+    }
+    return sourceFiltered;
+  }, [activeMasterList, masterSourceTab, onlyUnsynced]);
+
+
+  const limitVal = typeof pageSize === 'number' ? pageSize : 200;
+
+  const calculatedTotalPages = totalPages;
+
+  const safeCurrentPage = currentPage;
+
+  const displayRows = rows;
 
   const ledgerColumns = [
     { key: 'sr', header: 'Sr', width: '52px', align: 'center', render: (_r, i) => <span style={{ color: 'var(--app-muted)' }}>{i + 1}</span> },
@@ -1221,6 +2004,69 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
     },
   ];
 
+  const costCategoryColumns = [
+    { key: 'sr', header: 'Sr', width: '52px', align: 'center', render: (_r, i) => <span style={{ color: 'var(--app-muted)' }}>{i + 1}</span> },
+    { key: 'categoryName', header: 'Cost Category Name', sortable: true, render: (r) => <span className="font-bold text-[var(--app-heading)]">{safeStr(r.categoryName || r.costCategoryName || r.name)}</span> },
+    { key: 'alias', header: 'Alias', sortable: true, render: (r) => <span className="font-medium text-[var(--app-heading)]">{safeStr(r.alias, '—')}</span> },
+    { 
+      key: 'costCentersCount', 
+      header: 'Associated Cost Centres', 
+      align: 'center', 
+      render: (r) => {
+        const centers = r.associatedCenters || [];
+        const count = r.costCentersCount || centers.length || 0;
+        return (
+          <div className="flex flex-col items-center gap-0.5 py-0.5">
+            <Badge tone={count > 0 ? 'info' : 'neutral'}>
+              {count} {count === 1 ? 'center' : 'centers'}
+            </Badge>
+            {centers.length > 0 && (
+              <span 
+                className="text-[11px] font-medium text-[var(--app-muted)] max-w-[190px] truncate block" 
+                title={`Allocated Cost Centres:\n• ${centers.join('\n• ')}`}
+              >
+                {centers.join(', ')}
+              </span>
+            )}
+          </div>
+        );
+      } 
+    },
+    { key: 'allocateRevenueItems', header: 'Revenue Allocation', align: 'center', render: (r) => <Badge tone={r.allocateRevenueItems ? 'success' : 'neutral'}>{r.allocateRevenueItems ? 'Allocated' : 'No'}</Badge> },
+    { key: 'allocateNonRevenueItems', header: 'Non-Revenue Allocation', align: 'center', render: (r) => <Badge tone={r.allocateNonRevenueItems ? 'success' : 'neutral'}>{r.allocateNonRevenueItems ? 'Allocated' : 'No'}</Badge> },
+    { key: 'status', header: 'Status', align: 'center', sortable: true, render: (r) => (
+      <Badge tone={safeStr(r.status) === 'ACTIVE' ? 'success' : 'neutral'}>{safeStr(r.status, 'ACTIVE')}</Badge>
+    ) },
+    { 
+      key: 'actions', 
+      header: 'Actions', 
+      align: 'center', 
+      render: (r) => renderPushAction(r, (row) => {
+        setEditingCostCategory(row);
+        setShowCreateForm(true);
+      }, "Edit Cost Category")
+    },
+  ];
+
+  const costCentreClassColumns = [
+    { key: 'sr', header: 'Sr', width: '52px', align: 'center', render: (_r, i) => <span style={{ color: 'var(--app-muted)' }}>{i + 1}</span> },
+    { key: 'className', header: 'Class Name', sortable: true, render: (r) => <span className="font-bold text-[var(--app-heading)]">{safeStr(r.className || r.name)}</span> },
+    { key: 'alias', header: 'Alias', sortable: true, render: (r) => <span className="font-medium text-[var(--app-heading)]">{safeStr(r.alias, '—')}</span> },
+    { key: 'allocationsCount', header: 'Allocations', align: 'center', render: (r) => <Badge tone="accent">{safeStr(r.allocationsCount || (r.allocations ? r.allocations.length : 0))} rules</Badge> },
+    { key: 'status', header: 'Status', align: 'center', sortable: true, render: (r) => (
+      <Badge tone={safeStr(r.status) === 'ACTIVE' ? 'success' : 'neutral'}>{safeStr(r.status, 'ACTIVE')}</Badge>
+    ) },
+    { 
+      key: 'actions', 
+      header: 'Actions', 
+      align: 'center', 
+      render: (r) => renderPushAction(r, (row) => {
+        setEditingCostCentreClass(row);
+        setShowCreateForm(true);
+      }, "Edit Cost Centre Class")
+    },
+  ];
+
   const toggleStockCategoryStatus = (row) => {
     setStockCategoriesList(prev => prev.map(c => {
       if (c.sr === row.sr || c.stockCategoryName === row.stockCategoryName) {
@@ -1273,11 +2119,28 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
 
   const unitColumns = [
     { key: 'sr', header: 'Sr', width: '52px', align: 'center', render: (_r, i) => <span style={{ color: 'var(--app-muted)' }}>{i + 1}</span> },
-    { key: 'unitName', header: 'Unit Name', sortable: true, render: (r) => <span className="font-bold text-[var(--app-heading)]">{safeStr(r.unitName || r.name)}</span> },
-    { key: 'symbol', header: 'Symbol', sortable: true, render: (r) => <span className="font-bold text-[var(--app-accent)]">{safeStr(r.symbol)}</span> },
-    { key: 'unitCode', header: 'Unit Code', sortable: true, render: (r) => <span className="font-mono font-semibold">{safeStr(r.unitCode, '—')}</span> },
-    { key: 'type', header: 'Unit Type', render: (r) => <Badge tone={r.conversion?.isBaseUnit !== false ? 'neutral' : 'warning'}>{r.conversion?.isBaseUnit !== false ? 'Base Unit' : 'Derived Unit'}</Badge> },
-    { key: 'conversion', header: 'Conversion Rule', render: (r) => <span className="text-xs text-[var(--app-muted)]">{r.conversion?.isBaseUnit !== false ? '—' : `1 ${safeStr(r.conversion?.baseUnit)} = ${safeStr(r.conversion?.conversionFactor)} ${safeStr(r.unitName)}`}</span> },
+    { key: 'unitName', header: 'Unit Name', sortable: true, render: (r) => <span className="font-bold text-[var(--app-heading)]">{safeStr(r.name || r.unitName || r.symbol)}</span> },
+    { key: 'formalName', header: 'Formal Name', sortable: true, render: (r) => <span className="font-medium text-[var(--app-heading)]">{safeStr(r.formalName || r.formal_name, '—')}</span> },
+    { key: 'type', header: 'Type', render: (r) => {
+      const isComp = checkIsCompoundUnit(r);
+      return <Badge tone={isComp ? 'warning' : 'neutral'}>{isComp ? 'Compound' : 'Simple'}</Badge>;
+    } },
+    { key: 'decimalPlaces', header: 'Decimal Places', align: 'center', sortable: true, render: (r) => <span className="font-mono font-bold text-xs text-[var(--app-heading)]">{r.decimalPlaces ?? 2}</span> },
+    { key: 'conversion', header: 'Conversion', render: (r) => {
+      const isComp = checkIsCompoundUnit(r);
+      if (!isComp) return <span className="text-xs text-[var(--app-muted)]">—</span>;
+
+      const first = safeStr(r.firstUnitName || r.firstUnit || r.compound?.firstUnit || r.name || r.symbol);
+      const factor = r.conversionFactor || r.compound?.conversionFactor || r.conversion?.conversionFactor || 1;
+      const second = safeStr(r.secondUnitName || r.secondUnit || r.compound?.secondUnit || r.conversion?.baseUnit);
+
+      if (first && second) {
+        return <span className="text-xs font-bold text-[var(--app-accent)]">{`1 ${first} = ${factor} ${second}`}</span>;
+      }
+      return <span className="text-xs text-[var(--app-muted)]">—</span>;
+    } },
+
+
     { key: 'status', header: 'Status', align: 'center', sortable: true, render: (r) => (
       <button
         type="button"
@@ -1344,11 +2207,18 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
   if (showCreateForm && isBom) {
     return (
       <div className="h-full flex flex-col overflow-hidden animate-in fade-in duration-300">
-        <BOMMasterForm
+        <BomMasterForm
           initialData={editingBom}
           isEdit={!!editingBom}
           stockItemsList={stockDataList}
-          onSave={handleSaveBom}
+          unitsList={unitsList}
+          godownsList={godownsList}
+          bomsList={bomsList}
+          onSave={() => {
+            setShowCreateForm(false);
+            setEditingBom(null);
+            fetchMasterData(true);
+          }}
           onClose={() => {
             setShowCreateForm(false);
             setEditingBom(null);
@@ -1357,6 +2227,68 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
       </div>
     );
   }
+
+  const handleSaveGodown = async (savedGodown) => {
+    try {
+      const res = await apiClient.post('/masters/godown-entries', savedGodown);
+      if (res.data && res.data.success) {
+        toast.success('Godown Master saved to database successfully!');
+        fetchMasterData();
+        setShowCreateForm(false);
+        setEditingGodown(null);
+      } else {
+        toast.error(res?.data?.message || 'Failed to save godown');
+      }
+    } catch (err) {
+      console.error('Error saving godown to database:', err);
+      toast.error(err.response?.data?.detail || err.response?.data?.message || 'Failed to save godown');
+    }
+  };
+
+  const godownColumns = [
+    { key: 'sr', header: 'Sr', width: '52px', align: 'center', render: (_r, i) => <span style={{ color: 'var(--app-muted)' }}>{i + 1}</span> },
+    { key: 'godownName', header: 'Godown Name', sortable: true, render: (r) => <span className="font-bold text-[var(--app-heading)]">{safeStr(r.godownName || r.name)}</span> },
+    { key: 'alias', header: 'Alias', sortable: true, render: (r) => <span className="font-medium text-[var(--app-heading)]">{safeStr(r.alias, '—')}</span> },
+    { key: 'parentGodown', header: 'Parent Godown', sortable: true, render: (r) => <Badge tone={r.parentGodown === 'Primary' ? 'neutral' : 'accent'}>{safeStr(r.parentGodown, 'Primary')}</Badge> },
+    { key: 'locationType', header: 'Location Type', align: 'center', render: (r) => <Badge tone="info">{safeStr(r.locationType, 'Warehouse')}</Badge> },
+    { key: 'stateName', header: 'State', render: (r) => <span className="font-medium text-xs">{safeStr(r.stateName || r.state, '—')}</span> },
+    { key: 'status', header: 'Status', align: 'center', sortable: true, render: (r) => (
+      <Badge tone={safeStr(r.status) === 'ACTIVE' ? 'success' : 'neutral'}>{safeStr(r.status, 'ACTIVE')}</Badge>
+    ) },
+    { key: 'tallySyncStatus', header: 'Tally Sync Status', align: 'center', render: (r) => (
+      <Badge tone={safeStr(r.tallySyncStatus) === 'SYNCED' ? 'success' : (safeStr(r.tallySyncStatus) === 'FAILED' ? 'danger' : 'warning')}>
+        {safeStr(r.tallySyncStatus, 'NOT_SYNCED')}
+      </Badge>
+    ) },
+    { 
+      key: 'actions', 
+      header: 'Actions', 
+      align: 'center', 
+      render: (r) => renderPushAction(r, (row) => {
+        setEditingGodown(row);
+        setShowCreateForm(true);
+      }, "Edit Godown Master")
+    },
+  ];
+
+  // Full Page View for Godown Create/Edit Form
+  if (showCreateForm && isGodown) {
+    return (
+      <div className="h-full flex flex-col overflow-hidden animate-in fade-in duration-300">
+        <GodownMasterForm
+          initialData={editingGodown}
+          isEdit={!!editingGodown}
+          godownsList={godownsList}
+          onSave={handleSaveGodown}
+          onClose={() => {
+            setShowCreateForm(false);
+            setEditingGodown(null);
+          }}
+        />
+      </div>
+    );
+  }
+
 
   // Full Page View for Unit Create/Edit Form
   if (showCreateForm && isUnit) {
@@ -1412,8 +2344,52 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
     );
   }
 
-  // Full Page View for Cost Center Create/Edit Form
+  // Full Page View for Cost Center / Category / Class Create/Edit Form
   if (showCreateForm && isCostCenter) {
+    if (costCenterSubTab === 'cost_categories') {
+      return (
+        <div className="h-full flex flex-col overflow-hidden animate-in fade-in duration-300">
+          <CostCategoryMasterForm
+            initialData={editingCostCategory}
+            isEdit={!!editingCostCategory}
+            costCategoriesList={costCategoriesList}
+            onSave={() => {
+              setShowCreateForm(false);
+              setEditingCostCategory(null);
+              fetchMasterData(true);
+            }}
+            onClose={() => {
+              setShowCreateForm(false);
+              setEditingCostCategory(null);
+            }}
+          />
+        </div>
+      );
+    }
+
+    if (costCenterSubTab === 'cost_centre_classes') {
+      return (
+        <div className="h-full flex flex-col overflow-hidden animate-in fade-in duration-300">
+          <CostCentreClassMasterForm
+            initialData={editingCostCentreClass}
+            isEdit={!!editingCostCentreClass}
+            costCategoriesList={costCategoriesList}
+            costCentersList={costCentersList}
+            costCentreClassesList={costCentreClassesList}
+            onSave={() => {
+              setShowCreateForm(false);
+              setEditingCostCentreClass(null);
+              fetchMasterData(true);
+            }}
+            onClose={() => {
+              setShowCreateForm(false);
+              setEditingCostCentreClass(null);
+            }}
+          />
+        </div>
+      );
+    }
+
     return (
       <div className="h-full flex flex-col overflow-hidden animate-in fade-in duration-300">
         <CostCenterMasterForm
@@ -1472,8 +2448,51 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
     );
   }
 
+  // Full Page View for TDS Master Create/Edit Form
+  if (showCreateForm && isTds) {
+    return (
+      <div className="h-full flex flex-col overflow-hidden animate-in fade-in duration-300">
+        <TDSMasterForm
+          initialData={editingTds}
+          isEdit={!!editingTds}
+          onSave={() => {
+            setShowCreateForm(false);
+            setEditingTds(null);
+            fetchMasterData(true);
+          }}
+          onClose={() => {
+            setShowCreateForm(false);
+            setEditingTds(null);
+          }}
+        />
+      </div>
+    );
+  }
+
+  // Full Page View for TCS Master Create/Edit Form
+  if (showCreateForm && isTcs) {
+    return (
+      <div className="h-full flex flex-col overflow-hidden animate-in fade-in duration-300">
+        <TCSMasterForm
+          initialData={editingTcs}
+          isEdit={!!editingTcs}
+          onSave={() => {
+            setShowCreateForm(false);
+            setEditingTcs(null);
+            fetchMasterData(true);
+          }}
+          onClose={() => {
+            setShowCreateForm(false);
+            setEditingTcs(null);
+          }}
+        />
+      </div>
+    );
+  }
+
   // Full Page View for Ledger Create/Edit Form
-  if (showCreateForm && !isStock && !isCostCenter && !isLedgerGroup && !isStockGroup && !isStockCategory && !isUnit && !isBom) {
+  if (showCreateForm && !isStock && !isCostCenter && !isLedgerGroup && !isStockGroup && !isStockCategory && !isUnit && !isGodown && !isBom && !isTds && !isTcs) {
+
     return (
       <div className="h-full flex flex-col overflow-hidden animate-in fade-in duration-300">
         <LedgerMasterForm
@@ -1482,6 +2501,8 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
           costCentersList={costCentersList}
           ledgerGroupsList={ledgerGroupsList}
           partyDataList={partyDataList}
+          tdsList={tdsList}
+          tcsList={tcsList}
           onSave={handleSaveLedgerFromForm}
           onClose={() => {
             setShowCreateForm(false);
@@ -1492,108 +2513,343 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
     );
   }
 
-  // Active Columns Selection
-  const currentColumns = isBom
-    ? bomColumns
-    : isStockCategory
-      ? stockCategoryColumns
-      : isUnit
-        ? unitColumns
-        : isCostCenter 
-          ? costCenterColumns 
-          : isStockGroup 
-            ? stockGroupColumns 
-            : isLedgerGroup 
-              ? ledgerGroupColumns 
-              : isStock 
-                ? stockColumns 
-                : ledgerColumns;
+  const voucherTypeColumns = [
+    { key: 'sr', header: 'Sr', width: '52px', align: 'center', render: (_r, i) => <span style={{ color: 'var(--app-muted)' }}>{i + 1}</span> },
+    { key: 'voucherTypeName', header: 'Voucher Type Name', sortable: true, render: (r) => <span className="font-bold text-[var(--app-heading)]">{safeStr(r.voucherTypeName || r.name)}</span> },
+    { key: 'voucherTypeCode', header: 'Code', sortable: true, render: (r) => <span className="font-mono font-semibold">{safeStr(r.voucherTypeCode || r.code, '—')}</span> },
+    { key: 'parent', header: 'Parent Type', sortable: true, render: (r) => <Badge tone="neutral">{safeStr(r.parent || r.parentGroup, 'Sales')}</Badge> },
+    { key: 'numberingMethod', header: 'Numbering Method', sortable: true, render: (r) => <span className="font-semibold text-[var(--app-accent)]">{safeStr(r.numberingMethod, 'Automatic')}</span> },
+    { key: 'status', header: 'Status', align: 'center', sortable: true, render: (r) => <Badge tone={safeStr(r.status) === 'INACTIVE' ? 'neutral' : 'success'}>{safeStr(r.status, 'ACTIVE')}</Badge> },
+    { 
+      key: 'actions', 
+      header: 'Actions', 
+      align: 'center', 
+      render: (r) => renderPushAction(r, (row) => {
+        setEditingVoucherType(row);
+        setShowVoucherTypeModal(true);
+      }, "Edit Voucher Type")
+    },
+  ];
 
+  const tdsColumns = [
+    { key: 'sr', header: 'Sr', width: '52px', align: 'center', render: (_r, i) => <span style={{ color: 'var(--app-muted)' }}>{i + 1}</span> },
+    { key: 'tdsName', header: 'TDS Name / Nature', sortable: true, render: (r) => (
+      <div className="flex flex-col gap-0.5">
+        <span className="font-bold text-[var(--app-heading)]">{safeStr(r.tdsName || r.name)}</span>
+        <span className="text-[10px] text-[var(--app-muted)] font-medium">{safeStr(r.statutorySectionMapping || `Sec ${r.sectionCode || r.section}`)}</span>
+      </div>
+    )},
+    { key: 'sectionCode', header: 'Section', sortable: true, render: (r) => <Badge tone="accent">Sec {safeStr(r.sectionCode || r.section, '—')}</Badge> },
+    { key: 'applicableRate', header: 'Rate (%)', align: 'center', render: (r) => <span className="font-mono font-bold text-[var(--app-accent)]">{safeStr(r.applicableRate ?? r.rate, 0)}%</span> },
+    { key: 'thresholdLimit', header: 'Threshold Limit', align: 'center', render: (r) => <span className="font-mono font-semibold">₹{(parseFloat(r.thresholdLimit ?? r.threshold) || 0).toLocaleString('en-IN')}</span> },
+    { key: 'deducteeTypes', header: 'Deductee Types', render: (r) => <span className="text-xs">{Array.isArray(r.deducteeTypes) ? r.deducteeTypes.join(', ') : safeStr(r.deducteeTypes, '—')}</span> },
+    { key: 'source', header: 'Source', align: 'center', render: (r) => <Badge tone={r.isSystemPredefined ? 'info' : 'warning'}>{r.isSystemPredefined ? 'Statutory' : 'Custom Web Entry'}</Badge> },
+    { key: 'status', header: 'Status', align: 'center', sortable: true, render: (r) => <Badge tone={safeStr(r.status) === 'INACTIVE' ? 'neutral' : 'success'}>{safeStr(r.status, 'ACTIVE')}</Badge> },
+    { 
+      key: 'actions', 
+      header: 'Actions', 
+      align: 'center', 
+      render: (r) => renderPushAction(r, (row) => {
+        setEditingTds(row);
+        setShowCreateForm(true);
+      }, "Edit TDS Master")
+    },
+  ];
+
+  const tcsColumns = [
+    { key: 'sr', header: 'Sr', width: '52px', align: 'center', render: (_r, i) => <span style={{ color: 'var(--app-muted)' }}>{i + 1}</span> },
+    { key: 'tcsName', header: 'TCS Name / Nature', sortable: true, render: (r) => (
+      <div className="flex flex-col gap-0.5">
+        <span className="font-bold text-[var(--app-heading)]">{safeStr(r.tcsName || r.name)}</span>
+        <span className="text-[10px] text-[var(--app-muted)] font-medium">{safeStr(r.statutorySectionMapping || `Sec ${r.sectionCode || r.section}`)}</span>
+      </div>
+    )},
+    { key: 'sectionCode', header: 'Section', sortable: true, render: (r) => <Badge tone="accent">Sec {safeStr(r.sectionCode || r.section, '—')}</Badge> },
+    { key: 'applicableRate', header: 'Rate (%)', align: 'center', render: (r) => <span className="font-mono font-bold text-[var(--app-accent)]">{safeStr(r.applicableRate ?? r.rate, 0)}%</span> },
+    { key: 'thresholdLimit', header: 'Threshold Limit', align: 'center', render: (r) => <span className="font-mono font-semibold">₹{(parseFloat(r.thresholdLimit ?? r.threshold) || 0).toLocaleString('en-IN')}</span> },
+    { key: 'buyerTypes', header: 'Buyer Types', render: (r) => <span className="text-xs">{Array.isArray(r.buyerTypes) ? r.buyerTypes.join(', ') : safeStr(r.buyerTypes, '—')}</span> },
+    { key: 'source', header: 'Source', align: 'center', render: (r) => <Badge tone={r.isSystemPredefined ? 'info' : 'warning'}>{r.isSystemPredefined ? 'Statutory' : 'Custom Web Entry'}</Badge> },
+    { key: 'status', header: 'Status', align: 'center', sortable: true, render: (r) => <Badge tone={safeStr(r.status) === 'INACTIVE' ? 'neutral' : 'success'}>{safeStr(r.status, 'ACTIVE')}</Badge> },
+    { 
+      key: 'actions', 
+      header: 'Actions', 
+      align: 'center', 
+      render: (r) => renderPushAction(r, (row) => {
+        setEditingTcs(row);
+        setShowCreateForm(true);
+      }, "Edit TCS Master")
+    },
+  ];
+
+  // Active Columns Selection
+  const currentColumns = isTds
+    ? tdsColumns
+    : isTcs
+      ? tcsColumns
+      : isVoucherType
+        ? voucherTypeColumns
+        : isBom
+          ? bomColumns
+          : isStockCategory
+            ? stockCategoryColumns
+            : isUnit
+              ? unitColumns
+              : isGodown
+                ? godownColumns
+                : isCostCenter 
+                  ? (costCenterSubTab === 'cost_categories' ? costCategoryColumns : (costCenterSubTab === 'cost_centre_classes' ? costCentreClassColumns : costCenterColumns))
+                  : isStockGroup 
+                    ? stockGroupColumns 
+                    : isLedgerGroup 
+                      ? ledgerGroupColumns 
+                      : isStock 
+                        ? stockColumns 
+                        : ledgerColumns;
+
+
+  if (showVoucherTypeModal) {
+    return (
+      <VoucherTypeMasterForm
+        onClose={() => {
+          setShowVoucherTypeModal(false);
+          setEditingVoucherType(null);
+        }}
+        initialData={editingVoucherType}
+        voucherTypesList={voucherTypesList}
+        onSaveSuccess={fetchMasterData}
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col gap-2.5 h-full animate-in fade-in duration-500 overflow-hidden p-1 text-[13px] text-[var(--app-text)]">
       
-      {/* Top Horizontal Master Navigation Bar (Matches Screenshot 2) */}
-      <div className="flex items-center justify-between border-b border-[var(--app-border)] bg-[var(--app-panel-bg)] px-4 py-2 shrink-0 rounded-xl shadow-2xs">
-        {/* Left Horizontal Tabs */}
-        <div className="flex items-center gap-6 overflow-x-auto no-scrollbar">
-          {MASTER_TABS.map(tab => {
-            const isActive = activeTab === tab.id || (tab.id === 'Party Ledger' && (activeTab === 'Ledger Master' || activeTab === 'Party Ledger')) || (tab.id === 'Item Master' && (activeTab === 'Stock Ledger' || activeTab === 'Item Master'));
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => {
-                  setActiveTab(tab.id);
-                  setShowCreateForm(false);
-                }}
-                className={`relative py-1.5 text-xs transition-all cursor-pointer whitespace-nowrap ${
-                  isActive 
-                    ? 'text-[var(--app-accent)] font-extrabold' 
-                    : 'text-[var(--app-muted)] hover:text-[var(--app-heading)] font-semibold'
-                }`}
-              >
-                <span>{tab.label}</span>
-                {isActive && (
-                  <motion.div
-                    layoutId="activeMasterTabUnderline"
-                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--app-accent)] rounded-full"
-                    transition={{ type: 'spring', stiffness: 500, damping: 35 }}
-                  />
-                )}
-              </button>
-            );
-          })}
+      {/* Tally-Style Grouped Master Category Navigation Bar */}
+      <div className="flex flex-col gap-2 shrink-0">
+        
+        {/* Row 1: Master Category Groups */}
+        <div className="flex items-center justify-between border-b border-[var(--app-border)] bg-[var(--app-panel-bg)] px-4 py-2 rounded-xl shadow-2xs">
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+            <span className="text-[10px] font-extrabold uppercase tracking-wider text-[var(--app-muted)] mr-1 shrink-0">
+              Masters Group:
+            </span>
+            {MASTER_GROUPS.map(group => {
+              const IconComp = group.icon;
+              const isGroupActive = group.tabs.some(t => 
+                activeTab === t.id || 
+                (t.id === 'Party Ledger' && (activeTab === 'Ledger Master' || activeTab === 'Party Ledger')) || 
+                (t.id === 'Item Master' && (activeTab === 'Stock Ledger' || activeTab === 'Item Master'))
+              );
+
+              return (
+                <button
+                  key={group.id}
+                  type="button"
+                  onClick={() => {
+                    const firstTab = group.tabs[0].id;
+                    setActiveTab(firstTab);
+                    setShowCreateForm(false);
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+                    isGroupActive
+                      ? 'bg-[var(--app-accent)] text-white shadow-xs'
+                      : 'bg-[var(--app-control-bg)] hover:bg-[var(--app-control-hover)] text-[var(--app-muted)] hover:text-[var(--app-heading)] border border-[var(--app-border)]'
+                  }`}
+                >
+                  <IconComp size={13} />
+                  <span>{group.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Right Side Actions: Refresh + Add Button */}
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                setSearchQuery('');
+                fetchMasterData(true);
+                toast.info('Refreshed master lists');
+              }}
+              className="h-8 px-2.5 rounded-lg border border-[var(--app-border)] hover:bg-[var(--app-control-hover)] text-[var(--app-muted)] hover:text-[var(--app-heading)] text-xs font-semibold flex items-center gap-1.5 transition-colors"
+              title="Refresh Master Data"
+            >
+              <RefreshCw size={13} />
+              <span className="hidden sm:inline">Refresh</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (isVoucherType) {
+                  setEditingVoucherType(null);
+                  setShowVoucherTypeModal(true);
+                  return;
+                }
+                if (isTds) setEditingTds(null);
+                if (isTcs) setEditingTcs(null);
+                if (isCostCenter) {
+                  if (costCenterSubTab === 'cost_categories') setEditingCostCategory(null);
+                  else if (costCenterSubTab === 'cost_centre_classes') setEditingCostCentreClass(null);
+                  else setEditingCostCenter(null);
+                }
+                setShowCreateForm(p => !p);
+              }}
+              className="h-8 px-3.5 bg-[var(--app-accent)] hover:opacity-90 text-white font-bold text-xs rounded-lg flex items-center gap-1.5 transition-all shadow-xs shrink-0"
+            >
+              {showCreateForm ? <X size={13} /> : <Plus size={13} />}
+              <span>
+                {showCreateForm 
+                  ? 'Close Form' 
+                  : isTds
+                    ? 'Add TDS Master'
+                    : isTcs
+                      ? 'Add TCS Master'
+                      : isVoucherType
+                        ? 'Add Voucher Type'
+                        : isBom
+                          ? 'Add BOM'
+                          : isStockCategory
+                            ? 'Add Stock Category'
+                            : isUnit
+                              ? 'Add Unit'
+                              : isGodown
+                                ? 'Add Godown'
+                                : isCostCenter 
+                                  ? (costCenterSubTab === 'cost_categories' ? 'Add Cost Category' : (costCenterSubTab === 'cost_centre_classes' ? 'Add Cost Centre Class' : 'Add Cost Centre'))
+                                  : isStockGroup 
+                                    ? 'Add Stock Group' 
+                                    : isStock 
+                                      ? 'Add Stock Item' 
+                                      : isLedgerGroup 
+                                        ? 'Add Ledger Group' 
+                                        : 'Add Ledger'
+                }
+              </span>
+            </button>
+          </div>
         </div>
 
-        {/* Right Side Actions: Refresh + Add Button */}
-        <div className="flex items-center gap-2 shrink-0">
+        {/* Row 2: Sub-Tabs of Active Category Group */}
+        <div className="flex items-center gap-4 border-b border-[var(--app-border)] bg-[var(--app-panel-bg)] px-4 py-1.5 rounded-xl shadow-2xs overflow-x-auto no-scrollbar">
+          {(() => {
+            const activeGroup = MASTER_GROUPS.find(g => 
+              g.tabs.some(t => 
+                activeTab === t.id || 
+                (t.id === 'Party Ledger' && (activeTab === 'Ledger Master' || activeTab === 'Party Ledger')) || 
+                (t.id === 'Item Master' && (activeTab === 'Stock Ledger' || activeTab === 'Item Master'))
+              )
+            ) || MASTER_GROUPS[0];
+
+            return activeGroup.tabs.map(tab => {
+              const isActive = activeTab === tab.id || (tab.id === 'Party Ledger' && (activeTab === 'Ledger Master' || activeTab === 'Party Ledger')) || (tab.id === 'Item Master' && (activeTab === 'Stock Ledger' || activeTab === 'Item Master'));
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => {
+                    setActiveTab(tab.id);
+                    setShowCreateForm(false);
+                  }}
+                  className={`relative py-1 text-xs transition-all cursor-pointer whitespace-nowrap ${
+                    isActive 
+                      ? 'text-[var(--app-accent)] font-extrabold' 
+                      : 'text-[var(--app-muted)] hover:text-[var(--app-heading)] font-semibold'
+                  }`}
+                >
+                  <span>{tab.label}</span>
+                  {isActive && (
+                    <motion.div
+                      layoutId="activeMasterTabUnderline"
+                      className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--app-accent)] rounded-full"
+                      transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                    />
+                  )}
+                </button>
+              );
+            });
+          })()}
+        </div>
+
+      </div>
+
+      {/* Sub-Tab Navigation inside Cost Centre Module */}
+      {isCostCenter && (
+        <div className="flex items-center gap-2 border-b border-[var(--app-border)] bg-[var(--app-panel-bg)] px-4 py-2 shrink-0 rounded-xl shadow-2xs">
           <button
             type="button"
             onClick={() => {
-              setSearchQuery('');
-              fetchMasterData();
-              toast.info('Refreshed master lists');
+              setCostCenterSubTab('cost_centres');
+              setShowCreateForm(false);
             }}
-            className="h-8 px-2.5 rounded-lg border border-[var(--app-border)] hover:bg-[var(--app-control-hover)] text-[var(--app-muted)] hover:text-[var(--app-heading)] text-xs font-semibold flex items-center gap-1.5 transition-colors"
-            title="Refresh Master Data"
+            className={`px-3.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              costCenterSubTab === 'cost_centres'
+                ? 'bg-[var(--app-accent)] text-white shadow-xs'
+                : 'hover:bg-[var(--app-control-hover)] text-[var(--app-muted)] font-semibold'
+            }`}
           >
-            <RefreshCw size={13} />
-            <span className="hidden sm:inline">Refresh</span>
+            Cost Centres
           </button>
 
           <button
             type="button"
-            onClick={() => setShowCreateForm(p => !p)}
-            className="h-8 px-3.5 bg-[var(--app-accent)] hover:opacity-90 text-white font-bold text-xs rounded-lg flex items-center gap-1.5 transition-all shadow-xs shrink-0"
+            onClick={() => {
+              setCostCenterSubTab('cost_categories');
+              setShowCreateForm(false);
+              apiClient.get('/masters/cost-categories', { headers: getCompanyHeaders() }).then(res => {
+                const raw = res.data?.data || res.data || [];
+                setCostCategoriesList(mapCostCategoriesData(raw, costCentersList));
+              }).catch(() => {
+                setCostCategoriesList(mapCostCategoriesData([], costCentersList));
+              });
+            }}
+            className={`px-3.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              costCenterSubTab === 'cost_categories'
+                ? 'bg-[var(--app-accent)] text-white shadow-xs'
+                : 'hover:bg-[var(--app-control-hover)] text-[var(--app-muted)] font-semibold'
+            }`}
           >
-            {showCreateForm ? <X size={13} /> : <Plus size={13} />}
-            <span>
-              {showCreateForm 
-                ? 'Close Form' 
-                : isBom
-                  ? 'Add BOM'
-                  : isStockCategory
-                    ? 'Add Stock Category'
-                    : isUnit
-                      ? 'Add Unit'
-                      : isCostCenter 
-                        ? 'Add Cost Center' 
-                        : isStockGroup 
-                          ? 'Add Stock Group' 
-                          : isStock 
-                            ? 'Add Stock Item' 
-                            : isLedgerGroup 
-                              ? 'Add Ledger Group' 
-                              : 'Add Ledger'
-              }
-            </span>
+            Cost Categories
+          </button>
 
+          <button
+            type="button"
+            onClick={() => {
+              setCostCenterSubTab('cost_centre_classes');
+              setShowCreateForm(false);
+              apiClient.get('/masters/cost-centre-classes', { headers: getCompanyHeaders() }).then(res => {
+                setCostCentreClassesList(res.data?.data || []);
+              });
+            }}
+            className={`px-3.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              costCenterSubTab === 'cost_centre_classes'
+                ? 'bg-[var(--app-accent)] text-white shadow-xs'
+                : 'hover:bg-[var(--app-control-hover)] text-[var(--app-muted)] font-semibold'
+            }`}
+          >
+            Cost Centre Classes
           </button>
         </div>
-      </div>
+      )}
 
-      {!isDetailView ? (
+      {showCreateForm && isStock ? (
+        <div className="flex-1 min-h-0 py-1">
+          <StockItemMasterForm
+            initialData={editingStockItem}
+            isEdit={!!editingStockItem}
+            stockGroupsList={stockGroupsList}
+            stockCategoriesList={stockCategoriesList}
+            unitsList={unitsList}
+            godownList={godownsList}
+            onSave={handleSaveStockItem}
+            onClose={() => {
+              setShowCreateForm(false);
+              setEditingStockItem(null);
+            }}
+          />
+        </div>
+      ) : !isDetailView ? (
         <>
           {/* Two Sub-Tabs Bar: Existing/Synced Data vs Web Form Entries (*_entry) */}
           <div className="flex flex-wrap items-center justify-between bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-xl p-1.5 shrink-0 gap-2 shadow-2xs">
@@ -1658,14 +2914,14 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
           {/* Master table */}
           <div className="flex-1 min-h-0">
             <DataTable
-              minWidth={isStockCategory || isCostCenter || isLedgerGroup || isStockGroup ? '900px' : isStock ? '1000px' : '1400px'}
-              data={rows}
-              rowKey={(r) => r.sr || r.stockCategoryName || r.groupName || r.costCenterName}
+              minWidth={isStockCategory || isGodown || isCostCenter || isLedgerGroup || isStockGroup ? '900px' : isStock ? '1000px' : '1400px'}
+              data={displayRows}
+              rowKey={(r) => r.sr || r.godownName || r.stockCategoryName || r.groupName || r.costCenterName}
               loading={loading}
               selectable={activeTab === 'Party Ledger'}
               selectedKeys={selectedLedgerKeys}
               onToggleRow={(key) => setSelectedLedgerKeys(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key])}
-              onToggleAll={(checked) => setSelectedLedgerKeys(checked ? rows.map(r => r.sr || r.stockCategoryName || r.groupName || r.costCenterName) : [])}
+              onToggleAll={(checked) => setSelectedLedgerKeys(checked ? displayRows.map(r => r.sr || r.godownName || r.stockCategoryName || r.groupName || r.costCenterName) : [])}
               actions={
                 activeTab === 'Party Ledger' && selectedLedgerKeys.length > 0 && (
                   <button
@@ -1679,79 +2935,113 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
                 )
               }
               emptyText={
-                isStockCategory
-                  ? 'No stock categories found.'
-                  : isCostCenter 
-                    ? 'No cost centers found.' 
-                    : isStockGroup 
-                      ? 'No stock groups found.' 
-                      : isLedgerGroup 
-                        ? 'No ledger groups found.' 
-                        : isStock 
-                          ? 'No stock items found.' 
-                          : 'No party ledgers found.'
+                isGodown
+                  ? 'No godowns found.'
+                  : isStockCategory
+                    ? 'No stock categories found.'
+                    : isCostCenter 
+                      ? (costCenterSubTab === 'cost_categories' ? 'No cost categories found.' : (costCenterSubTab === 'cost_centre_classes' ? 'No cost centre classes found.' : 'No cost centers found.')) 
+                      : isStockGroup 
+                        ? 'No stock groups found.' 
+                        : isLedgerGroup 
+                          ? 'No ledger groups found.' 
+                          : isStock 
+                            ? 'No stock items found.' 
+                            : 'No party ledgers found.'
               }
               columns={currentColumns}
               search={{ 
                 value: searchQuery, 
                 onChange: setSearchQuery, 
-                placeholder: isStockCategory
-                  ? 'Search stock categories by name, code or parent…'
-                  : isCostCenter 
-                    ? 'Search cost centers by name, code or category…' 
-                    : isStockGroup 
-                      ? 'Search stock groups…' 
-                      : isLedgerGroup 
-                        ? 'Search ledger groups…' 
-                        : isStock 
-                          ? 'Search stock items…' 
-                          : 'Search party ledgers…' 
+                placeholder: isGodown
+                  ? 'Search godowns by name, alias or location type…'
+                  : isStockCategory
+                    ? 'Search stock categories by name, code or parent…'
+                    : isCostCenter 
+                      ? 'Search cost centers by name, code or category…' 
+                      : isStockGroup 
+                        ? 'Search stock groups…' 
+                        : isLedgerGroup 
+                          ? 'Search ledger groups…' 
+                          : isStock 
+                            ? 'Search stock items…' 
+                            : 'Search party ledgers…' 
               }}
-              onRowClick={(row) => (!isStockCategory && !isCostCenter && !isLedgerGroup && !isStockGroup) && handleRowClick(row)}
+              onRowClick={(row) => (!isGodown && !isStockCategory && !isCostCenter && !isLedgerGroup && !isStockGroup) && handleRowClick(row)}
               filters={
-                <>
+
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  {/* Financial Year Indicator Badge */}
+                  <span className="px-2 py-1 rounded-lg border border-[var(--app-border)] bg-[var(--app-control-bg)] text-[var(--app-accent)] font-extrabold text-[11px] flex items-center gap-1 shrink-0 shadow-2xs">
+                    <Calendar size={12} />
+                    <span>{localStorage.getItem('selectedFy') || 'FY 2024-25'}</span>
+                  </span>
+
+                  {/* Top Page Size Selector */}
+                  <div className="flex items-center gap-1 text-[11px] text-[var(--app-muted)] font-semibold shrink-0">
+                    <span>Show:</span>
+                    <select
+                      value={pageSize}
+                      onChange={(e) => {
+                        const val = e.target.value === 'all' ? 'all' : Number(e.target.value);
+                        setPageSize(val);
+                        setCurrentPage(1);
+                      }}
+                      className="h-7 px-1.5 rounded-lg border border-[var(--app-border)] bg-[var(--app-control-bg)] text-[var(--app-heading)] font-bold outline-none cursor-pointer hover:border-[var(--app-accent)] text-[11px]"
+                    >
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                      <option value={200}>200</option>
+                      <option value={500}>500</option>
+                      <option value={1000}>1000</option>
+                      <option value="all">All (5k)</option>
+                    </select>
+                  </div>
+
+                  {/* Top Page Navigation Controls for Master Data Tabs */}
+                  {calculatedTotalPages >= 1 && (
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        disabled={safeCurrentPage <= 1 || loading}
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        className="h-7 px-2 rounded-lg border border-[var(--app-border)] bg-[var(--app-control-bg)] hover:bg-[var(--app-control-hover)] text-[var(--app-heading)] font-bold text-xs disabled:opacity-40 cursor-pointer"
+                        title="Previous Page"
+                      >
+                        &lsaquo; Prev
+                      </button>
+
+                      <span className="px-2 py-1 bg-[var(--app-accent-soft)] text-[var(--app-accent)] rounded-lg font-black text-xs">
+                        {safeCurrentPage} / {calculatedTotalPages}
+                      </span>
+
+                      <button
+                        type="button"
+                        disabled={safeCurrentPage >= calculatedTotalPages || loading}
+                        onClick={() => setCurrentPage(p => Math.min(calculatedTotalPages, p + 1))}
+                        className="h-7 px-2 rounded-lg border border-[var(--app-border)] bg-[var(--app-control-bg)] hover:bg-[var(--app-control-hover)] text-[var(--app-heading)] font-bold text-xs disabled:opacity-40 cursor-pointer"
+                        title="Next Page"
+                      >
+                        Next &rsaquo;
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Unsynced Only Checkbox Filter */}
                   {(!isStockCategory && !isCostCenter && !isLedgerGroup && !isStockGroup) && (
-                    <label className="flex items-center gap-1.5 cursor-pointer select-none px-1">
+                    <label className="flex items-center gap-1 cursor-pointer select-none px-1 shrink-0">
                       <input type="checkbox" checked={onlyUnsynced} onChange={(e) => setOnlyUnsynced(e.target.checked)} className="w-3.5 h-3.5 rounded accent-[var(--app-accent)] cursor-pointer" />
-                      <span className="text-[11px] font-semibold whitespace-nowrap" style={{ color: 'var(--app-muted)' }}>Unsynced Only</span>
+                      <span className="text-[11px] font-semibold" style={{ color: 'var(--app-muted)' }}>Unsynced</span>
                     </label>
                   )}
-                  <button type="button" title="Refresh" aria-label="Refresh" onClick={() => { setSearchQuery(''); setOnlyUnsynced(false); fetchMasterData(); toast.info('Lists refreshed'); }} className="h-8 w-8 flex items-center justify-center border rounded-lg text-[var(--app-muted)] border-[var(--app-border)] hover:bg-[var(--app-control-hover)] transition-colors">
-                    <RefreshCw size={13} />
+
+                  {/* Refresh Button */}
+                  <button type="button" title="Refresh List" aria-label="Refresh List" onClick={() => { setSearchQuery(''); setOnlyUnsynced(false); fetchMasterData(true); toast.info('Lists refreshed'); }} className="h-7 w-7 flex items-center justify-center border rounded-lg text-[var(--app-muted)] border-[var(--app-border)] hover:bg-[var(--app-control-hover)] transition-colors shrink-0">
+                    <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
                   </button>
-                </>
+                </div>
               }
             />
-
-            {/* Pagination Controls for Large Company Masters */}
-            {totalPages > 1 && (
-              <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 border-t border-[var(--app-border)] bg-[var(--app-panel-bg)] rounded-b-xl text-xs font-bold shrink-0 mt-2">
-                <div className="text-[var(--app-muted)] text-[11px]">
-                  Showing Page <span className="text-[var(--app-heading)] font-extrabold">{currentPage}</span> of <span className="text-[var(--app-heading)] font-extrabold">{totalPages}</span> ({(serverLedgerCounts.total || 0).toLocaleString('en-IN')} total items)
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    disabled={currentPage <= 1}
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    className="px-2.5 py-1 rounded-lg border border-[var(--app-border)] bg-[var(--app-control-bg)] hover:bg-[var(--app-control-hover)] text-[var(--app-heading)] disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
-                  >
-                    Previous
-                  </button>
-                  <span className="px-2.5 py-1 bg-[var(--app-accent-soft)] text-[var(--app-accent)] rounded-lg font-extrabold">
-                    {currentPage} / {totalPages}
-                  </span>
-                  <button
-                    type="button"
-                    disabled={currentPage >= totalPages}
-                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                    className="px-2.5 py-1 rounded-lg border border-[var(--app-border)] bg-[var(--app-control-bg)] hover:bg-[var(--app-control-hover)] text-[var(--app-heading)] disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
-            )}
           
           </div>
         </>
@@ -1767,272 +3057,7 @@ const MasterDataPanel = ({ mode: propMode, isDark }) => {
 
       {/* Create modals */}
       <div className="contents">
-        {/* Stock Item Pop-up Modal */}
-        {showCreateForm && isStock && (
-          <div className="fixed inset-0 z-50 flex items-start md:items-center justify-center bg-black/50 backdrop-blur-[2px] p-0 md:p-4 overflow-y-auto">
-            <div className="bg-[var(--app-panel-bg)] border-0 md:border border-[var(--app-border)] rounded-none md:rounded-xl shadow-2xl max-w-6xl w-full h-full md:h-auto md:max-h-[95vh] flex flex-col my-0 md:my-4 overflow-hidden">
-              {/* Header */}
-              <div className="px-4 py-2.5 border-b border-[var(--app-border)] flex justify-between items-center shrink-0 bg-[var(--app-panel-bg)] rounded-t-none md:rounded-t-xl">
-                <div>
-                  <h2 className="text-base md:text-lg font-bold text-slate-900 dark:text-white">Add New Item</h2>
-                  <p className="text-[10px] md:text-xs text-[var(--app-muted)] mt-0.5">Create a new stock item in one view</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowCreateForm(false)}
-                  className="text-slate-400 hover:text-slate-600 dark:hover:text-[var(--app-muted)] transition-colors p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-
-              {/* Form Body */}
-              <form onSubmit={handleCreateItem} className="flex-1 flex flex-col min-h-0 overflow-hidden">
-                {/* Fields - grouped into 3 columns, no scrolling needed on typical displays */}
-                <div className="flex-1 p-3 md:p-4 space-y-3 overflow-y-auto md:overflow-visible">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    
-                    {/* Column 1: Basic Details */}
-                    <div className="space-y-3">
-                      <div className="space-y-2 border rounded-xl p-3 bg-[var(--app-content-bg)] border-[var(--app-border)]">
-                        <div className="flex items-center gap-1.5 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold border-b border-[var(--app-border)] pb-1 mb-2">
-                          <Package size={13} />
-                          <span className="text-[11px] uppercase tracking-wider">1. Basic Details</span>
-                        </div>
-                        
-                        <div>
-                          <label className="text-[9px] font-bold text-slate-500 mb-0.5 block uppercase tracking-wide">Item Name *</label>
-                          <input
-                            type="text"
-                            required
-                            value={itemForm.itemName}
-                            onChange={(e) => setItemForm(prev => ({ ...prev, itemName: e.target.value }))}
-                            placeholder="e.g. HP Keyboard"
-                            className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
-                          />
-                        </div>
-                        
-                        <div>
-                          <label className="text-[9px] font-bold text-slate-500 mb-0.5 block uppercase tracking-wide">Item Group *</label>
-                          <select
-                            value={itemForm.stockGroup}
-                            onChange={(e) => setItemForm(prev => ({ ...prev, stockGroup: e.target.value }))}
-                            className="w-full h-8 rounded-lg border px-1.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
-                          >
-                            <option value="Computer Accessories">Computer Accessories</option>
-                            <option value="Computer Hardware">Computer Hardware</option>
-                            <option value="Accessories">Accessories</option>
-                            <option value="Printers">Printers</option>
-                            <option value="Services">Services</option>
-                          </select>
-                        </div>
-
-                        <div>
-                          <label className="text-[9px] font-bold text-slate-500 mb-0.5 block uppercase tracking-wide">Unit of Measure *</label>
-                          <select
-                            value={itemForm.uom}
-                            onChange={(e) => setItemForm(prev => ({ ...prev, uom: e.target.value }))}
-                            className="w-full h-8 rounded-lg border px-1.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
-                          >
-                            <option value="Nos">Nos</option>
-                            <option value="Pcs">Pcs</option>
-                            <option value="Box">Box</option>
-                            <option value="Hours">Hours</option>
-                          </select>
-                        </div>
-
-                        <div>
-                          <label className="text-[9px] font-bold text-slate-500 mb-0.5 block uppercase tracking-wide">Brand (Optional)</label>
-                          <input
-                            type="text"
-                            value={itemForm.brand}
-                            onChange={(e) => setItemForm(prev => ({ ...prev, brand: e.target.value }))}
-                            placeholder="e.g. HP"
-                            className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Column 2: Tax Details & Inventory Details */}
-                    <div className="space-y-3">
-                      {/* Section 2: Tax Details */}
-                      <div className="space-y-2 border rounded-xl p-3 bg-[var(--app-content-bg)] border-[var(--app-border)]">
-                        <div className="flex items-center gap-1.5 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold border-b border-[var(--app-border)] pb-1 mb-2">
-                          <Percent size={13} />
-                          <span className="text-[11px] uppercase tracking-wider">2. Tax Details</span>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <label className="text-[9px] font-bold text-slate-500 mb-0.5 block uppercase tracking-wide">HSN / SAC Code</label>
-                            <input
-                              type="text"
-                              value={itemForm.hsnCode}
-                              onChange={(e) => setItemForm(prev => ({ ...prev, hsnCode: e.target.value }))}
-                              placeholder="e.g. 8471"
-                              className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="text-[9px] font-bold text-slate-500 mb-0.5 block uppercase tracking-wide">GST Rate (%) *</label>
-                            <select
-                              value={itemForm.gstRate}
-                              onChange={(e) => setItemForm(prev => ({ ...prev, gstRate: e.target.value }))}
-                              className="w-full h-8 rounded-lg border px-1.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
-                            >
-                              <option value="18%">18%</option>
-                              <option value="12%">12%</option>
-                              <option value="5%">5%</option>
-                              <option value="0%">0% Exempt</option>
-                            </select>
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="text-[9px] font-bold text-slate-500 mb-0.5 block uppercase tracking-wide">Taxability Type</label>
-                          <select
-                            value={itemForm.taxabilityType}
-                            onChange={(e) => setItemForm(prev => ({ ...prev, taxabilityType: e.target.value }))}
-                            className="w-full h-8 rounded-lg border px-1.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
-                          >
-                            <option value="Taxable">Taxable</option>
-                            <option value="Exempt">Exempt</option>
-                            <option value="Nil Rated">Nil Rated</option>
-                            <option value="Non-GST">Non-GST</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      {/* Section 4: Inventory Details */}
-                      <div className="space-y-2 border rounded-xl p-3 bg-[var(--app-content-bg)] border-[var(--app-border)]">
-                        <div className="flex items-center gap-1.5 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold border-b border-[var(--app-border)] pb-1 mb-2">
-                          <Package size={13} />
-                          <span className="text-[11px] uppercase tracking-wider">4. Inventory Details</span>
-                        </div>
-
-                        <div>
-                          <label className="text-[9px] font-bold text-slate-500 mb-0.5 block uppercase tracking-wide">Opening Stock *</label>
-                          <div className="flex rounded-lg border border-[var(--app-border)] overflow-hidden bg-[var(--app-content-bg)] focus-within:border-[var(--app-accent)] transition-colors">
-                            <input
-                              type="text"
-                              required
-                              value={itemForm.openingQty}
-                              onChange={(e) => setItemForm(prev => ({ ...prev, openingQty: e.target.value }))}
-                              placeholder="100.00"
-                              className="flex-1 h-8 px-2.5 text-xs bg-transparent outline-none text-[var(--app-heading)]"
-                            />
-                            <div className="flex items-center justify-center px-3 bg-[var(--app-control-hover)] text-xs font-semibold text-[var(--app-muted)] border-l border-[var(--app-border)] select-none">
-                              {itemForm.uom}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Column 3: Pricing Details & Additional Details */}
-                    <div className="space-y-3">
-                      {/* Section 3: Pricing Details */}
-                      <div className="space-y-2 border rounded-xl p-3 bg-[var(--app-content-bg)] border-[var(--app-border)]">
-                        <div className="flex items-center gap-1.5 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold border-b border-[var(--app-border)] pb-1 mb-2">
-                          <IndianRupee size={13} />
-                          <span className="text-[11px] uppercase tracking-wider">3. Pricing Details</span>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <label className="text-[9px] font-bold text-slate-500 mb-0.5 block uppercase tracking-wide">Purchase Price *</label>
-                            <input
-                              type="text"
-                              required
-                              value={itemForm.purchasePrice}
-                              onChange={(e) => setItemForm(prev => ({ ...prev, purchasePrice: e.target.value }))}
-                              placeholder="500.00"
-                              className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="text-[9px] font-bold text-slate-500 mb-0.5 block uppercase tracking-wide">Sales Price *</label>
-                            <input
-                              type="text"
-                              required
-                              value={itemForm.salesPrice}
-                              onChange={(e) => setItemForm(prev => ({ ...prev, salesPrice: e.target.value }))}
-                              placeholder="700.00"
-                              className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
-                            />
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="text-[9px] font-bold text-slate-500 mb-0.5 block uppercase tracking-wide">MRP (₹) (Optional)</label>
-                          <input
-                            type="text"
-                            value={itemForm.mrp}
-                            onChange={(e) => setItemForm(prev => ({ ...prev, mrp: e.target.value }))}
-                            placeholder="750.00"
-                            className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Section 5: Additional Details */}
-                      <div className="space-y-2 border rounded-xl p-3 bg-[var(--app-content-bg)] border-[var(--app-border)]">
-                        <div className="flex items-center gap-1.5 text-[var(--app-accent)] dark:text-[var(--app-accent)] font-bold border-b border-[var(--app-border)] pb-1 mb-2">
-                          <Info size={13} />
-                          <span className="text-[11px] uppercase tracking-wider">5. Additional Details</span>
-                        </div>
-
-                        <div>
-                          <label className="text-[9px] font-bold text-slate-500 mb-0.5 block uppercase tracking-wide">SKU / Barcode</label>
-                          <input
-                            type="text"
-                            value={itemForm.sku}
-                            onChange={(e) => setItemForm(prev => ({ ...prev, sku: e.target.value }))}
-                            placeholder="HP-KB-001"
-                            className="w-full h-8 rounded-lg border px-2.5 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)]"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="text-[9px] font-bold text-slate-500 mb-0.5 block uppercase tracking-wide">Description (Optional)</label>
-                          <textarea
-                            rows={1.5}
-                            value={itemForm.description}
-                            onChange={(e) => setItemForm(prev => ({ ...prev, description: e.target.value }))}
-                            placeholder="HP Wired USB Keyboard"
-                            className="w-full rounded-lg border px-2 py-1 text-xs outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)] resize-none"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                  </div>
-                </div>
-
-                {/* Modal Footer Buttons */}
-                <div className="flex justify-end gap-2 p-3 md:p-4 border-t border-[var(--app-border)] text-[10px] font-bold uppercase tracking-wider shrink-0 bg-[var(--app-panel-bg)] rounded-b-none md:rounded-b-xl">
-                  <button
-                    type="button"
-                    onClick={() => setShowCreateForm(false)}
-                    className="px-4 py-1.5 border rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-[var(--app-text)] transition-colors"
-                    style={{ borderColor: 'var(--app-border)' }}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-5 py-1.5 m3-interactive bg-[var(--app-cta)] hover:opacity-90 text-white rounded-full shadow-sm transition-all font-bold"
-                  >
-                    Save Item
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
+        {/* Stock Item Form renders full page inside main container above */}
 
         {/* XML Preview Modal */}
         {showXmlPreviewModal && (

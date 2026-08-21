@@ -39,6 +39,7 @@ const TextToEntry = lazy(() => import('../components/automation/TextToEntry'))
 const TallyConnectorPanel = lazy(() => import('../components/tally/TallyConnectorPanel'))
 const DocumentArchivePanel = lazy(() => import('../components/documents/DocumentArchivePanel'))
 const ClientManagementPanel = lazy(() => import('../components/companies/ClientManagementPanel'))
+const CreateClientPage = lazy(() => import('../components/companies/CreateClientPage'))
 const ConfigurationPanel = lazy(() => import('../components/companies/ConfigurationPanel'))
 const AIReportPage = lazy(() => import('../components/reports/AIReportPage'))
 
@@ -147,6 +148,7 @@ export const router = createBrowserRouter([
       // Administration
       { path: 'admin/companies', element: <CompaniesRoute /> },
       { path: 'admin/clients', element: <BusinessUsersRoute /> },
+      { path: 'admin/clients/new', element: <CreateClientPage /> },
       { path: 'admin/users-roles', element: <ManageRolesRoute /> },
 
       // Settings

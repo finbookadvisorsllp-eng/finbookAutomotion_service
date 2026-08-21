@@ -25,52 +25,54 @@ class CompanyRepository(BaseRepository):
 
     def get_ledgers_by_group(self, group_name: str, company_id: Optional[Any] = None) -> List[str]:
         try:
-            query = {"groupName": group_name}
-            if company_id:
-                query["companyId"] = company_id
-            return [
-                doc.get("ledgerName")
-                for doc in self.db[LEDGERS_COLLECTION].find(query, {"ledgerName": 1})
-                if doc.get("ledgerName")
-            ]
+            from app.anjalee.repositories.sales_repo import build_company_id_query
+            g_query = {"groupName": group_name}
+            comp_q = build_company_id_query(company_id)
+            query = {"$and": [g_query, comp_q]} if comp_q else g_query
+
+            main_docs = list(self.db[LEDGERS_COLLECTION].find(query, {"ledgerName": 1}))
+            entry_docs = list(self.db["ledgers_entry"].find(query, {"ledgerName": 1}))
+            return [doc.get("ledgerName") for doc in (entry_docs + main_docs) if doc.get("ledgerName")]
         except Exception:
             return []
 
     def get_ledgers_by_groups(self, groups: List[str], company_id: Optional[Any] = None) -> List[str]:
         try:
-            query = {"groupName": {"$in": groups}}
-            if company_id:
-                query["companyId"] = company_id
-            return [
-                doc.get("ledgerName")
-                for doc in self.db[LEDGERS_COLLECTION].find(query, {"ledgerName": 1})
-                if doc.get("ledgerName")
-            ]
+            from app.anjalee.repositories.sales_repo import build_company_id_query
+            g_query = {"groupName": {"$in": groups}}
+            comp_q = build_company_id_query(company_id)
+            query = {"$and": [g_query, comp_q]} if comp_q else g_query
+
+            main_docs = list(self.db[LEDGERS_COLLECTION].find(query, {"ledgerName": 1}))
+            entry_docs = list(self.db["ledgers_entry"].find(query, {"ledgerName": 1}))
+            return [doc.get("ledgerName") for doc in (entry_docs + main_docs) if doc.get("ledgerName")]
         except Exception:
             return []
 
     def get_stock_items(self, company_id: Optional[Any] = None) -> List[str]:
         try:
-            query = {}
-            if company_id:
-                query["companyId"] = company_id
-            return [
-                doc.get("itemName")
-                for doc in self.db[STOCK_ITEMS_COLLECTION].find(query, {"itemName": 1})
-                if doc.get("itemName")
-            ]
+            from app.anjalee.repositories.sales_repo import build_company_id_query
+            comp_q = build_company_id_query(company_id)
+            query = comp_q if comp_q else {}
+
+            main_docs = list(self.db[STOCK_ITEMS_COLLECTION].find(query, {"itemName": 1, "name": 1}))
+            entry_docs = list(self.db["stockitems_entry"].find(query, {"itemName": 1, "name": 1}))
+            return [doc.get("itemName") or doc.get("name") for doc in (entry_docs + main_docs) if doc.get("itemName") or doc.get("name")]
         except Exception:
             return []
 
     def get_stock_item_details(self, company_id: Optional[Any] = None) -> List[Dict[str, Any]]:
         """Return stock items with name, hsnCode, and gstRate for autofillScoping."""
         try:
+            from app.anjalee.repositories.sales_repo import build_company_id_query
             results = []
-            query = {}
-            if company_id:
-                query["companyId"] = company_id
-            for doc in self.db[STOCK_ITEMS_COLLECTION].find(query, {"itemName": 1, "hsnCode": 1, "hsnDetails": 1, "gstDetails": 1, "taxRate": 1}):
-                name = doc.get("itemName", "")
+            comp_q = build_company_id_query(company_id)
+            query = comp_q if comp_q else {}
+
+            main_docs = list(self.db[STOCK_ITEMS_COLLECTION].find(query, {"itemName": 1, "hsnCode": 1, "hsnDetails": 1, "gstDetails": 1, "taxRate": 1}))
+            entry_docs = list(self.db["stockitems_entry"].find(query, {"itemName": 1, "hsnCode": 1, "hsnDetails": 1, "gstDetails": 1, "taxRate": 1}))
+            for doc in (entry_docs + main_docs):
+                name = doc.get("itemName") or doc.get("name") or ""
                 if not name:
                     continue
                 # hsnCode may be stored directly or inside hsnDetails sub-doc
@@ -94,19 +96,19 @@ class CompanyRepository(BaseRepository):
 
     def get_tcs_ledgers(self, company_id: Optional[Any] = None) -> List[str]:
         try:
-            query = {
+            from app.anjalee.repositories.sales_repo import build_company_id_query
+            g_query = {
                 "$or": [
                     {"groupName": "Duties & Taxes"},
                     {"ledgerName": {"$regex": "TCS", "$options": "i"}}
                 ]
             }
-            if company_id:
-                query["companyId"] = company_id
-            return [
-                doc.get("ledgerName")
-                for doc in self.db[LEDGERS_COLLECTION].find(query, {"ledgerName": 1})
-                if doc.get("ledgerName")
-            ]
+            comp_q = build_company_id_query(company_id)
+            query = {"$and": [g_query, comp_q]} if comp_q else g_query
+
+            main_docs = list(self.db[LEDGERS_COLLECTION].find(query, {"ledgerName": 1}))
+            entry_docs = list(self.db["ledgers_entry"].find(query, {"ledgerName": 1}))
+            return [doc.get("ledgerName") for doc in (entry_docs + main_docs) if doc.get("ledgerName")]
         except Exception:
             return []
 

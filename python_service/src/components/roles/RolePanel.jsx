@@ -117,7 +117,7 @@ export default function RolePanel({ mode: propMode }) {
 
   // 1. Fetch Roles from API
   const fetchRoles = async () => {
-    setLoadingRoles(true);
+    if (roles.length === 0) setLoadingRoles(true);
     try {
       const res = await apiClient.get('/auth/roles');
       if (res.data?.success && Array.isArray(res.data.data)) {
@@ -132,7 +132,7 @@ export default function RolePanel({ mode: propMode }) {
 
   // 2. Fetch Users from API
   const fetchUsers = async () => {
-    setLoadingUsers(true);
+    if (users.length === 0) setLoadingUsers(true);
     try {
       const res = await apiClient.get('/auth/users');
       if (res.data?.success && Array.isArray(res.data.data)) {
@@ -458,13 +458,15 @@ export default function RolePanel({ mode: propMode }) {
   };
 
   const handleDeleteRole = async (rId) => {
+    if (!rId) return;
     if (window.confirm('Are you sure you want to delete this role definition?')) {
       try {
-        await apiClient.delete(`/auth/roles/${rId}`);
-        toast.success('Role deleted successfully!');
-        fetchRoles();
+        const res = await apiClient.delete(`/auth/roles/${encodeURIComponent(rId)}`);
+        toast.success(res.data?.message || 'Role deleted successfully!');
+        await fetchRoles();
+        await fetchUsers();
       } catch (err) {
-        toast.error('Failed to delete role');
+        toast.error(err?.response?.data?.detail || err?.message || 'Failed to delete role');
       }
     }
   };
@@ -1055,9 +1057,9 @@ export default function RolePanel({ mode: propMode }) {
                                 >
                                   <Copy size={12} />
                                 </button>
-                                {!r.isSystem && (
+                                {!r.isSystem && String(r.name || r.displayName || '').toLowerCase() !== 'admin' && (
                                   <button
-                                    onClick={() => handleDeleteRole(r.id)}
+                                    onClick={() => handleDeleteRole(r.id || r.name)}
                                     title="Delete Role"
                                     className="p-1.5 border border-rose-500/20 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 rounded-md transition-all"
                                   >

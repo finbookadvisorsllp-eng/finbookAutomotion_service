@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { Layers, ArrowLeft, Save, X, RotateCcw, Info, Check, ChevronDown, Settings, CheckCircle2 } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Layers, ArrowLeft, Save, CheckCircle2, Info } from 'lucide-react';
 import { toast } from 'sonner';
 
 /**
  * LedgerGroupMasterForm
- * Form component for creating and editing Ledger Groups in the Masters module.
- * Takes full screen width and includes a [ Configure Form ] modal for toggling form sections.
+ * Simple, compact, Tally-style form for creating and editing Ledger Groups.
+ * Contains only essential fields: Group Name, Group Type, Under/Parent Group, Nature of Group, Status.
  */
 export default function LedgerGroupMasterForm({
   initialData = null,
@@ -14,132 +14,162 @@ export default function LedgerGroupMasterForm({
   onSave,
   onClose
 }) {
-  // Configure Form Modal Preferences (Persisted in localStorage)
-  const [showConfigModal, setShowConfigModal] = useState(false);
-  const [config, setConfig] = useState(() => {
-    const saved = localStorage.getItem('ledger_group_form_config');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) {}
-    }
-    return {
-      cfgGroupNature: true,
-      cfgSubTypes: true
-    };
-  });
-
-  useEffect(() => {
-    localStorage.setItem('ledger_group_form_config', JSON.stringify(config));
-  }, [config]);
-
-  const resolveParentGroup = (data) => {
-    if (!data) return 'Primary / Root Group';
-    const isObjectId = (str) => typeof str === 'string' && /^[0-9a-fA-F]{24}$/.test(str);
-    if (data.parentGroup && typeof data.parentGroup === 'string' && !isObjectId(data.parentGroup)) {
-      return data.parentGroup;
-    }
-    if (data.parentGroupName && typeof data.parentGroupName === 'string' && !isObjectId(data.parentGroupName)) {
-      return data.parentGroupName;
-    }
-    if (typeof data.parentGroup === 'object' && data.parentGroup?.groupName) {
-      return data.parentGroup.groupName;
-    }
-    return 'Primary / Root Group';
+  // Helper to extract group name string
+  const getGroupName = (g) => {
+    if (!g) return '';
+    if (typeof g === 'string') return g;
+    return g.groupName || g.name || g.parentGroup || '';
   };
 
+  // Helper to resolve initial parent group
+  const resolveInitialParentGroup = (data) => {
+    if (!data) return 'Primary';
+    const parent = data.parentGroup || data.parentGroupName;
+    if (!parent || parent === 'Primary' || parent === '0' || parent === 'Root') {
+      return 'Primary';
+    }
+    return getGroupName(parent);
+  };
+
+  // Initial state setup
   const [formData, setFormData] = useState(() => {
     if (initialData) {
+      const pGroup = resolveInitialParentGroup(initialData);
+      const isPrimary = pGroup === 'Primary' || initialData.groupType === 'Primary';
+      const rawNature = initialData.natureOfGroup || (typeof initialData.nature === 'object' ? initialData.nature?.classification : initialData.nature) || 'Assets';
+      
+      let normNature = 'Assets';
+      const nUpper = String(rawNature).toUpperCase();
+      if (nUpper.includes('ASSET')) normNature = 'Assets';
+      else if (nUpper.includes('LIABIL')) normNature = 'Liabilities';
+      else if (nUpper.includes('INCOME') || nUpper.includes('REVENUE')) normNature = 'Income';
+      else if (nUpper.includes('EXPENSE') || nUpper.includes('COST')) normNature = 'Expenses';
+
       return {
         groupName: initialData.groupName || initialData.ledgerGroupName || initialData.name || '',
-        groupCode: initialData.groupCode || `GRP-${String((ledgerGroupsList?.length || 0) + 1).padStart(4, '0')}`,
-        parentGroup: resolveParentGroup(initialData),
-        status: (initialData.status || 'ACTIVE').toUpperCase(),
-        isDebitPositive: initialData.behaviour?.isDebitPositive ?? initialData.isDebitPositive ?? true,
-        isRevenue: initialData.behaviour?.isRevenue ?? initialData.isRevenue ?? false,
-        isStock: initialData.behaviour?.isStock ?? initialData.isStock ?? false,
-        isBillWiseOn: initialData.behaviour?.isBillWiseOn ?? initialData.isBillWiseOn ?? false,
-        classification: typeof initialData.nature === 'object' ? (initialData.nature?.classification || 'EXPENSES') : (initialData.nature || initialData.classification || 'EXPENSES'),
-        subType: typeof initialData.nature === 'object' ? (initialData.nature?.subType || 'INDIRECT_EXPENSES') : (initialData.subType || 'INDIRECT_EXPENSES'),
-        affectsGrossProfit: initialData.nature?.affectsGrossProfit ?? initialData.affectsGrossProfit ?? false,
-        affectsNetProfit: initialData.nature?.affectsNetProfit ?? initialData.affectsNetProfit ?? true,
+        groupType: isPrimary ? 'Primary' : 'Sub Group',
+        parentGroup: isPrimary ? 'Primary' : pGroup,
+        natureOfGroup: normNature,
+        status: (initialData.status || 'Active').toLowerCase() === 'inactive' ? 'Inactive' : 'Active'
       };
     }
+
     return {
       groupName: '',
-      groupCode: `GRP-${String((ledgerGroupsList?.length || 0) + 1).padStart(4, '0')}`,
-      parentGroup: 'Primary / Root Group',
-      status: 'ACTIVE',
-      isDebitPositive: true,
-      isRevenue: false,
-      isStock: false,
-      isBillWiseOn: false,
-      classification: 'EXPENSES',
-      subType: 'INDIRECT_EXPENSES',
-      affectsGrossProfit: false,
-      affectsNetProfit: true,
+      groupType: 'Sub Group',
+      parentGroup: '',
+      natureOfGroup: 'Assets',
+      status: 'Active'
     };
   });
 
   const [errors, setErrors] = useState({});
 
-  // Dynamic Custom Creation States
-  const [customClassifications, setCustomClassifications] = useState(['ASSETS', 'LIABILITIES', 'EXPENSES', 'INCOME']);
-  const [customSubTypes, setCustomSubTypes] = useState([
-    'CURRENT_ASSETS', 'FIXED_ASSETS', 'CURRENT_LIABILITIES', 'SUNDRY_DEBTORS',
-    'SUNDRY_CREDITORS', 'DIRECT_EXPENSES', 'INDIRECT_EXPENSES', 'DIRECT_INCOME', 'INDIRECT_INCOME'
-  ]);
+  // Dynamic dropdown list of available parent groups
+  const parentGroupOptions = useMemo(() => {
+    const set = new Set();
 
-  const [showAddCustomClass, setShowAddCustomClass] = useState(false);
-  const [newCustomClassInput, setNewCustomClassInput] = useState('');
+    (ledgerGroupsList || []).forEach(g => {
+      const name = getGroupName(g);
+      if (name && typeof name === 'string' && !name.match(/^[0-9a-fA-F]{24}$/)) {
+        set.add(name);
+      }
+    });
 
-  const [showAddCustomSubType, setShowAddCustomSubType] = useState(false);
-  const [newCustomSubTypeInput, setNewCustomSubTypeInput] = useState('');
-
-  const handleAddCustomClassification = () => {
-    const val = newCustomClassInput.trim().toUpperCase().replace(/\s+/g, '_');
-    if (!val) return;
-    if (!customClassifications.includes(val)) {
-      setCustomClassifications(prev => [...prev, val]);
+    // Default Tally Primary Groups if list is empty
+    if (set.size === 0) {
+      [
+        'Sundry Debtors', 'Sundry Creditors', 'Bank Accounts', 'Cash-in-hand',
+        'Duties & Taxes', 'Direct Expenses', 'Indirect Expenses', 'Direct Incomes',
+        'Indirect Incomes', 'Capital Account', 'Fixed Assets', 'Current Assets',
+        'Current Liabilities', 'Loans & Advances (Asset)', 'Secured Loans',
+        'Unsecured Loans', 'Investments', 'Provisions', 'Reserves & Surplus',
+        'Purchase Accounts', 'Sales Accounts', 'Branch / Divisions'
+      ].forEach(p => set.add(p));
     }
-    setFormData(prev => ({ ...prev, classification: val }));
-    setNewCustomClassInput('');
-    setShowAddCustomClass(false);
-    toast.success(`Custom classification "${val}" added!`);
-  };
 
-  const handleAddCustomSubType = () => {
-    const val = newCustomSubTypeInput.trim().toUpperCase().replace(/\s+/g, '_');
-    if (!val) return;
-    if (!customSubTypes.includes(val)) {
-      setCustomSubTypes(prev => [...prev, val]);
+    return Array.from(set).sort();
+  }, [ledgerGroupsList]);
+
+  // Set default parent group when switching to Sub Group if not already selected
+  useEffect(() => {
+    if (formData.groupType === 'Sub Group' && (!formData.parentGroup || formData.parentGroup === 'Primary')) {
+      if (parentGroupOptions.length > 0) {
+        setFormData(prev => ({ ...prev, parentGroup: parentGroupOptions[0] }));
+      }
     }
-    setFormData(prev => ({ ...prev, subType: val }));
-    setNewCustomSubTypeInput('');
-    setShowAddCustomSubType(false);
-    toast.success(`Custom sub-type "${val}" added!`);
-  };
+  }, [formData.groupType, parentGroupOptions]);
 
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
+  // Handle Group Type Toggle Change
+  const handleGroupTypeChange = (type) => {
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      groupType: type,
+      parentGroup: type === 'Primary' ? 'Primary' : (prev.parentGroup && prev.parentGroup !== 'Primary' ? prev.parentGroup : (parentGroupOptions[0] || ''))
     }));
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: null }));
+    setErrors(prev => ({ ...prev, groupName: null, parentGroup: null }));
+  };
+
+  // Field updater with validation reset
+  const updateField = (key, val) => {
+    setFormData(prev => {
+      const updated = { ...prev, [key]: val };
+      
+      // Sync group type if parent selection changes
+      if (key === 'parentGroup') {
+        if (val === 'Primary') {
+          updated.groupType = 'Primary';
+        } else if (prev.groupType === 'Primary') {
+          updated.groupType = 'Sub Group';
+        }
+      }
+      return updated;
+    });
+
+    if (errors[key]) {
+      setErrors(prev => ({ ...prev, [key]: null }));
     }
   };
 
+  // Validate form & check duplicates under same parent
   const validate = () => {
     const newErrors = {};
-    if (!formData.groupName.trim()) {
+
+    const cleanName = formData.groupName.trim();
+    if (!cleanName) {
       newErrors.groupName = 'Group Name is required';
     }
+
+    if (formData.groupType === 'Sub Group' && (!formData.parentGroup || formData.parentGroup === 'Primary')) {
+      newErrors.parentGroup = 'Under / Parent Group is required for Sub Groups';
+    }
+
+    // Duplicate Check under same Parent Group
+    const targetParent = formData.groupType === 'Primary' ? 'Primary' : formData.parentGroup;
+    const currentId = initialData?._id || initialData?.id;
+
+    const isDuplicate = (ledgerGroupsList || []).some(g => {
+      if (!g) return false;
+      const gId = g._id || g.id;
+      if (currentId && gId && String(gId) === String(currentId)) return false;
+
+      const existingName = getGroupName(g).trim().toLowerCase();
+      const existingParent = resolveInitialParentGroup(g).trim().toLowerCase();
+
+      return existingName === cleanName.toLowerCase() && existingParent === targetParent.trim().toLowerCase();
+    });
+
+    if (isDuplicate) {
+      newErrors.groupName = `Group "${cleanName}" already exists under parent "${targetParent}"`;
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
+  // Submit Handler
   const handleSubmit = (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     if (!validate()) {
       toast.error('Please fix the errors in the form.');
       return;
@@ -150,68 +180,58 @@ export default function LedgerGroupMasterForm({
       id: initialData?._id || initialData?.id,
       sourceCollection: initialData?.sourceCollection || 'groups_entry',
       groupName: formData.groupName.trim(),
-      groupCode: formData.groupCode.trim(),
-      parentGroup: formData.parentGroup,
+      groupType: formData.groupType,
+      parentGroup: formData.groupType === 'Primary' ? 'Primary' : formData.parentGroup,
+      natureOfGroup: formData.natureOfGroup,
       status: formData.status,
-      behaviour: {
-        isDebitPositive: formData.isDebitPositive,
-        isRevenue: formData.isRevenue,
-        isStock: formData.isStock,
-        isBillWiseOn: formData.isBillWiseOn,
-      },
+      
+      // Standard mapping for backend/export compatibility
       nature: {
-        classification: formData.classification,
-        subType: formData.subType,
-        affectsGrossProfit: formData.affectsGrossProfit,
-        affectsNetProfit: formData.affectsNetProfit,
+        classification: formData.natureOfGroup.toUpperCase(),
+        primaryGroup: formData.groupType === 'Primary' ? 'Primary' : formData.parentGroup,
+        subType: formData.groupName.trim().toUpperCase().replace(/\s+/g, '_')
+      },
+      behaviour: {
+        isDebitPositive: ['Assets', 'Expenses'].includes(formData.natureOfGroup),
+        isRevenue: ['Income', 'Expenses'].includes(formData.natureOfGroup),
+        isStock: false,
+        isBillWiseOn: true
       }
     };
 
     if (onSave) {
       onSave(payload);
-      toast.success(isEdit ? 'Ledger Group updated successfully!' : 'Ledger Group created successfully!');
+      toast.success(isEdit ? `Group "${formData.groupName}" updated!` : `Group "${formData.groupName}" created!`);
     }
   };
 
   return (
-    <div className="h-full w-full flex flex-col bg-[var(--app-content-bg)] text-[var(--app-text)] font-sans overflow-hidden animate-in fade-in duration-300">
+    <div className="h-full w-full flex flex-col bg-[var(--app-panel-bg)] text-[var(--app-text)] font-sans overflow-hidden animate-in fade-in duration-200">
       
-      {/* 1. Header Navigation Bar (Full Width) */}
-      <div className="shrink-0 px-6 py-3.5 border-b border-[var(--app-border)] bg-[var(--app-panel-bg)] flex items-center justify-between shadow-xs">
+      {/* 1. Compact Header Navigation Bar */}
+      <div className="shrink-0 px-5 py-3 border-b border-[var(--app-border)] bg-[var(--app-panel-bg)] flex items-center justify-between shadow-2xs">
         <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg border border-[var(--app-border)] hover:bg-[var(--app-control-hover)] text-[var(--app-text)] transition-colors"
-            title="Back to Ledger Groups List"
+            className="p-1.5 rounded-lg border border-[var(--app-border)] hover:bg-[var(--app-control-hover)] text-[var(--app-text)] transition-colors shrink-0"
+            title="Back to Ledger Groups"
           >
-            <ArrowLeft size={16} />
+            <ArrowLeft size={15} />
           </button>
           <div>
-            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--app-muted)]">
-              <span>Masters</span>
+            <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--app-muted)]">
+              <span>Ledger Groups</span>
               <span>/</span>
-              <span>Ledger Group</span>
-              <span>/</span>
-              <span className="text-[var(--app-accent)] font-bold">{isEdit ? 'Edit' : 'Create'}</span>
+              <span className="text-[var(--app-accent)]">{isEdit ? 'Edit Group' : 'New Group'}</span>
             </div>
-            <h1 className="text-base md:text-xl font-extrabold text-[var(--app-heading)] tracking-tight">
-              {isEdit ? 'Edit Ledger Group Master' : 'Create Ledger Group Master'}
+            <h1 className="text-base font-extrabold text-[var(--app-heading)] tracking-tight">
+              {isEdit ? `Edit: ${formData.groupName || 'Group'}` : 'Create Ledger Group'}
             </h1>
           </div>
         </div>
 
-        {/* Header Action Controls */}
-        <div className="flex items-center gap-2.5">
-          <button
-            type="button"
-            onClick={() => setShowConfigModal(true)}
-            className="px-3.5 py-1.5 rounded-lg border border-[var(--app-accent-soft)] bg-[var(--app-accent-soft)] text-[var(--app-accent)] hover:opacity-90 transition-all text-xs font-bold flex items-center gap-1.5 shadow-2xs"
-            title="Configure visible form sections and settings"
-          >
-            <Settings size={14} />
-            <span>Configure Form</span>
-          </button>
+        <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={onClose}
@@ -222,7 +242,7 @@ export default function LedgerGroupMasterForm({
           <button
             type="button"
             onClick={handleSubmit}
-            className="px-4 py-1.5 rounded-lg bg-[var(--app-accent)] text-white text-xs font-bold shadow-xs hover:opacity-90 transition-all flex items-center gap-1.5"
+            className="px-4 py-1.5 rounded-lg bg-[var(--app-accent)] text-white text-xs font-bold shadow-xs hover:opacity-90 transition-all flex items-center gap-1.5 cursor-pointer"
           >
             <CheckCircle2 size={14} />
             <span>{isEdit ? 'Update Group' : 'Save Group'}</span>
@@ -230,206 +250,144 @@ export default function LedgerGroupMasterForm({
         </div>
       </div>
 
-      {/* 2. Full Width Form Body */}
-      <div className="flex-1 overflow-y-auto no-scrollbar p-6 w-full space-y-5">
-        
-        {/* BASIC GROUP DETAILS */}
-        <div className="rounded-2xl border border-[var(--app-border)] bg-[var(--app-panel-bg)] p-5 shadow-xs space-y-4">
-          <div className="flex items-center justify-between border-b border-[var(--app-border)] pb-2.5">
-            <div className="flex items-center gap-2 text-[var(--app-accent)] font-bold text-xs uppercase tracking-wider">
+      {/* 2. Simple Tally-Style Form Container */}
+      <div className="flex-1 overflow-y-auto p-4 md:p-6 flex justify-center">
+        <form onSubmit={handleSubmit} className="w-full max-w-xl space-y-4">
+          
+          <div className="rounded-xl border border-[var(--app-border)] bg-[var(--app-panel-bg)] p-4 md:p-5 shadow-xs space-y-4">
+            <div className="flex items-center gap-2 border-b border-[var(--app-border)] pb-2.5 text-[var(--app-accent)] font-bold text-xs uppercase tracking-wider">
               <Layers size={15} />
-              <span>BASIC GROUP IDENTIFICATION</span>
+              <span>Group Details</span>
             </div>
-            <span className="text-[10px] font-semibold text-[var(--app-muted)]">* Required fields</span>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
-            {/* Group Name * */}
-            <div className="md:col-span-2 space-y-1">
+            {/* Field 1: Group Name * */}
+            <div className="space-y-1">
               <label className="block text-[10px] font-extrabold uppercase tracking-wider text-[var(--app-muted)]">
-                Ledger Group Name <span className="text-red-500">*</span>
+                Group Name <span className="text-rose-500">*</span>
               </label>
               <input
                 autoFocus
                 type="text"
-                name="groupName"
                 value={formData.groupName}
-                onChange={handleChange}
-                placeholder="e.g. Sundry Debtors, Direct Expenses, Bank Accounts"
-                className={`w-full h-9.5 rounded-lg border bg-[var(--app-control-bg)] px-3 text-xs font-semibold text-[var(--app-heading)] outline-none transition-all ${
+                onChange={(e) => updateField('groupName', e.target.value)}
+                placeholder="e.g. Trade Debtors, Office Expenses, Current Assets"
+                className={`w-full h-9 rounded-lg border bg-[var(--app-control-bg)] px-3 text-xs font-semibold text-[var(--app-heading)] outline-none transition-all ${
                   errors.groupName 
-                    ? 'border-red-500 focus:border-red-500 ring-1 ring-red-500/20' 
+                    ? 'border-rose-500 focus:border-rose-500 ring-1 ring-rose-500/20' 
                     : 'border-[var(--app-border)] focus:border-[var(--app-accent)]'
                 }`}
               />
               {errors.groupName && (
-                <p className="text-[10px] font-bold text-red-500 mt-0.5">{errors.groupName}</p>
+                <p className="text-[10px] font-bold text-rose-500 mt-0.5">{errors.groupName}</p>
               )}
             </div>
 
-            {/* Group Code */}
+            {/* Field 2: Group Type */}
             <div className="space-y-1">
               <label className="block text-[10px] font-extrabold uppercase tracking-wider text-[var(--app-muted)]">
-                Group Code
+                Group Type <span className="text-rose-500">*</span>
               </label>
-              <input
-                type="text"
-                name="groupCode"
-                value={formData.groupCode}
-                onChange={handleChange}
-                placeholder="e.g. GRP-0001"
-                className="w-full h-9.5 rounded-lg border border-[var(--app-border)] bg-[var(--app-control-bg)] px-3 text-xs font-mono font-bold text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)]"
-              />
+              <div className="h-9 flex rounded-lg border border-[var(--app-border)] bg-[var(--app-control-bg)] p-0.5">
+                <button
+                  type="button"
+                  onClick={() => handleGroupTypeChange('Primary')}
+                  className={`flex-1 rounded-md text-xs font-bold transition-all ${
+                    formData.groupType === 'Primary'
+                      ? 'bg-[var(--app-accent)] text-white shadow-xs'
+                      : 'text-[var(--app-muted)] hover:text-[var(--app-heading)]'
+                  }`}
+                >
+                  Primary Group
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleGroupTypeChange('Sub Group')}
+                  className={`flex-1 rounded-md text-xs font-bold transition-all ${
+                    formData.groupType === 'Sub Group'
+                      ? 'bg-[var(--app-accent)] text-white shadow-xs'
+                      : 'text-[var(--app-muted)] hover:text-[var(--app-heading)]'
+                  }`}
+                >
+                  Sub Group
+                </button>
+              </div>
             </div>
 
-            {/* Status */}
+            {/* Field 3: Under / Parent Group * */}
+            <div className="space-y-1">
+              <label className="block text-[10px] font-extrabold uppercase tracking-wider text-[var(--app-muted)] flex items-center justify-between">
+                <span>Parent Group {formData.groupType === 'Sub Group' && <span className="text-rose-500">*</span>}</span>
+                {formData.groupType === 'Primary' && (
+                  <span className="text-[9px] text-[var(--app-muted)] font-semibold">(Primary Root Group)</span>
+                )}
+              </label>
+              
+              {formData.groupType === 'Primary' ? (
+                <input
+                  type="text"
+                  disabled
+                  value="Primary (Root Category)"
+                  className="w-full h-9 rounded-lg border border-[var(--app-border)] bg-[var(--app-control-bg)]/50 px-3 text-xs font-bold text-[var(--app-muted)] cursor-not-allowed"
+                />
+              ) : (
+                <select
+                  value={formData.parentGroup}
+                  onChange={(e) => updateField('parentGroup', e.target.value)}
+                  className={`w-full h-9 rounded-lg border bg-[var(--app-control-bg)] px-2.5 text-xs font-bold text-[var(--app-heading)] outline-none cursor-pointer transition-all ${
+                    errors.parentGroup
+                      ? 'border-rose-500 focus:border-rose-500 ring-1 ring-rose-500/20'
+                      : 'border-[var(--app-border)] focus:border-[var(--app-accent)]'
+                  }`}
+                >
+                  <option value="">-- Select Parent Group --</option>
+                  {parentGroupOptions.map(p => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
+              )}
+              {errors.parentGroup && (
+                <p className="text-[10px] font-bold text-rose-500 mt-0.5">{errors.parentGroup}</p>
+              )}
+            </div>
+
+            {/* Field 4: Nature of Group * */}
+            <div className="space-y-1">
+              <label className="block text-[10px] font-extrabold uppercase tracking-wider text-[var(--app-muted)]">
+                Group Classification <span className="text-rose-500">*</span>
+              </label>
+              <select
+                value={formData.natureOfGroup}
+                onChange={(e) => updateField('natureOfGroup', e.target.value)}
+                className="w-full h-9 rounded-lg border border-[var(--app-border)] bg-[var(--app-control-bg)] px-2.5 text-xs font-bold text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)] cursor-pointer"
+              >
+                <option value="Assets">Assets</option>
+                <option value="Liabilities">Liabilities</option>
+                <option value="Income">Income</option>
+                <option value="Expenses">Expenses</option>
+              </select>
+            </div>
+
+            {/* Field 5: Status */}
             <div className="space-y-1">
               <label className="block text-[10px] font-extrabold uppercase tracking-wider text-[var(--app-muted)]">
                 Status
               </label>
               <select
-                name="status"
                 value={formData.status}
-                onChange={handleChange}
-                className="w-full h-9.5 rounded-lg border border-[var(--app-border)] bg-[var(--app-control-bg)] px-2.5 text-xs font-bold text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)]"
+                onChange={(e) => updateField('status', e.target.value)}
+                className="w-full h-9 rounded-lg border border-[var(--app-border)] bg-[var(--app-control-bg)] px-2.5 text-xs font-bold text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)] cursor-pointer"
               >
-                <option value="ACTIVE">ACTIVE</option>
-                <option value="INACTIVE">INACTIVE</option>
-              </select>
-            </div>
-
-            {/* Parent Group */}
-            <div className="md:col-span-4 space-y-1">
-              <label className="block text-[10px] font-extrabold uppercase tracking-wider text-[var(--app-muted)]">
-                Under / Parent Group
-              </label>
-              <select
-                name="parentGroup"
-                value={formData.parentGroup}
-                onChange={handleChange}
-                className="w-full h-9.5 rounded-lg border border-[var(--app-border)] bg-[var(--app-control-bg)] px-2.5 text-xs font-semibold text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)]"
-              >
-                <option value="Primary / Root Group">Primary / Root Group</option>
-                {ledgerGroupsList.map(g => {
-                  const gName = g.groupName || g.name || g;
-                  return <option key={gName} value={gName}>{gName}</option>;
-                })}
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
               </select>
             </div>
           </div>
-        </div>
 
-        {/* ACCOUNTING NATURE (Rendered if active in Configure Form) */}
-        {config.cfgGroupNature && (
-          <div className="rounded-2xl border border-[var(--app-border)] bg-[var(--app-panel-bg)] p-5 shadow-xs space-y-4 animate-in fade-in duration-300">
-            <div className="flex items-center justify-between border-b border-[var(--app-border)] pb-2.5">
-              <div className="flex items-center gap-2 text-[var(--app-accent)] font-bold text-xs uppercase tracking-wider">
-                <Layers size={15} />
-                <span>ACCOUNTING NATURE & CLASSIFICATION</span>
-              </div>
-              <span className="text-[10px] font-medium text-[var(--app-muted)]">Financial Statement Mapping</span>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-              {/* Classification */}
-              <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <label className="block text-[10px] font-extrabold uppercase tracking-wider text-[var(--app-muted)]">
-                    Primary Classification
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setShowAddCustomClass(p => !p)}
-                    className="text-[10px] font-bold text-[var(--app-accent)] hover:underline"
-                  >
-                    + Add Custom
-                  </button>
-                </div>
-
-                {showAddCustomClass ? (
-                  <div className="flex items-center gap-2 pt-1">
-                    <input
-                      type="text"
-                      value={newCustomClassInput}
-                      onChange={(e) => setNewCustomClassInput(e.target.value)}
-                      placeholder="e.g. LIQUID_FUNDS"
-                      className="w-full h-8 rounded border border-[var(--app-border)] px-2 text-xs font-bold text-[var(--app-heading)]"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleAddCustomClassification}
-                      className="px-2.5 py-1 rounded bg-[var(--app-accent)] text-white text-xs font-bold"
-                    >
-                      Add
-                    </button>
-                  </div>
-                ) : (
-                  <select
-                    name="classification"
-                    value={formData.classification}
-                    onChange={handleChange}
-                    className="w-full h-9.5 rounded-lg border border-[var(--app-border)] bg-[var(--app-control-bg)] px-2.5 text-xs font-bold text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)]"
-                  >
-                    {customClassifications.map(c => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
-                )}
-              </div>
-
-              {/* Sub Type */}
-              <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <label className="block text-[10px] font-extrabold uppercase tracking-wider text-[var(--app-muted)]">
-                    Sub Type
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setShowAddCustomSubType(p => !p)}
-                    className="text-[10px] font-bold text-[var(--app-accent)] hover:underline"
-                  >
-                    + Add Custom
-                  </button>
-                </div>
-
-                {showAddCustomSubType ? (
-                  <div className="flex items-center gap-2 pt-1">
-                    <input
-                      type="text"
-                      value={newCustomSubTypeInput}
-                      onChange={(e) => setNewCustomSubTypeInput(e.target.value)}
-                      placeholder="e.g. OPERATING_EXPENSES"
-                      className="w-full h-8 rounded border border-[var(--app-border)] px-2 text-xs font-bold text-[var(--app-heading)]"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleAddCustomSubType}
-                      className="px-2.5 py-1 rounded bg-[var(--app-accent)] text-white text-xs font-bold"
-                    >
-                      Add
-                    </button>
-                  </div>
-                ) : (
-                  <select
-                    name="subType"
-                    value={formData.subType}
-                    onChange={handleChange}
-                    className="w-full h-9.5 rounded-lg border border-[var(--app-border)] bg-[var(--app-control-bg)] px-2.5 text-xs font-semibold text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)]"
-                  >
-                    {customSubTypes.map(st => (
-                      <option key={st} value={st}>{st}</option>
-                    ))}
-                  </select>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
+        </form>
       </div>
 
-      {/* 3. Sticky Bottom Action Bar */}
-      <div className="shrink-0 px-6 py-3.5 border-t border-[var(--app-border)] bg-[var(--app-panel-bg)] flex items-center justify-between shadow-lg">
+      {/* 3. Sticky Action Bar */}
+      <div className="shrink-0 px-5 py-3 border-t border-[var(--app-border)] bg-[var(--app-panel-bg)] flex items-center justify-between shadow-lg">
         <button
           type="button"
           onClick={onClose}
@@ -441,72 +399,12 @@ export default function LedgerGroupMasterForm({
         <button
           type="button"
           onClick={handleSubmit}
-          className="px-5 py-2 rounded-lg bg-[var(--app-accent)] text-white text-xs font-bold shadow-sm hover:opacity-90 transition-all flex items-center gap-1.5"
+          className="px-5 py-2 rounded-lg bg-[var(--app-accent)] text-white text-xs font-bold shadow-sm hover:opacity-90 transition-all flex items-center gap-1.5 cursor-pointer"
         >
           <CheckCircle2 size={14} />
           <span>{isEdit ? 'Update Group' : 'Save Group'}</span>
         </button>
       </div>
-
-      {/* 4. CONFIGURE FORM MODAL DIALOG */}
-      {showConfigModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-md rounded-2xl border border-[var(--app-border)] bg-[var(--app-panel-bg)] p-5 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-[var(--app-border)] pb-3">
-              <div className="flex items-center gap-2 text-[var(--app-heading)] font-extrabold text-sm">
-                <Settings size={16} className="text-[var(--app-accent)]" />
-                <span>Configure Ledger Group Form</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowConfigModal(false)}
-                className="p-1 rounded-lg border border-[var(--app-border)] hover:bg-[var(--app-control-hover)] text-[var(--app-muted)] hover:text-[var(--app-heading)]"
-              >
-                <X size={15} />
-              </button>
-            </div>
-
-            <p className="text-xs text-[var(--app-muted)]">
-              Enable or disable optional form sections. Active items will render directly on the form UI.
-            </p>
-
-            <div className="space-y-2 text-xs">
-              <label className="flex items-center justify-between p-2.5 rounded-xl border border-[var(--app-border)] bg-[var(--app-control-bg)] hover:bg-[var(--app-control-hover)] cursor-pointer">
-                <span className="font-semibold text-[var(--app-heading)]">Accounting Nature & Classification</span>
-                <input
-                  type="checkbox"
-                  checked={config.cfgGroupNature}
-                  onChange={(e) => setConfig(prev => ({ ...prev, cfgGroupNature: e.target.checked }))}
-                  className="w-4 h-4 rounded accent-[var(--app-accent)]"
-                />
-              </label>
-
-              <label className="flex items-center justify-between p-2.5 rounded-xl border border-[var(--app-border)] bg-[var(--app-control-bg)] hover:bg-[var(--app-control-hover)] cursor-pointer">
-                <span className="font-semibold text-[var(--app-heading)]">Sub Type Selection</span>
-                <input
-                  type="checkbox"
-                  checked={config.cfgSubTypes}
-                  onChange={(e) => setConfig(prev => ({ ...prev, cfgSubTypes: e.target.checked }))}
-                  className="w-4 h-4 rounded accent-[var(--app-accent)]"
-                />
-              </label>
-            </div>
-
-            <div className="pt-3 border-t border-[var(--app-border)] flex justify-end">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowConfigModal(false);
-                  toast.success('Form settings updated successfully!');
-                }}
-                className="px-4 py-2 rounded-xl bg-[var(--app-accent)] text-white text-xs font-bold shadow-xs hover:opacity-90 transition-all"
-              >
-                Apply Settings
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
     </div>
   );

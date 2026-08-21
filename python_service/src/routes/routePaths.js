@@ -68,6 +68,7 @@ export const LABEL_TO_PATH = {
   // Company Management
   'Companies': '/admin/companies',
   'Clients': '/admin/clients',
+  'New Client': '/admin/clients/new',
 
   // Administration / Settings
   'User & Role Management': '/admin/users-roles',

@@ -266,9 +266,12 @@ const defaultMockOcrDocs = [
   }
 ];
 
+import bulkUploadApi from '../../services/bulkUploadApi';
+
 export default function ApprovalCenter() {
   const approvalCenterView = useAppStore((s) => s.approvalCenterView);
   const setApprovalCenterView = useAppStore((s) => s.setApprovalCenterView);
+  const selectedCompany = useAppStore((s) => s.selectedCompany);
   const currentView = approvalCenterView;
   const setCurrentView = setApprovalCenterView;
 
@@ -303,7 +306,7 @@ export default function ApprovalCenter() {
 
     return {
       id: v._id || v.id,
-      voucherNumber: v.invoiceNumber || v.voucherNumber || 'SI-' + (v._id || v.id).slice(-4).toUpperCase(),
+      voucherNumber: v.invoiceNumber || v.voucherNumber || 'SI-' + String(v._id || v.id).slice(-4).toUpperCase(),
       date: v.invoiceDate || v.voucherDate || v.createdAt || '—',
       company: v.partyLedger || v.partyLedgerName || '—',
       type: typeLabel,
@@ -324,7 +327,7 @@ export default function ApprovalCenter() {
 
     return {
       id: v._id || v.id,
-      voucherNumber: v.invoiceNumber || v.voucherNumber || 'PI-' + (v._id || v.id).slice(-4).toUpperCase(),
+      voucherNumber: v.invoiceNumber || v.voucherNumber || 'PI-' + String(v._id || v.id).slice(-4).toUpperCase(),
       date: v.invoiceDate || v.voucherDate || v.createdAt || '—',
       company: v.partyLedger || v.partyLedgerName || '—',
       type: typeLabel,
@@ -345,7 +348,7 @@ export default function ApprovalCenter() {
 
     return {
       id: v._id || v.id,
-      voucherNumber: v.voucherNumber || 'FF-' + (v._id || v.id).slice(-4).toUpperCase(),
+      voucherNumber: v.voucherNumber || 'FF-' + String(v._id || v.id).slice(-4).toUpperCase(),
       date: v.voucherDate || v.createdAt || '—',
       company: v.partyLedger || v.partyLedgerName || v.destinationLedger || '—',
       type: typeLabel,
@@ -362,11 +365,12 @@ export default function ApprovalCenter() {
   const loadAllData = async () => {
     setLoading(true);
     try {
-      // 1. Fetch Manual Entries
-      const [salesRes, purchaseRes, fundflowRes] = await Promise.all([
+      // 1. Fetch Manual Entries for Active Company
+      const [salesRes, purchaseRes, fundflowRes, bulkRes] = await Promise.all([
         salesApi.list({ limit: 150 }).catch(() => ({ data: [] })),
         purchaseApi.list({ limit: 150 }).catch(() => ({ data: [] })),
-        fundflowApi.list({ limit: 150 }).catch(() => ({ data: [] }))
+        fundflowApi.list({ limit: 150 }).catch(() => ({ data: [] })),
+        bulkUploadApi.listUploads().catch(() => ({ success: false, documents: [] }))
       ]);
 
       const mappedSales = (salesRes.data || []).map(mapSalesVoucher);
@@ -374,119 +378,65 @@ export default function ApprovalCenter() {
       const mappedFF = (fundflowRes.data || []).map(mapFundFlowVoucher);
 
       let manualEntries = [...mappedSales, ...mappedPurchase, ...mappedFF];
-      if (manualEntries.length === 0) {
-        manualEntries = defaultMockManualEntries;
-      }
       // Filter out Draft status from manual entries in approval list
       manualEntries = manualEntries.filter(e => e.status !== 'Draft');
 
-      // 2. Fetch Bulk Upload Batches
+      // 2. Fetch Bulk & OCR Upload Documents for Active Company
       let bulkEntries = [];
-      const savedBulk = localStorage.getItem('fb_bulk_batches');
-      if (savedBulk) {
-        try {
-          const parsed = JSON.parse(savedBulk);
-          bulkEntries = parsed.map(b => {
-            const batchAmount = b.records?.reduce((acc, r) => acc + (parseFloat(r.totalAmount) || 0), 0) || 0;
-            const statusVal = (b.status || 'Pending Approval').toLowerCase();
-            return {
-              id: b.id,
-              voucherNumber: b.id,
-              date: b.uploadDate || '—',
-              company: b.filename,
-              type: 'Bulk Batch',
-              amount: batchAmount,
-              status: statusVal === 'approved' ? 'Approved' : (statusVal.includes('post') || statusVal.includes('sync') ? 'Posted To Tally' : (statusVal.includes('reject') || statusVal.includes('fail') ? 'Rejected' : 'Pending Approval')),
-              confidence: 100,
-              statusText: statusVal === 'approved' ? 'Approved' : (statusVal.includes('post') || statusVal.includes('sync') ? 'Synced' : (statusVal.includes('reject') || statusVal.includes('fail') ? 'Rejected' : 'Ready to Post')),
-              source: 'Bulk Upload',
-              raw: b
-            };
-          });
-        } catch (e) {
-          console.error(e);
-        }
-      } else {
-        bulkEntries = defaultMockBulkBatches.map(b => {
-          const batchAmount = b.records?.reduce((acc, r) => acc + (parseFloat(r.totalAmount) || 0), 0) || 0;
-          const statusVal = (b.status || 'Pending Approval').toLowerCase();
-          return {
-            id: b.id,
-            voucherNumber: b.id,
-            date: b.uploadDate,
-            company: b.filename,
-            type: 'Bulk Batch',
-            amount: batchAmount,
-            status: statusVal === 'approved' ? 'Approved' : (statusVal.includes('post') || statusVal.includes('sync') ? 'Posted To Tally' : (statusVal.includes('reject') || statusVal.includes('fail') ? 'Rejected' : 'Pending Approval')),
-            confidence: 100,
-            statusText: statusVal === 'approved' ? 'Approved' : (statusVal.includes('post') || statusVal.includes('sync') ? 'Synced' : (statusVal.includes('reject') || statusVal.includes('fail') ? 'Rejected' : 'Ready to Post')),
-            source: 'Bulk Upload',
-            raw: b
-          };
-        });
-      }
-
-      // 3. Fetch OCR Upload Documents
       let ocrEntries = [];
-      const savedOcr = localStorage.getItem('fb_ocr_documents');
-      if (savedOcr) {
-        try {
-          const parsed = JSON.parse(savedOcr);
-          ocrEntries = parsed.map(doc => {
-            const statusVal = (doc.status || 'Pending Approval').toLowerCase();
-            return {
-              id: doc.id,
-              voucherNumber: doc.docNo || 'OCR-' + doc.id.slice(-4).toUpperCase(),
-              date: doc.docDate || doc.uploadDate || '—',
-              company: doc.vendor || '—',
-              type: doc.category || 'OCR Document',
-              amount: parseFloat(doc.amount) || 0,
-              status: statusVal === 'approved' ? 'Approved' : (statusVal.includes('post') || statusVal.includes('sync') || statusVal === 'posted' ? 'Posted To Tally' : (statusVal.includes('reject') || statusVal.includes('fail') ? 'Rejected' : 'Pending Approval')),
-              confidence: doc.confidence || 95,
-              statusText: statusVal === 'approved' ? 'Approved' : (statusVal.includes('post') || statusVal.includes('sync') || statusVal === 'posted' ? 'Synced' : (statusVal.includes('reject') || statusVal.includes('fail') ? 'Rejected' : 'Ready to Post')),
-              source: 'OCR Upload',
-              raw: doc
-            };
-          });
-        } catch (e) {
-          console.error(e);
-        }
-      } else {
-        ocrEntries = defaultMockOcrDocs.map(doc => {
+
+      if (bulkRes && bulkRes.success && Array.isArray(bulkRes.documents)) {
+        bulkRes.documents.forEach(doc => {
           const statusVal = (doc.status || 'Pending Approval').toLowerCase();
-          return {
-            id: doc.id,
-            voucherNumber: doc.docNo || 'OCR-' + doc.id.slice(-4).toUpperCase(),
-            date: doc.docDate || doc.uploadDate || '—',
-            company: doc.vendor || '—',
-            type: doc.category || 'OCR Document',
-            amount: parseFloat(doc.amount) || 0,
+          const mappedItem = {
+            id: doc.id || doc.uploadId,
+            voucherNumber: doc.name || doc.uploadId || 'DOC-2026',
+            date: doc.uploadedOn || '—',
+            company: doc.extractedData?.vendorName || doc.name || '—',
+            type: doc.type || 'Document',
+            amount: parseFloat(doc.extractedData?.totalAmount || doc.amount) || 0,
             status: statusVal === 'approved' ? 'Approved' : (statusVal.includes('post') || statusVal.includes('sync') || statusVal === 'posted' ? 'Posted To Tally' : (statusVal.includes('reject') || statusVal.includes('fail') ? 'Rejected' : 'Pending Approval')),
             confidence: doc.confidence || 95,
             statusText: statusVal === 'approved' ? 'Approved' : (statusVal.includes('post') || statusVal.includes('sync') || statusVal === 'posted' ? 'Synced' : (statusVal.includes('reject') || statusVal.includes('fail') ? 'Rejected' : 'Ready to Post')),
-            source: 'OCR Upload',
+            source: doc.source === 'OCR Upload' ? 'OCR Upload' : 'Bulk Upload',
             raw: doc
           };
+
+          if (doc.source === 'OCR Upload') {
+            ocrEntries.push(mappedItem);
+          } else {
+            bulkEntries.push(mappedItem);
+          }
         });
       }
 
       const allMerged = [...manualEntries, ...bulkEntries, ...ocrEntries];
       setEntries(allMerged);
 
-      // Default the selected entry if it's empty
-      if (!selectedEntryId && allMerged.length > 0) {
+      if (allMerged.length > 0) {
         setSelectedEntryId(allMerged[0].id);
+      } else {
+        setSelectedEntryId('');
       }
     } catch (e) {
       console.error('Error fetching approval center entries', e);
+      setEntries([]);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    localStorage.removeItem('fb_bulk_batches');
+    localStorage.removeItem('fb_ocr_documents');
     loadAllData();
-  }, []);
+
+    const handleCompanyChange = () => loadAllData();
+    window.addEventListener('company-changed', handleCompanyChange);
+    return () => {
+      window.removeEventListener('company-changed', handleCompanyChange);
+    };
+  }, [selectedCompany]);
 
   const selectedEntry = entries.find(e => e.id === selectedEntryId) || null;
 

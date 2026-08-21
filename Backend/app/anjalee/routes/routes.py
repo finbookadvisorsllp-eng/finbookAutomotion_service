@@ -57,6 +57,9 @@ api_router.include_router(ledgers.router)
 from . import masters
 api_router.include_router(masters.router)
 
+from . import clients
+api_router.include_router(clients.router)
+
 api_router.include_router(protected_router)
 
 

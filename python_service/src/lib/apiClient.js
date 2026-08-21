@@ -63,15 +63,21 @@ apiClient.interceptors.request.use(
     }
 
     // Attach selected company as header for multi-tenant scoping
-
-    const company = useAppStore.getState().selectedCompany;
-    if (company) {
-      config.headers['X-Company-Id'] = company;
+    let companyRaw = useAppStore.getState().selectedCompany || localStorage.getItem('selectedCompanyId') || localStorage.getItem('activeCompany') || localStorage.getItem('companyId') || localStorage.getItem('orgId');
+    let companyIdStr = '';
+    if (typeof companyRaw === 'object' && companyRaw !== null) {
+      companyIdStr = companyRaw._id || companyRaw.id || companyRaw.companyId || companyRaw.orgId || '';
+    } else if (typeof companyRaw === 'string') {
+      companyIdStr = companyRaw.trim();
+    }
+    if (companyIdStr && companyIdStr !== '[object Object]') {
+      config.headers['X-Company-Id'] = companyIdStr;
+      config.headers['x-company-id'] = companyIdStr;
     }
 
     // Also attach Organization ID header for new IAM model
-    const orgId = useAppStore.getState().orgId;
-    if (orgId) {
+    const orgId = useAppStore.getState().orgId || localStorage.getItem('orgId') || companyIdStr;
+    if (orgId && typeof orgId === 'string' && orgId !== '[object Object]') {
       config.headers['X-Org-Id'] = orgId;
     }
 
@@ -93,17 +99,19 @@ apiClient.interceptors.response.use(
       const refreshToken = useAppStore.getState().refreshToken;
 
       if (!refreshToken) {
-        useAppStore.getState().logout();
-        window.location.href = '/login';
+        // Do not force logout unless user explicitly clicks logout
         return Promise.reject(error);
       }
 
       if (!isRefreshing) {
         isRefreshing = true;
+        const refreshEndpoint = BASE_URL.includes('/api/v2')
+          ? BASE_URL.replace('/api/v2', '/api/auth/refresh-token')
+          : `${BASE_URL}/auth/refresh-token`;
 
         // Perform token refresh using a clean axios instance to bypass interceptors
         axios
-          .post(`${BASE_URL}/auth/refresh-token`, { refreshToken })
+          .post(refreshEndpoint, { refreshToken })
           .then((res) => {
             const { token: newAccessToken } = res.data.data;
             const claims = parseJwt(newAccessToken);
@@ -124,8 +132,7 @@ apiClient.interceptors.response.use(
           })
           .catch((err) => {
             isRefreshing = false;
-            useAppStore.getState().logout();
-            window.location.href = '/login';
+            // Prevent forced logout on transient network error or 401; user stays logged in!
             return Promise.reject(err);
           });
       }

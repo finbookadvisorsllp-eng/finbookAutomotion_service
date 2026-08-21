@@ -88,8 +88,8 @@ class Settings:
     # Shared IAM Authentication settings
     IAM_DB_NAME: str = os.getenv("IAM_DB_NAME") or "iam"
     JWT_SECRET: str = os.getenv("JWT_SECRET") or "finbook-shared-secret-key-39281a8b3d0"
-    JWT_EXPIRE_MINUTES: int = int(os.getenv("JWT_EXPIRE_MINUTES") or "60")
-    JWT_REFRESH_EXPIRE_MINUTES: int = int(os.getenv("JWT_REFRESH_EXPIRE_MINUTES") or "10080")
+    JWT_EXPIRE_MINUTES: int = int(os.getenv("JWT_EXPIRE_MINUTES") or "525600")
+    JWT_REFRESH_EXPIRE_MINUTES: int = int(os.getenv("JWT_REFRESH_EXPIRE_MINUTES") or "525600")
 
     # AI LLM settings
     NVIDIA_API_KEY: str = os.getenv("NVIDIA_API_KEY")

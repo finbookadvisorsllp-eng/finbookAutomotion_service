@@ -6,6 +6,62 @@ from app.anjalee.constants.business_constants import COUNTERS_COLLECTION, COMPAN
 
 SALES_VOUCHERS_COLLECTION = "sales_vouchers"
 
+def build_company_id_query(company_id: Optional[Any], db: Optional[Any] = None) -> dict:
+    if not company_id:
+        return {}
+    raw_str = str(company_id).strip()
+    match_set = {raw_str}
+    
+    if len(raw_str) == 24:
+        try:
+            match_set.add(ObjectId(raw_str))
+        except Exception:
+            pass
+
+    if db is not None:
+        try:
+            query_or = []
+            if len(raw_str) == 24 and ObjectId.is_valid(raw_str):
+                query_or.append({"_id": ObjectId(raw_str)})
+            query_or.extend([
+                {"_id": raw_str},
+                {"companyName": raw_str},
+                {"basicCompantFormalName": raw_str},
+                {"name": raw_str}
+            ])
+            for c in db["companies"].find({"$or": query_or}):
+                if c.get("_id"):
+                    match_set.add(c["_id"])
+                    match_set.add(str(c["_id"]))
+                name = c.get("companyName") or c.get("basicCompantFormalName") or c.get("name")
+                if name:
+                    match_set.add(name)
+        except Exception:
+            pass
+
+        try:
+            query_or = []
+            if len(raw_str) == 24 and ObjectId.is_valid(raw_str):
+                query_or.append({"_id": ObjectId(raw_str)})
+            query_or.extend([
+                {"_id": raw_str},
+                {"displayName": raw_str},
+                {"name": raw_str},
+                {"companyName": raw_str}
+            ])
+            for o in db["organizations"].find({"$or": query_or}):
+                if o.get("_id"):
+                    match_set.add(o["_id"])
+                    match_set.add(str(o["_id"]))
+                name = o.get("displayName") or o.get("name") or o.get("companyName")
+                if name:
+                    match_set.add(name)
+        except Exception:
+            pass
+
+    match_list = list(match_set)
+    return {"$or": [{"companyId": {"$in": match_list}}, {"orgId": {"$in": match_list}}]}
+
 class SalesVoucherRepository:
     def __init__(self, db):
         self.db = db
@@ -169,31 +225,43 @@ class SalesVoucherRepository:
         return {"id": "", "name": str(party_ledger_id_or_name), "gstin": "", "gstState": "", "registrationType": "Consumer"}
 
     async def get_party_ledgers(self, company_id: Optional[str] = None) -> List[Dict[str, Any]]:
-        party_groups = ["Sundry Debtors", "Sundry Creditors"]
-        query = {"groupName": {"$in": party_groups}}
-        
-        comp = None
-        if company_id:
-            if len(company_id) == 24:
-                try:
-                    comp = await self.db[COMPANIES_COLLECTION].find_one({"_id": ObjectId(company_id)})
-                except Exception:
-                    pass
-            if not comp:
-                comp = await self.db[COMPANIES_COLLECTION].find_one({
-                    "$or": [
-                        {"companyName": company_id},
-                        {"basicCompantFormalName": company_id}
-                    ]
-                })
-        
-        if not comp:
-            comp = await self.db[COMPANIES_COLLECTION].find_one()
+        comp_q = build_company_id_query(company_id, self.db)
+        query = comp_q if comp_q else {}
 
-        if comp:
-            query["companyId"] = comp["_id"]
-        cursor = self.db[LEDGERS_COLLECTION].find(query)
-        ledgers = await cursor.to_list(length=1000)
+        main_cursor = self.db[LEDGERS_COLLECTION].find(query)
+        entry_cursor = self.db["ledgers_entry"].find(query)
+        main_ledgers = await main_cursor.to_list(length=None)
+        entry_ledgers = await entry_cursor.to_list(length=None)
+        all_docs = entry_ledgers + main_ledgers
+
+        if not all_docs:
+            main_ledgers = await self.db[LEDGERS_COLLECTION].find({}).to_list(length=None)
+            entry_ledgers = await self.db["ledgers_entry"].find({}).to_list(length=None)
+            all_docs = entry_ledgers + main_ledgers
+
+        party_groups = {"sundry debtors", "sundry creditors", "debtors", "creditors", "cash-in-hand", "bank accounts", "bank od a/c"}
+        ledgers = []
+        for d in all_docs:
+            g_name = (d.get("groupName") or "").lower().strip()
+            g_path = (d.get("groupPath") or "").lower()
+            l_type = (d.get("ledgerType") or "").lower()
+            pd = d.get("partyDetails") or {}
+
+            is_party = (
+                g_name in party_groups
+                or "sundry debtors" in g_path
+                or "sundry creditors" in g_path
+                or "debtors" in g_path
+                or "creditors" in g_path
+                or "debtor" in l_type
+                or "creditor" in l_type
+                or bool(pd.get("gstin"))
+            )
+            if is_party:
+                ledgers.append(d)
+
+        if len(ledgers) < 5:
+            ledgers = all_docs
         
         # 1. Identify ledger names that need GST/registration type fallback
         names_needing_fallback = []
@@ -228,8 +296,12 @@ class SalesVoucherRepository:
 
         # 3. Assemble results using the lookup map in memory
         results = []
+        seen_names = set()
         for l in ledgers:
             ledger_name = l.get("ledgerName", "")
+            if not ledger_name or ledger_name in seen_names:
+                continue
+            seen_names.add(ledger_name)
             pd = l.get("partyDetails") or {}
             gstin = pd.get("gstin") or l.get("gstin") or ""
             gst_state = pd.get("gstState") or ""
@@ -269,39 +341,32 @@ class SalesVoucherRepository:
         return results
 
     async def get_sales_ledgers(self, company_id: Optional[str] = None) -> List[Dict[str, Any]]:
-        query = {"groupName": "Sales Accounts"}
-        
-        comp = None
-        if company_id:
-            if len(company_id) == 24:
-                try:
-                    comp = await self.db[COMPANIES_COLLECTION].find_one({"_id": ObjectId(company_id)})
-                except Exception:
-                    pass
-            if not comp:
-                comp = await self.db[COMPANIES_COLLECTION].find_one({
-                    "$or": [
-                        {"companyName": company_id},
-                        {"basicCompantFormalName": company_id}
-                    ]
-                })
-        
-        if not comp:
-            comp = await self.db[COMPANIES_COLLECTION].find_one()
+        comp_q = build_company_id_query(company_id, self.db)
+        query = comp_q if comp_q else {}
 
-        if comp:
-            query["companyId"] = comp["_id"]
-
-        cursor = self.db[LEDGERS_COLLECTION].find(query)
-        ledgers = await cursor.to_list(length=1000)
+        main_cursor = self.db[LEDGERS_COLLECTION].find(query)
+        entry_cursor = self.db["ledgers_entry"].find(query)
+        main_ledgers = await main_cursor.to_list(length=None)
+        entry_ledgers = await entry_cursor.to_list(length=None)
+        all_docs = entry_ledgers + main_ledgers
         
+        sales_ledgers = [
+            d for d in all_docs
+            if "sales" in (d.get("groupName") or "").lower() or "sales" in (d.get("groupPath") or "").lower() or "revenue" in (d.get("groupPath") or "").lower() or "income" in (d.get("groupPath") or "").lower()
+        ]
+        if not sales_ledgers:
+            sales_ledgers = all_docs
+
         import re
         slab_re = re.compile(r"(\d+(?:\.\d+)?)\s*%")
         
         results = []
-        for l in ledgers:
+        seen_names = set()
+        for l in sales_ledgers:
             name = l.get("ledgerName", "")
-            # Extract GST rate
+            if not name or name in seen_names:
+                continue
+            seen_names.add(name)
             m = slab_re.search(name)
             rate = float(m.group(1)) if m else 0.0
             gst_applicable = True
@@ -319,38 +384,23 @@ class SalesVoucherRepository:
     async def get_stock_items(self, company_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """Fetch stock items with name and HSN code from hsnSacDetails.hsnCode field, scoped by company."""
         try:
-            query = {}
-            comp = None
-            if company_id:
-                if len(company_id) == 24:
-                    try:
-                        comp = await self.db[COMPANIES_COLLECTION].find_one({"_id": ObjectId(company_id)})
-                    except Exception:
-                        pass
-                if not comp:
-                    comp = await self.db[COMPANIES_COLLECTION].find_one({
-                        "$or": [
-                            {"companyName": company_id},
-                            {"basicCompantFormalName": company_id}
-                        ]
-                    })
-            
-            if not comp:
-                comp = await self.db[COMPANIES_COLLECTION].find_one()
+            comp_q = build_company_id_query(company_id, self.db)
+            query = comp_q if comp_q else {}
 
-            if comp:
-                query["companyId"] = comp["_id"]
+            projection = {
+                "itemName": 1, "hsnSacDetails": 1, "gstSettings": 1, "hsnCode": 1, "taxRate": 1,
+                "unit": 1, "unitOfMeasure": 1, "baseUnit": 1, "inventory": 1, "stockGroupName": 1, "auditInfo": 1, "isWebEntry": 1
+            }
+            main_docs = await self.db[STOCK_ITEMS_COLLECTION].find(query, projection).to_list(length=None)
+            entry_docs = await self.db["stockitems_entry"].find(query, projection).to_list(length=None)
+            for d in entry_docs:
+                d["isWebEntry"] = True
+            docs = entry_docs + main_docs
 
-            cursor = self.db[STOCK_ITEMS_COLLECTION].find(
-                query,
-                {"itemName": 1, "hsnSacDetails": 1, "gstSettings": 1, "hsnCode": 1, "taxRate": 1,
-                 "unit": 1, "unitOfMeasure": 1, "baseUnit": 1, "inventory": 1, "stockGroupName": 1, "auditInfo": 1}
-            )
-            docs = await cursor.to_list(length=2000)
             results = []
             for doc in docs:
                 try:
-                    name = doc.get("itemName", "")
+                    name = doc.get("itemName") or doc.get("name") or ""
                     if not name:
                         continue
                     # Primary: hsnSacDetails.hsnCode/hsn  Fallback: top-level hsnCode
@@ -401,16 +451,16 @@ class SalesVoucherRepository:
                         unit = doc.get("baseUnit") or doc.get("unitOfMeasure") or ""
 
                     try:
-                        qty = float(((doc.get("inventory") or {}).get("openingStock") or {}).get("quantity") or 0.0)
+                        qty = float(((doc.get("inventory") or {}).get("openingStock") or {}).get("quantity") or doc.get("qty") or 0.0)
                     except (ValueError, TypeError):
                         qty = 0.0
 
                     try:
-                        value = float(((doc.get("inventory") or {}).get("openingStock") or {}).get("value") or 0.0)
+                        value = float(((doc.get("inventory") or {}).get("openingStock") or {}).get("value") or doc.get("value") or 0.0)
                     except (ValueError, TypeError):
                         value = 0.0
 
-                    rate_raw = ((doc.get("inventory") or {}).get("openingStock") or {}).get("rate") or 0.0
+                    rate_raw = ((doc.get("inventory") or {}).get("openingStock") or {}).get("rate") or doc.get("rate") or 0.0
                     try:
                         rate = float(rate_raw)
                     except (ValueError, TypeError):
@@ -426,10 +476,10 @@ class SalesVoucherRepository:
 
                     if rate == 0.0 and qty > 0.0:
                         rate = round(value / qty, 2)
-                    group = doc.get("stockGroupName") or ""
+                    group = doc.get("stockGroupName") or doc.get("group") or ""
                     is_synced = doc.get("auditInfo", {}).get("syncedFromTally", False)
                     if is_synced is None:
-                        is_synced = False
+                        is_synced = not doc.get("isWebEntry", False)
 
                     results.append({
                         "name": name,
@@ -440,7 +490,9 @@ class SalesVoucherRepository:
                         "qty": qty,
                         "rate": rate,
                         "value": value,
-                        "isSynced": is_synced
+                        "isSynced": is_synced,
+                        "isWebEntry": bool(doc.get("isWebEntry", False)),
+                        "sourceCollection": "stockitems_entry" if doc.get("isWebEntry") else "stockItems"
                     })
                 except Exception as doc_err:
                     import logging

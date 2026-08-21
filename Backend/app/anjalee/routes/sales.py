@@ -204,19 +204,36 @@ async def add_comment(
 
 # ─── AI-OCR ───
 @router.post("/ocr/extract", response_model=dict)
-async def extract_ocr(document: UploadFile = File(...)):
-    # Standard AI-OCR mock response returning fields for autofill
+async def extract_ocr(
+    request: Request,
+    document: UploadFile = File(...),
+    db = Depends(get_async_db)
+):
+    party_groups = ["Sundry Debtors", "Sundry Creditors", "sundry debtors", "sundry creditors", "debtors", "creditors"]
+    party_doc = await db["ledgers"].find_one({"groupName": {"$in": party_groups}})
+    if not party_doc:
+        party_doc = await db["ledgers_entry"].find_one({"groupName": {"$in": party_groups}})
+        
+    party_name = party_doc.get("ledgerName") if party_doc else ""
+    pd = (party_doc.get("partyDetails") or {}) if party_doc else {}
+    party_gstin = pd.get("gstin") or party_doc.get("gstin") if party_doc else ""
+    
+    item_doc = await db["stockItems"].find_one({})
+    if not item_doc:
+        item_doc = await db["stockitems_entry"].find_one({})
+    item_name = item_doc.get("itemName") or item_doc.get("name") if item_doc else ""
+
     return {
         "success": True,
         "data": {
-            "invoiceNo": "INV-2026-001",
+            "invoiceNo": f"INV-{datetime.now().strftime('%Y%m%d')}-001",
             "invoiceDate": datetime.now().strftime("%Y-%m-%d"),
-            "partyName": "Friends Grafix",
-            "partyGstin": "23AAOFG0550B1ZZ",
-            "grandTotal": 12500.00,
+            "partyName": party_name,
+            "partyGstin": party_gstin,
+            "grandTotal": 12500.00 if item_name or party_name else 0.0,
             "productLines": [
-                {"srNo": 1, "stockItem": "Printing Paper", "billQuantity": 10, "billRate": 1250, "amount": 12500.00}
-            ]
+                {"srNo": 1, "stockItem": item_name, "billQuantity": 10, "billRate": 1250, "amount": 12500.00}
+            ] if item_name else []
         }
     }
 

@@ -63,6 +63,7 @@ class CompanyService:
 
     def get_company_master_data(self, company_id: Optional[str] = None) -> Dict[str, Any]:
         from bson import ObjectId
+        from app.anjalee.repositories.sales_repo import build_company_id_query
         comp = None
         is_specific_company = False
         if company_id:
@@ -84,98 +85,146 @@ class CompanyService:
             comp = self.repo.db["companies"].find_one()
 
         comp_db_id = comp["_id"] if comp else None
+        target_company = company_id or comp_db_id
+        comp_q = build_company_id_query(target_company, db=self.repo.db)
 
-        sales_ledgers = self.repo.get_ledgers_by_group("Sales Accounts", company_id=comp_db_id) if comp_db_id else []
-        if not sales_ledgers and not is_specific_company:
-            sales_ledgers = ["General Sales", "Service Sales"]
+        # Build Group Parent Mapping (Child Group -> Parent Group) to include all sub-groups recursively
+        parent_map = {}
+        try:
+            groups_main = list(self.repo.db["groups"].find({}, {"groupName": 1, "name": 1, "parent": 1, "parentGroup": 1}))
+            groups_entry = list(self.repo.db["groups_entry"].find({}, {"groupName": 1, "name": 1, "parent": 1, "parentGroup": 1}))
+            for g in groups_main + groups_entry:
+                g_name = g.get("groupName") or g.get("name")
+                g_parent = g.get("parent") or g.get("parentGroup")
+                if isinstance(g_name, str) and isinstance(g_parent, str):
+                    parent_map[g_name.strip().lower()] = g_parent.strip().lower()
+        except Exception as e:
+            print(f"Error loading group parent map: {e}")
 
-        party_groups = ["Sundry Debtors", "Sundry Creditors"]
-        
-        # Query full ledgers to extract details for auto-populating
+        def is_group_under(grp_name, target_roots):
+            if not isinstance(grp_name, str):
+                return False
+            curr = grp_name.strip().lower()
+            roots_lower = [r.lower() for r in target_roots]
+            visited = set()
+            while curr and curr not in visited:
+                if curr in roots_lower:
+                    return True
+                visited.add(curr)
+                curr = parent_map.get(curr, "")
+            return False
+
         party_details = {}
         party_ledgers = []
-        if comp_db_id:
-            try:
-                query = {"groupName": {"$in": party_groups}, "companyId": comp_db_id}
-                raw_ledgers = list(self.repo.db["ledgers"].find(
-                    query,
-                    {"ledgerName": 1, "partyDetails.gstin": 1, "partyDetails.gstState": 1, "gstin": 1}
-                ))
-                for doc in raw_ledgers:
-                    name = doc.get("ledgerName")
-                    if name:
-                        party_ledgers.append(name)
-                        pd = doc.get("partyDetails") or {}
-                        gstin = pd.get("gstin") or doc.get("gstin") or ""
-                        
-                        # Resolve state from gstin prefix or gstState
-                        gst_state = pd.get("gstState") or ""
-                        if not gst_state and gstin and len(gstin) >= 2:
-                            state_codes = {
-                                "01": "Jammu & Kashmir", "02": "Himachal Pradesh", "03": "Punjab", "04": "Chandigarh",
-                                "05": "Uttarakhand", "06": "Haryana", "07": "Delhi", "08": "Rajasthan", "09": "Uttar Pradesh",
-                                "10": "Bihar", "11": "Sikkim", "12": "Arunachal Pradesh", "13": "Nagaland", "14": "Manipur",
-                                "15": "Mizoram", "16": "Tripura", "17": "Meghalaya", "18": "Assam", "19": "West Bengal",
-                                "20": "Jharkhand", "21": "Odisha", "22": "Chhattisgarh", "23": "Madhya Pradesh",
-                                "24": "Gujarat", "25": "Daman & Diu", "26": "Dadra & Nagar Haveli", "27": "Maharashtra",
-                                "29": "Karnataka", "30": "Goa", "31": "Lakshadweep", "32": "Kerala", "33": "Tamil Nadu",
-                                "34": "Puducherry", "35": "Andaman & Nicobar Islands", "36": "Telangana", "37": "Andhra Pradesh",
-                                "38": "Ladakh"
-                            }
-                            prefix = gstin[:2]
-                            gst_state = state_codes.get(prefix, "")
-                        
-                        party_details[name] = {
-                            "gstin": gstin,
-                            "gstState": gst_state
-                        }
-            except Exception:
-                pass
+        sales_party_ledgers = []
+        purchase_party_ledgers = []
+        cash_bank_ledgers = []
+        sales_ledgers = []
+        purchase_ledgers = []
+        tax_ledgers = []
+        all_ledgers = []
 
-        if not party_ledgers and not is_specific_company:
-            party_ledgers = self.repo.get_ledgers_by_groups(party_groups, company_id=comp_db_id)
-            if not party_ledgers:
-                party_ledgers = ["HDFC Bank", "Cash", "Sundry Debtor A"]
-                party_details = {
-                    "Sundry Debtor A": {"gstin": "23ABOPN2351G1ZS", "gstState": "Madhya Pradesh"}
+        state_codes = {
+            "01": "Jammu & Kashmir", "02": "Himachal Pradesh", "03": "Punjab", "04": "Chandigarh",
+            "05": "Uttarakhand", "06": "Haryana", "07": "Delhi", "08": "Rajasthan", "09": "Uttar Pradesh",
+            "10": "Bihar", "11": "Sikkim", "12": "Arunachal Pradesh", "13": "Nagaland", "14": "Manipur",
+            "15": "Mizoram", "16": "Tripura", "17": "Meghalaya", "18": "Assam", "19": "West Bengal",
+            "20": "Jharkhand", "21": "Odisha", "22": "Chhattisgarh", "23": "Madhya Pradesh",
+            "24": "Gujarat", "25": "Daman & Diu", "26": "Dadra & Nagar Haveli", "27": "Maharashtra",
+            "29": "Karnataka", "30": "Goa", "31": "Lakshadweep", "32": "Kerala", "33": "Tamil Nadu",
+            "34": "Puducherry", "35": "Andaman & Nicobar Islands", "36": "Telangana", "37": "Andhra Pradesh",
+            "38": "Ladakh"
+        }
+
+        try:
+            raw_main = list(self.repo.db["ledgers"].find({}, {
+                "ledgerName": 1, "name": 1, "groupName": 1, "parentGroup": 1,
+                "partyDetails.gstin": 1, "partyDetails.gstState": 1, "gstin": 1
+            }))
+            raw_entry = list(self.repo.db["ledgers_entry"].find({}, {
+                "ledgerName": 1, "name": 1, "groupName": 1, "parentGroup": 1,
+                "partyDetails.gstin": 1, "partyDetails.gstState": 1, "gstin": 1
+            }))
+            for doc in raw_entry + raw_main:
+                name = doc.get("ledgerName") or doc.get("name")
+                if not name or not isinstance(name, str):
+                    continue
+                name = name.strip()
+                if not name:
+                    continue
+
+                grp = doc.get("groupName") or doc.get("parentGroup") or ""
+                all_ledgers.append(name)
+
+                # Store party details for autofill
+                pd = doc.get("partyDetails") or {}
+                gstin = pd.get("gstin") or doc.get("gstin") or ""
+                gst_state = pd.get("gstState") or ""
+                if not gst_state and gstin and len(gstin) >= 2:
+                    gst_state = state_codes.get(gstin[:2], "")
+                
+                party_details[name] = {
+                    "gstin": gstin,
+                    "gstState": gst_state
                 }
+
+                # 1. Sales Party Ledgers: Debtors + Cash + Bank (including all sub-groups)
+                if is_group_under(grp, ["sundry debtors", "debtors", "cash-in-hand", "bank accounts", "bank od a/c"]):
+                    sales_party_ledgers.append(name)
+                    party_ledgers.append(name)
+
+                # 2. Purchase Party Ledgers: Creditors + Cash + Bank (including all sub-groups)
+                if is_group_under(grp, ["sundry creditors", "creditors", "cash-in-hand", "bank accounts", "bank od a/c"]):
+                    purchase_party_ledgers.append(name)
+                    party_ledgers.append(name)
+
+                # 3. Cash & Bank Ledgers: Cash + Bank (including all sub-groups)
+                if is_group_under(grp, ["cash-in-hand", "bank accounts", "bank od a/c"]):
+                    cash_bank_ledgers.append(name)
+
+                # 4. Sales Accounts
+                if is_group_under(grp, ["sales accounts", "sales account", "sales"]):
+                    sales_ledgers.append(name)
+
+                # 5. Purchase Accounts
+                if is_group_under(grp, ["purchase accounts", "purchase account", "purchase"]):
+                    purchase_ledgers.append(name)
+
+                # 6. Duties & Taxes
+                if is_group_under(grp, ["duties & taxes", "duties and taxes", "gst input", "output", "tax"]):
+                    tax_ledgers.append(name)
+        except Exception as e:
+            print(f"Error classifying master ledgers: {e}")
 
         gst_registrations = []
         if comp and "gstDetails" in comp:
             gst_state = comp["gstDetails"].get("gstState")
             if gst_state:
                 gst_registrations.append(f"{gst_state} Registration")
-        if not gst_registrations and not is_specific_company:
-            gst_registrations = ["Madhya Pradesh Registration", "Maharashtra Registration"]
 
-        stock_items = self.repo.get_stock_items(company_id=comp_db_id) if comp_db_id else []
-        if not stock_items and not is_specific_company:
-            stock_items = ["Monitor", "Keyboard"]
+        stock_items = self.repo.get_stock_items(company_id=target_company) if target_company else []
 
         # Build a details dict keyed by item name for HSN autofill
-        stock_item_details_list = self.repo.get_stock_item_details(company_id=comp_db_id) if comp_db_id else []
+        stock_item_details_list = self.repo.get_stock_item_details(company_id=target_company) if target_company else []
         stock_item_details = {item["name"]: {"hsnCode": item["hsnCode"], "gstRate": item["gstRate"]} for item in stock_item_details_list}
 
-        tcs_ledgers = self.repo.get_tcs_ledgers(company_id=comp_db_id) if comp_db_id else []
-        if not tcs_ledgers and not is_specific_company:
-            tcs_ledgers = ["TCS on Sales"]
+        tcs_ledgers = self.repo.get_tcs_ledgers(company_id=target_company) if target_company else []
 
         expense_groups = ["Indirect Expenses", "Direct Expenses", "Indirect Incomes", "Direct Incomes"]
-        additional_charge_ledgers = self.repo.get_ledgers_by_groups(expense_groups, company_id=comp_db_id) if comp_db_id else []
-        if not additional_charge_ledgers and not is_specific_company:
-            additional_charge_ledgers = ["Freight Charges"]
+        additional_charge_ledgers = self.repo.get_ledgers_by_groups(expense_groups, company_id=target_company) if target_company else []
 
         parents = ["Sales", "Sales Order", "Credit Note", "Purchase", "Purchase Order", "Debit Note", "Payment", "Receipt", "Contra"]
         voucher_types_raw = []
-        if comp_db_id:
-            try:
-                query = {"parent": {"$in": parents}, "companyId": comp_db_id}
-                voucher_types_raw = list(self.repo.db["voucherTypes"].find(
-                    query,
-                    {"voucherTypeName": 1, "parent": 1}
-                ))
-            except Exception:
-                pass
+        try:
+            q_vt = {"parent": {"$in": parents}}
+            main_vt = list(self.repo.db["voucherTypes"].find(q_vt, {"voucherTypeName": 1, "parent": 1}))
+            entry_vt = list(self.repo.db["vouchertypes_entry"].find(q_vt, {"voucherTypeName": 1, "parent": 1, "name": 1}))
+            for d in entry_vt:
+                if not d.get("voucherTypeName") and d.get("name"):
+                    d["voucherTypeName"] = d["name"]
+            voucher_types_raw = entry_vt + main_vt
+        except Exception:
+            pass
 
         sales_parents = ["Sales", "Sales Order", "Credit Note"]
         voucher_types = [
@@ -183,8 +232,6 @@ class CompanyService:
             for doc in voucher_types_raw
             if doc.get("parent") in sales_parents and doc.get("voucherTypeName")
         ]
-        if not voucher_types and not is_specific_company:
-            voucher_types = ["sales_invoice", "sales_order", "credit_note"]
 
         voucher_types_full = [
             {
@@ -194,45 +241,6 @@ class CompanyService:
             for doc in voucher_types_raw
             if doc.get("voucherTypeName") and doc.get("parent")
         ]
-
-        # Get tax ledgers (Duties & Taxes / Input / Output)
-        tax_ledgers = []
-        if comp_db_id:
-            try:
-                query = {"groupName": {"$in": ["Duties & Taxes", "GST INPUT", "Output", "Duties and Taxes"]}, "companyId": comp_db_id}
-                tax_ledgers = [
-                    doc.get("ledgerName")
-                    for doc in self.repo.db["ledgers"].find(
-                        query,
-                        {"ledgerName": 1}
-                    )
-                    if doc.get("ledgerName")
-                ]
-            except Exception:
-                pass
-        if not tax_ledgers and not is_specific_company:
-            tax_ledgers = ["CGST Output", "SGST Output", "IGST Output", "CGST Input", "SGST Input", "IGST Input"]
-
-        # Get all ledgers dynamically from the database (both 'ledgers' and 'ledgers_entry' collections)
-        all_ledgers = []
-        if comp_db_id:
-            try:
-                query = {"companyId": comp_db_id}
-                ledgers_from_main = [
-                    doc.get("ledgerName")
-                    for doc in self.repo.db["ledgers"].find(query, {"ledgerName": 1})
-                    if doc.get("ledgerName")
-                ]
-                ledgers_from_entry = [
-                    doc.get("ledgerName")
-                    for doc in self.repo.db["ledgers_entry"].find(query, {"ledgerName": 1})
-                    if doc.get("ledgerName")
-                ]
-                all_ledgers = list(set(ledgers_from_main + ledgers_from_entry))
-            except Exception:
-                pass
-        if not all_ledgers:
-            all_ledgers = list(set(sales_ledgers + party_ledgers + additional_charge_ledgers + tcs_ledgers))
 
         # Helper function to convert any nested ObjectId / datetime objects to JSON primitives
         def serialize_mongo_doc(doc):
@@ -257,16 +265,16 @@ class CompanyService:
         ledger_groups = []
 
         try:
-            if comp_db_id:
-                query = {"$or": [{"companyId": comp_db_id}, {"companyId": str(comp_db_id)}]}
-            else:
-                query = {}
+            query = comp_q if comp_q else {}
 
             
-            # Helper to query and tag docs
+            # Helper to query and tag docs without hardcoded document capping
             def fetch_and_tag(std_col, entry_col):
                 std_docs = [dict(serialize_mongo_doc(d), isWebEntry=False, sourceCollection=std_col) for d in self.repo.db[std_col].find(query)]
                 entry_docs = [dict(serialize_mongo_doc(d), isWebEntry=True, sourceCollection=entry_col) for d in self.repo.db[entry_col].find(query)]
+                if not std_docs and not entry_docs and query:
+                    std_docs = [dict(serialize_mongo_doc(d), isWebEntry=False, sourceCollection=std_col) for d in self.repo.db[std_col].find({})]
+                    entry_docs = [dict(serialize_mongo_doc(d), isWebEntry=True, sourceCollection=entry_col) for d in self.repo.db[entry_col].find({})]
                 return entry_docs + std_docs
 
 
@@ -277,8 +285,10 @@ class CompanyService:
             cost_centers = fetch_and_tag("costCenters", "costcenters_entry")
 
             # Cost Categories
-            raw_cat = list(self.repo.db["costCategories"].find(query))
-            cost_categories = [c.get("name") or c.get("costCategoryName") for c in raw_cat if c.get("name") or c.get("costCategoryName")]
+            cost_categories = fetch_and_tag("costCategories", "costcategories_entry")
+
+            # Cost Centre Classes
+            cost_centre_classes = fetch_and_tag("costCentreClasses", "costcentreclasses_entry")
 
             # Units
             units = fetch_and_tag("units", "units_entry")
@@ -289,20 +299,91 @@ class CompanyService:
             # Groups / Ledger Groups
             ledger_groups = fetch_and_tag("groups", "groups_entry")
 
-            # BOMs (Bill of Materials)
-            boms = fetch_and_tag("boms", "boms_entry")
+            # BOMs (Bill of Materials) - Extract from stockItems.BOM (only if BOM is applicable) + boms_entry
+            boms_from_stock = []
+            try:
+                for s in self.repo.db["stockItems"].find(query):
+                    item_name = s.get("itemName") or s.get("name") or ""
+                    boms_arr = s.get("BOM") or []
+                    if isinstance(boms_arr, list):
+                        for idx, b in enumerate(boms_arr):
+                            if not isinstance(b, dict):
+                                continue
+                            # Strict applicability check: must have componentListName, componentBasicQty, or non-empty items
+                            comp_list_name = b.get("componentListName")
+                            comp_basic_qty = b.get("componentBasicQty")
+                            comp_items = b.get("items") or []
+
+                            if not comp_list_name and not comp_basic_qty and len(comp_items) == 0:
+                                continue
+
+                            b_name = comp_list_name or (f"{item_name} BOM" if item_name else f"BOM {idx + 1}")
+                            b_qty = comp_basic_qty or "1 Pcs"
+                            boms_from_stock.append({
+                                "_id": f"{str(s.get('_id'))}_bom_{idx}",
+                                "bomName": b_name,
+                                "name": b_name,
+                                "finishedItemName": item_name,
+                                "stockItemName": item_name,
+                                "basicQty": str(b_qty),
+                                "componentsCount": len(comp_items),
+                                "items": serialize_mongo_doc(comp_items),
+                                "status": s.get("status", "ACTIVE"),
+                                "isWebEntry": False,
+                                "sourceCollection": "stockItems"
+                            })
+            except Exception as bom_err:
+                print(f"Error extracting BOMs from stockItems: {bom_err}")
+
+            boms_master_docs = fetch_and_tag("boms", "boms_entry")
+            boms = boms_master_docs + boms_from_stock
 
             # Stock Items
             stock_items_full = fetch_and_tag("stockItems", "stockitems_entry")
             if stock_items_full:
                 stock_items = [s.get("itemName") or s.get("name") for s in stock_items_full if s.get("itemName") or s.get("name")]
 
+            # Voucher Types Full List
+            voucher_types_full_list = fetch_and_tag("voucherTypes", "vouchertypes_entry")
+            if not voucher_types_full_list:
+                voucher_types_full_list = fetch_and_tag("vouchertypes", "vouchertypes_entry")
+
+            # Seed & fetch System Statutory Predefined TDS & TCS Masters
+            try:
+                from app.anjalee.services.tds_tcs_seed import seed_statutory_tds_tcs
+                seed_statutory_tds_tcs(self.repo.db)
+            except Exception as seed_err:
+                print(f"Error seeding TDS/TCS statutory masters: {seed_err}")
+
+            sys_tds_docs = [dict(serialize_mongo_doc(d), isSystemPredefined=True, sourceCollection="system_tds_masters") for d in self.repo.db["system_tds_masters"].find({})]
+            sys_tcs_docs = [dict(serialize_mongo_doc(d), isSystemPredefined=True, sourceCollection="system_tcs_masters") for d in self.repo.db["system_tcs_masters"].find({})]
+
+            # Company Custom TDS Masters
+            web_tds = fetch_and_tag("tdsMasters", "tds_entry")
+            if not web_tds:
+                web_tds = fetch_and_tag("tds", "tds_entry")
+            tds_masters = sys_tds_docs + web_tds
+
+            # Company Custom TCS Masters
+            web_tcs = fetch_and_tag("tcsMasters", "tcs_entry")
+            if not web_tcs:
+                web_tcs = fetch_and_tag("tcs", "tcs_entry")
+            tcs_masters = sys_tcs_docs + web_tcs
+
+            # Godown Master
+            godowns = fetch_and_tag("godowns", "godownEntries")
+
+
         except Exception as e:
             print(f"Error querying dynamic company master collections: {e}")
 
         return {
             "salesLedgers": sorted(list(set(sales_ledgers))),
+            "purchaseLedgers": sorted(list(set(purchase_ledgers))),
             "partyLedgers": sorted(list(set(party_ledgers))),
+            "salesPartyLedgers": sorted(list(set(sales_party_ledgers))),
+            "purchasePartyLedgers": sorted(list(set(purchase_party_ledgers))),
+            "cashBankLedgers": sorted(list(set(cash_bank_ledgers))),
             "partyLedgerDetails": party_details,
             "gstRegistrations": gst_registrations,
             "stockItems": sorted(list(set(stock_items))),
@@ -313,15 +394,21 @@ class CompanyService:
             "allLedgers": sorted(list(set(all_ledgers))),
             "voucherTypes": sorted(list(set(voucher_types))),
             "voucherTypesFull": voucher_types_full,
+            "voucherTypesFullList": voucher_types_full_list,
             "stockCategories": stock_categories,
             "costCenters": cost_centers,
             "costCategories": cost_categories,
+            "costCentreClasses": cost_centre_classes,
             "units": units,
             "stockGroups": stock_groups,
             "ledgerGroups": ledger_groups,
+            "godowns": godowns,
             "boms": boms,
-            "stockItemsFull": stock_items_full
+            "stockItemsFull": stock_items_full,
+            "tdsMasters": tds_masters,
+            "tcsMasters": tcs_masters
         }
+
 
 
 
@@ -360,16 +447,21 @@ class CompanyService:
         start_dt = None
         end_dt = None
 
+        import re
         if start_date_str:
-            try:
-                start_dt = datetime.strptime(start_date_str, "%Y-%m-%d")
-            except Exception:
-                pass
+            m = re.search(r'(\d{4}-\d{2}-\d{2})', start_date_str)
+            if m:
+                try:
+                    start_dt = datetime.strptime(m.group(1), "%Y-%m-%d")
+                except Exception:
+                    pass
         if end_date_str:
-            try:
-                end_dt = datetime.strptime(end_date_str, "%Y-%m-%d")
-            except Exception:
-                pass
+            m = re.search(r'(\d{4}-\d{2}-\d{2})', end_date_str)
+            if m:
+                try:
+                    end_dt = datetime.strptime(m.group(1), "%Y-%m-%d")
+                except Exception:
+                    pass
 
         # Resolve company FY if dates are missing
         fy = "2024-2025"
@@ -569,24 +661,27 @@ class CompanyService:
                 "lastDate": last_d
             }
 
-        # Compute counts dynamically
-        vch_match = {"dates.date": {"$gte": start_dt, "$lte": end_dt}}
+        # Compute counts dynamically with strict companyId scope for instant performance
+        comp_obj = ObjectId(comp_db_id) if isinstance(comp_db_id, str) and ObjectId.is_valid(comp_db_id) else comp_db_id
+        c_filter = {"companyId": comp_obj} if comp_db_id else {}
+
+        vch_match = {"dates.date": {"$gte": start_dt, "$lte": end_dt}, **c_filter}
         if party_ledger:
             vch_match["partyLedgerName"] = party_ledger
 
         tally_count = self.repo.db["vouchers"].count_documents(vch_match)
 
-        sales_match = {"voucherDate": {"$gte": start_str, "$lte": end_str}, "isDeleted": {"$ne": True}}
+        sales_match = {"voucherDate": {"$gte": start_str, "$lte": end_str}, "isDeleted": {"$ne": True}, **c_filter}
         if party_ledger:
             sales_match["partyLedgerName"] = party_ledger
         sales_count = self.repo.db["sales_vouchers"].count_documents(sales_match)
 
-        purchase_match = {"voucherDate": {"$gte": start_str, "$lte": end_str}, "isDeleted": {"$ne": True}}
+        purchase_match = {"voucherDate": {"$gte": start_str, "$lte": end_str}, "isDeleted": {"$ne": True}, **c_filter}
         if party_ledger:
             purchase_match["partyLedgerName"] = party_ledger
         purchase_count = self.repo.db["purchase_vouchers"].count_documents(purchase_match)
 
-        fundflow_match = {"voucherDate": {"$gte": start_str, "$lte": end_str}}
+        fundflow_match = {"voucherDate": {"$gte": start_str, "$lte": end_str}, **c_filter}
         if party_ledger:
             fundflow_match["$or"] = [{"partyLedger": party_ledger}, {"againstLedger": party_ledger}]
         fundflow_count = self.repo.db["fund_flow_vouchers"].count_documents(fundflow_match)

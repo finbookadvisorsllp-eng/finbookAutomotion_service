@@ -36,7 +36,7 @@ class OcrProcessRequest(BaseModel):
     upload_id: str
 
 
-def _run_ocr_background(file_path: str, file_type: str, upload_id: str, mongo_uri: str, db_name: str):
+def _run_ocr_background(file_path: str, file_type: str, upload_id: str, mongo_uri: str, db_name: str, company_id: str = None):
     """
     Enterprise multi-stage OCR + AI pipeline.
 
@@ -50,12 +50,14 @@ def _run_ocr_background(file_path: str, file_type: str, upload_id: str, mongo_ur
     bar continues to work without any changes.
     """
     import pymongo
+    from app.db import resolve_db_name
     try:
         client = pymongo.MongoClient(mongo_uri)
-        db = client[db_name]
+        target_db = resolve_db_name(company_id) if company_id else db_name
+        db = client[target_db]
 
         # ── STAGE 2: Raw OCR ───────────────────────────────────────────────────
-        logger.info(f"[BG] Stage 2 — OCR starting for upload_id={upload_id}")
+        logger.info(f"[BG] Stage 2 — OCR starting for upload_id={upload_id} in db={target_db}")
         db["bulk_uploads"].update_one(
             {"_id": ObjectId(upload_id)},
             {"$set": {"pipeline_stage": "ocr_running", "pipeline_progress": 10}}
@@ -370,7 +372,8 @@ async def upload_file(
                     existing["file_type"],
                     str(existing["_id"]),
                     MONGO_URI,
-                    DB_NAME
+                    DB_NAME,
+                    existing.get("company_id")
                 )
                 if os.path.exists(file_path):
                     os.remove(file_path)
@@ -454,7 +457,8 @@ async def upload_file(
             file_type,
             upload_id,
             MONGO_URI,
-            DB_NAME
+            DB_NAME,
+            company_id
         )
 
         logger.info(f"File {orig_name} saved and triggered background pipeline with ID: {upload_id}")
@@ -622,7 +626,8 @@ async def process_ocr(
         file_type,
         upload_id,
         MONGO_URI,
-        DB_NAME
+        DB_NAME,
+        record.get("company_id")
     )
 
     logger.info(f"OCR background task started for upload_id={upload_id}")

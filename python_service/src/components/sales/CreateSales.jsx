@@ -773,7 +773,7 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
 
         {/* ─── 1. Compact Header Row ─── */}
         {!isOcrMode && (
-          <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-2.5 shrink-0 border-b" style={{ borderColor: 'var(--m3-outline-variant)', backgroundColor: 'var(--m3-surface-container-low)' }}>
+          <div className="sticky top-0 z-30 shrink-0 flex flex-wrap items-center justify-between gap-4 px-4 py-2.5 border-b" style={{ borderColor: 'var(--m3-outline-variant)', backgroundColor: 'var(--m3-surface-container-low)' }}>
           <div className="flex items-center gap-4">
             <h1 className="text-[15px] font-semibold tracking-tight" style={{ color: 'var(--m3-on-surface)' }}>
               {isOcrReview
@@ -821,7 +821,7 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
         )}
 
         {/* ─── 2. Voucher Types & Summary Row ─── */}
-        <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-2 border-b shrink-0" style={{ borderColor: 'var(--m3-outline-variant)', backgroundColor: 'var(--m3-surface-container-low)' }}>
+        <div className="sticky top-12 z-20 shrink-0 flex flex-wrap items-center justify-between gap-4 px-4 py-2 border-b" style={{ borderColor: 'var(--m3-outline-variant)', backgroundColor: 'var(--m3-surface-container-low)' }}>
           {/* Voucher Types */}
           {!onSaveSuccess && (
             <div className="flex gap-1.5 overflow-x-auto no-scrollbar py-0.5">
@@ -1012,7 +1012,7 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
                         label="Party Ledger"
                         compact
                         placeholder="Select Customer"
-                        options={masterData.partyLedgers?.length > 0 ? masterData.partyLedgers : []}
+                        options={masterData.salesPartyLedgers?.length > 0 ? masterData.salesPartyLedgers : (masterData.partyLedgers?.length > 0 ? masterData.partyLedgers : masterData.allLedgers || [])}
                         value={form.partyLedger}
                         hasSearch
                         onChange={(v) => {
@@ -1056,7 +1056,7 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
                         label="Consignee Ledger"
                         compact
                         placeholder="Same as Party"
-                        options={['Same as Party', ...(masterData.partyLedgers || [])]}
+                        options={['Same as Party', ...(masterData.salesPartyLedgers?.length > 0 ? masterData.salesPartyLedgers : (masterData.partyLedgers || masterData.allLedgers || []))]}
                         value={form.consigneeLedger}
                         onChange={(v) => {
                           setFormField('consigneeLedger', v);
@@ -1227,22 +1227,23 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
                         </tbody>
                       </table>
                     ) : (
-                      <table className="w-full text-left text-[10px] border-collapse min-w-[980px] overflow-visible" style={{ borderColor: theme.border }}>
-                        <thead>
-                          <tr className="border-b" style={{ borderColor: theme.border, color: theme.mutedText }}>
-                            <th className="px-1 py-1 w-8 text-center border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>#</th>
-                            <th className="px-1 py-1 w-64 border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>Item / Ledger *</th>
-                            <th className="px-1 py-1 w-20 text-right border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>Stock Qty</th>
-                            <th className="px-1 py-1 w-24 border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>HSN/SAC</th>
-                            <th className="px-1 py-1 w-16 border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>GST%</th>
-                            <th className="px-1 py-1 w-20 text-right border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>Qty</th>
-                            <th className="px-1 py-1 w-24 border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>Unit</th>
-                            <th className="px-1 py-1 w-28 text-right border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>Rate (₹)</th>
-                            <th className="px-1 py-1 w-16 text-right border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>Disc%</th>
-                            <th className="px-1 py-1 w-32 text-right border-r" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}>Amount (₹)</th>
-                            <th className="px-1 py-1 w-10 text-center" style={{ backgroundColor: theme.headerBg, borderColor: theme.border }}></th>
-                          </tr>
-                        </thead>
+                      <div className="max-h-[360px] overflow-y-auto themed-scrollbar w-full">
+                        <table className="w-full text-left text-[10px] border-collapse min-w-[980px]" style={{ borderColor: theme.border }}>
+                          <thead className="sticky top-0 z-20">
+                            <tr className="border-b" style={{ borderColor: theme.border, color: theme.mutedText }}>
+                              <th className="px-1 py-1.5 w-8 text-center border-r sticky top-0 z-20" style={{ backgroundColor: 'var(--m3-surface-container-low)', borderColor: theme.border }}>#</th>
+                              <th className="px-1 py-1.5 w-64 border-r sticky top-0 z-20" style={{ backgroundColor: 'var(--m3-surface-container-low)', borderColor: theme.border }}>Item / Ledger *</th>
+                              <th className="px-1 py-1.5 w-20 text-right border-r sticky top-0 z-20" style={{ backgroundColor: 'var(--m3-surface-container-low)', borderColor: theme.border }}>Stock Qty</th>
+                              <th className="px-1 py-1.5 w-24 border-r sticky top-0 z-20" style={{ backgroundColor: 'var(--m3-surface-container-low)', borderColor: theme.border }}>HSN/SAC</th>
+                              <th className="px-1 py-1.5 w-16 border-r sticky top-0 z-20" style={{ backgroundColor: 'var(--m3-surface-container-low)', borderColor: theme.border }}>GST%</th>
+                              <th className="px-1 py-1.5 w-20 text-right border-r sticky top-0 z-20" style={{ backgroundColor: 'var(--m3-surface-container-low)', borderColor: theme.border }}>Qty</th>
+                              <th className="px-1 py-1.5 w-24 border-r sticky top-0 z-20" style={{ backgroundColor: 'var(--m3-surface-container-low)', borderColor: theme.border }}>Unit</th>
+                              <th className="px-1 py-1.5 w-28 text-right border-r sticky top-0 z-20" style={{ backgroundColor: 'var(--m3-surface-container-low)', borderColor: theme.border }}>Rate (₹)</th>
+                              <th className="px-1 py-1.5 w-16 text-right border-r sticky top-0 z-20" style={{ backgroundColor: 'var(--m3-surface-container-low)', borderColor: theme.border }}>Disc%</th>
+                              <th className="px-1 py-1.5 w-32 text-right border-r sticky top-0 z-20" style={{ backgroundColor: 'var(--m3-surface-container-low)', borderColor: theme.border }}>Amount (₹)</th>
+                              <th className="px-1 py-1.5 w-10 text-center sticky top-0 z-20" style={{ backgroundColor: 'var(--m3-surface-container-low)', borderColor: theme.border }}></th>
+                            </tr>
+                          </thead>
                         <tbody>
                           {form.productLines.map((row, idx) => {
                             return (
@@ -1369,6 +1370,7 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
                           })}
                         </tbody>
                       </table>
+                    </div>
                     )}
                   </div>
                   <div className="flex justify-end pt-2 border-t" style={{ borderColor: theme.border }}>
@@ -2060,16 +2062,49 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const dropdownRef = useRef(null);
+  const popoverRef = useRef(null);
+  const [popoverPos, setPopoverPos] = useState({ top: 0, left: 0, width: 240 });
+
+  const calculatePos = () => {
+    if (dropdownRef.current) {
+      const rect = dropdownRef.current.getBoundingClientRect();
+      setPopoverPos({
+        top: rect.bottom + 2,
+        left: rect.left,
+        width: Math.max(rect.width, 220)
+      });
+    }
+  };
+
+  const handleToggle = () => {
+    if (disabled) return;
+    if (!isOpen) {
+      calculatePos();
+    }
+    setIsOpen(!isOpen);
+  };
 
   useEffect(() => {
     if (isOpen) {
-      const handleClickOutside = (event) => {
-        if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+      calculatePos();
+
+      const handleOutsideScrollOrClick = (event) => {
+        const isInsideInput = dropdownRef.current && dropdownRef.current.contains(event.target);
+        const isInsidePopover = popoverRef.current && popoverRef.current.contains(event.target);
+
+        if (!isInsideInput && !isInsidePopover) {
           setIsOpen(false);
         }
       };
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
+
+      window.addEventListener('scroll', handleOutsideScrollOrClick, true);
+      window.addEventListener('resize', handleOutsideScrollOrClick);
+      document.addEventListener('mousedown', handleOutsideScrollOrClick);
+      return () => {
+        window.removeEventListener('scroll', handleOutsideScrollOrClick, true);
+        window.removeEventListener('resize', handleOutsideScrollOrClick);
+        document.removeEventListener('mousedown', handleOutsideScrollOrClick);
+      };
     }
   }, [isOpen]);
 
@@ -2078,7 +2113,7 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
   );
 
   return (
-    <div className={`relative flex flex-col gap-1 w-full group ${disabled ? 'opacity-50 pointer-events-none' : ''}`} ref={dropdownRef} style={{ zIndex: isOpen ? 50 : 1 }}>
+    <div className={`relative flex flex-col gap-1 w-full group ${disabled ? 'opacity-50 pointer-events-none' : ''}`} ref={dropdownRef}>
       {label && (
         <label className="text-[10px] font-black uppercase tracking-tighter absolute -top-2 left-2 px-1 z-10 group-focus-within:text-indigo-600 text-slate-500 transition-colors" style={{ backgroundColor: 'var(--m3-surface-container-low)' }}>
           {label}
@@ -2087,10 +2122,10 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
       <div className="flex items-center gap-1">
         <div className="relative flex-1">
           <div
-            onClick={() => !disabled && setIsOpen(!isOpen)}
+            onClick={handleToggle}
             className={`w-full ${compact ? 'h-8 px-2.5' : 'h-9 px-2.5'} rounded-t border-b flex items-center justify-between cursor-pointer transition-all duration-300 bg-slate-50 dark:bg-[var(--app-control-bg)] border-slate-300 dark:border-[var(--app-border)] text-slate-800 dark:text-[var(--app-text)] ${isOpen ? 'border-indigo-500' : 'hover:border-indigo-400'} ${disabled ? 'bg-slate-100 dark:bg-slate-900 cursor-not-allowed opacity-60' : ''}`}
           >
-            <span className={`text-[11px] font-bold truncate transition-colors ${value ? (isDark ? 'text-[var(--app-accent)]' : 'text-[var(--app-accent)]') : 'text-[var(--app-muted)]'}`}>
+            <span className={`text-[11px] font-extrabold truncate transition-colors ${value ? 'text-slate-900 dark:text-slate-100 font-black' : 'text-[var(--app-muted)] font-normal'}`}>
               {value || placeholder}
             </span>
             <div className="flex items-center gap-1 text-[var(--app-muted)] group-hover/input:text-[var(--app-accent)] transition-colors">
@@ -2101,29 +2136,31 @@ const SearchableDropdown = ({ label, placeholder, options = [], value, onChange,
 
           {isOpen && (
             <div
-              className={`absolute top-full left-0 right-0 mt-1 border ${rounded ? 'rounded-lg' : 'rounded-lg'} shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 flex flex-col max-h-[200px] z-50`}
+              ref={popoverRef}
+              className="fixed border rounded-lg shadow-2xl overflow-hidden animate-in fade-in duration-150 flex flex-col max-h-[260px] z-[99999]"
               style={{
+                top: `${popoverPos.top}px`,
+                left: `${popoverPos.left}px`,
+                width: `${popoverPos.width}px`,
                 backgroundColor: 'var(--m3-surface-container-high)',
                 borderColor: 'var(--m3-outline-variant)',
-                boxShadow: 'var(--m3-e2)',
+                boxShadow: 'var(--m3-e3)',
               }}
             >
-              {hasSearch && (
-                <div className="p-2 border-b" style={{ borderColor: 'var(--app-border)' }}>
-                  <div className="relative">
-                    <input
-                      autoFocus
-                      type="text"
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      placeholder="Search..."
-                      className="w-full h-8 px-8 text-[11px] font-semibold outline-none transition-all rounded-md border focus:border-[var(--app-accent)]"
-                      style={{ backgroundColor: 'var(--app-control-bg)', borderColor: 'var(--app-border)', color: 'var(--app-heading)' }}
-                    />
-                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--app-muted)]" size={11} />
-                  </div>
+              <div className="p-2 border-b" style={{ borderColor: 'var(--app-border)' }}>
+                <div className="relative">
+                  <input
+                    autoFocus
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search item / ledger..."
+                    className="w-full h-8 px-8 text-[11px] font-semibold outline-none transition-all rounded-md border focus:border-[var(--app-accent)]"
+                    style={{ backgroundColor: 'var(--app-control-bg)', borderColor: 'var(--app-border)', color: 'var(--app-heading)' }}
+                  />
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--app-muted)]" size={11} />
                 </div>
-              )}
+              </div>
               <div className="flex-1 overflow-y-auto themed-scrollbar p-1">
                 {filteredOptions.length > 0 ? filteredOptions.map((opt, idx) => (
                   <div

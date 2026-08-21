@@ -696,11 +696,20 @@ async def update_role(role_id: str, payload: dict):
     return {"success": True, "message": "Role permissions updated in Roles collection successfully"}
 
 @router.delete("/roles/{role_id}")
-async def delete_role(role_id: str):
-    """Delete role from iam.roles ONLY if no users are currently assigned to it."""
+async def delete_role(role_id: str, request: Request):
+    """Delete role from iam.roles collection, protecting system admin roles and safely reassigning users."""
     db = await get_async_iam_db()
     
+    # 1. Protect core system Admin roles
+    r_name_check = str(role_id).lower().strip()
+    if r_name_check in ["admin", "administrator", "org_admin", "system_admin"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Admin role is a core system role and cannot be deleted."
+        )
+
     query_roles = [role_id]
+    r_doc = None
     if len(role_id) == 24 and re.match(r"^[0-9a-fA-F]{24}$", role_id):
         try:
             r_doc = await db["roles"].find_one({"_id": ObjectId(role_id)})
@@ -708,30 +717,37 @@ async def delete_role(role_id: str):
                 query_roles.extend([str(r_doc["_id"]), r_doc.get("name"), r_doc.get("displayName")])
         except Exception:
             pass
-    else:
+    
+    if not r_doc:
         r_doc = await db["roles"].find_one({"$or": [{"name": role_id}, {"displayName": role_id}]})
         if r_doc:
             query_roles.extend([str(r_doc["_id"]), r_doc.get("name"), r_doc.get("displayName")])
 
-    query_roles = [r for r in query_roles if r]
+    query_roles = list(set([r for r in query_roles if r]))
 
-    # Check assigned users rule
-    users_count = await db["users"].count_documents({"$or": [{"role": {"$in": query_roles}}, {"roleId": {"$in": query_roles}}]})
-    if users_count > 0:
+    # 2. Protect if r_doc is marked as isSystem
+    if r_doc and r_doc.get("isSystem"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"This role is assigned to {users_count} user(s). Reassign users before deleting."
+            detail=f"Role '{r_doc.get('displayName', role_id)}' is a system role and cannot be deleted."
         )
 
+    # 3. Safely reassign any assigned users to 'viewer' role before deleting
+    await db["users"].update_many(
+        {"$or": [{"role": {"$in": query_roles}}, {"roleId": {"$in": query_roles}}]},
+        {"$set": {"role": "viewer", "roleId": "viewer", "updatedAt": datetime.utcnow()}}
+    )
+
+    # 4. Perform deletion from iam.roles collection
     if len(role_id) == 24 and re.match(r"^[0-9a-fA-F]{24}$", role_id):
         try:
             await db["roles"].delete_one({"_id": ObjectId(role_id)})
         except Exception:
             pass
-    else:
-        await db["roles"].delete_one({"$or": [{"name": role_id}, {"displayName": role_id}]})
 
-    return {"success": True, "message": "Role deleted successfully"}
+    await db["roles"].delete_one({"$or": [{"name": role_id}, {"displayName": role_id}]})
+
+    return {"success": True, "message": f"Role '{role_id}' deleted successfully"}
 
 
 @router.post("/users", status_code=status.HTTP_201_CREATED)

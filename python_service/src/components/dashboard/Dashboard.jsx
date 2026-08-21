@@ -36,7 +36,7 @@ function Dashboard() {
   const approvalCenterView = useAppStore((s) => s.approvalCenterView)
 
   const isApprovalDetail = location.pathname.startsWith('/automation/approval-center') && approvalCenterView === 'detail'
-  const isCompactHeader = isApprovalDetail || location.pathname === '/sales/new' || location.pathname === '/' || location.pathname === '/automation/ai-processing' || location.pathname === '/automation/text-to-entry'
+  const isCompactHeader = isApprovalDetail || location.pathname === '/sales/new' || location.pathname === '/' || location.pathname === '/automation/ai-processing' || location.pathname === '/automation/text-to-entry' || location.pathname === '/admin/clients/new'
 
   const handleCompanyChange = async (targetOrgId) => {
     try {
@@ -46,6 +46,21 @@ function Dashboard() {
       const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
       const claims = JSON.parse(window.atob(base64))
       const expiry = claims ? claims.exp * 1000 : null
+
+      const compId = organization.id || targetOrgId
+      const compDb = organization.dbName || ''
+      const compName = organization.displayName || organization.name || ''
+
+      localStorage.setItem('selectedCompanyId', compId)
+      localStorage.setItem('activeCompany', compId)
+      localStorage.setItem('companyId', compId)
+      localStorage.setItem('orgId', compId)
+      if (compDb) {
+        localStorage.setItem('selectedCompany', compDb)
+      }
+      if (compName) {
+        localStorage.setItem('companyName', compName)
+      }
 
       setAuth({
         token: orgToken,
@@ -57,16 +72,19 @@ function Dashboard() {
       })
 
       setOrg({
-        orgId: organization.id,
-        orgDbName: organization.dbName,
-        orgName: organization.displayName || organization.name,
+        orgId: compId,
+        orgDbName: compDb || compId,
+        orgName: compName,
       })
 
-      toast.success(`Switched workspace to ${organization.displayName || organization.name}`)
+      window.dispatchEvent(new CustomEvent('company-changed', { detail: { companyId: compId, dbName: compDb } }))
+
+      toast.success(`Switched workspace to ${compName}`)
       setTimeout(() => {
         window.location.reload()
       }, 100)
     } catch (err) {
+      console.error('Error switching workspace:', err)
       toast.error('Failed to switch workspace')
     }
   }

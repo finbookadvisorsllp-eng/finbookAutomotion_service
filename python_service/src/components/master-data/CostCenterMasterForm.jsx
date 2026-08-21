@@ -1,21 +1,21 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Layers, Plus, X, Search, ChevronDown, Check, ArrowLeft, Save, 
-  CheckCircle2, FolderTree, AlertCircle, Sparkles, Building2, Settings
+  CheckCircle2, FolderTree, AlertCircle, Sparkles, Building2, Settings, ToggleLeft, ToggleRight
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { motion, AnimatePresence } from 'motion/react';
+import apiClient from '../../lib/apiClient';
 
 export default function CostCenterMasterForm({
   initialData = null,
   isEdit = false,
-  costCategories = ['Primary Cost Category', 'Manufacturing', 'Administration', 'Projects', 'Sales'],
+  costCategories = ['Primary Cost Category'],
   costCentersList = [],
   onSave,
   onClose,
   onAddCostCategory
 }) {
-  // Configure Form Modal Preferences (Persisted in localStorage)
+  // Configure Form Preferences (Persisted in localStorage)
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [config, setConfig] = useState(() => {
     const saved = localStorage.getItem('cost_center_form_config');
@@ -23,8 +23,10 @@ export default function CostCenterMasterForm({
       try { return JSON.parse(saved); } catch (e) {}
     }
     return {
-      cfgCostCategory: true,
-      cfgParentCostCenter: true
+      cfgAlias: false,
+      cfgDescription: false,
+      cfgParentCostCenter: true,
+      cfgCostCategory: true
     };
   });
 
@@ -36,9 +38,11 @@ export default function CostCenterMasterForm({
   const [formData, setFormData] = useState({
     costCenterName: '',
     costCenterCode: '',
+    alias: '',
+    description: '',
     costCategoryId: 'Primary Cost Category',
     parentId: 'Primary / None',
-    status: 'ACTIVE'
+    isActive: true
   });
 
   // Inline Quick Add Category Modal State
@@ -53,16 +57,30 @@ export default function CostCenterMasterForm({
 
   // Errors
   const [errors, setErrors] = useState({});
+  const [saving, setSaving] = useState(false);
+
+  // Check if multiple Cost Categories exist (Conditional Display Logic)
+  const hasMultipleCostCategories = useMemo(() => {
+    if (!costCategories || costCategories.length <= 1) return false;
+    const nonDefault = costCategories.filter(c => c && c.trim().toLowerCase() !== 'primary cost category');
+    return nonDefault.length > 0;
+  }, [costCategories]);
 
   // Pre-fill on Edit / Auto-generate code on Create
   useEffect(() => {
     if (isEdit && initialData) {
+      const activeState = initialData.isActive !== undefined 
+        ? !!initialData.isActive 
+        : (initialData.status || 'ACTIVE').toUpperCase() === 'ACTIVE';
+
       setFormData({
         costCenterName: initialData.costCenterName || initialData.name || '',
         costCenterCode: initialData.costCenterCode || initialData.code || '',
-        costCategoryId: initialData.costCategoryId || initialData.category || costCategories[0] || 'Primary Cost Category',
+        alias: initialData.alias || '',
+        description: initialData.description || '',
+        costCategoryId: initialData.costCategoryId || initialData.costCategoryName || initialData.category || 'Primary Cost Category',
         parentId: initialData.parentId || initialData.parentName || 'Primary / None',
-        status: (initialData.status || 'ACTIVE').toUpperCase()
+        isActive: activeState
       });
     } else {
       const nextNum = (costCentersList.length + 1).toString().padStart(4, '0');
@@ -71,7 +89,7 @@ export default function CostCenterMasterForm({
         costCenterCode: `CC-${nextNum}`
       }));
     }
-  }, [isEdit, initialData, costCentersList.length, costCategories]);
+  }, [isEdit, initialData, costCentersList.length]);
 
   // Field Update Helper
   const updateField = (key, val) => {
@@ -89,7 +107,7 @@ export default function CostCenterMasterForm({
       toast.error('Category Name is required.');
       return;
     }
-    if (costCategories.includes(name)) {
+    if (costCategories.some(c => c.toLowerCase() === name.toLowerCase())) {
       toast.error('Cost Category already exists.');
       return;
     }
@@ -113,8 +131,8 @@ export default function CostCenterMasterForm({
     } else {
       const duplicate = costCentersList.find(c => {
         const cName = (c.costCenterName || c.name || '').trim().toLowerCase();
-        const currentId = initialData?.id || initialData?.sr;
-        const itemObjId = c.id || c.sr;
+        const currentId = initialData?._id || initialData?.id || initialData?.sr;
+        const itemObjId = c._id || c.id || c.sr;
         return cName === trimmedName.toLowerCase() && currentId !== itemObjId;
       });
 
@@ -123,12 +141,18 @@ export default function CostCenterMasterForm({
       }
     }
 
+    if (formData.parentId && formData.parentId !== 'Primary / None') {
+      if (formData.parentId.trim().toLowerCase() === trimmedName.toLowerCase()) {
+        newErrors.parentId = 'A Cost Center cannot be its own parent';
+      }
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   // Submit Handler
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     if (e) e.preventDefault();
 
     if (!validate()) {
@@ -136,19 +160,50 @@ export default function CostCenterMasterForm({
       return;
     }
 
-    const payload = {
-      _id: initialData?._id || initialData?.id,
-      id: initialData?._id || initialData?.id,
-      sourceCollection: initialData?.sourceCollection || 'costcenters_entry',
-      costCenterName: formData.costCenterName.trim(),
-      costCenterCode: formData.costCenterCode.trim(),
-      costCategoryId: formData.costCategoryId,
-      parentId: formData.parentId,
-      status: formData.status
-    };
+    setSaving(true);
+    try {
+      const activeCompanyId = localStorage.getItem('selectedCompanyId') || localStorage.getItem('activeCompany') || '';
+      const headers = activeCompanyId ? { 'x-company-id': activeCompanyId } : {};
 
-    onSave(payload);
-    toast.success(isEdit ? 'Cost Center updated successfully!' : 'Cost Center created successfully!');
+      const payload = {
+        _id: initialData?._id || initialData?.id,
+        id: initialData?._id || initialData?.id,
+        sourceCollection: initialData?.sourceCollection || 'costcenters_entry',
+        costCenterName: formData.costCenterName.trim(),
+        name: formData.costCenterName.trim(),
+        costCenterCode: formData.costCenterCode.trim(),
+        code: formData.costCenterCode.trim(),
+        alias: formData.alias.trim(),
+        description: formData.description.trim(),
+        costCategoryId: (hasMultipleCostCategories && config.cfgCostCategory) ? formData.costCategoryId : 'Primary Cost Category',
+        costCategoryName: (hasMultipleCostCategories && config.cfgCostCategory) ? formData.costCategoryId : 'Primary Cost Category',
+        parentId: formData.parentId,
+        parentName: formData.parentId,
+        isActive: formData.isActive,
+        status: formData.isActive ? 'ACTIVE' : 'INACTIVE',
+        isWebEntry: true
+      };
+
+      if (onSave) {
+        onSave(payload);
+      } else {
+        if (isEdit && (initialData?._id || initialData?.id)) {
+          const id = initialData._id || initialData.id;
+          await apiClient.put(`/masters/cost-centers/${id}`, payload, { headers });
+          toast.success(`Cost Center "${formData.costCenterName}" updated successfully`);
+        } else {
+          await apiClient.post('/masters/cost-centers', payload, { headers });
+          toast.success(`Cost Center "${formData.costCenterName}" created successfully`);
+        }
+      }
+
+      if (onClose) onClose();
+    } catch (err) {
+      console.error('Error saving Cost Center master:', err);
+      toast.error(err.response?.data?.detail || 'Failed to save Cost Center');
+    } finally {
+      setSaving(false);
+    }
   };
 
   // Filter Categories
@@ -162,7 +217,7 @@ export default function CostCenterMasterForm({
   const filteredParents = useMemo(() => {
     const available = costCentersList.filter(c => {
       const cName = c.costCenterName || c.name || '';
-      return !isEdit || cName.toLowerCase() !== formData.costCenterName.toLowerCase();
+      return !isEdit || cName.toLowerCase() !== formData.costCenterName.trim().toLowerCase();
     });
 
     const q = parentSearchQuery.toLowerCase().trim();
@@ -193,12 +248,12 @@ export default function CostCenterMasterForm({
             <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--app-muted)]">
               <span>Masters</span>
               <span>/</span>
-              <span>Cost Center</span>
+              <span>Cost Centres</span>
               <span>/</span>
-              <span className="text-[var(--app-accent)] font-bold">{isEdit ? 'Edit' : 'Create'}</span>
+              <span className="text-[var(--app-accent)] font-bold">{isEdit ? 'Edit' : 'New'}</span>
             </div>
             <h1 className="text-base md:text-xl font-extrabold text-[var(--app-heading)] tracking-tight">
-              {isEdit ? 'Edit Cost Center Master' : 'Create Cost Center Master'}
+              {isEdit ? 'Edit Cost Center' : 'Create Cost Center'}
             </h1>
           </div>
         </div>
@@ -209,7 +264,7 @@ export default function CostCenterMasterForm({
             type="button"
             onClick={() => setShowConfigModal(true)}
             className="px-3.5 py-1.5 rounded-lg border border-[var(--app-accent-soft)] bg-[var(--app-accent-soft)] text-[var(--app-accent)] hover:opacity-90 transition-all text-xs font-bold flex items-center gap-1.5 shadow-2xs"
-            title="Configure visible form sections and settings"
+            title="Configure visible form fields"
           >
             <Settings size={14} />
             <span>Configure Form</span>
@@ -223,24 +278,25 @@ export default function CostCenterMasterForm({
           </button>
           <button
             type="button"
+            disabled={saving}
             onClick={handleSubmit}
-            className="px-4 py-1.5 rounded-lg bg-[var(--app-accent)] text-white text-xs font-bold shadow-xs hover:opacity-90 transition-all flex items-center gap-1.5"
+            className="px-4 py-1.5 rounded-lg bg-[var(--app-accent)] text-white text-xs font-bold shadow-xs hover:opacity-90 transition-all flex items-center gap-1.5 disabled:opacity-50"
           >
             <CheckCircle2 size={14} />
-            <span>{isEdit ? 'Update Cost Center' : 'Save Cost Center'}</span>
+            <span>{saving ? 'Saving...' : (isEdit ? 'Update Cost Center' : 'Save Cost Center')}</span>
           </button>
         </div>
       </div>
 
-      {/* 2. Full Width Form Body */}
+      {/* 2. Form Body */}
       <div className="flex-1 overflow-y-auto no-scrollbar p-6 w-full space-y-5">
         
-        {/* BASIC INFORMATION */}
+        {/* MAIN COST CENTER DETAILS CARD */}
         <div className="rounded-2xl border border-[var(--app-border)] bg-[var(--app-panel-bg)] p-5 shadow-xs space-y-4">
           <div className="flex items-center justify-between border-b border-[var(--app-border)] pb-2.5">
             <div className="flex items-center gap-2 text-[var(--app-accent)] font-bold text-xs uppercase tracking-wider">
               <Building2 size={15} />
-              <span>COST CENTER DETAILS</span>
+              <span>Cost Center Details</span>
             </div>
             <span className="text-[10px] font-semibold text-[var(--app-muted)]">* Required fields</span>
           </div>
@@ -257,7 +313,7 @@ export default function CostCenterMasterForm({
                 type="text"
                 value={formData.costCenterName}
                 onChange={(e) => updateField('costCenterName', e.target.value)}
-                placeholder="e.g. Mumbai Office, North Region, Project Alpha"
+                placeholder="e.g. Production Department, Sales, Project Alpha"
                 className={`w-full h-9.5 rounded-lg border bg-[var(--app-control-bg)] px-3 text-xs font-semibold text-[var(--app-heading)] outline-none transition-all ${
                   errors.costCenterName 
                     ? 'border-red-500 focus:border-red-500 ring-1 ring-red-500/20' 
@@ -272,7 +328,7 @@ export default function CostCenterMasterForm({
               )}
             </div>
 
-            {/* Cost Center Code */}
+            {/* Cost Center Code (Optional) */}
             <div className="space-y-1">
               <label className="block text-[10px] font-extrabold uppercase tracking-wider text-[var(--app-muted)]">
                 Cost Center Code
@@ -286,23 +342,97 @@ export default function CostCenterMasterForm({
               />
             </div>
 
-            {/* Status */}
+            {/* Active Toggle Switch */}
             <div className="space-y-1">
               <label className="block text-[10px] font-extrabold uppercase tracking-wider text-[var(--app-muted)]">
-                Status
+                Active Status
               </label>
-              <select
-                value={formData.status}
-                onChange={(e) => updateField('status', e.target.value)}
-                className="w-full h-9.5 rounded-lg border border-[var(--app-border)] bg-[var(--app-control-bg)] px-2.5 text-xs font-bold text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)] transition-all"
-              >
-                <option value="ACTIVE">ACTIVE</option>
-                <option value="INACTIVE">INACTIVE</option>
-              </select>
+              <div className="flex items-center gap-2 h-9.5">
+                <button
+                  type="button"
+                  onClick={() => updateField('isActive', !formData.isActive)}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                    formData.isActive ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                      formData.isActive ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+                <span className={`text-xs font-extrabold ${formData.isActive ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500'}`}>
+                  {formData.isActive ? 'Active (ON)' : 'Inactive (OFF)'}
+                </span>
+              </div>
             </div>
 
-            {/* Cost Category (Rendered if active in Configure Form) */}
-            {config.cfgCostCategory && (
+            {/* Under / Parent Cost Center */}
+            {config.cfgParentCostCenter && (
+              <div className="md:col-span-2 space-y-1 relative animate-in fade-in duration-200">
+                <label className="block text-[10px] font-extrabold uppercase tracking-wider text-[var(--app-muted)]">
+                  Under / Parent Cost Center
+                </label>
+
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setShowParentDropdown(p => !p)}
+                    className={`w-full h-9.5 rounded-lg border bg-[var(--app-control-bg)] px-3 text-xs font-semibold text-[var(--app-heading)] flex items-center justify-between outline-none hover:border-[var(--app-accent)] transition-all ${errors.parentId ? 'border-red-500' : 'border-[var(--app-border)]'}`}
+                  >
+                    <span className="truncate">{formData.parentId}</span>
+                    <ChevronDown size={14} className="text-[var(--app-muted)] shrink-0" />
+                  </button>
+
+                  {errors.parentId && (
+                    <p className="text-[10px] font-bold text-red-500 flex items-center gap-1 mt-0.5">
+                      <AlertCircle size={11} />
+                      <span>{errors.parentId}</span>
+                    </p>
+                  )}
+
+                  {showParentDropdown && (
+                    <div className="absolute left-0 right-0 top-10 z-30 rounded-xl border border-[var(--app-border)] bg-[var(--app-panel-bg)] shadow-xl p-2 space-y-2">
+                      <div className="relative">
+                        <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--app-muted)]" />
+                        <input
+                          type="text"
+                          value={parentSearchQuery}
+                          onChange={(e) => setParentSearchQuery(e.target.value)}
+                          placeholder="Search parent cost center..."
+                          className="w-full h-7.5 rounded-lg border border-[var(--app-border)] bg-[var(--app-control-bg)] pl-7 pr-2 text-xs text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)]"
+                        />
+                      </div>
+
+                      <div className="max-h-40 overflow-y-auto no-scrollbar space-y-0.5">
+                        {filteredParents.map(parentName => (
+                          <button
+                            key={parentName}
+                            type="button"
+                            onClick={() => {
+                              updateField('parentId', parentName);
+                              setShowParentDropdown(false);
+                              setParentSearchQuery('');
+                            }}
+                            className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center justify-between transition-colors ${
+                              formData.parentId === parentName 
+                                ? 'bg-[var(--app-accent-soft)] text-[var(--app-accent)] font-bold' 
+                                : 'hover:bg-[var(--app-control-hover)] text-[var(--app-text)]'
+                            }`}
+                          >
+                            <span>{parentName}</span>
+                            {formData.parentId === parentName && <Check size={12} />}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Cost Category (Rendered conditionally ONLY if multiple Cost Categories exist) */}
+            {hasMultipleCostCategories && config.cfgCostCategory && (
               <div className="md:col-span-2 space-y-1 relative animate-in fade-in duration-200">
                 <div className="flex items-center justify-between">
                   <label className="block text-[10px] font-extrabold uppercase tracking-wider text-[var(--app-muted)]">
@@ -368,65 +498,54 @@ export default function CostCenterMasterForm({
               </div>
             )}
 
-            {/* Parent Cost Center (Rendered if active in Configure Form) */}
-            {config.cfgParentCostCenter && (
-              <div className="md:col-span-2 space-y-1 relative animate-in fade-in duration-200">
-                <label className="block text-[10px] font-extrabold uppercase tracking-wider text-[var(--app-muted)]">
-                  Under / Parent Cost Center
-                </label>
-
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setShowParentDropdown(p => !p)}
-                    className="w-full h-9.5 rounded-lg border border-[var(--app-border)] bg-[var(--app-control-bg)] px-3 text-xs font-semibold text-[var(--app-heading)] flex items-center justify-between outline-none hover:border-[var(--app-accent)] transition-all"
-                  >
-                    <span className="truncate">{formData.parentId}</span>
-                    <ChevronDown size={14} className="text-[var(--app-muted)] shrink-0" />
-                  </button>
-
-                  {showParentDropdown && (
-                    <div className="absolute left-0 right-0 top-10 z-30 rounded-xl border border-[var(--app-border)] bg-[var(--app-panel-bg)] shadow-xl p-2 space-y-2">
-                      <div className="relative">
-                        <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--app-muted)]" />
-                        <input
-                          type="text"
-                          value={parentSearchQuery}
-                          onChange={(e) => setParentSearchQuery(e.target.value)}
-                          placeholder="Search parent cost center..."
-                          className="w-full h-7.5 rounded-lg border border-[var(--app-border)] bg-[var(--app-control-bg)] pl-7 pr-2 text-xs text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)]"
-                        />
-                      </div>
-
-                      <div className="max-h-40 overflow-y-auto no-scrollbar space-y-0.5">
-                        {filteredParents.map(parentName => (
-                          <button
-                            key={parentName}
-                            type="button"
-                            onClick={() => {
-                              updateField('parentId', parentName);
-                              setShowParentDropdown(false);
-                              setParentSearchQuery('');
-                            }}
-                            className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center justify-between transition-colors ${
-                              formData.parentId === parentName 
-                                ? 'bg-[var(--app-accent-soft)] text-[var(--app-accent)] font-bold' 
-                                : 'hover:bg-[var(--app-control-hover)] text-[var(--app-text)]'
-                            }`}
-                          >
-                            <span>{parentName}</span>
-                            {formData.parentId === parentName && <Check size={12} />}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
           </div>
         </div>
+
+        {/* ADVANCED SETTINGS CARD (Alias & Description) */}
+        {(config.cfgAlias || config.cfgDescription) && (
+          <div className="rounded-2xl border border-[var(--app-border)] bg-[var(--app-panel-bg)] p-5 shadow-xs space-y-4 animate-in fade-in duration-200">
+            <div className="flex items-center gap-2 text-[var(--app-accent)] font-bold text-xs uppercase tracking-wider border-b border-[var(--app-border)] pb-2.5">
+              <Settings size={15} />
+              <span>Advanced Settings</span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+              
+              {/* Alias (Optional) */}
+              {config.cfgAlias && (
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-extrabold uppercase tracking-wider text-[var(--app-muted)]">
+                    Alias
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.alias}
+                    onChange={(e) => updateField('alias', e.target.value)}
+                    placeholder="e.g. IMU"
+                    className="w-full h-9.5 rounded-lg border border-[var(--app-border)] bg-[var(--app-control-bg)] px-3 text-xs font-semibold text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)] transition-all"
+                  />
+                </div>
+              )}
+
+              {/* Description (Optional) */}
+              {config.cfgDescription && (
+                <div className="md:col-span-2 space-y-1">
+                  <label className="block text-[10px] font-extrabold uppercase tracking-wider text-[var(--app-muted)]">
+                    Description
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={formData.description}
+                    onChange={(e) => updateField('description', e.target.value)}
+                    placeholder="Main production department responsible for product assembly."
+                    className="w-full rounded-lg border border-[var(--app-border)] bg-[var(--app-control-bg)] p-3 text-xs font-medium text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)] transition-all resize-none"
+                  />
+                </div>
+              )}
+
+            </div>
+          </div>
+        )}
 
       </div>
 
@@ -442,11 +561,12 @@ export default function CostCenterMasterForm({
 
         <button
           type="button"
+          disabled={saving}
           onClick={handleSubmit}
-          className="px-5 py-2 rounded-lg bg-[var(--app-accent)] text-white text-xs font-bold shadow-sm hover:opacity-90 transition-all flex items-center gap-1.5"
+          className="px-5 py-2 rounded-lg bg-[var(--app-accent)] text-white text-xs font-bold shadow-sm hover:opacity-90 transition-all flex items-center gap-1.5 disabled:opacity-50"
         >
           <CheckCircle2 size={14} />
-          <span>{isEdit ? 'Update Cost Center' : 'Save Cost Center'}</span>
+          <span>{saving ? 'Saving...' : (isEdit ? 'Update Cost Center' : 'Save Cost Center')}</span>
         </button>
       </div>
 
@@ -469,10 +589,20 @@ export default function CostCenterMasterForm({
             </div>
 
             <p className="text-xs text-[var(--app-muted)]">
-              Enable or disable optional form fields. Active items will render directly on the form UI.
+              Enable or disable optional form fields. Active items will render on the form UI.
             </p>
 
             <div className="space-y-2 text-xs">
+              <label className="flex items-center justify-between p-2.5 rounded-xl border border-[var(--app-border)] bg-[var(--app-control-bg)] hover:bg-[var(--app-control-hover)] cursor-pointer">
+                <span className="font-semibold text-[var(--app-heading)]">Parent Cost Center Selection</span>
+                <input
+                  type="checkbox"
+                  checked={config.cfgParentCostCenter}
+                  onChange={(e) => setConfig(prev => ({ ...prev, cfgParentCostCenter: e.target.checked }))}
+                  className="w-4 h-4 rounded accent-[var(--app-accent)]"
+                />
+              </label>
+
               <label className="flex items-center justify-between p-2.5 rounded-xl border border-[var(--app-border)] bg-[var(--app-control-bg)] hover:bg-[var(--app-control-hover)] cursor-pointer">
                 <span className="font-semibold text-[var(--app-heading)]">Cost Category Selection</span>
                 <input
@@ -484,11 +614,21 @@ export default function CostCenterMasterForm({
               </label>
 
               <label className="flex items-center justify-between p-2.5 rounded-xl border border-[var(--app-border)] bg-[var(--app-control-bg)] hover:bg-[var(--app-control-hover)] cursor-pointer">
-                <span className="font-semibold text-[var(--app-heading)]">Parent Cost Center Selection</span>
+                <span className="font-semibold text-[var(--app-heading)]">Alias Field</span>
                 <input
                   type="checkbox"
-                  checked={config.cfgParentCostCenter}
-                  onChange={(e) => setConfig(prev => ({ ...prev, cfgParentCostCenter: e.target.checked }))}
+                  checked={config.cfgAlias}
+                  onChange={(e) => setConfig(prev => ({ ...prev, cfgAlias: e.target.checked }))}
+                  className="w-4 h-4 rounded accent-[var(--app-accent)]"
+                />
+              </label>
+
+              <label className="flex items-center justify-between p-2.5 rounded-xl border border-[var(--app-border)] bg-[var(--app-control-bg)] hover:bg-[var(--app-control-hover)] cursor-pointer">
+                <span className="font-semibold text-[var(--app-heading)]">Description Field</span>
+                <input
+                  type="checkbox"
+                  checked={config.cfgDescription}
+                  onChange={(e) => setConfig(prev => ({ ...prev, cfgDescription: e.target.checked }))}
                   className="w-4 h-4 rounded accent-[var(--app-accent)]"
                 />
               </label>

@@ -158,9 +158,18 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
 
   const ledgersRaw = masterData?.ledgers || [];
 
-  const finalCashLedgers = ledgersRaw.filter(l => l.groupName === 'Cash-in-Hand');
-  const finalBankLedgers = ledgersRaw.filter(l => l.groupName === 'Bank Accounts' || l.groupName === 'Bank OD A/c');
-  const cashAndBankLedgers = [...finalCashLedgers, ...finalBankLedgers];
+  const dynamicCashBank = masterData?.cashBankLedgers || [];
+  const finalCashLedgers = dynamicCashBank.length > 0 
+    ? dynamicCashBank.filter(name => name.toLowerCase().includes('cash')).map(name => ({ name, groupName: 'Cash-in-Hand' }))
+    : ledgersRaw.filter(l => l.groupName === 'Cash-in-Hand');
+
+  const finalBankLedgers = dynamicCashBank.length > 0 
+    ? dynamicCashBank.filter(name => !name.toLowerCase().includes('cash')).map(name => ({ name, groupName: 'Bank Accounts' }))
+    : ledgersRaw.filter(l => l.groupName === 'Bank Accounts' || l.groupName === 'Bank OD A/c');
+
+  const cashAndBankLedgers = dynamicCashBank.length > 0
+    ? dynamicCashBank.map(name => ({ name, groupName: 'Cash/Bank' }))
+    : [...finalCashLedgers, ...finalBankLedgers];
 
   // Payment mode state ('cash' or 'bank')
   const isBankInit = form.bankLedger || (form.againstLedger && finalBankLedgers.some(b => b.name === form.againstLedger));
@@ -347,10 +356,9 @@ const CreateFundFlow = ({ isDark, onBack, voucherType = 'cash_payment', onSaveSu
     }
   };
 
-  const finalPartyLedgers = ledgersRaw.filter(l => {
-    const g = l.groupName ? l.groupName.toLowerCase().trim() : '';
-    return g === 'sundry debtors' || g === 'sundry creditors';
-  });
+  const finalPartyLedgers = (masterData?.allLedgers && masterData.allLedgers.length > 0)
+    ? masterData.allLedgers
+    : (masterData?.partyLedgers || ledgersRaw.map(l => l.name || l.ledgerName).filter(Boolean));
 
   // Default ledger selections when masterData or activeType changes
   useEffect(() => {

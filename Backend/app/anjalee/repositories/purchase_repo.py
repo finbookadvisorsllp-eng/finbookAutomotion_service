@@ -99,36 +99,50 @@ class PurchaseRepository(BaseRepository):
 
 
     def get_party_ledgers(self, company_id: Optional[str] = None) -> List[Dict[str, Any]]:
-        party_groups = ["Sundry Debtors", "Sundry Creditors"]
-        query = {"groupName": {"$in": party_groups}}
-        
-        comp = None
-        if company_id:
-            if len(company_id) == 24:
-                try:
-                    from bson import ObjectId
-                    comp = self.db[COMPANIES_COLLECTION].find_one({"_id": ObjectId(company_id)})
-                except Exception:
-                    pass
-            if not comp:
-                comp = self.db[COMPANIES_COLLECTION].find_one({
-                    "$or": [
-                        {"companyName": company_id},
-                        {"basicCompantFormalName": company_id}
-                    ]
-                })
-        
-        if not comp:
-            comp = self.db[COMPANIES_COLLECTION].find_one()
+        from app.anjalee.repositories.sales_repo import build_company_id_query
+        comp_q = build_company_id_query(company_id, self.db)
+        query = comp_q if comp_q else {}
 
-        if comp:
-            query["companyId"] = comp["_id"]
+        main_ledgers = list(self.db[LEDGERS_COLLECTION].find(query))
+        entry_ledgers = list(self.db["ledgers_entry"].find(query))
+        all_docs = entry_ledgers + main_ledgers
 
-        ledgers = list(self.db[LEDGERS_COLLECTION].find(query))
-        
+        if not all_docs:
+            main_ledgers = list(self.db[LEDGERS_COLLECTION].find({}))
+            entry_ledgers = list(self.db["ledgers_entry"].find({}))
+            all_docs = entry_ledgers + main_ledgers
+
+        party_groups = {"sundry debtors", "sundry creditors", "debtors", "creditors", "cash-in-hand", "bank accounts", "bank od a/c"}
+        ledgers = []
+        for d in all_docs:
+            g_name = (d.get("groupName") or "").lower().strip()
+            g_path = (d.get("groupPath") or "").lower()
+            l_type = (d.get("ledgerType") or "").lower()
+            pd = d.get("partyDetails") or {}
+
+            is_party = (
+                g_name in party_groups
+                or "sundry debtors" in g_path
+                or "sundry creditors" in g_path
+                or "debtors" in g_path
+                or "creditors" in g_path
+                or "debtor" in l_type
+                or "creditor" in l_type
+                or bool(pd.get("gstin"))
+            )
+            if is_party:
+                ledgers.append(d)
+
+        if not ledgers:
+            ledgers = all_docs
+
         results = []
+        seen_names = set()
         for l in ledgers:
             ledger_name = l.get("ledgerName", "")
+            if not ledger_name or ledger_name in seen_names:
+                continue
+            seen_names.add(ledger_name)
             pd = l.get("partyDetails") or {}
             gstin = pd.get("gstin") or l.get("gstin") or ""
             gst_state = pd.get("gstState") or ""
@@ -177,38 +191,31 @@ class PurchaseRepository(BaseRepository):
         return results
 
     def get_purchase_ledgers(self, company_id: Optional[str] = None) -> List[Dict[str, Any]]:
-        query = {"groupName": "Purchase Accounts"}
-        
-        comp = None
-        if company_id:
-            if len(company_id) == 24:
-                try:
-                    from bson import ObjectId
-                    comp = self.db[COMPANIES_COLLECTION].find_one({"_id": ObjectId(company_id)})
-                except Exception:
-                    pass
-            if not comp:
-                comp = self.db[COMPANIES_COLLECTION].find_one({
-                    "$or": [
-                        {"companyName": company_id},
-                        {"basicCompantFormalName": company_id}
-                    ]
-                })
-        
-        if not comp:
-            comp = self.db[COMPANIES_COLLECTION].find_one()
+        from app.anjalee.repositories.sales_repo import build_company_id_query
+        comp_q = build_company_id_query(company_id, self.db)
+        query = comp_q if comp_q else {}
 
-        if comp:
-            query["companyId"] = comp["_id"]
+        main_ledgers = list(self.db[LEDGERS_COLLECTION].find(query))
+        entry_ledgers = list(self.db["ledgers_entry"].find(query))
+        all_docs = entry_ledgers + main_ledgers
 
-        ledgers = list(self.db[LEDGERS_COLLECTION].find(query))
+        purchase_ledgers = [
+            d for d in all_docs
+            if "purchase" in (d.get("groupName") or "").lower() or "purchase" in (d.get("groupPath") or "").lower() or "expense" in (d.get("groupPath") or "").lower() or "cost" in (d.get("groupPath") or "").lower()
+        ]
+        if not purchase_ledgers:
+            purchase_ledgers = all_docs
         
         import re
         slab_re = re.compile(r"(\d+(?:\.\d+)?)\s*%")
         
         results = []
-        for l in ledgers:
+        seen_names = set()
+        for l in purchase_ledgers:
             name = l.get("ledgerName", "")
+            if not name or name in seen_names:
+                continue
+            seen_names.add(name)
             m = slab_re.search(name)
             rate = float(m.group(1)) if m else 0.0
             gst_applicable = True
@@ -226,35 +233,23 @@ class PurchaseRepository(BaseRepository):
     def get_stock_items(self, company_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """Fetch stock items with name and HSN code from hsnSacDetails.hsnCode field scoped by company."""
         try:
+            from app.anjalee.repositories.sales_repo import build_company_id_query
             results = []
-            query = {}
-            comp = None
-            if company_id:
-                if len(company_id) == 24:
-                    try:
-                        from bson import ObjectId
-                        comp = self.db[COMPANIES_COLLECTION].find_one({"_id": ObjectId(company_id)})
-                    except Exception:
-                        pass
-                if not comp:
-                    comp = self.db[COMPANIES_COLLECTION].find_one({
-                        "$or": [
-                            {"companyName": company_id},
-                            {"basicCompantFormalName": company_id}
-                        ]
-                    })
-            
-            if not comp:
-                comp = self.db[COMPANIES_COLLECTION].find_one()
+            comp_q = build_company_id_query(company_id, self.db)
+            query = comp_q if comp_q else {}
 
-            if comp:
-                query["companyId"] = comp["_id"]
-
-            for doc in self.db[STOCK_ITEMS_COLLECTION].find(
+            main_docs = list(self.db[STOCK_ITEMS_COLLECTION].find(
                 query,
                 {"itemName": 1, "hsnSacDetails": 1, "gstSettings": 1, "hsnCode": 1, "taxRate": 1,
                  "unit": 1, "unitOfMeasure": 1, "baseUnit": 1}
-            ):
+            ))
+            entry_docs = list(self.db["stockitems_entry"].find(
+                query,
+                {"itemName": 1, "hsnSacDetails": 1, "gstSettings": 1, "hsnCode": 1, "taxRate": 1,
+                 "unit": 1, "unitOfMeasure": 1, "baseUnit": 1}
+            ))
+            docs = entry_docs + main_docs
+            for doc in docs:
                 try:
                     name = doc.get("itemName", "")
                     if not name:

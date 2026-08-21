@@ -5,7 +5,12 @@ import { fetchCompanies, createCompany } from './api'
 const KEY = ['companies']
 
 export const useCompanies = () =>
-  useQuery({ queryKey: KEY, queryFn: fetchCompanies })
+  useQuery({
+    queryKey: KEY,
+    queryFn: fetchCompanies,
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false
+  })
 
 export const useCreateCompany = () => {
   const qc = useQueryClient()

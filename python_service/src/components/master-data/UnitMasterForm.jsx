@@ -1,15 +1,40 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  Layers, Search, ChevronDown, Check, ArrowLeft, Save, 
-  CheckCircle2, AlertCircle, Settings, Plus, Trash2, X, Sliders, Hash
+  Layers, ArrowLeft, CheckCircle2, Scale
 } from 'lucide-react';
 import { toast } from 'sonner';
 
+// Standard GST Unique Quantity Codes (UQC)
+export const GST_UQC_OPTIONS = [
+  { code: 'BAG-BAGS', label: 'BAG - BAGS' },
+  { code: 'BAL-BALE', label: 'BAL - BALE' },
+  { code: 'BDL-BUNDLES', label: 'BDL - BUNDLES' },
+  { code: 'BKL-BUCKLES', label: 'BKL - BUCKLES' },
+  { code: 'BOX-BOXES', label: 'BOX - BOXES' },
+  { code: 'BTL-BOTTLES', label: 'BTL - BOTTLES' },
+  { code: 'CAN-CANS', label: 'CAN - CANS' },
+  { code: 'DOZ-DOZENS', label: 'DOZ - DOZENS' },
+  { code: 'GMS-GRAMMES', label: 'GMS - GRAMMES' },
+  { code: 'KGS-KILOGRAMS', label: 'KGS - KILOGRAMS' },
+  { code: 'KLR-KILOLITRE', label: 'KLR - KILOLITRE' },
+  { code: 'KME-KILOMETRE', label: 'KME - KILOMETRE' },
+  { code: 'MLT-MILLILITRE', label: 'MLT - MILLILITRE' },
+  { code: 'MTR-METERS', label: 'MTR - METERS' },
+  { code: 'NOS-NUMBERS', label: 'NOS - NUMBERS' },
+  { code: 'PCS-PIECES', label: 'PCS - PIECES' },
+  { code: 'PRS-PAIRS', label: 'PRS - PAIRS' },
+  { code: 'QTL-QUINTAL', label: 'QTL - QUINTAL' },
+  { code: 'SET-SETS', label: 'SET - SETS' },
+  { code: 'SQF-SQUARE FEET', label: 'SQF - SQUARE FEET' },
+  { code: 'SQM-SQUARE METERS', label: 'SQM - SQUARE METERS' },
+  { code: 'TON-TONNES', label: 'TON - TONNES' },
+  { code: 'UNT-UNITS', label: 'UNT - UNITS' },
+  { code: 'OTH-OTHERS', label: 'OTH - OTHERS' }
+];
+
 /**
  * UnitMasterForm
- * Component for creating and editing Measurement Units in the Masters module.
- * Takes full screen width, supports Base Unit vs Derived Unit conditional logic,
- * GST flags, and a dynamic repeatable Alternate Units table.
+ * Universal, TallyPrime-style Unit Master form supporting Simple & Compound unit types.
  */
 export default function UnitMasterForm({
   initialData = null,
@@ -18,80 +43,100 @@ export default function UnitMasterForm({
   onSave,
   onClose
 }) {
-  // Configure Form Modal Preferences (Persisted in localStorage)
-  const [showConfigModal, setShowConfigModal] = useState(false);
-  const [config, setConfig] = useState(() => {
-    const saved = localStorage.getItem('unit_form_config');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) {}
+  // Initial Form State
+  const [formData, setFormData] = useState(() => {
+    if (initialData) {
+      const isComp = (initialData.unitType || initialData.type || '').toLowerCase() === 'compound' || !!initialData.firstUnitId || !!initialData.firstUnit;
+      return {
+        unitName: initialData.name || initialData.unitName || initialData.symbol || '',
+        formalName: initialData.formalName || initialData.formal_name || '',
+        unitType: isComp ? 'Compound Unit' : 'Simple Unit',
+        decimalPlaces: initialData.decimalPlaces ?? 2,
+        gstUqc: initialData.gstUqc || initialData.uqc || '',
+
+        firstUnitId: initialData.firstUnitId || '',
+        firstUnitName: initialData.firstUnitName || initialData.firstUnit || '',
+        secondUnitId: initialData.secondUnitId || '',
+        secondUnitName: initialData.secondUnitName || initialData.secondUnit || '',
+        conversionFactor: initialData.conversionFactor || (initialData.compound?.conversionFactor) || '',
+
+        status: (initialData.status || 'Active').toLowerCase() === 'inactive' ? 'Inactive' : 'Active'
+      };
     }
+
     return {
-      cfgConversion: true,
-      cfgGstSettings: true,
-      cfgAlternateUnits: true
+      unitName: '',
+      formalName: '',
+      unitType: 'Simple Unit',
+      decimalPlaces: 2,
+      gstUqc: '',
+
+      firstUnitId: '',
+      firstUnitName: '',
+      secondUnitId: '',
+      secondUnitName: '',
+      conversionFactor: '',
+
+      status: 'Active'
     };
   });
 
-  useEffect(() => {
-    localStorage.setItem('unit_form_config', JSON.stringify(config));
-  }, [config]);
-
-  // Form State
-  const [formData, setFormData] = useState({
-    unitName: '',
-    symbol: '',
-    unitCode: '',
-    unitType: 'Base Unit', // 'Base Unit' or 'Derived / Alternate Unit'
-    baseUnit: '',
-    conversionFactor: '',
-    decimalPlaces: 2,
-    isGstExcluded: false,
-    status: 'ACTIVE'
-  });
-
-  // Base Unit Search State
-  const [baseUnitSearchQuery, setBaseUnitSearchQuery] = useState('');
-  const [showBaseUnitDropdown, setShowBaseUnitDropdown] = useState(false);
-
-  // Dynamic Repeatable Alternate Units Table
-  const [alternateUnits, setAlternateUnits] = useState([]);
-
-  // Errors
   const [errors, setErrors] = useState({});
 
-  // Pre-fill on Edit / Auto-generate code on Create
-  useEffect(() => {
-    if (isEdit && initialData) {
-      const isBase = initialData.conversion?.isBaseUnit ?? (initialData.isBaseUnit !== false);
-      setFormData({
-        unitName: initialData.unitName || initialData.name || '',
-        symbol: initialData.symbol || initialData.unitSymbol || '',
-        unitCode: initialData.unitCode || initialData.code || '',
-        unitType: isBase ? 'Base Unit' : 'Derived / Alternate Unit',
-        baseUnit: initialData.conversion?.baseUnit || initialData.baseUnit || '',
-        conversionFactor: initialData.conversion?.conversionFactor || initialData.conversionFactor || '',
-        decimalPlaces: initialData.conversion?.decimalPlaces ?? initialData.decimalPlaces ?? 2,
-        isGstExcluded: initialData.flags?.isGstExcluded ?? initialData.isGstExcluded ?? false,
-        status: (initialData.status || 'ACTIVE').toUpperCase()
-      });
+  // List of existing units for Compound Unit selections
+  const availableUnitsForCompound = useMemo(() => {
+    const list = [];
+    const seen = new Set();
 
-      if (initialData.alternateUnits && Array.isArray(initialData.alternateUnits)) {
-        setAlternateUnits(initialData.alternateUnits.map((a, i) => ({
-          id: i + 1,
-          unitName: typeof a === 'string' ? a : (a.unitName || a.name || ''),
-          conversionFactor: typeof a === 'string' ? 1 : (a.conversionFactor || 1)
-        })));
+    (unitsList || []).forEach(u => {
+      if (!u) return;
+      const uId = String(u._id || u.id || u.unitGuid || u.name || '').trim();
+      const uName = String(u.name || u.symbol || u.unitName || '').trim();
+      if (uName && !seen.has(uName.toLowerCase())) {
+        seen.add(uName.toLowerCase());
+        list.push({ id: uId, name: uName });
       }
-    } else {
-      const nextNum = Math.floor(1000 + Math.random() * 9000);
+    });
+
+    return list.sort((a, b) => a.name.localeCompare(b.name));
+  }, [unitsList]);
+
+  // Default selection for Compound Units if empty & auto-generate compound name
+  useEffect(() => {
+    if (formData.unitType === 'Compound Unit') {
+      let fName = formData.firstUnitName;
+      let fId = formData.firstUnitId;
+      let sName = formData.secondUnitName;
+      let sId = formData.secondUnitId;
+
+      if (!fName && availableUnitsForCompound.length > 0) {
+        const first = availableUnitsForCompound[0];
+        fName = first.name;
+        fId = first.id;
+      }
+      if (!sName && availableUnitsForCompound.length > 1) {
+        const second = availableUnitsForCompound.find(u => u.name.toLowerCase() !== (fName || '').toLowerCase()) || availableUnitsForCompound[1];
+        if (second) {
+          sName = second.name;
+          sId = second.id;
+        }
+      }
+
+      const factor = formData.conversionFactor || '1000';
+      const generatedName = fName && sName && factor ? `${fName} of ${factor} ${sName}` : formData.unitName;
+
       setFormData(prev => ({
         ...prev,
-        unitCode: `UNIT-${nextNum}`
+        firstUnitId: fId,
+        firstUnitName: fName,
+        secondUnitId: sId,
+        secondUnitName: sName,
+        unitName: prev.unitType === 'Compound Unit' && (!prev.unitName || prev.unitName === fName || prev.unitName.includes(' of ')) ? generatedName : prev.unitName
       }));
     }
-  }, [isEdit, initialData]);
+  }, [formData.unitType, availableUnitsForCompound, formData.firstUnitName, formData.secondUnitName, formData.conversionFactor]);
 
-  // Field Update Helper
+  // Field updater
   const updateField = (key, val) => {
     setFormData(prev => ({ ...prev, [key]: val }));
     if (errors[key]) {
@@ -99,37 +144,53 @@ export default function UnitMasterForm({
     }
   };
 
-  // Alternate Units Handlers
-  const addAlternateUnitRow = () => {
-    setAlternateUnits(prev => [
-      ...prev,
-      { id: Date.now(), unitName: unitsList[0]?.unitName || unitsList[0] || 'Gram', conversionFactor: 1000 }
-    ]);
-  };
-
-  const updateAlternateUnitRow = (id, field, val) => {
-    setAlternateUnits(prev => prev.map(a => (a.id === id ? { ...a, [field]: val } : a)));
-  };
-
-  const deleteAlternateUnitRow = (id) => {
-    setAlternateUnits(prev => prev.filter(a => a.id !== id));
-  };
-
-  // Validation
+  // Form Validation
   const validate = () => {
     const newErrors = {};
-    if (!formData.unitName.trim()) {
-      newErrors.unitName = 'Unit Name is required';
-    }
-    if (!formData.symbol.trim()) {
-      newErrors.symbol = 'Symbol is required';
-    }
-    if (formData.unitType === 'Derived / Alternate Unit') {
-      if (!formData.baseUnit) {
-        newErrors.baseUnit = 'Base Unit selection is required for derived unit';
+    const cleanName = formData.unitName.trim();
+    const currentId = initialData?._id || initialData?.id;
+
+    if (!cleanName) {
+      newErrors.unitName = 'Unit Name / Symbol is required';
+    } else {
+      // Case-insensitive duplicate check
+      const isDuplicate = (unitsList || []).some(u => {
+        if (!u) return false;
+        const uId = u._id || u.id;
+        if (currentId && uId && String(uId) === String(currentId)) return false;
+
+        const existingName = String(u.name || u.symbol || u.unitName || '').trim().toLowerCase();
+        return existingName === cleanName.toLowerCase();
+      });
+
+      if (isDuplicate) {
+        newErrors.unitName = `Unit Name / Symbol "${cleanName}" already exists (case-insensitive check)`;
       }
-      if (!formData.conversionFactor || parseFloat(formData.conversionFactor) <= 0) {
-        newErrors.conversionFactor = 'Valid conversion factor is required';
+    }
+
+    // Decimal places validation
+    const decNum = parseInt(formData.decimalPlaces, 10);
+    if (isNaN(decNum) || decNum < 0 || decNum > 4) {
+      newErrors.decimalPlaces = 'Decimal Places must be between 0 and 4';
+    }
+
+    // Compound Unit Validation
+    if (formData.unitType === 'Compound Unit') {
+      if (!formData.firstUnitName && !formData.firstUnitId) {
+        newErrors.firstUnitName = 'First Unit is required for compound unit';
+      }
+      if (!formData.secondUnitName && !formData.secondUnitId) {
+        newErrors.secondUnitName = 'Second Unit is required for compound unit';
+      }
+      if (
+        (formData.firstUnitName && formData.secondUnitName && formData.firstUnitName.trim().toLowerCase() === formData.secondUnitName.trim().toLowerCase()) ||
+        (formData.firstUnitId && formData.secondUnitId && formData.firstUnitId === formData.secondUnitId)
+      ) {
+        newErrors.secondUnitName = 'First Unit and Second Unit cannot be the same';
+      }
+      const factorNum = parseFloat(formData.conversionFactor);
+      if (!formData.conversionFactor || isNaN(factorNum) || factorNum <= 0) {
+        newErrors.conversionFactor = 'Conversion factor must be greater than 0';
       }
     }
 
@@ -146,90 +207,90 @@ export default function UnitMasterForm({
       return;
     }
 
-    const isBase = formData.unitType === 'Base Unit';
+    const isCompound = formData.unitType === 'Compound Unit';
 
     const payload = {
       _id: initialData?._id || initialData?.id,
       id: initialData?._id || initialData?.id,
       sourceCollection: initialData?.sourceCollection || 'units_entry',
+      
+      name: formData.unitName.trim(),
       unitName: formData.unitName.trim(),
-      symbol: formData.symbol.trim(),
-      unitCode: formData.unitCode.trim(),
+      symbol: formData.unitName.trim(),
+      unitSymbol: formData.unitName.trim(),
+
+      formalName: formData.formalName.trim(),
+      unitType: isCompound ? 'compound' : 'simple',
+      type: isCompound ? 'Compound' : 'Simple',
+
+      decimalPlaces: parseInt(formData.decimalPlaces, 10) || 0,
+      gstUqc: formData.gstUqc || '',
+
+      // Normalized Compound Unit References
+      firstUnitId: isCompound ? (formData.firstUnitId || null) : null,
+      firstUnitName: isCompound ? formData.firstUnitName.trim() : null,
+      firstUnit: isCompound ? formData.firstUnitName.trim() : null,
+
+      secondUnitId: isCompound ? (formData.secondUnitId || null) : null,
+      secondUnitName: isCompound ? formData.secondUnitName.trim() : null,
+      secondUnit: isCompound ? formData.secondUnitName.trim() : null,
+
+      conversionFactor: isCompound ? parseFloat(formData.conversionFactor) || 0 : null,
+
+      compound: isCompound ? {
+        firstUnit: formData.firstUnitName.trim(),
+        firstUnitId: formData.firstUnitId,
+        conversionFactor: parseFloat(formData.conversionFactor) || 0,
+        secondUnit: formData.secondUnitName.trim(),
+        secondUnitId: formData.secondUnitId
+      } : null,
 
       conversion: {
-        isBaseUnit: isBase,
-        baseUnit: isBase ? null : formData.baseUnit,
-        conversionFactor: isBase ? 0 : parseFloat(formData.conversionFactor) || 0,
-        decimalPlaces: parseInt(formData.decimalPlaces, 10) || 0
+        isBaseUnit: !isCompound,
+        decimalPlaces: parseInt(formData.decimalPlaces, 10) || 0,
+        conversionFactor: isCompound ? parseFloat(formData.conversionFactor) || 0 : 1.0
       },
 
+      status: formData.status,
       flags: {
-        asOriginal: false,
-        isDeleted: false,
-        isGstExcluded: formData.isGstExcluded
-      },
-
-      alternateUnits: alternateUnits.map(a => ({
-        unitName: a.unitName,
-        conversionFactor: parseFloat(a.conversionFactor) || 1
-      })),
-
-      status: formData.status
+        isCompound: isCompound,
+        isDeleted: false
+      }
     };
 
-    onSave(payload);
-    toast.success(isEdit ? 'Unit Master updated successfully!' : 'Unit Master created successfully!');
+    if (onSave) {
+      onSave(payload);
+      toast.success(isEdit ? `Unit "${formData.unitName}" updated!` : `Unit "${formData.unitName}" created!`);
+    }
   };
 
-  // Filter Available Base Units for Dropdown
-  const filteredBaseUnits = useMemo(() => {
-    const unitNames = unitsList.map(u => typeof u === 'string' ? u : (u.unitName || u.name || '')).filter(Boolean);
-    const available = Array.from(new Set(unitNames.filter(u => u.toLowerCase() !== formData.unitName.toLowerCase())));
-    
-    const q = baseUnitSearchQuery.toLowerCase().trim();
-    if (!q) return available;
-    return available.filter(u => u.toLowerCase().includes(q));
-  }, [unitsList, baseUnitSearchQuery, formData.unitName]);
-
   return (
-    <div className="h-full w-full flex flex-col bg-[var(--app-content-bg)] text-[var(--app-text)] font-sans overflow-hidden animate-in fade-in duration-300">
+    <div className="h-full w-full flex flex-col bg-[var(--app-panel-bg)] text-[var(--app-text)] font-sans overflow-hidden animate-in fade-in duration-200">
       
-      {/* 1. Header Navigation Bar (Full Width) */}
-      <div className="shrink-0 px-6 py-3.5 border-b border-[var(--app-border)] bg-[var(--app-panel-bg)] flex items-center justify-between shadow-xs">
+      {/* 1. Header Navigation Bar */}
+      <div className="shrink-0 px-5 py-3 border-b border-[var(--app-border)] bg-[var(--app-panel-bg)] flex items-center justify-between shadow-2xs">
         <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg border border-[var(--app-border)] hover:bg-[var(--app-control-hover)] text-[var(--app-text)] transition-colors"
+            className="p-1.5 rounded-lg border border-[var(--app-border)] hover:bg-[var(--app-control-hover)] text-[var(--app-text)] transition-colors shrink-0"
             title="Back to Units List"
           >
-            <ArrowLeft size={16} />
+            <ArrowLeft size={15} />
           </button>
           <div>
-            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--app-muted)]">
-              <span>Masters</span>
+            <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--app-muted)]">
+              <span>Units of Measure</span>
               <span>/</span>
-              <span>Unit</span>
-              <span>/</span>
-              <span className="text-[var(--app-accent)] font-bold">{isEdit ? 'Edit' : 'Create'}</span>
+              <span className="text-[var(--app-accent)]">{isEdit ? 'Edit Unit' : 'New Unit'}</span>
             </div>
-            <h1 className="text-base md:text-xl font-extrabold text-[var(--app-heading)] tracking-tight">
-              {isEdit ? 'Edit Unit Master' : 'Create Unit Master'}
+            <h1 className="text-base font-extrabold text-[var(--app-heading)] tracking-tight">
+              {isEdit ? `Edit: ${formData.unitName || 'Unit'}` : 'Create Unit'}
             </h1>
           </div>
         </div>
 
-        {/* Header Action Controls */}
-        <div className="flex items-center gap-2.5">
-          <button
-            type="button"
-            onClick={() => setShowConfigModal(true)}
-            className="px-3.5 py-1.5 rounded-lg border border-[var(--app-accent-soft)] bg-[var(--app-accent-soft)] text-[var(--app-accent)] hover:opacity-90 transition-all text-xs font-bold flex items-center gap-1.5 shadow-2xs"
-            title="Configure visible form sections and settings"
-          >
-            <Settings size={14} />
-            <span>Configure Form</span>
-          </button>
+        <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={onClose}
@@ -240,7 +301,7 @@ export default function UnitMasterForm({
           <button
             type="button"
             onClick={handleSubmit}
-            className="px-4 py-1.5 rounded-lg bg-[var(--app-accent)] text-white text-xs font-bold shadow-xs hover:opacity-90 transition-all flex items-center gap-1.5"
+            className="px-4 py-1.5 rounded-lg bg-[var(--app-accent)] text-white text-xs font-bold shadow-xs hover:opacity-90 transition-all flex items-center gap-1.5 cursor-pointer"
           >
             <CheckCircle2 size={14} />
             <span>{isEdit ? 'Update Unit' : 'Save Unit'}</span>
@@ -248,344 +309,240 @@ export default function UnitMasterForm({
         </div>
       </div>
 
-      {/* 2. Full Width Form Body */}
-      <div className="flex-1 overflow-y-auto no-scrollbar p-6 w-full space-y-5">
-        
-        {/* SECTION 1: BASIC INFORMATION */}
-        <div className="rounded-2xl border border-[var(--app-border)] bg-[var(--app-panel-bg)] p-5 shadow-xs space-y-4">
-          <div className="flex items-center justify-between border-b border-[var(--app-border)] pb-2.5">
-            <div className="flex items-center gap-2 text-[var(--app-accent)] font-bold text-xs uppercase tracking-wider">
-              <Layers size={15} />
-              <span>1. BASIC INFORMATION</span>
+      {/* 2. Form Container */}
+      <div className="flex-1 overflow-y-auto p-4 md:p-6 flex justify-center">
+        <form onSubmit={handleSubmit} className="w-full max-w-xl space-y-4">
+          
+          {/* Card 1: Basic Information */}
+          <div className="rounded-xl border border-[var(--app-border)] bg-[var(--app-panel-bg)] p-4 md:p-5 shadow-xs space-y-4">
+            <div className="flex items-center gap-2 border-b border-[var(--app-border)] pb-2.5 text-[var(--app-accent)] font-bold text-xs uppercase tracking-wider">
+              <Scale size={15} />
+              <span>Unit Details</span>
             </div>
-            <span className="text-[10px] font-semibold text-[var(--app-muted)]">* Required fields</span>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
-            {/* Unit Name * */}
-            <div className="md:col-span-2 space-y-1">
+            {/* Field 1: Unit Name / Symbol * */}
+            <div className="space-y-1">
               <label className="block text-[10px] font-extrabold uppercase tracking-wider text-[var(--app-muted)]">
-                Unit Name <span className="text-red-500">*</span>
+                Unit Name / Symbol <span className="text-rose-500">*</span>
               </label>
               <input
                 autoFocus
                 type="text"
                 value={formData.unitName}
                 onChange={(e) => updateField('unitName', e.target.value)}
-                placeholder="e.g. Kilogram, Gram, Ton, Numbers, Box, Packet, Pieces"
-                className={`w-full h-9.5 rounded-lg border bg-[var(--app-control-bg)] px-3 text-xs font-semibold text-[var(--app-heading)] outline-none transition-all ${
+                placeholder="e.g. KG, PCS, MTR, LTR, KM"
+                className={`w-full h-9 rounded-lg border bg-[var(--app-control-bg)] px-3 text-xs font-bold text-[var(--app-heading)] outline-none transition-all ${
                   errors.unitName 
-                    ? 'border-red-500 focus:border-red-500 ring-1 ring-red-500/20' 
+                    ? 'border-rose-500 focus:border-rose-500 ring-1 ring-rose-500/20' 
                     : 'border-[var(--app-border)] focus:border-[var(--app-accent)]'
                 }`}
               />
               {errors.unitName && (
-                <p className="text-[10px] font-bold text-red-500 flex items-center gap-1 mt-0.5">
-                  <AlertCircle size={11} />
-                  <span>{errors.unitName}</span>
-                </p>
+                <p className="text-[10px] font-bold text-rose-500 mt-0.5">{errors.unitName}</p>
               )}
             </div>
 
-            {/* Symbol * */}
+            {/* Field 2: Formal Name (Optional) */}
             <div className="space-y-1">
-              <label className="block text-[10px] font-extrabold uppercase tracking-wider text-[var(--app-muted)]">
-                Symbol <span className="text-red-500">*</span>
+              <label className="block text-[10px] font-extrabold uppercase tracking-wider text-[var(--app-muted)] flex items-center justify-between">
+                <span>Formal Name / Original Name</span>
+                <span className="text-[9px] text-[var(--app-muted)] font-semibold">(Optional)</span>
               </label>
               <input
                 type="text"
-                value={formData.symbol}
-                onChange={(e) => updateField('symbol', e.target.value)}
-                placeholder="e.g. kg, g, Tonnes, Nos, Box, Pcs"
-                className={`w-full h-9.5 rounded-lg border bg-[var(--app-control-bg)] px-3 text-xs font-bold text-[var(--app-heading)] outline-none transition-all ${
-                  errors.symbol 
-                    ? 'border-red-500 focus:border-red-500 ring-1 ring-red-500/20' 
-                    : 'border-[var(--app-border)] focus:border-[var(--app-accent)]'
-                }`}
-              />
-              {errors.symbol && (
-                <p className="text-[10px] font-bold text-red-500 flex items-center gap-1 mt-0.5">
-                  <AlertCircle size={11} />
-                  <span>{errors.symbol}</span>
-                </p>
-              )}
-            </div>
-
-            {/* Unit Code */}
-            <div className="space-y-1">
-              <label className="block text-[10px] font-extrabold uppercase tracking-wider text-[var(--app-muted)]">
-                Unit Code
-              </label>
-              <input
-                type="text"
-                value={formData.unitCode}
-                onChange={(e) => updateField('unitCode', e.target.value.toUpperCase())}
-                placeholder="e.g. UNIT-0001"
-                className="w-full h-9.5 rounded-lg border border-[var(--app-border)] bg-[var(--app-control-bg)] px-3 text-xs font-mono font-bold text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)]"
+                value={formData.formalName}
+                onChange={(e) => updateField('formalName', e.target.value)}
+                placeholder="e.g. Kilogram, Kilometer, Pieces, Meters"
+                className="w-full h-9 rounded-lg border border-[var(--app-border)] bg-[var(--app-control-bg)] px-3 text-xs font-semibold text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)]"
               />
             </div>
 
-            {/* Status */}
+            {/* Field 3: Unit Type Dropdown */}
             <div className="space-y-1">
               <label className="block text-[10px] font-extrabold uppercase tracking-wider text-[var(--app-muted)]">
-                Status
+                Unit Type <span className="text-rose-500">*</span>
               </label>
-              <select
-                value={formData.status}
-                onChange={(e) => updateField('status', e.target.value)}
-                className="w-full h-9.5 rounded-lg border border-[var(--app-border)] bg-[var(--app-control-bg)] px-2.5 text-xs font-bold text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)]"
-              >
-                <option value="ACTIVE">ACTIVE</option>
-                <option value="INACTIVE">INACTIVE</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* SECTION 2: UNIT CONFIGURATION */}
-        {config.cfgConversion && (
-          <div className="rounded-2xl border border-[var(--app-border)] bg-[var(--app-panel-bg)] p-5 shadow-xs space-y-4 animate-in fade-in duration-300">
-            <div className="flex items-center justify-between border-b border-[var(--app-border)] pb-2.5">
-              <div className="flex items-center gap-2 text-[var(--app-accent)] font-bold text-xs uppercase tracking-wider">
-                <Sliders size={15} />
-                <span>2. UNIT CONFIGURATION & CONVERSION</span>
-              </div>
-              <span className="text-[10px] font-medium text-[var(--app-muted)]">Base Unit vs Derived Unit</span>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-              {/* Unit Type Toggle */}
-              <div className="space-y-1">
-                <label className="block text-[10px] font-extrabold uppercase tracking-wider text-[var(--app-muted)]">
-                  Unit Type
-                </label>
-                <select
-                  value={formData.unitType}
-                  onChange={(e) => updateField('unitType', e.target.value)}
-                  className="w-full h-9.5 rounded-lg border border-[var(--app-border)] bg-[var(--app-control-bg)] px-2.5 text-xs font-bold text-[var(--app-accent)] outline-none focus:border-[var(--app-accent)]"
+              <div className="h-9 flex rounded-lg border border-[var(--app-border)] bg-[var(--app-control-bg)] p-0.5">
+                <button
+                  type="button"
+                  onClick={() => updateField('unitType', 'Simple Unit')}
+                  className={`flex-1 rounded-md text-xs font-bold transition-all ${
+                    formData.unitType === 'Simple Unit'
+                      ? 'bg-[var(--app-accent)] text-white shadow-xs'
+                      : 'text-[var(--app-muted)] hover:text-[var(--app-heading)]'
+                  }`}
                 >
-                  <option value="Base Unit">Base Unit</option>
-                  <option value="Derived / Alternate Unit">Derived / Alternate Unit</option>
-                </select>
+                  Simple Unit
+                </button>
+                <button
+                  type="button"
+                  onClick={() => updateField('unitType', 'Compound Unit')}
+                  className={`flex-1 rounded-md text-xs font-bold transition-all ${
+                    formData.unitType === 'Compound Unit'
+                      ? 'bg-[var(--app-accent)] text-white shadow-xs'
+                      : 'text-[var(--app-muted)] hover:text-[var(--app-heading)]'
+                  }`}
+                >
+                  Compound Unit
+                </button>
               </div>
+            </div>
 
-              {/* Decimal Places */}
+            {/* Field 4: Decimal Places & Status */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <label className="block text-[10px] font-extrabold uppercase tracking-wider text-[var(--app-muted)]">
-                  Decimal Places
+                  Decimal Places <span className="text-rose-500">*</span>
                 </label>
                 <select
                   value={formData.decimalPlaces}
                   onChange={(e) => updateField('decimalPlaces', parseInt(e.target.value, 10))}
-                  className="w-full h-9.5 rounded-lg border border-[var(--app-border)] bg-[var(--app-control-bg)] px-2.5 text-xs font-bold text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)]"
+                  className="w-full h-9 rounded-lg border border-[var(--app-border)] bg-[var(--app-control-bg)] px-2.5 text-xs font-bold text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)] cursor-pointer"
                 >
-                  <option value={0}>0 (Whole Numbers - e.g. 10 Pcs)</option>
-                  <option value={1}>1 (e.g. 10.5 Kg)</option>
-                  <option value={2}>2 (Standard - e.g. 10.25 Gram)</option>
-                  <option value={3}>3 (Precision - e.g. 10.125 Ton)</option>
+                  <option value={0}>0 (Whole Numbers - e.g. 10 BOX)</option>
+                  <option value={1}>1 (e.g. 10.5 KG)</option>
+                  <option value={2}>2 (Standard Default - e.g. 10.25 MTR)</option>
+                  <option value={3}>3 (Precision - e.g. 10.125 TON)</option>
                   <option value={4}>4 (High Precision)</option>
                 </select>
+                {errors.decimalPlaces && (
+                  <p className="text-[10px] font-bold text-rose-500 mt-0.5">{errors.decimalPlaces}</p>
+                )}
               </div>
 
-              {/* WHEN DERIVED / ALTERNATE UNIT IS SELECTED */}
-              {formData.unitType === 'Derived / Alternate Unit' && (
-                <>
-                  {/* Base Unit Selection * */}
-                  <div className="space-y-1 relative animate-in fade-in duration-200">
-                    <label className="block text-[10px] font-extrabold uppercase tracking-wider text-[var(--app-muted)]">
-                      Base Unit <span className="text-red-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <button
-                        type="button"
-                        onClick={() => setShowBaseUnitDropdown(p => !p)}
-                        className={`w-full h-9.5 rounded-lg border bg-[var(--app-control-bg)] px-3 text-xs font-semibold text-[var(--app-heading)] flex items-center justify-between outline-none hover:border-[var(--app-accent)] ${
-                          errors.baseUnit ? 'border-red-500' : 'border-[var(--app-border)]'
-                        }`}
-                      >
-                        <span className="truncate">{formData.baseUnit || 'Select Base Unit...'}</span>
-                        <ChevronDown size={14} className="text-[var(--app-muted)] shrink-0" />
-                      </button>
+              <div className="space-y-1">
+                <label className="block text-[10px] font-extrabold uppercase tracking-wider text-[var(--app-muted)]">
+                  Status
+                </label>
+                <select
+                  value={formData.status}
+                  onChange={(e) => updateField('status', e.target.value)}
+                  className="w-full h-9 rounded-lg border border-[var(--app-border)] bg-[var(--app-control-bg)] px-2.5 text-xs font-bold text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)] cursor-pointer"
+                >
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
+                </select>
+              </div>
+            </div>
 
-                      {showBaseUnitDropdown && (
-                        <div className="absolute left-0 right-0 top-10 z-30 rounded-xl border border-[var(--app-border)] bg-[var(--app-panel-bg)] shadow-xl p-2 space-y-2">
-                          <div className="relative">
-                            <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--app-muted)]" />
-                            <input
-                              type="text"
-                              value={baseUnitSearchQuery}
-                              onChange={(e) => setBaseUnitSearchQuery(e.target.value)}
-                              placeholder="Search base unit..."
-                              className="w-full h-7.5 rounded-lg border border-[var(--app-border)] bg-[var(--app-control-bg)] pl-7 pr-2 text-xs text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)]"
-                            />
-                          </div>
-
-                          <div className="max-h-40 overflow-y-auto no-scrollbar space-y-0.5">
-                            {filteredBaseUnits.map(bName => (
-                              <button
-                                key={bName}
-                                type="button"
-                                onClick={() => {
-                                  updateField('baseUnit', bName);
-                                  setShowBaseUnitDropdown(false);
-                                  setBaseUnitSearchQuery('');
-                                }}
-                                className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center justify-between transition-colors ${
-                                  formData.baseUnit === bName 
-                                    ? 'bg-[var(--app-accent-soft)] text-[var(--app-accent)] font-bold' 
-                                    : 'hover:bg-[var(--app-control-hover)] text-[var(--app-text)]'
-                                }`}
-                              >
-                                <span>{bName}</span>
-                                {formData.baseUnit === bName && <Check size={12} />}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    {errors.baseUnit && (
-                      <p className="text-[10px] font-bold text-red-500 mt-0.5">{errors.baseUnit}</p>
-                    )}
-                  </div>
-
-                  {/* Conversion Factor * */}
-                  <div className="md:col-span-3 space-y-1 pt-2 border-t border-[var(--app-border)] animate-in fade-in duration-200">
-                    <label className="block text-[10px] font-extrabold uppercase tracking-wider text-[var(--app-muted)]">
-                      Conversion Factor * (1 {formData.baseUnit || '[Base Unit]'} = ? {formData.unitName || '[Current Unit]'})
-                    </label>
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs font-bold text-[var(--app-muted)] whitespace-nowrap">
-                        1 {formData.baseUnit || '[Base Unit]'} =
-                      </span>
-                      <input
-                        type="number"
-                        value={formData.conversionFactor}
-                        onChange={(e) => updateField('conversionFactor', e.target.value)}
-                        placeholder="e.g. 1000"
-                        className={`w-48 h-9.5 rounded-lg border bg-[var(--app-control-bg)] px-3 text-xs font-bold text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)] ${
-                          errors.conversionFactor ? 'border-red-500' : 'border-[var(--app-border)]'
-                        }`}
-                      />
-                      <span className="text-xs font-extrabold text-[var(--app-heading)]">
-                        {formData.unitName || '[Current Unit]'}
-                      </span>
-                    </div>
-                    {errors.conversionFactor && (
-                      <p className="text-[10px] font-bold text-red-500 mt-0.5">{errors.conversionFactor}</p>
-                    )}
-                  </div>
-                </>
-              )}
+            {/* Field 5: GST UQC (Optional) */}
+            <div className="space-y-1">
+              <label className="block text-[10px] font-extrabold uppercase tracking-wider text-[var(--app-muted)] flex items-center justify-between">
+                <span>GST Unique Quantity Code (UQC)</span>
+                <span className="text-[9px] text-[var(--app-muted)] font-semibold">(Optional)</span>
+              </label>
+              <select
+                value={formData.gstUqc}
+                onChange={(e) => updateField('gstUqc', e.target.value)}
+                className="w-full h-9 rounded-lg border border-[var(--app-border)] bg-[var(--app-control-bg)] px-2.5 text-xs font-semibold text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)] cursor-pointer"
+              >
+                <option value="">-- Select GST UQC (Optional) --</option>
+                {GST_UQC_OPTIONS.map(uqc => (
+                  <option key={uqc.code} value={uqc.code}>{uqc.label}</option>
+                ))}
+              </select>
             </div>
           </div>
-        )}
 
-        {/* SECTION 3: GST SETTING & DYNAMIC ALTERNATE UNITS */}
-        <div className="space-y-4">
-          {/* GST Setting */}
-          {config.cfgGstSettings && (
-            <div className="rounded-2xl border border-[var(--app-border)] bg-[var(--app-panel-bg)] p-5 shadow-xs space-y-4 animate-in fade-in duration-300">
-              <div className="flex items-center justify-between border-b border-[var(--app-border)] pb-2.5">
-                <div className="flex items-center gap-2 text-[var(--app-accent)] font-bold text-xs uppercase tracking-wider">
-                  <Hash size={15} />
-                  <span>3. GST TAX SETTING</span>
-                </div>
-                <span className="text-[10px] font-medium text-[var(--app-muted)]">GST Exclusion Flag</span>
+          {/* Conditional Compound Unit Section (Visible ONLY when Unit Type = Compound Unit) */}
+          {formData.unitType === 'Compound Unit' && (
+            <div className="rounded-xl border border-[var(--app-accent)]/30 bg-[var(--app-panel-bg)] p-4 md:p-5 shadow-xs space-y-4 animate-in fade-in duration-200">
+              <div className="flex items-center gap-2 border-b border-[var(--app-border)] pb-2.5 text-[var(--app-accent)] font-bold text-xs uppercase tracking-wider">
+                <Layers size={15} />
+                <span>Compound Unit Setup</span>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                <label className="flex items-center justify-between p-3 rounded-xl border border-[var(--app-border)] bg-[var(--app-control-bg)] hover:bg-[var(--app-control-hover)] cursor-pointer select-none">
-                  <div>
-                    <span className="font-bold text-[var(--app-heading)] block">Exclude Unit from GST Calculations</span>
-                    <span className="text-[10px] text-[var(--app-muted)]">When enabled, items with this unit will be exempted from GST valuation</span>
-                  </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {/* First Unit */}
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-extrabold uppercase tracking-wider text-[var(--app-muted)]">
+                    First Unit <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    value={formData.firstUnitName}
+                    onChange={(e) => {
+                      const sel = availableUnitsForCompound.find(u => u.name === e.target.value);
+                      updateField('firstUnitName', e.target.value);
+                      if (sel) updateField('firstUnitId', sel.id);
+                    }}
+                    className={`w-full h-9 rounded-lg border bg-[var(--app-control-bg)] px-2.5 text-xs font-bold text-[var(--app-heading)] outline-none transition-all ${
+                      errors.firstUnitName ? 'border-rose-500' : 'border-[var(--app-border)] focus:border-[var(--app-accent)]'
+                    }`}
+                  >
+                    <option value="">-- Select First Unit --</option>
+                    {availableUnitsForCompound.map(u => (
+                      <option key={u.id} value={u.name}>{u.name}</option>
+                    ))}
+                  </select>
+                  {errors.firstUnitName && (
+                    <p className="text-[10px] font-bold text-rose-500 mt-0.5">{errors.firstUnitName}</p>
+                  )}
+                </div>
+
+                {/* Conversion Factor */}
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-extrabold uppercase tracking-wider text-[var(--app-muted)]">
+                    Conversion Factor <span className="text-rose-500">*</span>
+                  </label>
                   <input
-                    type="checkbox"
-                    checked={formData.isGstExcluded}
-                    onChange={(e) => updateField('isGstExcluded', e.target.checked)}
-                    className="w-4 h-4 rounded accent-[var(--app-accent)] cursor-pointer"
+                    type="number"
+                    step="any"
+                    value={formData.conversionFactor}
+                    onChange={(e) => updateField('conversionFactor', e.target.value)}
+                    placeholder="e.g. 1000"
+                    className={`w-full h-9 rounded-lg border bg-[var(--app-control-bg)] px-3 text-xs font-bold text-[var(--app-heading)] outline-none transition-all ${
+                      errors.conversionFactor ? 'border-rose-500' : 'border-[var(--app-border)] focus:border-[var(--app-accent)]'
+                    }`}
                   />
-                </label>
-              </div>
-            </div>
-          )}
-
-          {/* Dynamic Alternate Units Table */}
-          {config.cfgAlternateUnits && (
-            <div className="rounded-2xl border border-[var(--app-border)] bg-[var(--app-panel-bg)] p-5 shadow-xs space-y-4 animate-in fade-in duration-300">
-              <div className="flex items-center justify-between border-b border-[var(--app-border)] pb-2.5">
-                <div className="flex items-center gap-2 text-[var(--app-accent)] font-bold text-xs uppercase tracking-wider">
-                  <Plus size={15} />
-                  <span>REPEATABLE ALTERNATE UNITS MAPPING</span>
+                  {errors.conversionFactor && (
+                    <p className="text-[10px] font-bold text-rose-500 mt-0.5">{errors.conversionFactor}</p>
+                  )}
                 </div>
-                <button
-                  type="button"
-                  onClick={addAlternateUnitRow}
-                  className="px-3 py-1 rounded-lg bg-[var(--app-accent-soft)] text-[var(--app-accent)] font-bold text-xs hover:opacity-90 transition-all flex items-center gap-1"
-                >
-                  <Plus size={13} />
-                  <span>Add Alternate Unit</span>
-                </button>
+
+                {/* Second Unit */}
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-extrabold uppercase tracking-wider text-[var(--app-muted)]">
+                    Second Unit <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    value={formData.secondUnitName}
+                    onChange={(e) => {
+                      const sel = availableUnitsForCompound.find(u => u.name === e.target.value);
+                      updateField('secondUnitName', e.target.value);
+                      if (sel) updateField('secondUnitId', sel.id);
+                    }}
+                    className={`w-full h-9 rounded-lg border bg-[var(--app-control-bg)] px-2.5 text-xs font-bold text-[var(--app-heading)] outline-none transition-all ${
+                      errors.secondUnitName ? 'border-rose-500' : 'border-[var(--app-border)] focus:border-[var(--app-accent)]'
+                    }`}
+                  >
+                    <option value="">-- Select Second Unit --</option>
+                    {availableUnitsForCompound.map(u => (
+                      <option key={u.id} value={u.name}>{u.name}</option>
+                    ))}
+                  </select>
+                  {errors.secondUnitName && (
+                    <p className="text-[10px] font-bold text-rose-500 mt-0.5">{errors.secondUnitName}</p>
+                  )}
+                </div>
               </div>
 
-              {alternateUnits.length === 0 ? (
-                <p className="text-xs text-[var(--app-muted)] italic py-2">No alternate units mapped yet. Click "+ Add Alternate Unit" to configure.</p>
-              ) : (
-                <div className="overflow-x-auto no-scrollbar">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr className="border-b border-[var(--app-border)] text-[10px] font-extrabold uppercase text-[var(--app-muted)] bg-[var(--app-control-bg)]">
-                        <th className="p-2.5 rounded-l-lg">Alternate Unit Name</th>
-                        <th className="p-2.5">Conversion Factor</th>
-                        <th className="p-2.5 text-center rounded-r-lg">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[var(--app-border)]">
-                      {alternateUnits.map((au) => (
-                        <tr key={au.id} className="hover:bg-[var(--app-control-hover)] transition-colors">
-                          <td className="p-2">
-                            <input
-                              type="text"
-                              value={au.unitName}
-                              onChange={(e) => updateAlternateUnitRow(au.id, 'unitName', e.target.value)}
-                              placeholder="Unit Name"
-                              className="w-full h-8 rounded border border-[var(--app-border)] bg-[var(--app-control-bg)] px-2 text-xs font-semibold"
-                            />
-                          </td>
-                          <td className="p-2">
-                            <input
-                              type="number"
-                              value={au.conversionFactor}
-                              onChange={(e) => updateAlternateUnitRow(au.id, 'conversionFactor', e.target.value)}
-                              placeholder="1"
-                              className="w-full h-8 rounded border border-[var(--app-border)] bg-[var(--app-control-bg)] px-2 text-xs font-bold"
-                            />
-                          </td>
-                          <td className="p-2 text-center">
-                            <button
-                              type="button"
-                              onClick={() => deleteAlternateUnitRow(au.id)}
-                              className="p-1 rounded text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40"
-                              title="Delete Alternate Unit"
-                            >
-                              <Trash2 size={13} />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+              {/* Conversion Rule Preview Sentence */}
+              {formData.firstUnitName && formData.secondUnitName && formData.conversionFactor && (
+                <div className="p-3 rounded-lg border border-[var(--app-accent)]/30 bg-[var(--app-accent-soft)]/40 flex items-center justify-between text-xs font-bold text-[var(--app-accent)]">
+                  <span>Conversion Expression:</span>
+                  <span className="font-mono text-sm bg-white dark:bg-black/30 px-3 py-1 rounded-md border border-[var(--app-accent)]/40">
+                    1 {formData.firstUnitName} = {formData.conversionFactor} {formData.secondUnitName}
+                  </span>
                 </div>
               )}
             </div>
           )}
-        </div>
 
+        </form>
       </div>
 
-      {/* 3. Sticky Bottom Action Bar */}
-      <div className="shrink-0 px-6 py-3.5 border-t border-[var(--app-border)] bg-[var(--app-panel-bg)] flex items-center justify-between shadow-lg">
+      {/* 3. Sticky Action Bar */}
+      <div className="shrink-0 px-5 py-3 border-t border-[var(--app-border)] bg-[var(--app-panel-bg)] flex items-center justify-between shadow-lg">
         <button
           type="button"
           onClick={onClose}
@@ -597,82 +554,12 @@ export default function UnitMasterForm({
         <button
           type="button"
           onClick={handleSubmit}
-          className="px-5 py-2 rounded-lg bg-[var(--app-accent)] text-white text-xs font-bold shadow-sm hover:opacity-90 transition-all flex items-center gap-1.5"
+          className="px-5 py-2 rounded-lg bg-[var(--app-accent)] text-white text-xs font-bold shadow-sm hover:opacity-90 transition-all flex items-center gap-1.5 cursor-pointer"
         >
           <CheckCircle2 size={14} />
           <span>{isEdit ? 'Update Unit' : 'Save Unit'}</span>
         </button>
       </div>
-
-      {/* 4. CONFIGURE FORM MODAL DIALOG */}
-      {showConfigModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-md rounded-2xl border border-[var(--app-border)] bg-[var(--app-panel-bg)] p-5 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-[var(--app-border)] pb-3">
-              <div className="flex items-center gap-2 text-[var(--app-heading)] font-extrabold text-sm">
-                <Settings size={16} className="text-[var(--app-accent)]" />
-                <span>Configure Unit Master Form</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowConfigModal(false)}
-                className="p-1 rounded-lg border border-[var(--app-border)] hover:bg-[var(--app-control-hover)] text-[var(--app-muted)] hover:text-[var(--app-heading)]"
-              >
-                <X size={15} />
-              </button>
-            </div>
-
-            <p className="text-xs text-[var(--app-muted)]">
-              Enable or disable optional form sections. Active items will render directly on the form UI.
-            </p>
-
-            <div className="space-y-2 text-xs">
-              <label className="flex items-center justify-between p-2.5 rounded-xl border border-[var(--app-border)] bg-[var(--app-control-bg)] hover:bg-[var(--app-control-hover)] cursor-pointer">
-                <span className="font-semibold text-[var(--app-heading)]">Unit Configuration & Conversion</span>
-                <input
-                  type="checkbox"
-                  checked={config.cfgConversion}
-                  onChange={(e) => setConfig(prev => ({ ...prev, cfgConversion: e.target.checked }))}
-                  className="w-4 h-4 rounded accent-[var(--app-accent)]"
-                />
-              </label>
-
-              <label className="flex items-center justify-between p-2.5 rounded-xl border border-[var(--app-border)] bg-[var(--app-control-bg)] hover:bg-[var(--app-control-hover)] cursor-pointer">
-                <span className="font-semibold text-[var(--app-heading)]">GST Tax Setting Section</span>
-                <input
-                  type="checkbox"
-                  checked={config.cfgGstSettings}
-                  onChange={(e) => setConfig(prev => ({ ...prev, cfgGstSettings: e.target.checked }))}
-                  className="w-4 h-4 rounded accent-[var(--app-accent)]"
-                />
-              </label>
-
-              <label className="flex items-center justify-between p-2.5 rounded-xl border border-[var(--app-border)] bg-[var(--app-control-bg)] hover:bg-[var(--app-control-hover)] cursor-pointer">
-                <span className="font-semibold text-[var(--app-heading)]">Repeatable Alternate Units Section</span>
-                <input
-                  type="checkbox"
-                  checked={config.cfgAlternateUnits}
-                  onChange={(e) => setConfig(prev => ({ ...prev, cfgAlternateUnits: e.target.checked }))}
-                  className="w-4 h-4 rounded accent-[var(--app-accent)]"
-                />
-              </label>
-            </div>
-
-            <div className="pt-3 border-t border-[var(--app-border)] flex justify-end">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowConfigModal(false);
-                  toast.success('Form settings updated successfully!');
-                }}
-                className="px-4 py-2 rounded-xl bg-[var(--app-accent)] text-white text-xs font-bold shadow-xs hover:opacity-90 transition-all"
-              >
-                Apply Settings
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
     </div>
   );

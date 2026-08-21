@@ -1,4 +1,6 @@
 import os
+import re
+from datetime import datetime
 import xml.etree.ElementTree as ET
 from typing import List
 from app.anjalee.services.tally.voucher_mapper import TallyVoucher, TallyLedgerEntry, TallyInventoryEntry
@@ -703,20 +705,104 @@ def generate_ledger_xml(ledger_doc: dict) -> str:
     return generateTallyLedgerXML(tally_dict)
 
 
-def generate_stock_item_xml(doc: dict, db=None) -> str:
+def sanitize_xml_text(val: str) -> str:
+    """
+    Sanitizes text for XML by removing invalid control characters (e.g. &#4;, \x00-\x08, \x0b-\x0c, \x0e-\x1f)
+    and escaping XML special characters (&, <, >, ", ').
+    Returns a clean UTF-8 string.
+    """
+    if val is None:
+        return ""
+    val_str = str(val).strip()
+    if not val_str:
+        return ""
+    # Strip literal &#4; or numeric entity control codes if present
+    val_str = re.sub(r'&#\d+;', '', val_str)
+    # Strip invalid control characters (below \x20 except \x09, \x0a, \x0d)
+    val_str = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x84\x86-\x9f]', '', val_str)
+    # Escape XML entities
+    return escape_xml(val_str)
 
+
+def validate_stock_item_dependencies(doc: dict, db=None) -> list:
     """
-    Generates Tally-compliant XML for a STOCK ITEM master.
-    Strictly follows 27 Tally Stock Item XML mapping rules:
-    - Omits empty/null/Not Applicable tags
-    - Dynamic GST, HSN, MRP (with priority logic), Units, Batches, and BOM
-    - Zero hardcoded fallback values
+    Validates master dependencies and opening stock calculations for a Stock Item.
+    Returns a list of error message strings. If empty, validation passed.
     """
+    errors = []
+
+    item_name = (doc.get("itemName") or doc.get("name") or "").strip()
+    if not item_name:
+        errors.append("Stock Item Name is required.")
+
+    # 1. Stock Group Validation
+    parent_raw = (doc.get("stockGroupName") or doc.get("group") or doc.get("stockGroup") or "").strip()
+    if parent_raw and parent_raw.lower() not in ["primary", "general", "primary / general", "none", "n/a", ""]:
+        if db is not None:
+            group_exists = db["stockGroups"].find_one({"$or": [{"groupName": parent_raw}, {"name": parent_raw}]}) or \
+                           db["stockgroups_entry"].find_one({"$or": [{"groupName": parent_raw}, {"name": parent_raw}]})
+            if not group_exists:
+                errors.append(f"Stock Group '{parent_raw}' does not exist in Tally database.")
+
+    # 2. Stock Category Validation
+    category_raw = (doc.get("stockCategoryName") or doc.get("category") or doc.get("stockCategory") or "").strip()
+    if category_raw and category_raw.lower() not in ["primary", "general", "not applicable", "n/a", "none", ""]:
+        if db is not None:
+            cat_exists = db["stockCategories"].find_one({"$or": [{"categoryName": category_raw}, {"stockCategoryName": category_raw}, {"name": category_raw}]}) or \
+                         db["stockcategories_entry"].find_one({"$or": [{"categoryName": category_raw}, {"stockCategoryName": category_raw}, {"name": category_raw}]})
+            if not cat_exists:
+                errors.append(f"Stock Category '{category_raw}' does not exist in Tally database.")
+
+    # 3. Unit Validation
+    unit_obj = doc.get("unit") or {}
+    if not isinstance(unit_obj, dict):
+        unit_obj = {}
+    base_unit = (unit_obj.get("baseUnit") or doc.get("baseUnit") or doc.get("unitName") or doc.get("uom") or (unit_obj if isinstance(unit_obj, str) else "") or "").strip()
+    if base_unit and base_unit.lower() not in ["not applicable", "n/a", "none", ""]:
+        if db is not None:
+            unit_exists = db["units"].find_one({"$or": [{"symbol": base_unit}, {"unitName": base_unit}, {"name": base_unit}]}) or \
+                          db["units_entry"].find_one({"$or": [{"symbol": base_unit}, {"unitName": base_unit}, {"name": base_unit}]})
+            if not unit_exists:
+                errors.append(f"Unit '{base_unit}' does not exist in Tally database.")
+
+    # 4. Opening Stock Calculation Validation
+    inv_obj = doc.get("inventory") or {}
+    if not isinstance(inv_obj, dict):
+        inv_obj = {}
+    op_stock = inv_obj.get("openingStock") or {}
+    if not isinstance(op_stock, dict):
+        op_stock = {}
+
+    op_qty = parse_float(inv_obj.get("openingQuantity") or doc.get("openingQuantity") or doc.get("openingQty") or op_stock.get("quantity") or op_stock.get("qty"), 0.0)
+    op_rate = parse_float(inv_obj.get("openingRate") or doc.get("openingRate") or doc.get("purchasePrice") or op_stock.get("rate"), 0.0)
+    op_val = parse_float(inv_obj.get("openingValue") or doc.get("openingValue") or doc.get("openingAmount") or op_stock.get("value") or op_stock.get("amount"), 0.0)
+
+    if op_qty > 0 and op_rate > 0 and op_val > 0:
+        calc_val = op_qty * op_rate
+        if abs(calc_val - op_val) > 0.5:
+            errors.append(f"Opening Stock calculation mismatch: Quantity ({op_qty}) × Rate ({op_rate}) = {calc_val:.2f}, but Opening Value was given as {op_val:.2f}.")
+
+    return errors
+
+
+def generate_stock_item_xml(doc: dict, db=None) -> str:
+    """
+    Generates a CLEAN, MINIMAL, VALID, TALLY-COMPATIBLE Stock Item XML based strictly
+    on values configured in UI/database.
+    - Validates dependencies and calculations.
+    - Strips all invalid XML control characters (&#4;) and escapes entities.
+    - Omits empty/disabled/false/VAT/Excise tags and boolean flag dumps.
+    - Omits duplicate top-level HSN tags outside HSNDETAILS.LIST.
+    """
+    # 1. Dependency and calculation validation
+    errs = validate_stock_item_dependencies(doc, db=db)
+    if errs:
+        raise ValueError(" / ".join(errs))
+
     def e(val) -> str:
-        return escape_xml(val)
+        return sanitize_xml_text(val)
 
     def transform_date(val) -> str:
-        """Converts date string (e.g. '2026-08-14' or ISO) to Tally YYYYMMDD format ('20260814')."""
         if not val:
             return ""
         s = str(val).strip().split("T")[0].replace("-", "").replace("/", "").replace(".", "")
@@ -728,139 +814,117 @@ def generate_stock_item_xml(doc: dict, db=None) -> str:
     def L(line_str: str):
         lines.append(line_str)
 
-    # 1. Base item details
-    item_name = doc.get("itemName") or doc.get("name") or "Unnamed Stock Item"
-    
-    parent_raw = doc.get("stockGroupName") or doc.get("group") or doc.get("stockGroup") or "General"
-    if str(parent_raw).strip().lower() in ["primary", "primary / general", "none", ""]:
-        parent_group = "General"
+    item_name = (doc.get("itemName") or doc.get("name") or "Unnamed Stock Item").strip()
+
+    # Action
+    action_type = str(doc.get("action") or "").strip()
+    header_action = 'ACTION="Alter"' if action_type.lower() == "alter" else 'ACTION="Create"'
+
+    # Parent Group
+    parent_raw = (doc.get("stockGroupName") or doc.get("group") or doc.get("stockGroup") or "").strip()
+    if parent_raw and parent_raw.lower() not in ["primary", "general", "primary / general", "none", "n/a", ""]:
+        parent_group = parent_raw
     else:
-        parent_group = str(parent_raw).strip()
+        parent_group = ""
 
-    # Rule 1 & 4: CATEGORY only generated when valid category exists
-    raw_category = doc.get("stockCategoryName") or doc.get("category") or doc.get("stockCategory") or ""
-    cat_id = str(doc.get("stockCategoryId") or "").strip()
-    if cat_id in ["null", "undefined", "0"]:
-        cat_id = ""
-
-    if str(raw_category).strip().lower() in ["not applicable", "n/a", "none", "", "null", "undefined", "primary"]:
+    # Category
+    raw_category = (doc.get("stockCategoryName") or doc.get("category") or doc.get("stockCategory") or "").strip()
+    if raw_category and raw_category.lower() not in ["not applicable", "n/a", "none", "", "null", "undefined", "primary"]:
+        category_name = raw_category
+    else:
         category_name = ""
-    else:
-        category_name = str(raw_category).strip()
 
-    # Pricing & Valuation
-    pricing_obj = doc.get("pricing") or {}
-    if not isinstance(pricing_obj, dict):
-        pricing_obj = {}
-    costing_method = pricing_obj.get("costingMethod") or doc.get("costingMethod") or "FIFO"
-    valuation_method = pricing_obj.get("valuationMethod") or doc.get("valuationMethod") or "Last Sale Price"
-
-    # Unit configuration (Rule 5 & 9)
+    # Base Unit
     unit_obj = doc.get("unit") or {}
     if not isinstance(unit_obj, dict):
         unit_obj = {}
-    base_unit = unit_obj.get("baseUnit") or doc.get("baseUnit") or doc.get("uom") or (unit_obj if isinstance(unit_obj, str) else "") or "Nos"
-    
-    alt_unit = unit_obj.get("alternateUnit") or doc.get("alternateUnit") or ""
-    if str(alt_unit).strip().lower() in ["not applicable", "n/a", "none", "", str(base_unit).strip().lower()]:
+    base_unit = (unit_obj.get("baseUnit") or doc.get("baseUnit") or doc.get("unitName") or doc.get("uom") or (unit_obj if isinstance(unit_obj, str) else "") or "").strip()
+    if base_unit.lower() in ["not applicable", "n/a", "none"]:
+        base_unit = ""
+
+    # Alternate Unit & Conversion
+    alt_unit = (unit_obj.get("alternateUnit") or doc.get("alternateUnit") or (doc.get("inventory") or {}).get("alternateUnitName") or "").strip()
+    if alt_unit.lower() in ["not applicable", "n/a", "none", "", base_unit.lower()]:
         alt_unit = ""
 
-    vat_base_unit = unit_obj.get("vatBaseUnit") or doc.get("vatBaseUnit") or base_unit
-    if not vat_base_unit or str(vat_base_unit).strip().lower() in ["not applicable", "n/a", "none", ""]:
-        vat_base_unit = base_unit
-
-    conv_factor = unit_obj.get("conversionFactor") or doc.get("conversionFactor") or ""
+    conv_factor = unit_obj.get("conversionFactor") or doc.get("conversionFactor") or (doc.get("inventory") or {}).get("unitsPerPack") or ""
     try:
         conv_factor_num = float(conv_factor) if conv_factor else 0.0
     except (ValueError, TypeError):
         conv_factor_num = 0.0
 
-    # Flags
-    flags_obj = doc.get("flags") or {}
-    if not isinstance(flags_obj, dict):
-        flags_obj = {}
-    tracking_obj = doc.get("tracking") or {}
-    if not isinstance(tracking_obj, dict):
-        tracking_obj = {}
+    # Description
+    desc_str = (doc.get("description") or (doc.get("basicInfo") or {}).get("description") or "").strip()
 
-    is_cost_center = transformBoolean(flags_obj.get("isCostCenter") or doc.get("isCostCenter"))
-    is_batch_wise = transformBoolean(tracking_obj.get("trackBatches") or flags_obj.get("isBatchWise") or doc.get("trackBatches") or doc.get("isBatchWise"))
-    is_perishable = transformBoolean(tracking_obj.get("trackExpiry") or flags_obj.get("isPerishable") or doc.get("trackExpiry") or doc.get("isPerishable"))
-    is_cost_tracking = transformBoolean(flags_obj.get("isCostTrachingOn") or flags_obj.get("isCostTrackingOn") or doc.get("isCostTrachingOn") or doc.get("isCostTrackingOn"))
-    as_original = transformBoolean(flags_obj.get("asOriginal") if "asOriginal" in flags_obj else False)
-    has_mfg_date = transformBoolean(tracking_obj.get("trackManufacturingDate") or flags_obj.get("hasMfgDate") or doc.get("trackManufacturingDate"))
+    # Identification
+    ident_obj = doc.get("identification") if isinstance(doc.get("identification"), dict) else {}
+    barcode = (ident_obj.get("barcode") or doc.get("barcode") or "").strip()
+    brand = (ident_obj.get("brand") or doc.get("brand") or "").strip()
+    part_no = (ident_obj.get("partNumber") or doc.get("partNumber") or "").strip()
 
-    ignore_negative_stock = transformBoolean(flags_obj.get("ignoreNegativeStock") or doc.get("negativeStockAllowed"))
-    treat_sales_as_mfg = transformBoolean(flags_obj.get("treatSalesAsManufactured") or doc.get("treatSalesAsManufactured"))
-    treat_purchases_as_consumed = transformBoolean(flags_obj.get("treatPurchaseAsConsumed") or doc.get("treatPurchaseAsConsumed"))
-    treat_rejects_as_scrap = transformBoolean(flags_obj.get("treatRejectAsScrap") or doc.get("treatRejectAsScrap"))
-    allow_use_of_expired = transformBoolean(flags_obj.get("allowUseOfExpiredItems") or doc.get("allowUseOfExpiredItems"))
-    ignore_batches = transformBoolean(flags_obj.get("ignoreBatches") or doc.get("ignoreBatches"))
-    ignore_godowns = transformBoolean(flags_obj.get("ignoreGodowns") or doc.get("ignoreGodowns"))
-    calc_on_mrp = transformBoolean(flags_obj.get("calcOnMrp") or doc.get("calcOnMrp"))
-    is_additional_tax = transformBoolean(flags_obj.get("isAdditionalTax") or doc.get("isAdditionalTax"))
-    is_cess_exempted = transformBoolean(flags_obj.get("isCessExempted") or doc.get("isCessExempted"))
+    # Costing / Valuation (ONLY output if user configured explicitly)
+    pricing_obj = doc.get("pricing") if isinstance(doc.get("pricing"), dict) else {}
+    costing_method = (doc.get("costingMethod") or pricing_obj.get("costingMethod") or "").strip()
+    valuation_method = (doc.get("valuationMethod") or pricing_obj.get("valuationMethod") or "").strip()
 
-    # Opening Inventory (Rules 6, 7, 8)
-    inv_obj = doc.get("inventory") or {}
-    if not isinstance(inv_obj, dict):
-        inv_obj = {}
-    op_stock = inv_obj.get("openingStock") or {}
-    if not isinstance(op_stock, dict):
-        op_stock = {}
+    # Flags (ONLY output if set to True)
+    flags_obj = doc.get("flags") if isinstance(doc.get("flags"), dict) else {}
+    tracking_obj = doc.get("tracking") if isinstance(doc.get("tracking"), dict) else {}
+
+    is_cost_center = (flags_obj.get("isCostCenter") or doc.get("isCostCenter") or False)
+    is_batch_wise = (tracking_obj.get("maintainBatch") or tracking_obj.get("trackBatches") or flags_obj.get("isBatchWise") or doc.get("trackBatches") or doc.get("isBatchWise") or False)
+    is_perishable = (tracking_obj.get("trackExpiry") or flags_obj.get("isPerishable") or doc.get("trackExpiry") or doc.get("isPerishable") or False)
+    is_cost_tracking = (flags_obj.get("isCostTrackingOn") or doc.get("isCostTrackingOn") or False)
+    has_mfg_date = (tracking_obj.get("trackManufacturingDate") or flags_obj.get("hasMfgDate") or doc.get("trackManufacturingDate") or False)
+
+    # GST Settings
+    tax_obj = doc.get("tax") if isinstance(doc.get("tax"), dict) else {}
+    gst_settings = doc.get("gstSettings") if isinstance(doc.get("gstSettings"), dict) else {}
+    hsn_details = doc.get("hsnSacDetails") if isinstance(doc.get("hsnSacDetails"), dict) else {}
+
+    raw_date = hsn_details.get("applicableFrom") or gst_settings.get("applicableFrom") or doc.get("applicableFrom")
+    applicable_from = transform_date(raw_date) if raw_date else ""
+
+    item_nature = str(doc.get("itemNature") or "").upper()
+    gst_supply_type = "Services" if "SERVICE" in item_nature else "Goods"
+
+    raw_gst = tax_obj.get("gstRate") or gst_settings.get("gstRate") or doc.get("gstRate") or doc.get("gst")
+    if isinstance(raw_gst, str):
+        raw_gst = raw_gst.replace("%", "").strip()
+    gst_rate = parse_float(raw_gst, 0.0)
+    igst_rate = parse_float(tax_obj.get("igstRate") or gst_settings.get("igstRate") or doc.get("igstRate"), gst_rate if gst_rate > 0 else 0.0)
+    cgst_rate = parse_float(tax_obj.get("cgstRate") or gst_settings.get("cgstRate") or doc.get("cgstRate"), igst_rate / 2.0 if igst_rate > 0 else 0.0)
+    sgst_rate = parse_float(tax_obj.get("sgstRate") or gst_settings.get("sgstRate") or doc.get("sgstRate"), igst_rate / 2.0 if igst_rate > 0 else 0.0)
+    
+    cess_enabled = doc.get("cessEnabled") if "cessEnabled" in doc else (True if parse_float(tax_obj.get("cessRate") or gst_settings.get("cessRate") or doc.get("cessRate"), 0.0) > 0 else False)
+    cess_rate = parse_float(tax_obj.get("cessRate") or gst_settings.get("cessRate") or doc.get("cessRate"), 0.0) if cess_enabled else 0.0
+
+    taxability = tax_obj.get("taxability") or gst_settings.get("taxability") or doc.get("taxability") or ("Taxable" if gst_rate > 0 else "")
+    gst_applicable_flag = doc.get("gstApplicable") if "gstApplicable" in doc else (True if (gst_rate > 0 or taxability) else False)
+
+    # HSN Code & Description
+    hsn_code = str(tax_obj.get("hsnCode") or tax_obj.get("sacCode") or hsn_details.get("hsnCode") or hsn_details.get("hsn") or doc.get("hsnCode") or doc.get("hsn") or "").strip()
+    hsn_desc_val = (tax_obj.get("hsnDescription") or hsn_details.get("hsnDescription") or doc.get("hsnDescription") or "").strip()
+    hsn_name = hsn_desc_val if hsn_desc_val else item_name
+
+    # Opening Stock
+    inv_obj = doc.get("inventory") if isinstance(doc.get("inventory"), dict) else {}
+    op_stock = inv_obj.get("openingStock") if isinstance(inv_obj.get("openingStock"), dict) else {}
 
     raw_op_balance = doc.get("openingBalance") or op_stock.get("balance") or ""
-    op_qty_val = parse_float(doc.get("openingQuantity") or doc.get("openingQty") or op_stock.get("quantity") or op_stock.get("qty"), 0.0)
-    op_rate_val = parse_float(doc.get("openingRate") or doc.get("purchasePrice") or op_stock.get("rate"), 0.0)
-    op_amt_val = parse_float(doc.get("openingValue") or doc.get("openingAmount") or op_stock.get("value") or op_stock.get("amount"), op_qty_val * op_rate_val)
+    op_qty_val = parse_float(inv_obj.get("openingQuantity") or doc.get("openingQuantity") or doc.get("openingQty") or op_stock.get("quantity") or op_stock.get("qty"), 0.0)
+    op_rate_val = parse_float(inv_obj.get("openingRate") or doc.get("openingRate") or doc.get("purchasePrice") or op_stock.get("rate"), 0.0)
+    op_amt_val = parse_float(inv_obj.get("openingValue") or doc.get("openingValue") or doc.get("openingAmount") or op_stock.get("value") or op_stock.get("amount"), op_qty_val * op_rate_val)
 
-    # GST Details (Rules 10-15)
-    gst_settings = doc.get("gstSettings") or {}
-    if not isinstance(gst_settings, dict):
-        gst_settings = {}
-    hsn_details = doc.get("hsnSacDetails") or {}
-    if not isinstance(hsn_details, dict):
-        hsn_details = {}
+    has_opening_stock = (op_qty_val != 0 or op_amt_val != 0 or bool(raw_op_balance))
 
-    applicable_from = transform_date(hsn_details.get("applicableFrom") or gst_settings.get("applicableFrom") or doc.get("applicableFrom") or "20240401")
-    taxability = gst_settings.get("taxability") or doc.get("taxability") or "Taxable"
-    
-    raw_src_gst = gst_settings.get("sourceOfGstDetails") or hsn_details.get("srcOfHsnDetails") or doc.get("srcOfHsnDetails") or "Specified in Stock Item"
-    if "specify" in str(raw_src_gst).lower():
-        src_of_gst = "Specified in Stock Item"
-    elif "company" in str(raw_src_gst).lower() or "group" in str(raw_src_gst).lower():
-        src_of_gst = "As per Company/Group"
-    else:
-        src_of_gst = "Specified in Stock Item"
+    # Aliases
+    alias_str = (doc.get("alias") or doc.get("aliasName") or "").strip()
+    aliases_list = doc.get("aliases") if isinstance(doc.get("aliases"), list) else []
+    if alias_str and alias_str not in aliases_list:
+        aliases_list = [alias_str] + [a for a in aliases_list if a != alias_str]
 
-    gst_rate = parse_float(gst_settings.get("gstRate") or doc.get("gstRate") or doc.get("gst"), 0.0)
-    cgst_rate = parse_float(gst_settings.get("cgstRate") or doc.get("cgstRate"), gst_rate / 2.0 if gst_rate > 0 else 0.0)
-    sgst_rate = parse_float(gst_settings.get("sgstRate") or doc.get("sgstRate"), gst_rate / 2.0 if gst_rate > 0 else 0.0)
-    igst_rate = parse_float(gst_settings.get("igstRate") or doc.get("igstRate"), gst_rate if gst_rate > 0 else 0.0)
-    cess_rate = parse_float(gst_settings.get("cessRate") or doc.get("cessRate"), 0.0)
-    state_cess_rate = parse_float(gst_settings.get("stateCessRate") or doc.get("stateCessRate"), 0.0)
-
-    has_gst_data = bool(gst_settings or doc.get("gstRate") or doc.get("taxability") or gst_rate > 0)
-
-    # HSN Details (Rules 16 & 17)
-    hsn_code = str(hsn_details.get("hsnCode") or hsn_details.get("hsn") or doc.get("hsnCode") or doc.get("hsn") or "").strip()
-    hsn_class = hsn_details.get("hsnClassificationName") or doc.get("hsnClassificationName") or ""
-    hsn_name = hsn_details.get("hsn") or doc.get("hsn") or hsn_code or item_name
-
-    # MRP Details Priority (Rules 18, 19, 20)
-    mrp_rates = []
-    if isinstance(pricing_obj.get("MRP"), dict) and pricing_obj.get("MRP", {}).get("rates"):
-        mrp_rates = pricing_obj.get("MRP", {}).get("rates")
-    elif doc.get("mrpRates") and isinstance(doc.get("mrpRates"), list):
-        mrp_rates = doc.get("mrpRates")
-
-    mrp_from_date = transform_date((pricing_obj.get("MRP", {}).get("fromDate") if isinstance(pricing_obj.get("MRP"), dict) else "") or doc.get("mrpFromDate") or applicable_from)
-    mrp_ver_count = (pricing_obj.get("MRP", {}).get("verCount") if isinstance(pricing_obj.get("MRP"), dict) else "") or doc.get("mrpVerCount") or "1"
-    single_mrp = parse_float(doc.get("mrp") or (pricing_obj.get("MRP", {}).get("rates", [{}])[0].get("mrpRate") if isinstance(pricing_obj.get("MRP"), dict) else 0.0), 0.0)
-
-    has_mrp_data = bool(mrp_rates or single_mrp > 0)
-
-    # Batches & BOM (Rule 25)
+    # Batches & BOM
     batches_list = doc.get("batches") or []
     if not isinstance(batches_list, list):
         batches_list = []
@@ -872,30 +936,25 @@ def generate_stock_item_xml(doc: dict, db=None) -> str:
     elif not isinstance(bom_list, list):
         bom_list = []
 
-    # Action Rule (Rule 23)
-    action_type = str(doc.get("action") or "").strip()
-    if action_type.lower() == "create":
-        header_action = 'ACTION="Create"'
-    else:
-        header_action = 'RESERVEDNAME=""'
+    # ── LOGGING / DEBUG BREAKDOWN ──────────────────────────────────────────────
+    print(f"\n[DEBUG STOCK ITEM XML MAPPER]")
+    print(f"1. MongoDB Stock Item Data: Name='{item_name}', Action='{action_type}', Group='{parent_group}', Category='{category_name}', Unit='{base_unit}', Description='{desc_str}'")
+    print(f"2. Mapped GST Values: Applicable={gst_applicable_flag}, Total GST={gst_rate}%, IGST={igst_rate}%, CGST={cgst_rate}%, SGST={sgst_rate}%, Cess={cess_rate}%")
+    print(f"3. Mapped HSN Values: HSN Code='{hsn_code}', HSN Description='{hsn_name}'")
+    print(f"4. Optional Sections: GST={'ENABLED' if (gst_applicable_flag and (igst_rate > 0 or taxability)) else 'DISABLED'}, Cess={'ENABLED' if cess_rate > 0 else 'DISABLED'}, HSN={'ENABLED' if hsn_code else 'DISABLED'}, Opening Stock={'ENABLED' if has_opening_stock else 'DISABLED'}, Batches={'ENABLED' if valid_batches else 'DISABLED'}, BOM={'ENABLED' if bom_list else 'DISABLED'}")
 
     # ── BUILD STOCKITEM XML BLOCK ───────────────────────────────────────────────
     L(f'      <TALLYMESSAGE xmlns:UDF="TallyUDF">')
     L(f'        <STOCKITEM NAME="{e(item_name)}" {header_action}>')
 
-    L(f'          <PARENT>{e(parent_group)}</PARENT>')
+    if parent_group:
+        L(f'          <PARENT>{e(parent_group)}</PARENT>')
     
     if category_name:
         L(f'          <CATEGORY>{e(category_name)}</CATEGORY>')
 
-    L(f'          <GSTAPPLICABLE>&#4; Applicable</GSTAPPLICABLE>')
-    L(f'          <GSTTYPEOFSUPPLY>Goods</GSTTYPEOFSUPPLY>')
-    L(f'          <EXCISEAPPLICABILITY>&#4; Applicable</EXCISEAPPLICABILITY>')
-    L(f'          <VATAPPLICABLE>&#4; Applicable</VATAPPLICABLE>')
-
-    L(f'          <COSTINGMETHOD>{e(costing_method)}</COSTINGMETHOD>')
-    L(f'          <VALUATIONMETHOD>{e(valuation_method)}</VALUATIONMETHOD>')
-    L(f'          <BASEUNITS>{e(base_unit)}</BASEUNITS>')
+    if base_unit:
+        L(f'          <BASEUNITS>{e(base_unit)}</BASEUNITS>')
 
     if alt_unit:
         L(f'          <ADDITIONALUNITS>{e(alt_unit)}</ADDITIONALUNITS>')
@@ -903,38 +962,57 @@ def generate_stock_item_xml(doc: dict, db=None) -> str:
             L(f'          <DENOMINATOR> 1</DENOMINATOR>')
             L(f'          <CONVERSION> {conv_factor}</CONVERSION>')
 
-    if vat_base_unit:
-        L(f'          <VATBASEUNIT>{e(vat_base_unit)}</VATBASEUNIT>')
+    if desc_str:
+        L(f'          <DESCRIPTION>{e(desc_str)}</DESCRIPTION>')
 
-    # Boolean Flags
-    L(f'          <ISCOSTCENTRESON>{is_cost_center}</ISCOSTCENTRESON>')
-    L(f'          <ISBATCHWISEON>{is_batch_wise}</ISBATCHWISEON>')
-    L(f'          <ISPERISHABLEON>{is_perishable}</ISPERISHABLEON>')
-    L(f'          <ISCOSTTRACKINGON>{is_cost_tracking}</ISCOSTTRACKINGON>')
-    L(f'          <HASMFGDATE>{has_mfg_date}</HASMFGDATE>')
-    L(f'          <ASORIGINAL>{as_original}</ASORIGINAL>')
+    if barcode:
+        L(f'          <BARCODE>{e(barcode)}</BARCODE>')
+    if brand:
+        L(f'          <BRAND>{e(brand)}</BRAND>')
+    if part_no:
+        L('          <PARTNO.LIST TYPE="String">')
+        L(f'           <PARTNO>{e(part_no)}</PARTNO>')
+        L('          </PARTNO.LIST>')
 
-    L(f'          <IGNORENEGATIVESTOCK>{ignore_negative_stock}</IGNORENEGATIVESTOCK>')
-    L(f'          <TREATSALESASMANUFACTURED>{treat_sales_as_mfg}</TREATSALESASMANUFACTURED>')
-    L(f'          <TREATPURCHASESASCONSUMED>{treat_purchases_as_consumed}</TREATPURCHASESASCONSUMED>')
-    L(f'          <TREATREJECTSASSCRAP>{treat_rejects_as_scrap}</TREATREJECTSASSCRAP>')
-    L(f'          <ALLOWUSEOFEXPIREDITEMS>{allow_use_of_expired}</ALLOWUSEOFEXPIREDITEMS>')
-    L(f'          <IGNOREBATCHES>{ignore_batches}</IGNOREBATCHES>')
-    L(f'          <IGNOREGODOWNS>{ignore_godowns}</IGNOREGODOWNS>')
-    L(f'          <CALCONMRP>{calc_on_mrp}</CALCONMRP>')
-    L(f'          <ISADDITIONALTAX>{is_additional_tax}</ISADDITIONALTAX>')
-    L(f'          <ISCESSEXEMPTED>{is_cess_exempted}</ISCESSEXEMPTED>')
+    # Costing & Valuation (ONLY if configured)
+    if costing_method:
+        L(f'          <COSTINGMETHOD>{e(costing_method)}</COSTINGMETHOD>')
+    if valuation_method:
+        L(f'          <VALUATIONMETHOD>{e(valuation_method)}</VALUATIONMETHOD>')
 
-    # Language Name List
-    L('          <LANGUAGENAME.LIST>')
-    L('           <NAME.LIST TYPE="String">')
-    L(f'            <NAME>{e(item_name)}</NAME>')
-    L('           </NAME.LIST>')
-    L('           <LANGUAGEID> 1033</LANGUAGEID>')
-    L('          </LANGUAGENAME.LIST>')
+    # Boolean Flags (ONLY if True / enabled)
+    if transformBoolean(is_cost_center) == "Yes":
+        L(f'          <ISCOSTCENTRESON>Yes</ISCOSTCENTRESON>')
+    if transformBoolean(is_batch_wise) == "Yes":
+        L(f'          <ISBATCHWISEON>Yes</ISBATCHWISEON>')
+    if transformBoolean(is_perishable) == "Yes":
+        L(f'          <ISPERISHABLEON>Yes</ISPERISHABLEON>')
+    if transformBoolean(is_cost_tracking) == "Yes":
+        L(f'          <ISCOSTTRACKINGON>Yes</ISCOSTTRACKINGON>')
+    if transformBoolean(has_mfg_date) == "Yes":
+        L(f'          <HASMFGDATE>Yes</HASMFGDATE>')
 
-    # Opening Stock Inventory
-    if op_qty_val != 0 or op_amt_val != 0 or raw_op_balance:
+    # Mailing Name List (ONLY if explicitly configured with distinct value)
+    explicit_mailing = doc.get("mailingName") or (doc.get("mailingNameList") or [{}])[0].get("mailingName") if isinstance(doc.get("mailingNameList"), list) else None
+    if explicit_mailing and str(explicit_mailing).strip() and str(explicit_mailing).strip() != item_name:
+        L('          <MAILINGNAME.LIST TYPE="String">')
+        L(f'           <MAILINGNAME>{e(str(explicit_mailing).strip())}</MAILINGNAME>')
+        L('          </MAILINGNAME.LIST>')
+
+    # Language Name List (ONLY if explicit aliases exist)
+    valid_aliases = [str(al).strip() for al in aliases_list if al and str(al).strip() and str(al).strip() != item_name]
+    if valid_aliases:
+        L('          <LANGUAGENAME.LIST>')
+        L('           <NAME.LIST TYPE="String">')
+        L(f'            <NAME>{e(item_name)}</NAME>')
+        for al in valid_aliases:
+            L(f'            <NAME>{e(al)}</NAME>')
+        L('           </NAME.LIST>')
+        L('           <LANGUAGEID> 1033</LANGUAGEID>')
+        L('          </LANGUAGENAME.LIST>')
+
+    # Opening Stock Inventory (ONLY if provided)
+    if has_opening_stock:
         if raw_op_balance:
             bal_str = str(raw_op_balance).strip()
         elif alt_unit and conv_factor_num > 0:
@@ -942,14 +1020,16 @@ def generate_stock_item_xml(doc: dict, db=None) -> str:
             bal_str = f" {op_qty_val:.2f} {base_unit} =  {alt_qty_val:.3f} {alt_unit}".strip()
         else:
             op_qty_str = f"{int(op_qty_val)}" if op_qty_val.is_integer() else f"{op_qty_val:.2f}"
-            bal_str = f" {op_qty_str} {base_unit}".strip()
+            bal_str = f" {op_qty_str} {base_unit}".strip() if base_unit else f" {op_qty_str}".strip()
 
         op_rate_raw = doc.get("openingRate") or op_stock.get("rate")
         if op_rate_raw and "/" in str(op_rate_raw):
             rate_str = str(op_rate_raw).strip()
-        else:
+        elif base_unit:
             op_rate_str = f"{int(op_rate_val)}" if op_rate_val.is_integer() else f"{op_rate_val:.2f}"
             rate_str = f"{op_rate_str}/{base_unit}".strip()
+        else:
+            rate_str = f"{op_rate_val:.2f}"
 
         op_amt_str = f"{op_amt_val:.2f}"
         
@@ -957,114 +1037,78 @@ def generate_stock_item_xml(doc: dict, db=None) -> str:
         L(f'          <OPENINGRATE>{e(rate_str)}</OPENINGRATE>')
         L(f'          <OPENINGVALUE>{op_amt_str}</OPENINGVALUE>')
 
-    # GSTDETAILS.LIST (Rules 10-15)
-    if has_gst_data:
+    # GST Details (ONLY if GST is configured / applicable)
+    if gst_applicable_flag and (igst_rate > 0 or taxability):
+        L(f'          <GSTAPPLICABLE>Applicable</GSTAPPLICABLE>')
+        L(f'          <GSTTYPEOFSUPPLY>{e(gst_supply_type)}</GSTTYPEOFSUPPLY>')
         L('          <GSTDETAILS.LIST>')
         if applicable_from:
             L(f'           <APPLICABLEFROM>{applicable_from}</APPLICABLEFROM>')
-        L(f'           <TAXABILITY>{e(taxability)}</TAXABILITY>')
-        L(f'           <SRCOFGSTDETAILS>{e(src_of_gst)}</SRCOFGSTDETAILS>')
+        L(f'           <CALCULATIONTYPE>On Value</CALCULATIONTYPE>')
+        L(f'           <TAXABILITY>{e(taxability or "Taxable")}</TAXABILITY>')
+        L(f'           <SRCOFGSTDETAILS>Specified in Stock Item</SRCOFGSTDETAILS>')
         L('           <STATEWISEDETAILS.LIST>')
-        L('            <STATENAME>&#4; Any</STATENAME>')
+        L('            <STATENAME>Any</STATENAME>')
         
         def fmt_rate_val(val) -> str:
             num = parse_float(val, 0.0)
             if num == int(num):
-                return f" {int(num)}"
-            return f" {num:.2f}"
+                return f"{int(num)}"
+            return f"{num:.2f}".rstrip('0').rstrip('.')
 
-        # CGST
+        # Integrated Tax
         L('            <RATEDETAILS.LIST>')
-        L('             <GSTRATEDUTYHEAD>CGST</GSTRATEDUTYHEAD>')
-        L('             <GSTRATEVALUATIONTYPE>Based on Value</GSTRATEVALUATIONTYPE>')
-        L(f'             <GSTRATE>{fmt_rate_val(cgst_rate)}</GSTRATE>')
-        L('             <GSTRATEPERUNIT>0</GSTRATEPERUNIT>')
-        L('            </RATEDETAILS.LIST>')
-        
-        # SGST
-        L('            <RATEDETAILS.LIST>')
-        L('             <GSTRATEDUTYHEAD>SGST/UTGST</GSTRATEDUTYHEAD>')
-        L('             <GSTRATEVALUATIONTYPE>Based on Value</GSTRATEVALUATIONTYPE>')
-        L(f'             <GSTRATE>{fmt_rate_val(sgst_rate)}</GSTRATE>')
-        L('             <GSTRATEPERUNIT>0</GSTRATEPERUNIT>')
-        L('            </RATEDETAILS.LIST>')
-
-        # IGST
-        L('            <RATEDETAILS.LIST>')
-        L('             <GSTRATEDUTYHEAD>IGST</GSTRATEDUTYHEAD>')
+        L('             <GSTRATEDUTYHEAD>Integrated Tax</GSTRATEDUTYHEAD>')
         L('             <GSTRATEVALUATIONTYPE>Based on Value</GSTRATEVALUATIONTYPE>')
         L(f'             <GSTRATE>{fmt_rate_val(igst_rate)}</GSTRATE>')
-        L('             <GSTRATEPERUNIT>0</GSTRATEPERUNIT>')
         L('            </RATEDETAILS.LIST>')
 
-        # Cess
+        # Central Tax
         L('            <RATEDETAILS.LIST>')
-        L('             <GSTRATEDUTYHEAD>Cess</GSTRATEDUTYHEAD>')
-        L('             <GSTRATEVALUATIONTYPE>&#4; Not Applicable</GSTRATEVALUATIONTYPE>')
-        L(f'             <GSTRATE>{cess_rate:.2f}</GSTRATE>')
-        L('             <GSTRATEPERUNIT>0</GSTRATEPERUNIT>')
-        L('            </RATEDETAILS.LIST>')
-
-        # State Cess
-        L('            <RATEDETAILS.LIST>')
-        L('             <GSTRATEDUTYHEAD>State Cess</GSTRATEDUTYHEAD>')
+        L('             <GSTRATEDUTYHEAD>Central Tax</GSTRATEDUTYHEAD>')
         L('             <GSTRATEVALUATIONTYPE>Based on Value</GSTRATEVALUATIONTYPE>')
-        L(f'             <GSTRATE>{state_cess_rate:.2f}</GSTRATE>')
-        L('             <GSTRATEPERUNIT>0</GSTRATEPERUNIT>')
+        L(f'             <GSTRATE>{fmt_rate_val(cgst_rate)}</GSTRATE>')
         L('            </RATEDETAILS.LIST>')
+        
+        # State Tax
+        L('            <RATEDETAILS.LIST>')
+        L('             <GSTRATEDUTYHEAD>State Tax</GSTRATEDUTYHEAD>')
+        L('             <GSTRATEVALUATIONTYPE>Based on Value</GSTRATEVALUATIONTYPE>')
+        L(f'             <GSTRATE>{fmt_rate_val(sgst_rate)}</GSTRATE>')
+        L('            </RATEDETAILS.LIST>')
+
+        # Cess (ONLY if > 0)
+        if cess_rate > 0:
+            L('            <RATEDETAILS.LIST>')
+            L('             <GSTRATEDUTYHEAD>Cess</GSTRATEDUTYHEAD>')
+            L('             <GSTRATEVALUATIONTYPE>Based on Value</GSTRATEVALUATIONTYPE>')
+            L(f'             <GSTRATE>{fmt_rate_val(cess_rate)}</GSTRATE>')
+            L('            </RATEDETAILS.LIST>')
 
         L('           </STATEWISEDETAILS.LIST>')
         L('          </GSTDETAILS.LIST>')
 
-    # HSNDETAILS.LIST (Rules 16 & 17)
+    # HSN Details (ONLY if HSN code exists)
     if hsn_code:
         L('          <HSNDETAILS.LIST>')
         if applicable_from:
             L(f'           <APPLICABLEFROM>{applicable_from}</APPLICABLEFROM>')
         L(f'           <HSNCODE>{e(hsn_code)}</HSNCODE>')
-        L(f'           <HSN>{e(hsn_name)}</HSN>')
-        if hsn_class:
-            L(f'           <HSNCLASSIFICATIONNAME>{e(hsn_class)}</HSNCLASSIFICATIONNAME>')
-        L(f'           <SRCOFHSNDETAILS>{e(src_of_gst)}</SRCOFHSNDETAILS>')
+        L(f'           <HSNDESCRIPTION>{e(hsn_name)}</HSNDESCRIPTION>')
+        L(f'           <SRCOFHSNDETAILS>Specified in Stock Item</SRCOFHSNDETAILS>')
         L('          </HSNDETAILS.LIST>')
 
-    # MRPDETAILS.LIST / MRPRATEDETAILS.LIST (Rules 18, 19, 20)
-    if has_mrp_data:
-        L('          <MRPDETAILS.LIST>')
-        if mrp_from_date:
-            L(f'           <FROMDATE>{mrp_from_date}</FROMDATE>')
-        L(f'           <TOTALVERCOUNT TYPE="Number"> {mrp_ver_count}</TOTALVERCOUNT>')
-        L(f'           <VERCOUNT TYPE="Number"> {mrp_ver_count}</VERCOUNT>')
-        if mrp_rates:
-            for mrp_item in mrp_rates:
-                st_name = mrp_item.get("stateName") or mrp_item.get("state") or "&#4; Any"
-                raw_mrp_rate = mrp_item.get("mrpRate") or mrp_item.get("rate") or mrp_item.get("mrp")
-                if raw_mrp_rate and "/" in str(raw_mrp_rate):
-                    m_rate_str = str(raw_mrp_rate).strip()
-                else:
-                    m_rate_val = parse_float(raw_mrp_rate, 0.0)
-                    m_rate_str = f"{m_rate_val:.2f}/{base_unit}"
-                L('           <MRPRATEDETAILS.LIST>')
-                L(f'            <STATENAME>{e(st_name)}</STATENAME>')
-                L(f'            <MRPRATE>{e(m_rate_str)}</MRPRATE>')
-                L('           </MRPRATEDETAILS.LIST>')
-        else:
-            m_rate_str = f"{single_mrp:.2f}/{base_unit}"
-            L('           <MRPRATEDETAILS.LIST>')
-            L('            <STATENAME>&#4; Any</STATENAME>')
-            L(f'            <MRPRATE>{e(m_rate_str)}</MRPRATE>')
-            L('           </MRPRATEDETAILS.LIST>')
-        L('          </MRPDETAILS.LIST>')
+    # Reporting UOM (ONLY if explicitly configured by user)
+    reporting_uom = (doc.get("reportingUom") or doc.get("reportingUnit") or (doc.get("reportingUomDetails") or {}).get("reportingUomName") or "").strip()
+    if reporting_uom and reporting_uom.lower() not in ["not applicable", "n/a", "none"]:
+        L('          <REPORTINGUOMDETAILS.LIST>')
+        if applicable_from:
+            L(f'           <APPLICABLEFROM>{applicable_from}</APPLICABLEFROM>')
+        L(f'           <REPORTINGUOMNAME>{e(reporting_uom)}</REPORTINGUOMNAME>')
+        L('          </REPORTINGUOMDETAILS.LIST>')
 
-    # REPORTINGUOMDETAILS.LIST
-    L('          <REPORTINGUOMDETAILS.LIST>')
-    if applicable_from:
-        L(f'           <APPLICABLEFROM>{applicable_from}</APPLICABLEFROM>')
-    L(f'           <REPORTINGUOMNAME>{e(base_unit)}</REPORTINGUOMNAME>')
-    L('          </REPORTINGUOMDETAILS.LIST>')
-
-    # BATCHALLOCATIONS.LIST (Rule 25)
-    if valid_batches and is_batch_wise == "Yes":
+    # Batch Allocations (ONLY if batch tracking is ON and valid batches exist)
+    if transformBoolean(is_batch_wise) == "Yes" and valid_batches:
         for batch in valid_batches:
             b_name = batch.get("batchName") or "Primary Batch"
             b_godown = batch.get("godownName") or "Main Location"
@@ -1080,14 +1124,16 @@ def generate_stock_item_xml(doc: dict, db=None) -> str:
                 b_alt_qty = b_qty * conv_factor_num
                 b_bal_str = f" {b_qty:.2f} {base_unit} =  {b_alt_qty:.3f} {alt_unit}".strip()
             else:
-                b_qty_str = f"{int(b_qty) if b_qty.is_integer() else b_qty:.2f} {base_unit}".strip()
+                b_qty_str = f"{int(b_qty) if b_qty.is_integer() else b_qty:.2f} {base_unit}".strip() if base_unit else f"{b_qty:.2f}"
                 b_bal_str = f" {b_qty_str}".strip()
 
             raw_b_rate = batch.get("openingRate") or batch.get("rate")
             if raw_b_rate and "/" in str(raw_b_rate):
                 b_rate_str = str(raw_b_rate).strip()
-            else:
+            elif base_unit:
                 b_rate_str = f"{b_rate:.2f}/{base_unit}"
+            else:
+                b_rate_str = f"{b_rate:.2f}"
 
             mfd_date = transform_date(batch.get("mfdOn") or batch.get("mfdDate"))
             exp_period = str(batch.get("expiryPeriod") or "").strip()
@@ -1104,7 +1150,7 @@ def generate_stock_item_xml(doc: dict, db=None) -> str:
                 L(f'           <EXPIRYPERIOD>{e(exp_period)}</EXPIRYPERIOD>')
             L('          </BATCHALLOCATIONS.LIST>')
 
-    # MULTICOMPONENTLIST.LIST (BOM) (Rule 25)
+    # BOM Multi-Component List (ONLY if components exist)
     if bom_list:
         for bom in bom_list:
             bom_items = bom.get("items") or bom.get("components") or []
@@ -1114,15 +1160,17 @@ def generate_stock_item_xml(doc: dict, db=None) -> str:
 
             bom_cname = bom.get("componentListName") or bom.get("bomName") or "Assembly BOM"
             raw_basic_qty = bom.get("componentBasicQty") or bom.get("basicQty") or "1"
-            if str(raw_basic_qty).strip() and ("=" in str(raw_basic_qty) or base_unit in str(raw_basic_qty)):
+            if str(raw_basic_qty).strip() and ("=" in str(raw_basic_qty) or (base_unit and base_unit in str(raw_basic_qty))):
                 bom_basic_str = str(raw_basic_qty).strip()
             else:
                 bom_basic_qty_num = parse_float(raw_basic_qty, 1.0)
                 if alt_unit and conv_factor_num > 0:
                     alt_basic_qty = bom_basic_qty_num * conv_factor_num
                     bom_basic_str = f" {bom_basic_qty_num:.2f} {base_unit} =  {alt_basic_qty:.3f} {alt_unit}".strip()
-                else:
+                elif base_unit:
                     bom_basic_str = f" {bom_basic_qty_num:.2f} {base_unit}".strip()
+                else:
+                    bom_basic_str = f" {bom_basic_qty_num:.2f}".strip()
 
             L('          <MULTICOMPONENTLIST.LIST>')
             L(f'           <COMPONENTLISTNAME>{e(bom_cname)}</COMPONENTLISTNAME>')
@@ -1140,7 +1188,7 @@ def generate_stock_item_xml(doc: dict, db=None) -> str:
                 else:
                     a_qty_num = parse_float(raw_act_qty, 1.0)
                     a_unit = b_item.get("unit") or base_unit
-                    a_qty_str = f" {a_qty_num:.3f} {a_unit}".strip()
+                    a_qty_str = f" {a_qty_num:.3f} {a_unit}".strip() if a_unit else f" {a_qty_num:.3f}".strip()
 
                 L('           <MULTICOMPONENTITEMLIST.LIST>')
                 L(f'            <NATUREOFITEM>{e(nature)}</NATUREOFITEM>')
@@ -1613,6 +1661,621 @@ class TallyXmlGenerator:
     @classmethod
     def generate_stock_item_xml(cls, stock_item_doc: dict, db=None) -> str:
         return generate_stock_item_xml(stock_item_doc, db=db)
+
+    @classmethod
+    def generate_unit_xml(cls, unit_doc: dict, action: str = "Create", db=None) -> str:
+        uname = (unit_doc.get("name") or unit_doc.get("unitName") or unit_doc.get("symbol") or "").strip()
+        formal_name = (unit_doc.get("formalName") or unit_doc.get("formal_name") or "").strip()
+        
+        raw_type = str(unit_doc.get("unitType") or unit_doc.get("type") or "").strip().lower()
+        is_compound = raw_type == "compound" or bool(unit_doc.get("firstUnitId")) or bool(unit_doc.get("firstUnit"))
+        
+        decimal_places = unit_doc.get("decimalPlaces")
+        if decimal_places is None:
+            conv = unit_doc.get("conversion") or {}
+            decimal_places = conv.get("decimalPlaces", 2)
+            
+        gst_uqc = unit_doc.get("gstUqc") or unit_doc.get("uqc") or ""
+        
+        original_name = formal_name if formal_name else ""
+        if original_name.lower() == uname.lower():
+            original_name = ""
+
+        first_unit = (unit_doc.get("firstUnitName") or unit_doc.get("firstUnit") or (unit_doc.get("compound") or {}).get("firstUnit") or "").strip()
+        second_unit = (unit_doc.get("secondUnitName") or unit_doc.get("secondUnit") or (unit_doc.get("compound") or {}).get("secondUnit") or "").strip()
+        conv_factor = unit_doc.get("conversionFactor") or (unit_doc.get("compound") or {}).get("conversionFactor") or 1
+        try:
+            cf_val = float(conv_factor)
+            conv_str = str(int(cf_val)) if cf_val.is_integer() else str(cf_val)
+        except Exception:
+            conv_str = str(conv_factor)
+
+        if is_compound:
+            if not first_unit or not second_unit:
+                raise ValueError("Compound Unit XML generation requires both First Unit and Second Unit")
+
+            uname = f"{first_unit} of {conv_str} {second_unit}"
+
+            original_name = ""
+
+            if db is not None:
+                f_filter = {"_id": ObjectId(unit_doc["firstUnitId"])} if unit_doc.get("firstUnitId") and ObjectId.is_valid(unit_doc["firstUnitId"]) else {"name": {"$regex": f"^{re.escape(first_unit)}$", "$options": "i"}}
+                s_filter = {"_id": ObjectId(unit_doc["secondUnitId"])} if unit_doc.get("secondUnitId") and ObjectId.is_valid(unit_doc["secondUnitId"]) else {"name": {"$regex": f"^{re.escape(second_unit)}$", "$options": "i"}}
+
+                f_exists = db["units_entry"].find_one(f_filter) or db["units"].find_one(f_filter)
+                s_exists = db["units_entry"].find_one(s_filter) or db["units"].find_one(s_filter)
+
+                if not f_exists:
+                    raise ValueError(f"Cannot generate XML: Referenced First Unit '{first_unit}' does not exist in database")
+                if not s_exists:
+                    raise ValueError(f"Cannot generate XML: Referenced Second Unit '{second_unit}' does not exist in database")
+        else:
+            if original_name.lower() == uname.lower():
+                original_name = ""
+
+
+        action_attr = action.strip() if action else "Create"
+
+        lines = [
+            '<?xml version="1.0" encoding="utf-8"?>',
+            '<ENVELOPE>',
+            '  <HEADER>',
+            '    <VERSION>1</VERSION>',
+            '    <TALLYREQUEST>IMPORT</TALLYREQUEST>',
+            '    <TYPE>DATA</TYPE>',
+            '    <ID>All Masters</ID>',
+            '  </HEADER>',
+            '  <BODY>',
+            '    <DESC>',
+            '      <STATICVARIABLES />',
+            '    </DESC>',
+            '    <DATA>',
+            '      <TALLYMESSAGE xmlns:UDF="TallyUDF">',
+            f'        <UNIT NAME="{escape_xml(uname)}" ACTION="{escape_xml(action_attr)}">',
+            f'          <NAME>{escape_xml(uname)}</NAME>'
+        ]
+
+        if original_name:
+            lines.append(f'          <ORIGINALNAME>{escape_xml(original_name)}</ORIGINALNAME>')
+
+        lines.extend([
+            f'          <DECIMALPLACES>{int(decimal_places or 0)}</DECIMALPLACES>',
+            f'          <ISSIMPLEUNIT>{"No" if is_compound else "Yes"}</ISSIMPLEUNIT>'
+        ])
+
+        if is_compound:
+            lines.append(f'          <FIRSTUNIT>{escape_xml(first_unit)}</FIRSTUNIT>')
+            lines.append(f'          <SECONDUNIT>{escape_xml(second_unit)}</SECONDUNIT>')
+            lines.append(f'          <CONVERSION>{conv_str}</CONVERSION>')
+
+        if gst_uqc and str(gst_uqc).strip().lower() not in ["", "none", "null", "undefined", "n/a"]:
+            lines.append(f'          <GSTREPUQC>{escape_xml(gst_uqc)}</GSTREPUQC>')
+
+        lines.extend([
+            '        </UNIT>',
+            '      </TALLYMESSAGE>',
+            '    </DATA>',
+            '  </BODY>',
+            '</ENVELOPE>'
+        ])
+        return "\n".join(lines)
+
+    @staticmethod
+    def generate_voucher_type_xml(doc: dict, action: str = "Create") -> str:
+        """Generates Tally-compliant XML for Voucher Type Master import."""
+        vname = (doc.get("voucherTypeName") or doc.get("name") or "VoucherType").strip()
+        parent = (doc.get("parent") or doc.get("parentGroup") or doc.get("parentVoucherType") or "Sales").strip()
+        abbrev = (doc.get("abbreviation") or doc.get("mailingName") or vname).strip()
+        num_method = (doc.get("numberingMethod") or (doc.get("numbering") or {}).get("numberingMethod") or "Automatic").strip()
+        
+        behavior = doc.get("behavior") or doc.get("flags") or {}
+        is_inventory = transformBoolean(behavior.get("inventoryEffect", doc.get("inventoryEffect", True)))
+        
+        lines = [
+            '<?xml version="1.0" encoding="utf-8"?>',
+            '<ENVELOPE>',
+            '  <HEADER>',
+            '    <VERSION>1</VERSION>',
+            '    <TALLYREQUEST>IMPORT</TALLYREQUEST>',
+            '    <TYPE>DATA</TYPE>',
+            '    <ID>All Masters</ID>',
+            '  </HEADER>',
+            '  <BODY>',
+            '    <DESC>',
+            '      <STATICVARIABLES />',
+            '    </DESC>',
+            '    <DATA>',
+            '      <TALLYMESSAGE xmlns:UDF="TallyUDF">',
+            f'        <VOUCHERTYPE NAME="{escape_xml(vname)}" ACTION="{escape_xml(action)}">',
+            f'          <NAME>{escape_xml(vname)}</NAME>',
+            f'          <PARENT>{escape_xml(parent)}</PARENT>',
+            f'          <ABBREVIATION>{escape_xml(abbrev)}</ABBREVIATION>',
+            f'          <NUMBERINGMETHOD>{escape_xml(num_method)}</NUMBERINGMETHOD>',
+            f'          <ISINVENTORYAFFECTED>{is_inventory}</ISINVENTORYAFFECTED>',
+            '          <COMMONNARRATION>Yes</COMMONNARRATION>',
+            '        </VOUCHERTYPE>',
+            '      </TALLYMESSAGE>',
+            '    </DATA>',
+            '  </BODY>',
+            '</ENVELOPE>'
+        ]
+        return "\n".join(lines)
+
+    @classmethod
+    def generate_cost_center_xml(cls, cc_doc: dict, action: str = "Create") -> str:
+        cc_name = (cc_doc.get("costCenterName") or cc_doc.get("name") or "Cost Center").strip()
+        cat_name = (cc_doc.get("costCategoryName") or cc_doc.get("costCategoryId") or "Primary Cost Category").strip()
+        parent_name = cc_doc.get("parentName") or cc_doc.get("parentId") or "Primary"
+        if isinstance(parent_name, dict):
+            parent_name = parent_name.get("costCenterName") or parent_name.get("name") or "Primary"
+        parent_name = str(parent_name).strip()
+        if parent_name in ["Primary / None", "None", ""]:
+            parent_name = "Primary"
+
+        lines = [
+            '<?xml version="1.0" encoding="utf-8"?>',
+            '<ENVELOPE>',
+            '  <HEADER>',
+            '    <VERSION>1</VERSION>',
+            '    <TALLYREQUEST>IMPORT</TALLYREQUEST>',
+            '    <TYPE>DATA</TYPE>',
+            '    <ID>All Masters</ID>',
+            '  </HEADER>',
+            '  <BODY>',
+            '    <DESC>',
+            '      <STATICVARIABLES />',
+            '    </DESC>',
+            '    <DATA>',
+            '      <TALLYMESSAGE xmlns:UDF="TallyUDF">',
+            f'        <COSTCENTRE NAME="{escape_xml(cc_name)}" ACTION="{escape_xml(action)}">',
+            f'          <NAME>{escape_xml(cc_name)}</NAME>',
+            f'          <CATEGORY>{escape_xml(cat_name)}</CATEGORY>',
+            f'          <PARENT>{escape_xml(parent_name)}</PARENT>',
+            '        </COSTCENTRE>',
+            '      </TALLYMESSAGE>',
+            '    </DATA>',
+            '  </BODY>',
+            '</ENVELOPE>'
+        ]
+        return "\n".join(lines)
+
+    @classmethod
+    def generate_cost_category_xml(cls, cat_doc: dict, action: str = "Create") -> str:
+        cat_name = (cat_doc.get("categoryName") or cat_doc.get("costCategoryName") or cat_doc.get("name") or "Cost Category").strip()
+        alloc_rev = "Yes" if cat_doc.get("allocateRevenueItems", True) else "No"
+        alloc_non_rev = "Yes" if cat_doc.get("allocateNonRevenueItems", True) else "No"
+
+        lines = [
+            '<?xml version="1.0" encoding="utf-8"?>',
+            '<ENVELOPE>',
+            '  <HEADER>',
+            '    <VERSION>1</VERSION>',
+            '    <TALLYREQUEST>IMPORT</TALLYREQUEST>',
+            '    <TYPE>DATA</TYPE>',
+            '    <ID>All Masters</ID>',
+            '  </HEADER>',
+            '  <BODY>',
+            '    <DESC><STATICVARIABLES /></DESC>',
+            '    <DATA>',
+            '      <TALLYMESSAGE xmlns:UDF="TallyUDF">',
+            f'        <COSTCATEGORY NAME="{escape_xml(cat_name)}" ACTION="{escape_xml(action)}">',
+            f'          <NAME>{escape_xml(cat_name)}</NAME>',
+            f'          <ALLOCATEREVENUE>{alloc_rev}</ALLOCATEREVENUE>',
+            f'          <ALLOCATENONREVENUE>{alloc_non_rev}</ALLOCATENONREVENUE>',
+            '        </COSTCATEGORY>',
+            '      </TALLYMESSAGE>',
+            '    </DATA>',
+            '  </BODY>',
+            '</ENVELOPE>'
+        ]
+        return "\n".join(lines)
+
+    @classmethod
+    def generate_cost_centre_class_xml(cls, class_doc: dict, action: str = "Create") -> str:
+        class_name = (class_doc.get("className") or class_doc.get("name") or "Cost Centre Class").strip()
+        allocations = class_doc.get("allocations") or []
+
+        lines = [
+            '<?xml version="1.0" encoding="utf-8"?>',
+            '<ENVELOPE>',
+            '  <HEADER>',
+            '    <VERSION>1</VERSION>',
+            '    <TALLYREQUEST>IMPORT</TALLYREQUEST>',
+            '    <TYPE>DATA</TYPE>',
+            '    <ID>All Masters</ID>',
+            '  </HEADER>',
+            '  <BODY>',
+            '    <DESC><STATICVARIABLES /></DESC>',
+            '    <DATA>',
+            '      <TALLYMESSAGE xmlns:UDF="TallyUDF">',
+            f'        <COSTCLASS NAME="{escape_xml(class_name)}" ACTION="{escape_xml(action)}">',
+            f'          <NAME>{escape_xml(class_name)}</NAME>'
+        ]
+
+        for alloc in allocations:
+            if isinstance(alloc, dict):
+                c_name = escape_xml(alloc.get("categoryName") or alloc.get("costCategoryName") or "Primary Cost Category")
+                cc_name = escape_xml(alloc.get("costCentreName") or alloc.get("costCenterName") or "")
+                pct = float(alloc.get("percentage") or alloc.get("pct") or 0.0)
+                if cc_name:
+                    lines.append('          <COSTCENTREALLOCATION.LIST>')
+                    lines.append(f'            <CATEGORYNAME>{c_name}</CATEGORYNAME>')
+                    lines.append(f'            <COSTCENTRENAME>{cc_name}</COSTCENTRENAME>')
+                    lines.append(f'            <PERCENTAGE>{pct}</PERCENTAGE>')
+                    lines.append('          </COSTCENTREALLOCATION.LIST>')
+
+        lines.extend([
+            '        </COSTCLASS>',
+            '      </TALLYMESSAGE>',
+            '    </DATA>',
+            '  </BODY>',
+            '</ENVELOPE>'
+        ])
+        return "\n".join(lines)
+
+    @classmethod
+    def generate_bom_xml(cls, bom_doc: dict, action: str = "Create") -> str:
+        bom_name = (bom_doc.get("bomName") or bom_doc.get("name") or "Standard BOM").strip()
+        finished = (bom_doc.get("finishedItemName") or bom_doc.get("stockItemName") or "Finished Stock Item").strip()
+        base_qty = bom_doc.get("baseQuantity") or bom_doc.get("basicQty") or 1.0
+        unit = (bom_doc.get("baseUnit") or bom_doc.get("unit") or "Pcs").strip()
+        items = bom_doc.get("components") or bom_doc.get("items") or []
+
+        comp_blocks = []
+        for comp in items:
+            if isinstance(comp, dict):
+                c_name = comp.get("stockItemName") or comp.get("itemName") or ""
+                c_qty = comp.get("quantity") or comp.get("actualQty") or comp.get("qty") or 0
+                c_unit = comp.get("unitName") or comp.get("unit") or ""
+                if c_name:
+                    qty_str = f"{c_qty} {c_unit}".strip()
+                    comp_blocks.append(f"""            <MULTICOMPONENTITEMLIST.LIST>
+              <NATUREOFITEM>Component</NATUREOFITEM>
+              <STOCKITEMNAME>{escape_xml(c_name)}</STOCKITEMNAME>
+              <ACTUALQTY>{escape_xml(qty_str)}</ACTUALQTY>
+            </MULTICOMPONENTITEMLIST.LIST>""")
+
+        comps_xml = "\n".join(comp_blocks)
+        base_qty_str = f"{base_qty} {unit}".strip()
+
+        lines = [
+            '<?xml version="1.0" encoding="utf-8"?>',
+            '<ENVELOPE>',
+            '  <HEADER>',
+            '    <VERSION>1</VERSION>',
+            '    <TALLYREQUEST>IMPORT</TALLYREQUEST>',
+            '    <TYPE>DATA</TYPE>',
+            '    <ID>All Masters</ID>',
+            '  </HEADER>',
+            '  <BODY>',
+            '    <DESC>',
+            '      <STATICVARIABLES />',
+            '    </DESC>',
+            '    <DATA>',
+            '      <TALLYMESSAGE xmlns:UDF="TallyUDF">',
+            f'        <STOCKITEM NAME="{escape_xml(finished)}" ACTION="{escape_xml(action)}">',
+            f'          <NAME>{escape_xml(finished)}</NAME>',
+            '          <MULTICOMPONENTLIST.LIST>',
+            f'            <COMPONENTLISTNAME>{escape_xml(bom_name)}</COMPONENTLISTNAME>',
+            f'            <COMPONENTBASICQTY>{escape_xml(base_qty_str)}</COMPONENTBASICQTY>',
+            comps_xml,
+            '          </MULTICOMPONENTLIST.LIST>',
+            '        </STOCKITEM>',
+            '      </TALLYMESSAGE>',
+            '    </DATA>',
+            '  </BODY>',
+            '</ENVELOPE>'
+        ]
+        return "\n".join(lines)
+
+
+
+
+    @classmethod
+    def generate_ledger_group_xml(cls, group_doc: dict, action: str = "Create") -> str:
+        gname = (group_doc.get("groupName") or group_doc.get("name") or "Ledger Group").strip()
+        alias = (group_doc.get("alias") or "").strip()
+        raw_parent = (group_doc.get("parentGroup") or group_doc.get("parentGroupName") or "").strip()
+        clean_parent = str(raw_parent).strip()
+        is_primary = clean_parent.lower() in ["", "primary", "primary / root group", "primary / root category", "none", "null", "undefined"]
+        parent = "" if is_primary else clean_parent
+
+        action_attr = action.strip() if action else "Create"
+
+        lines = [
+            '<?xml version="1.0" encoding="utf-8"?>',
+            '<ENVELOPE>',
+            '  <HEADER>',
+            '    <VERSION>1</VERSION>',
+            '    <TALLYREQUEST>IMPORT</TALLYREQUEST>',
+            '    <TYPE>DATA</TYPE>',
+            '    <ID>All Masters</ID>',
+            '  </HEADER>',
+            '  <BODY>',
+            '    <DESC>',
+            '      <STATICVARIABLES />',
+            '    </DESC>',
+            '    <DATA>',
+            '      <TALLYMESSAGE xmlns:UDF="TallyUDF">',
+            f'        <GROUP NAME="{escape_xml(gname)}" ACTION="{escape_xml(action_attr)}">',
+            f'          <NAME>{escape_xml(gname)}</NAME>'
+        ]
+
+        if alias and alias.lower() not in ["none", "null", "undefined"]:
+            lines.extend([
+                '          <NAME.LIST TYPE="String">',
+                f'            <NAME>{escape_xml(gname)}</NAME>',
+                f'            <NAME>{escape_xml(alias)}</NAME>',
+                '          </NAME.LIST>'
+            ])
+
+        if not is_primary and parent:
+            lines.append(f'          <PARENT>{escape_xml(parent)}</PARENT>')
+
+        lines.extend([
+            '        </GROUP>',
+            '      </TALLYMESSAGE>',
+            '    </DATA>',
+            '  </BODY>',
+            '</ENVELOPE>'
+        ])
+        return "\n".join(lines)
+
+    @classmethod
+    def generate_stock_group_xml(cls, sg_doc: dict) -> str:
+        gname = sg_doc.get("groupName") or sg_doc.get("name") or "Stock Group"
+        alias = sg_doc.get("alias") or ""
+        raw_parent = sg_doc.get("parentGroup") or sg_doc.get("parentGroupName") or ""
+        clean_parent = str(raw_parent).strip()
+        is_primary = clean_parent.lower() in ["", "primary", "primary / root group", "primary / root category", "none", "null", "undefined"]
+        parent = "" if is_primary else clean_parent
+            
+        behaviour = sg_doc.get("behaviour") if isinstance(sg_doc.get("behaviour"), dict) else {}
+        is_addable = transformBoolean(behaviour.get("isAddable") if "isAddable" in behaviour else sg_doc.get("isAddable", True))
+        is_batch_wise = transformBoolean(behaviour.get("isBatchWiseOn") if "isBatchWiseOn" in behaviour else sg_doc.get("isBatchWiseOn", False))
+        maintain_mrp = transformBoolean(behaviour.get("maintainMrp") if "maintainMrp" in behaviour else sg_doc.get("maintainMrp", False))
+        maintain_expiry = transformBoolean(behaviour.get("maintainExpiry") if "maintainExpiry" in behaviour else sg_doc.get("maintainExpiry", False))
+        
+        gst_details = sg_doc.get("gstDetails") if isinstance(sg_doc.get("gstDetails"), dict) else {}
+        hsn_details = sg_doc.get("hsnDetails") if isinstance(sg_doc.get("hsnDetails"), dict) else {}
+        
+        is_gst = transformBoolean(gst_details.get("gstApplicable") if "gstApplicable" in gst_details else sg_doc.get("gstApplicable", True))
+        hsn_code = hsn_details.get("hsnCode") or gst_details.get("hsnCode") or sg_doc.get("hsnCode") or ""
+        gst_rate = gst_details.get("gstRate") or sg_doc.get("gstRate") or ""
+        taxability = gst_details.get("taxability") or sg_doc.get("taxability") or ""
+
+        lines = [
+            '<?xml version="1.0" encoding="utf-8"?>',
+            '<ENVELOPE>',
+            '  <HEADER>',
+            '    <VERSION>1</VERSION>',
+            '    <TALLYREQUEST>IMPORT</TALLYREQUEST>',
+            '    <TYPE>DATA</TYPE>',
+            '    <ID>All Masters</ID>',
+            '  </HEADER>',
+            '  <BODY>',
+            '    <DESC>',
+            '      <STATICVARIABLES />',
+            '    </DESC>',
+            '    <DATA>',
+            '      <TALLYMESSAGE xmlns:UDF="TallyUDF">',
+            f'        <STOCKGROUP NAME="{escape_xml(gname)}" ACTION="Create">',
+            f'          <NAME>{escape_xml(gname)}</NAME>'
+        ]
+
+        if alias and str(alias).strip().lower() not in ["", "none", "null", "undefined"]:
+            lines.extend([
+                '          <NAME.LIST TYPE="String">',
+                f'            <NAME>{escape_xml(gname)}</NAME>',
+                f'            <NAME>{escape_xml(alias.strip())}</NAME>',
+                '          </NAME.LIST>'
+            ])
+
+        if not is_primary and parent:
+            lines.append(f'          <PARENT>{escape_xml(parent)}</PARENT>')
+
+        lines.extend([
+            f'          <ISADDABLE>{is_addable}</ISADDABLE>',
+            f'          <ISBATCHWISEON>{is_batch_wise}</ISBATCHWISEON>',
+            f'          <MAINTAINMRP>{maintain_mrp}</MAINTAINMRP>',
+            f'          <MAINTAINEXPIRY>{maintain_expiry}</MAINTAINEXPIRY>',
+            f'          <ISGSTAPPLICABLE>{is_gst}</ISGSTAPPLICABLE>'
+        ])
+
+        if hsn_code and str(hsn_code).strip().lower() not in ["", "none", "null", "undefined"]:
+            lines.append(f'          <HSNCODE>{escape_xml(hsn_code)}</HSNCODE>')
+        if gst_rate and str(gst_rate).strip().lower() not in ["", "none", "null", "undefined"]:
+            lines.append(f'          <GSTRATE>{escape_xml(gst_rate)}</GSTRATE>')
+        if taxability and str(taxability).strip().lower() not in ["", "none", "null", "undefined"]:
+            lines.append(f'          <TAXABILITY>{escape_xml(taxability)}</TAXABILITY>')
+
+        lines.extend([
+            '        </STOCKGROUP>',
+            '      </TALLYMESSAGE>',
+            '    </DATA>',
+            '  </BODY>',
+            '</ENVELOPE>'
+        ])
+        return "\n".join(lines)
+
+    @classmethod
+    def generate_stock_category_xml(cls, cat_doc: dict, action: str = "Create") -> str:
+        cname = (cat_doc.get("stockCategoryName") or cat_doc.get("categoryName") or cat_doc.get("name") or "Stock Category").strip()
+        alias = (cat_doc.get("alias") or "").strip()
+        raw_parent = (cat_doc.get("parentCategory") or cat_doc.get("parentCategoryName") or cat_doc.get("parentName") or "").strip()
+        clean_parent = str(raw_parent).strip()
+        is_primary = clean_parent.lower() in ["", "primary", "primary / root category", "primary / root group", "none", "null", "undefined"]
+        parent = "" if is_primary else clean_parent
+
+        action_attr = action.strip() if action else "Create"
+
+        lines = [
+            '<?xml version="1.0" encoding="utf-8"?>',
+            '<ENVELOPE>',
+            '  <HEADER>',
+            '    <VERSION>1</VERSION>',
+            '    <TALLYREQUEST>IMPORT</TALLYREQUEST>',
+            '    <TYPE>DATA</TYPE>',
+            '    <ID>All Masters</ID>',
+            '  </HEADER>',
+            '  <BODY>',
+            '    <DESC>',
+            '      <STATICVARIABLES />',
+            '    </DESC>',
+            '    <DATA>',
+            '      <TALLYMESSAGE xmlns:UDF="TallyUDF">',
+            f'        <STOCKCATEGORY NAME="{escape_xml(cname)}" ACTION="{escape_xml(action_attr)}">',
+            f'          <NAME>{escape_xml(cname)}</NAME>'
+        ]
+
+        if alias and alias.lower() not in ["none", "null", "undefined"]:
+            lines.extend([
+                '          <NAME.LIST TYPE="String">',
+                f'            <NAME>{escape_xml(cname)}</NAME>',
+                f'            <NAME>{escape_xml(alias)}</NAME>',
+                '          </NAME.LIST>'
+            ])
+
+        if not is_primary and parent:
+            lines.append(f'          <PARENT>{escape_xml(parent)}</PARENT>')
+
+        lines.extend([
+            '        </STOCKCATEGORY>',
+            '      </TALLYMESSAGE>',
+            '    </DATA>',
+            '  </BODY>',
+            '</ENVELOPE>'
+        ])
+        return "\n".join(lines)
+
+    @classmethod
+    def generate_godown_xml(cls, godown_doc: dict, action: str = "Create") -> str:
+        gname = (godown_doc.get("godownName") or godown_doc.get("name") or "Main Warehouse").strip()
+        alias = (godown_doc.get("alias") or "").strip()
+        parent = (godown_doc.get("parentName") or godown_doc.get("parentGodown") or godown_doc.get("parent") or "Primary").strip()
+        if parent in ["Primary / Root Godown", "Primary / Root Category", "Primary / Root Group"]:
+            parent = "Primary"
+
+        action_attr = action.strip() if action else "Create"
+        address = godown_doc.get("address")
+        state_name = godown_doc.get("stateName") or godown_doc.get("state")
+        pincode = godown_doc.get("pincode")
+        loc_type = godown_doc.get("locationType")
+
+        lines = [
+            '<?xml version="1.0" encoding="utf-8"?>',
+            '<ENVELOPE>',
+            '  <HEADER>',
+            '    <VERSION>1</VERSION>',
+            '    <TALLYREQUEST>IMPORT</TALLYREQUEST>',
+            '    <TYPE>DATA</TYPE>',
+            '    <ID>All Masters</ID>',
+            '  </HEADER>',
+            '  <BODY>',
+            '    <DESC>',
+            '      <STATICVARIABLES />',
+            '    </DESC>',
+            '    <DATA>',
+            '      <TALLYMESSAGE xmlns:UDF="TallyUDF">',
+            f'        <GODOWN NAME="{escape_xml(gname)}" ACTION="{escape_xml(action_attr)}">',
+            f'          <NAME>{escape_xml(gname)}</NAME>'
+        ]
+
+        if alias and alias.lower() not in ["none", "null", "undefined"]:
+            lines.extend([
+                '          <NAME.LIST TYPE="String">',
+                f'            <NAME>{escape_xml(gname)}</NAME>',
+                f'            <NAME>{escape_xml(alias)}</NAME>',
+                '          </NAME.LIST>'
+            ])
+
+        lines.append(f'          <PARENT>{escape_xml(parent if parent != "Primary" else "")}</PARENT>')
+
+        if address and str(address).strip().lower() not in ["", "none", "null", "undefined"]:
+            lines.extend([
+                '          <ADDRESS.LIST TYPE="String">',
+                f'            <ADDRESS>{escape_xml(str(address).strip())}</ADDRESS>',
+                '          </ADDRESS.LIST>'
+            ])
+
+        if state_name and str(state_name).strip().lower() not in ["", "none", "null", "undefined"]:
+            lines.append(f'          <STATE>{escape_xml(str(state_name).strip())}</STATE>')
+
+        if pincode and str(pincode).strip().lower() not in ["", "none", "null", "undefined"]:
+            lines.append(f'          <PINCODE>{escape_xml(str(pincode).strip())}</PINCODE>')
+
+        if loc_type and str(loc_type).strip().lower() not in ["", "none", "null", "undefined"]:
+            lines.append(f'          <LOCATIONTYPE>{escape_xml(str(loc_type).strip())}</LOCATIONTYPE>')
+
+        lines.extend([
+            '        </GODOWN>',
+            '      </TALLYMESSAGE>',
+            '    </DATA>',
+            '  </BODY>',
+            '</ENVELOPE>'
+        ])
+        return "\n".join(lines)
+
+    @classmethod
+    def generate_voucher_type_xml(cls, vt_doc: dict, action: str = "Create") -> str:
+        vname = (vt_doc.get("voucherTypeName") or vt_doc.get("name") or "Voucher Type").strip()
+        alias = (vt_doc.get("abbreviation") or vt_doc.get("alias") or "").strip()
+        raw_parent = (vt_doc.get("parent") or vt_doc.get("parentGroup") or vt_doc.get("parentVoucherType") or "Sales").strip()
+        
+        # If parent is None, empty, or Primary, fallback to category or Sales
+        if not raw_parent or raw_parent.lower() in ["none", "null", "undefined", "primary", ""]:
+            category = (vt_doc.get("voucherCategory") or "Sales").capitalize()
+            parent = category if category else "Sales"
+        else:
+            parent = raw_parent
+
+        numbering_method = vt_doc.get("numberingMethod") or "Automatic"
+        action_attr = action.strip() if action else "Create"
+
+        lines = [
+            '<?xml version="1.0" encoding="utf-8"?>',
+            '<ENVELOPE>',
+            '  <HEADER>',
+            '    <VERSION>1</VERSION>',
+            '    <TALLYREQUEST>IMPORT</TALLYREQUEST>',
+            '    <TYPE>DATA</TYPE>',
+            '    <ID>All Masters</ID>',
+            '  </HEADER>',
+            '  <BODY>',
+            '    <DESC>',
+            '      <STATICVARIABLES />',
+            '    </DESC>',
+            '    <DATA>',
+            '      <TALLYMESSAGE xmlns:UDF="TallyUDF">',
+            f'        <VOUCHERTYPE NAME="{escape_xml(vname)}" ACTION="{escape_xml(action_attr)}">',
+            f'          <NAME>{escape_xml(vname)}</NAME>'
+        ]
+
+        if alias and alias.lower() not in ["none", "null", "undefined"]:
+            lines.extend([
+                '          <NAME.LIST TYPE="String">',
+                f'            <NAME>{escape_xml(vname)}</NAME>',
+                f'            <NAME>{escape_xml(alias)}</NAME>',
+                '          </NAME.LIST>'
+            ])
+
+        lines.extend([
+            f'          <PARENT>{escape_xml(parent)}</PARENT>',
+            f'          <NUMBERINGMETHOD>{escape_xml(numbering_method)}</NUMBERINGMETHOD>',
+            '        </VOUCHERTYPE>',
+            '      </TALLYMESSAGE>',
+            '    </DATA>',
+            '  </BODY>',
+            '</ENVELOPE>'
+        ])
+        return "\n".join(lines)
+
+
+
+
+
+
+
 
 
     @classmethod

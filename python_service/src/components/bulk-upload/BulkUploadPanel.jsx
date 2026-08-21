@@ -15,7 +15,7 @@ import bulkUploadApi from '../../services/bulkUploadApi';
 import { OcrLoadingScreen, OcrLeftPanel, OcrRightPanel } from './OcrReviewPanel';
 import OcrManualReviewScreen from './OcrManualReviewScreen';
 import ExcelBulkUploadReview from './ExcelBulkUploadReview';
-import { useIsDark } from '../../stores/useAppStore';
+import { useIsDark, useAppStore } from '../../stores/useAppStore';
 
 const initialDocuments = [];
 
@@ -63,55 +63,10 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
   const navigate = useNavigate();
   const location = useLocation();
   const isDark = useIsDark();
+  const selectedCompany = useAppStore(s => s.selectedCompany);
 
   // --- States ---
-  const [documents, setDocuments] = useState(() => {
-    const saved = localStorage.getItem('fb_bulk_upload_documents');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5000/api/v2';
-          return parsed.map(doc => {
-            const idVal = doc.uploadId || doc.id;
-            let fileUrl = doc.fileUrl;
-            // Heal session blob URLs to the backend persistent file endpoint
-            if (idVal && (!fileUrl || fileUrl.startsWith('blob:'))) {
-              fileUrl = `${baseUrl}/bulk-upload/file/${idVal}`;
-            }
-            let type = doc.type || 'Unknown';
-            let category = doc.category || 'Unknown';
-            if (type === 'Unknown' || !type) {
-              const lowerName = (doc.name || doc.filename || '').toLowerCase();
-              if (lowerName.includes('sales')) {
-                type = 'Sales Invoice';
-                category = 'Financial';
-              } else if (lowerName.includes('purchase')) {
-                type = 'Purchase Invoice';
-                category = 'Financial';
-              } else if (lowerName.includes('payment')) {
-                type = 'Payment Voucher';
-                category = 'Financial';
-              } else if (lowerName.includes('contra')) {
-                type = 'Contra Voucher';
-                category = 'Financial';
-              }
-            }
-            return {
-              ...doc,
-              name: doc.name || doc.filename || 'Unnamed Document',
-              fileUrl: fileUrl,
-              type: type,
-              category: category
-            };
-          });
-        }
-      } catch (e) {
-        console.error('Error loading documents from local storage', e);
-      }
-    }
-    return initialDocuments;
-  });
+  const [documents, setDocuments] = useState(initialDocuments);
 
   const [activeTab, setActiveTab] = useState('Upload Documents');
   const [search, setSearch] = useState('');
@@ -181,10 +136,10 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
     };
   }, []);
 
-  // Sync to localStorage
+  // Clean up legacy un-scoped shared localStorage key
   useEffect(() => {
-    localStorage.setItem('fb_bulk_upload_documents', JSON.stringify(documents));
-  }, [documents]);
+    localStorage.removeItem('fb_bulk_upload_documents');
+  }, []);
 
   // Reset OCR states when document is closed
   useEffect(() => {
@@ -200,40 +155,37 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
   const fetchDocuments = useCallback(async () => {
     try {
       const res = await bulkUploadApi.listUploads();
-      if (res.success && res.documents) {
+      if (res && res.success && Array.isArray(res.documents)) {
         const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5000/api/v2';
-        setDocuments(prevDocs => {
-          const backendDocs = res.documents.map(doc => {
-            const mappedUrl = doc.fileUrl.startsWith('/') ? `${baseUrl}${doc.fileUrl}` : doc.fileUrl;
-            const existing = prevDocs.find(d => d.id === doc.id || (doc.upload_id && d.id === doc.upload_id));
-            return {
-              ...doc,
-              fileUrl: mappedUrl,
-              excelData: existing?.excelData || doc.excelData || undefined,
-              extractedData: {
-                ...(doc.extractedData || {}),
-                ...(existing?.extractedData || {})
-              }
-            };
-          });
-
-          // Keep local-only excel files
-          const localOnlyDocs = prevDocs.filter(localDoc => 
-            !backendDocs.some(bDoc => bDoc.id === localDoc.id || (localDoc.uploadId && bDoc.id === localDoc.uploadId))
-          );
-
-          return [...localOnlyDocs, ...backendDocs];
+        const backendDocs = res.documents.map(doc => {
+          const mappedUrl = doc.fileUrl.startsWith('/') ? `${baseUrl}${doc.fileUrl}` : doc.fileUrl;
+          return {
+            ...doc,
+            fileUrl: mappedUrl,
+            name: doc.name || doc.filename || 'Unnamed Document',
+            type: doc.type || 'Unknown',
+            category: doc.category || 'Financial'
+          };
         });
+        setDocuments(backendDocs);
+      } else {
+        setDocuments([]);
       }
     } catch (err) {
       console.error("Failed to load documents from backend", err);
+      setDocuments([]);
     }
   }, []);
 
-  // Fetch real uploads from backend on mount
+  // Fetch real uploads from backend on mount, company change, and event listener
   useEffect(() => {
     fetchDocuments();
-  }, [fetchDocuments]);
+    const handleCompanyChange = () => fetchDocuments();
+    window.addEventListener('company-changed', handleCompanyChange);
+    return () => {
+      window.removeEventListener('company-changed', handleCompanyChange);
+    };
+  }, [fetchDocuments, selectedCompany]);
 
   // Polling for processing uploads
   useEffect(() => {

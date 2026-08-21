@@ -75,6 +75,14 @@ export default function Login() {
 
       setCompanies(organizations)
 
+      // Sync localStorage and trigger global auto-fetch events
+      const compIdVal = organization.dbName || organization.name || organization.id
+      localStorage.setItem('selectedCompanyId', compIdVal)
+      localStorage.setItem('activeCompany', compIdVal)
+      localStorage.setItem('orgId', organization.id)
+      window.dispatchEvent(new Event('company-changed'))
+      window.dispatchEvent(new Event('auth-changed'))
+
       toast.success('Signed in')
       navigate('/home', { replace: true })
     } catch (err) {

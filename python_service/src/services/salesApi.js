@@ -188,8 +188,20 @@ export const salesApi = {
   /**
    * Get master data dynamically for the current company
    */
-  getMasterData: () =>
-    apiClient.get('/companies/current/master-data').then((r) => r.data),
+  getMasterData: (headers = {}) =>
+    apiClient.get('/companies/current/master-data', { headers }).then((r) => r.data),
+
+  /**
+   * Get BOMs for a specific Finished Item
+   */
+  getBomsForItem: (itemId) =>
+    apiClient.get(`/masters/boms/for-item/${itemId}`).then((r) => r.data),
+
+  /**
+   * Get Active BOM for a specific Finished Item
+   */
+  getActiveBomForItem: (itemId) =>
+    apiClient.get(`/masters/boms/active-for-item/${itemId}`).then((r) => r.data),
 
   /**
    * Get party ledgers for without-item sales vouchers

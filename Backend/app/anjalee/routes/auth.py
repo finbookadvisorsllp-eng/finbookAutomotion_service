@@ -11,3 +11,14 @@ async def login():
     to the new shared auth handler at `/api/auth/login`.
     """
     return RedirectResponse(url="/api/auth/login", status_code=307)
+
+
+@router.post("/refresh-token")
+async def refresh_token():
+    return RedirectResponse(url="/api/auth/refresh-token", status_code=307)
+
+
+@router.post("/logout")
+async def logout():
+    return RedirectResponse(url="/api/auth/logout", status_code=307)
+
