@@ -233,50 +233,49 @@ class OcrService:
 
         try:
             if file_type == 'pdf':
-                # Try direct text extraction using pdfplumber page-by-page first
+                # Try direct text extraction using PyMuPDF (fitz) page-by-page first
                 pages_needing_ocr = []
                 
                 try:
-                    with pdfplumber.open(file_path) as pdf:
-                        for idx, page in enumerate(pdf.pages):
-                            p_num = idx + 1
-                            text = page.extract_text() or ""
-                            text_stripped = text.strip()
+                    doc = fitz.open(file_path)
+                    for idx in range(len(doc)):
+                        p_num = idx + 1
+                        page = doc.load_page(idx)
+                        text = page.get_text() or ""
+                        text_stripped = text.strip()
+                        
+                        # If the page has selectable text (using MIN_CHARS = 20 as threshold)
+                        if len(text_stripped) >= 20:
+                            logger.info(f"Direct text extraction successful for page {p_num} ({len(text_stripped)} chars)")
                             
-                            # If the page has selectable text (using MIN_CHARS = 20 as threshold)
-                            if len(text_stripped) >= 20:
-                                logger.info(f"Direct text extraction successful for page {p_num} ({len(text_stripped)} chars)")
-                                
-                                words_list = []
-                                try:
-                                    pdf_words = page.extract_words()
-                                    for w_dict in pdf_words:
-                                        x0 = float(w_dict.get("x0", 0))
-                                        top = float(w_dict.get("top", 0))
-                                        x1 = float(w_dict.get("x1", 0))
-                                        bottom = float(w_dict.get("bottom", 0))
-                                        words_list.append({
-                                            "text": w_dict.get("text", ""),
-                                            "confidence": 1.0,
-                                            "box": [
-                                                [int(x0), int(top)],
-                                                [int(x1), int(top)],
-                                                [int(x1), int(bottom)],
-                                                [int(x0), int(bottom)]
-                                            ]
-                                        })
-                                except Exception as we:
-                                    logger.warning(f"Failed to extract words via pdfplumber for page {p_num}: {we}")
+                            words_list = []
+                            try:
+                                words = page.get_text("words")
+                                for w in words:
+                                    x0, top, x1, bottom, w_text = w[0], w[1], w[2], w[3], w[4]
+                                    words_list.append({
+                                        "text": str(w_text),
+                                        "confidence": 1.0,
+                                        "box": [
+                                            [int(x0), int(top)],
+                                            [int(x1), int(top)],
+                                            [int(x1), int(bottom)],
+                                            [int(x0), int(bottom)]
+                                        ]
+                                    })
+                            except Exception as we:
+                                logger.warning(f"Failed to extract words via fitz for page {p_num}: {we}")
 
-                                pages_data.append({
-                                    "page_number": p_num,
-                                    "text": text_stripped,
-                                    "confidence": 1.0,  # 100% confidence for direct text
-                                    "words": words_list
-                                })
-                            else:
-                                logger.info(f"Page {p_num} has selectable text length {len(text_stripped)} < 20. Needs OCR.")
-                                pages_needing_ocr.append(p_num)
+                            pages_data.append({
+                                "page_number": p_num,
+                                "text": text_stripped,
+                                "confidence": 1.0,  # 100% confidence for direct text
+                                "words": words_list
+                            })
+                        else:
+                            logger.info(f"Page {p_num} has selectable text length {len(text_stripped)} < 20. Needs OCR.")
+                            pages_needing_ocr.append(p_num)
+                    doc.close()
                 except Exception as e:
                     logger.warning(f"Direct text extraction failed: {e}. Running OCR on all pages.")
                     pages_needing_ocr = []

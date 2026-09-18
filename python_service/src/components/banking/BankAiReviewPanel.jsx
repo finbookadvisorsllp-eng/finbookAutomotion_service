@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   FileText, CheckCircle2, AlertCircle, RefreshCw, Check, Search, Filter,
-  Eye, Edit3, X, Sparkles, ArrowRight, ShieldCheck, HelpCircle, Layers, Building, ChevronRight, Lock, Plus
+  Eye, Edit3, X, Sparkles, ArrowRight, ShieldCheck, HelpCircle, Layers, Building, ChevronRight, ChevronLeft, Lock, Plus, Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
@@ -17,6 +17,10 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
   const [editingItem, setEditingItem] = useState(null); // Item open in Split-Screen Drawer
   const [savingLoading, setSavingLoading] = useState(false);
   
+  // Pagination state for ultra-fast rendering of large statements
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50); // 25, 50, 100, 'all'
+  
   // Master Creation Modal state
   const [isAddMasterOpen, setIsAddMasterOpen] = useState(false);
   const [targetItemForMaster, setTargetItemForMaster] = useState(null);
@@ -30,32 +34,88 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
     fundFlowStore.fetchMasterData();
   }, []);
 
-  const masterLedgers = Array.from(new Set([
-    ...(fundFlowStore.masterData?.allLedgers || []),
-    ...(fundFlowStore.masterData?.partyLedgers || []),
-    ...((fundFlowStore.masterData?.ledgers || []).map(l => l.ledgerName || l.name || '')),
-  ])).filter(Boolean).sort();
+  // Precompute sorted master ledger lists once with useMemo to avoid 300+ expensive sorting operations on every render
+  const allLedgersList = useMemo(() => {
+    return Array.from(new Set([
+      ...(fundFlowStore.masterData?.allLedgers || []),
+      ...(fundFlowStore.masterData?.partyLedgers || []),
+      ...((fundFlowStore.masterData?.ledgers || []).map(l => (typeof l === 'string' ? l : (l.ledgerName || l.name || '')))),
+    ])).filter(Boolean).sort((a, b) => a.localeCompare(b));
+  }, [fundFlowStore.masterData]);
+
+  const purchaseOptionsList = useMemo(() => {
+    const purchaseParties = (fundFlowStore.masterData?.purchasePartyLedgers || []).filter(Boolean);
+    if (!purchaseParties.length) return allLedgersList;
+    const purchaseSet = new Set(purchaseParties);
+    const otherLedgers = allLedgersList.filter(l => !purchaseSet.has(l));
+    return [...[...purchaseParties].sort((a, b) => a.localeCompare(b)), ...otherLedgers];
+  }, [fundFlowStore.masterData, allLedgersList]);
+
+  const salesOptionsList = useMemo(() => {
+    const salesParties = (fundFlowStore.masterData?.salesPartyLedgers || []).filter(Boolean);
+    if (!salesParties.length) return allLedgersList;
+    const salesSet = new Set(salesParties);
+    const otherLedgers = allLedgersList.filter(l => !salesSet.has(l));
+    return [...[...salesParties].sort((a, b) => a.localeCompare(b)), ...otherLedgers];
+  }, [fundFlowStore.masterData, allLedgersList]);
+
+  const contraOptionsList = useMemo(() => {
+    const cashBankParties = (fundFlowStore.masterData?.cashBankLedgers || []).filter(Boolean);
+    if (!cashBankParties.length) return allLedgersList;
+    const cashBankSet = new Set(cashBankParties);
+    const otherLedgers = allLedgersList.filter(l => !cashBankSet.has(l));
+    return [...[...cashBankParties].sort((a, b) => a.localeCompare(b)), ...otherLedgers];
+  }, [fundFlowStore.masterData, allLedgersList]);
+
+  const getPartyLedgerOptions = (voucherType, currentParty) => {
+    let list = allLedgersList;
+    if (voucherType === 'Payment') list = purchaseOptionsList;
+    else if (voucherType === 'Receipt') list = salesOptionsList;
+    else if (voucherType === 'Contra') list = contraOptionsList;
+
+    if (currentParty && !list.includes(currentParty)) {
+      return [currentParty, ...list];
+    }
+    return list;
+  };
+
+  const masterLedgers = allLedgersList;
 
   const items = batchData?.items || [];
   const summary = batchData?.summary || { total_count: 0, ready_count: 0, review_required_count: 0, already_processed_count: 0, saved_count: 0 };
 
   // Filter items
-  const filteredItems = items.filter(item => {
-    if (activeFilter === 'ready' && item.status !== 'ready' && item.status !== 'user_edited') return false;
-    if (activeFilter === 'review_required' && item.status !== 'review_required') return false;
-    if (activeFilter === 'already_processed' && item.status !== 'already_processed') return false;
-    if (activeFilter === 'saved' && item.status !== 'saved') return false;
+  const filteredItems = useMemo(() => {
+    return items.filter(item => {
+      if (activeFilter === 'ready' && item.status !== 'ready' && item.status !== 'user_edited') return false;
+      if (activeFilter === 'review_required' && item.status !== 'review_required') return false;
+      if (activeFilter === 'already_processed' && item.status !== 'already_processed') return false;
+      if (activeFilter === 'saved' && item.status !== 'saved') return false;
 
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
-      const matchNarr = (item.narration || '').toLowerCase().includes(q);
-      const matchParty = (item.partyLedger || '').toLowerCase().includes(q);
-      const matchNum = (item.voucherNumber || '').toLowerCase().includes(q);
-      const matchRef = (item.referenceNumber || item.instNumber || '').toLowerCase().includes(q);
-      if (!matchNarr && !matchParty && !matchNum && !matchRef) return false;
-    }
-    return true;
-  });
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const matchNarr = (item.narration || '').toLowerCase().includes(q);
+        const matchParty = (item.partyLedger || '').toLowerCase().includes(q);
+        const matchNum = (item.voucherNumber || '').toLowerCase().includes(q);
+        const matchRef = (item.referenceNumber || item.instNumber || '').toLowerCase().includes(q);
+        if (!matchNarr && !matchParty && !matchNum && !matchRef) return false;
+      }
+      return true;
+    });
+  }, [items, activeFilter, searchQuery]);
+
+  // Reset page when filter or search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeFilter, searchQuery]);
+
+  // Paginated slice for instant 60fps rendering
+  const totalPages = pageSize === 'all' ? 1 : Math.max(1, Math.ceil(filteredItems.length / pageSize));
+  const paginatedItems = useMemo(() => {
+    if (pageSize === 'all') return filteredItems;
+    const start = (currentPage - 1) * pageSize;
+    return filteredItems.slice(start, start + pageSize);
+  }, [filteredItems, currentPage, pageSize]);
 
   const toggleSelectItem = (itemId) => {
     setSelectedItemIds(prev =>
@@ -183,10 +243,32 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
         <div className="flex items-center gap-2">
           <button
             onClick={onClose}
-            className="px-3 py-1.5 border rounded-lg text-[11px] font-bold uppercase tracking-wider hover:bg-[var(--app-control-hover)] transition-all"
+            className="px-3 py-1.5 border rounded-lg text-[11px] font-bold uppercase tracking-wider hover:bg-[var(--app-control-hover)] transition-all cursor-pointer"
             style={{ borderColor: 'var(--app-border)', color: 'var(--app-muted)' }}
           >
             ← Back to Bank
+          </button>
+          <button
+            onClick={async () => {
+              if (!window.confirm(`Are you sure you want to delete "${batchData.file_name}"? All extracted drafts will be removed.`)) {
+                return;
+              }
+              try {
+                const res = await bankStatementAiApi.deleteBatch(batchData.batch_id || batchData._id);
+                if (res?.success) {
+                  toast.success(`Deleted statement "${batchData.file_name}" successfully`);
+                  onClose?.();
+                } else {
+                  toast.error(res?.message || 'Failed to delete statement');
+                }
+              } catch (err) {
+                toast.error(err?.response?.data?.detail || 'Failed to delete statement');
+              }
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 border border-rose-500/30 rounded-lg text-[11px] font-bold uppercase tracking-wider text-rose-500 hover:bg-rose-500 hover:text-white transition-all cursor-pointer"
+          >
+            <Trash2 size={13} />
+            <span>Delete</span>
           </button>
           <button
             onClick={handleSaveSelectedVouchers}
@@ -281,13 +363,14 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
             </tr>
           </thead>
           <tbody>
-            {filteredItems.length > 0 ? (
-              filteredItems.map((item, idx) => {
+            {paginatedItems.length > 0 ? (
+              paginatedItems.map((item, idx) => {
                 const isSelected = selectedItemIds.includes(item.item_id);
                 const canSelect = item.status !== 'already_processed' && item.status !== 'saved';
                 const hasMaster = Boolean(item.partyLedger);
                 const isOutflow = item.voucherType === 'Payment' || (item.debit > 0 && !item.credit);
                 const isReceipt = item.voucherType === 'Receipt' || (item.credit > 0 && !item.debit);
+                const rowNumber = pageSize === 'all' ? idx + 1 : (currentPage - 1) * pageSize + idx + 1;
 
                 return (
                   <tr
@@ -307,7 +390,7 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
                           onChange={() => toggleSelectItem(item.item_id)}
                           className="w-3.5 h-3.5 rounded accent-[var(--app-accent)] disabled:opacity-30 cursor-pointer"
                         />
-                        <span className="font-mono text-[10px] font-bold text-[var(--app-muted)]">{idx + 1}</span>
+                        <span className="font-mono text-[10px] font-bold text-[var(--app-muted)]">{rowNumber}</span>
                       </div>
                     </td>
 
@@ -368,7 +451,7 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
                       >
                         <option value="">-- Select Master Party Ledger --</option>
                         <option value="__CREATE_NEW__" className="font-bold text-[var(--app-accent)]">+ Create New Master...</option>
-                        {masterLedgers.map(m => (
+                        {getPartyLedgerOptions(item.voucherType, item.partyLedger).map(m => (
                           <option key={m} value={m}>{m}</option>
                         ))}
                       </select>
@@ -390,52 +473,49 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
                     <td className="py-2 px-2 text-right">
                       <div className="flex items-center gap-1">
                         <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase shrink-0 ${
-                          item.voucherType === 'Receipt' ? 'bg-emerald-500/15 text-emerald-600 border border-emerald-500/30' : item.voucherType === 'Contra' ? 'bg-indigo-500/15 text-indigo-600 border border-indigo-500/30' : 'bg-rose-500/15 text-rose-600 border border-rose-500/30'
+                          isOutflow ? 'bg-rose-500/10 text-rose-600' : 'bg-emerald-500/10 text-emerald-600'
                         }`}>
-                          {item.voucherType === 'Receipt' ? 'Cr' : 'Dr'}
+                          {isOutflow ? 'Dr' : 'Cr'}
                         </span>
                         <input
                           type="number"
-                          step="0.01"
-                          placeholder="0.00"
-                          value={item.amount || item.debit || item.credit || ''}
+                          value={item.amount || item.debit || item.credit || 0}
                           onChange={(e) => {
                             const val = parseFloat(e.target.value) || 0;
                             handleUpdateItemField(item.item_id, 'amount', val);
-                            if (item.voucherType === 'Receipt') {
-                              handleUpdateItemField(item.item_id, 'credit', val);
-                              handleUpdateItemField(item.item_id, 'debit', 0);
-                            } else {
+                            if (isOutflow) {
                               handleUpdateItemField(item.item_id, 'debit', val);
-                              handleUpdateItemField(item.item_id, 'credit', 0);
+                            } else {
+                              handleUpdateItemField(item.item_id, 'credit', val);
                             }
                           }}
-                          className={`w-full h-7 px-1.5 text-right border rounded text-[11px] font-extrabold font-mono bg-[var(--app-panel-bg)] outline-none focus:border-[var(--app-accent)] ${
-                            item.voucherType === 'Receipt' ? 'text-emerald-600' : 'text-rose-600'
-                          }`}
+                          className="w-full h-7 px-2 border rounded text-[11px] font-mono font-black text-right bg-[var(--app-panel-bg)] text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)]"
                           style={{ borderColor: 'var(--app-border)' }}
                         />
                       </div>
                     </td>
 
-                    {/* Editable Reference Number */}
+                    {/* Editable Reference / Cheque No. */}
                     <td className="py-2 px-2">
                       <input
                         type="text"
-                        placeholder="Ref/UTR"
                         value={item.referenceNumber || item.instNumber || ''}
-                        onChange={(e) => handleUpdateItemField(item.item_id, 'referenceNumber', e.target.value)}
-                        className="w-full h-7 px-1.5 border rounded text-[10.5px] font-mono font-semibold bg-[var(--app-panel-bg)] text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)]"
+                        onChange={(e) => {
+                          handleUpdateItemField(item.item_id, 'referenceNumber', e.target.value);
+                          handleUpdateItemField(item.item_id, 'instNumber', e.target.value);
+                        }}
+                        className="w-full h-7 px-2 border rounded text-[10.5px] font-mono font-medium bg-[var(--app-panel-bg)] text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)] truncate"
                         style={{ borderColor: 'var(--app-border)' }}
+                        placeholder="Ref/UTR"
                       />
                     </td>
 
-                    {/* Confidence Score */}
+                    {/* Confidence */}
                     <td className="py-2 px-2 text-center">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold ${
-                        item.confidence >= 85 ? 'bg-emerald-500/10 text-emerald-500' : item.confidence >= 60 ? 'bg-amber-500/10 text-amber-500' : 'bg-rose-500/10 text-rose-500'
+                      <span className={`font-mono text-[10.5px] font-black ${
+                        (item.confidence || 0) >= 80 ? 'text-emerald-500' : (item.confidence || 0) >= 60 ? 'text-amber-500' : 'text-rose-500'
                       }`}>
-                        {item.confidence}%
+                        {item.confidence || 0}%
                       </span>
                     </td>
 
@@ -468,6 +548,70 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
           </tbody>
         </table>
       </div>
+
+      {/* Table Pagination Bar */}
+      {filteredItems.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2 border rounded-xl bg-[var(--app-control-bg)] shrink-0 text-[11px]" style={{ borderColor: 'var(--app-border)' }}>
+          <div className="flex items-center gap-2 text-[var(--app-muted)] font-semibold">
+            <span>
+              Showing <strong className="text-[var(--app-heading)] font-black">
+                {pageSize === 'all' ? 1 : (currentPage - 1) * pageSize + 1}
+              </strong> to <strong className="text-[var(--app-heading)] font-black">
+                {pageSize === 'all' ? filteredItems.length : Math.min(currentPage * pageSize, filteredItems.length)}
+              </strong> of <strong className="text-[var(--app-heading)] font-black">{filteredItems.length}</strong> items
+            </span>
+          </div>
+
+          <div className="flex items-center gap-4">
+            {/* Rows Per Page */}
+            <div className="flex items-center gap-1.5 font-bold text-[var(--app-muted)]">
+              <span>Rows:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  const v = e.target.value === 'all' ? 'all' : Number(e.target.value);
+                  setPageSize(v);
+                  setCurrentPage(1);
+                }}
+                className="h-6 px-1.5 rounded border text-[11px] font-bold bg-[var(--app-panel-bg)] text-[var(--app-heading)] outline-none cursor-pointer"
+                style={{ borderColor: 'var(--app-border)' }}
+              >
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+                <option value="all">All ({filteredItems.length})</option>
+              </select>
+            </div>
+
+            {/* Page Navigation */}
+            {pageSize !== 'all' && totalPages > 1 && (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="p-1 rounded border hover:bg-[var(--app-control-hover)] disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer"
+                  style={{ borderColor: 'var(--app-border)' }}
+                  title="Previous Page"
+                >
+                  <ChevronLeft size={13} />
+                </button>
+                <span className="px-2 font-bold text-[var(--app-heading)] text-[10.5px]">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="p-1 rounded border hover:bg-[var(--app-control-hover)] disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer"
+                  style={{ borderColor: 'var(--app-border)' }}
+                  title="Next Page"
+                >
+                  <ChevronRight size={13} />
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Master Creation Modal */}
       {isAddMasterOpen && (
@@ -684,7 +828,7 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
                         style={{ borderColor: 'var(--app-border)' }}
                       >
                         <option value="">-- Select Counterpart Ledger --</option>
-                        {masterLedgers.map(m => <option key={m} value={m}>{m}</option>)}
+                        {getPartyLedgerOptions(editingItem.voucherType, editingItem.partyLedger).map(m => <option key={m} value={m}>{m}</option>)}
                       </select>
                     </div>
 

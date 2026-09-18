@@ -43,6 +43,12 @@ export const bankStatementAiApi = {
    */
   saveVouchers: (batchId, itemIds) =>
     apiClient.post(`${BASE_URL}/save-vouchers`, { batch_id: batchId, item_ids: itemIds }).then((r) => r.data),
+
+  /**
+   * Completely delete a processed bank statement draft batch
+   */
+  deleteBatch: (batchId) =>
+    apiClient.delete(`${BASE_URL}/batch/${batchId}`).then((r) => r.data),
 };
 
 export default bankStatementAiApi;

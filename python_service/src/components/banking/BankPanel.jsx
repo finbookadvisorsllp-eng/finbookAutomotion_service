@@ -71,6 +71,8 @@ const BankPanel = ({ mode: propMode, isDark }) => {
   const [isUploadStatementOpen, setIsUploadStatementOpen] = useState(false);
   const [isBankFilterOpen, setIsBankFilterOpen] = useState(false);
   const [isAddBankLedgerOpen, setIsAddBankLedgerOpen] = useState(false);
+  const [selectedUploadLedger, setSelectedUploadLedger] = useState('');
+  const [aiStatementBankFilter, setAiStatementBankFilter] = useState('');
 
 
 
@@ -87,10 +89,46 @@ const BankPanel = ({ mode: propMode, isDark }) => {
     fundFlowStore.fetchTransactions();
   }, []);
 
+  const isStrictBankLedger = (l) => {
+    if (!l) return false;
+    const g = (l.groupName || l.parentGroup || '').toLowerCase().trim();
+    const name = (l.ledgerName || l.name || '').toLowerCase().trim();
+
+    // Explicitly exclude non-bank groups: Expenses, Incomes, Debtors, Creditors, Taxes, etc.
+    const nonBankGroups = [
+      'indirect expenses', 'direct expenses', 'indirect incomes', 'direct incomes',
+      'expenses', 'incomes', 'sundry debtors', 'sundry creditors', 'debtors', 'creditors',
+      'duties & taxes', 'current liabilities', 'provisions', 'loans (liability)',
+      'capital account', 'reserves & surplus', 'sales accounts', 'purchase accounts',
+      'fixed assets', 'investments', 'miscellaneous expenses', 'suspense account',
+      'branch / divisions', 'cash-in-hand'
+    ];
+    if (nonBankGroups.some(nb => g === nb || g.startsWith(nb))) {
+      return false;
+    }
+
+    // Exclude expense / non-bank items by name even if group is ambiguous
+    const nonBankKeywords = ['charges', 'interest', 'commission', 'fee', 'tax', 'tds', 'gst', 'salary', 'rent', 'exp', 'expense', 'income', 'round off'];
+    if (nonBankKeywords.some(kw => name.includes(kw))) {
+      return false;
+    }
+
+    // Must be in Bank Accounts or Bank OD A/c or Bank OCC A/c
+    return g === 'bank accounts' || g === 'bank account' || g === 'bank od a/c' || g === 'bank od account' || g === 'bank occ a/c' || g.includes('bank account') || g.includes('bank od');
+  };
+
+  const verifiedBankLedgerNames = new Set(
+    (fundFlowStore.masterData?.cashBankLedgers || [])
+      .filter(name => {
+        const lower = name.toLowerCase();
+        return !lower.includes('cash') && !lower.includes('petty') && !lower.includes('charges') && !lower.includes('interest');
+      })
+  );
+
   const dbBankLedgers = (fundFlowStore.masterData?.ledgers || []).filter(l => {
-    const g = l.groupName ? l.groupName.toLowerCase().trim() : '';
-    const name = (l.ledgerName || l.name || '').toLowerCase();
-    return g.includes('bank') || name.includes('bank') || g === 'bank accounts' || g === 'bank od a/c';
+    const name = l.ledgerName || l.name || '';
+    if (verifiedBankLedgerNames.has(name)) return true;
+    return isStrictBankLedger(l);
   });
 
   const detectBankName = (ledgerName) => {
@@ -219,9 +257,10 @@ const BankPanel = ({ mode: propMode, isDark }) => {
   const fallbackBanks = ['HDFC Bank', 'ICICI Bank', 'State Bank of India', 'Axis Bank', 'Kotak Mahindra Bank', 'Punjab National Bank', 'HSBC', 'Standard Chartered', 'DBS Bank', 'Yes Bank'];
   const dynamicBanks = Array.from(new Set([...dbBankAccounts.map(a => a.bank), ...fallbackBanks])).filter(Boolean);
   const fallbackBankLedgers = ['Primary Bank Account', 'HDFC Bank Account', 'ICICI Bank Account', 'SBI Bank Account', 'Axis Bank Account'];
-  const storeBankLedgers = (fundFlowStore.masterData?.cashBankLedgers || []).filter(l => l.toLowerCase().includes('bank') || l.toLowerCase().includes('a/c') || l.toLowerCase().includes('account'));
+  const storeBankLedgers = Array.from(verifiedBankLedgerNames);
   const derivedBankLedgers = dbBankAccounts.map(a => a.ledger).filter(Boolean);
-  const dynamicBankLedgers = Array.from(new Set([...derivedBankLedgers, ...storeBankLedgers, ...fallbackBankLedgers])).filter(Boolean);
+  const realBankLedgers = Array.from(new Set([...derivedBankLedgers, ...storeBankLedgers])).filter(Boolean);
+  const dynamicBankLedgers = realBankLedgers.length > 0 ? realBankLedgers : fallbackBankLedgers;
 
   const fallbackLedgerGroups = ['Bank Accounts', 'Bank OD A/c', 'Cash-in-Hand', 'Current Assets', 'Loans (Liability)', 'Indirect Expenses', 'Indirect Incomes', 'Suspense Account'];
   const dynamicLedgerGroups = Array.from(new Set((fundFlowStore.masterData?.ledgers || []).map(l => l.groupName).filter(Boolean)));
@@ -354,7 +393,28 @@ const BankPanel = ({ mode: propMode, isDark }) => {
           );
         }
       },
-      { key: 'act', header: 'Action', align: 'center', width: '150px', render: () => <div className="flex items-center justify-center gap-1"><RowAct icon={Upload} /><RowAct icon={Edit3} /><RowAct icon={RefreshCw} tone="hover:text-emerald-500" /><RowAct icon={Trash2} tone="hover:text-rose-500" /></div> },
+      {
+        key: 'act',
+        header: 'Action',
+        align: 'center',
+        width: '150px',
+        render: (r) => (
+          <div className="flex items-center justify-center gap-1">
+            <RowAct
+              icon={Upload}
+              onClick={(e) => {
+                e?.stopPropagation?.();
+                setSelectedUploadLedger(r.ledger);
+                setIsUploadStatementOpen(true);
+              }}
+              title={`Upload Statement for ${r.bank || r.ledger}`}
+            />
+            <RowAct icon={Edit3} title="Edit Bank Details" />
+            <RowAct icon={RefreshCw} tone="hover:text-emerald-500" title="Sync / Refresh" />
+            <RowAct icon={Trash2} tone="hover:text-rose-500" title="Delete" />
+          </div>
+        )
+      },
     ],
 
     'Inbox': [
@@ -445,17 +505,59 @@ const BankPanel = ({ mode: propMode, isDark }) => {
     }
   }, [activeTab]);
 
-  const handleOpenBatch = async (batchId) => {
-    setAiBatchesLoading(true);
+  const [deletingBatchId, setDeletingBatchId] = useState(null);
+
+  const handleDeleteBatch = async (batchId, fileName) => {
+    if (!window.confirm(`Are you sure you want to delete "${fileName || 'this statement'}"? All extracted drafts for this document will be removed.`)) {
+      return;
+    }
+
+    setDeletingBatchId(batchId);
     try {
-      const res = await bankStatementAiApi.getBatchReview(batchId);
-      if (res.success && res.data) {
-        setActiveBatchData(res.data);
+      const res = await bankStatementAiApi.deleteBatch(batchId);
+      if (res && res.success) {
+        toast.success(`Deleted statement "${fileName || batchId}" successfully`);
+        setAiBatches((prev) => prev.filter((b) => (b.batch_id || b._id) !== batchId));
+        if (activeBatchData && (activeBatchData.batch_id || activeBatchData._id) === batchId) {
+          setActiveBatchData(null);
+        }
+      } else {
+        toast.error(res?.message || 'Failed to delete bank statement');
       }
     } catch (err) {
+      console.error('Error deleting bank statement batch:', err);
+      toast.error(err?.response?.data?.detail || 'Failed to delete bank statement');
+    } finally {
+      setDeletingBatchId(null);
+    }
+  };
+
+  const [openingBatchId, setOpeningBatchId] = useState(null);
+  const [aiStatementSearch, setAiStatementSearch] = useState('');
+
+  const handleOpenBatch = async (batchId) => {
+    // 1. Instant 0ms Reopening: If batch already has items in memory, open immediately without loading screen
+    const cachedBatch = aiBatches.find(b => (b.batch_id || b._id) === batchId);
+    if (cachedBatch && cachedBatch.items && cachedBatch.items.length > 0) {
+      setActiveBatchData(cachedBatch);
+      return;
+    }
+
+    // 2. Localized row spinner only if fresh items need to be fetched from server
+    setOpeningBatchId(batchId);
+    try {
+      const res = await bankStatementAiApi.getBatchReview(batchId);
+      if (res && res.success && res.data) {
+        setAiBatches(prev => prev.map(b => ((b.batch_id || b._id) === batchId ? res.data : b)));
+        setActiveBatchData(res.data);
+      } else {
+        toast.error('Failed to load document data');
+      }
+    } catch (err) {
+      console.error('Failed to load document data:', err);
       toast.error('Failed to load document data');
     } finally {
-      setAiBatchesLoading(false);
+      setOpeningBatchId(null);
     }
   };
 
@@ -477,9 +579,9 @@ const BankPanel = ({ mode: propMode, isDark }) => {
         );
       }
 
-      if (aiBatchesLoading) {
+      if (aiBatchesLoading && aiBatches.length === 0) {
         return (
-          <div className="flex flex-col items-center justify-center h-[400px] border rounded-2xl p-8" style={{ borderColor: 'var(--app-border)' }}>
+          <div className="flex flex-col items-center justify-center h-[350px] border rounded-2xl p-8" style={{ borderColor: 'var(--app-border)' }}>
             <div className="w-8 h-8 rounded-full border-2 border-[var(--app-accent)] border-t-transparent animate-spin mb-3" />
             <span className="text-xs font-semibold" style={{ color: 'var(--app-muted)' }}>Loading AI processed bank statements...</span>
           </div>
@@ -488,46 +590,151 @@ const BankPanel = ({ mode: propMode, isDark }) => {
 
       if (aiBatches.length === 0) {
         return (
-          <div className="flex flex-col items-center justify-center h-[400px] border-2 border-dashed rounded-2xl p-8 text-center" style={{ borderColor: 'var(--app-border)' }}>
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center mb-4 shadow-lg">
-              <Sparkles size={32} />
+          <div className="flex flex-col items-center justify-center h-[380px] border-2 border-dashed rounded-2xl p-8 text-center" style={{ borderColor: 'var(--app-border)' }}>
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center mb-3.5 shadow-lg">
+              <Sparkles size={28} />
             </div>
-            <h3 className="text-lg font-black text-[var(--app-heading)]">AI Bank Statement to Voucher Ingestion</h3>
-            <p className="text-xs font-semibold text-[var(--app-muted)] max-w-md mt-1 mb-6">
+            <h3 className="text-base font-black text-[var(--app-heading)]">AI Bank Statement to Voucher Ingestion</h3>
+            <p className="text-xs font-semibold text-[var(--app-muted)] max-w-md mt-1 mb-5">
               Upload your PDF or Excel/CSV bank statement. Our AI automatically extracts transactions, matches counterpart ledgers against active company masters, and generates Payment/Receipt voucher drafts for review.
             </p>
             <button
               onClick={() => setIsAiStatementModalOpen(true)}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider bg-[var(--app-accent)] text-white shadow-lg hover:opacity-90 transition-all cursor-pointer"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider bg-[var(--app-accent)] text-white shadow-md hover:opacity-90 transition-all cursor-pointer"
             >
-              <Upload size={16} />
+              <Upload size={15} />
               <span>Upload Bank Statement (PDF / Excel)</span>
             </button>
           </div>
         );
       }
 
+      const filteredBatches = aiBatches.filter(b => {
+        if (aiStatementBankFilter && b.bank_ledger !== aiStatementBankFilter) return false;
+        if (aiStatementSearch.trim()) {
+          const q = aiStatementSearch.toLowerCase().trim();
+          const matchName = (b.file_name || '').toLowerCase().includes(q);
+          const matchLedger = (b.bank_ledger || '').toLowerCase().includes(q);
+          if (!matchName && !matchLedger) return false;
+        }
+        return true;
+      });
+
+      const totalDocs = aiBatches.length;
+      const totalTxnsCount = aiBatches.reduce((acc, b) => acc + (b.summary?.total_count || (b.items || []).length || 0), 0);
+      const totalReadyCount = aiBatches.reduce((acc, b) => acc + (b.summary?.ready_count || 0), 0);
+      const totalReviewCount = aiBatches.reduce((acc, b) => acc + (b.summary?.review_required_count || 0), 0);
+
       return (
-        <div className="flex flex-col gap-4 h-full overflow-hidden">
-          {/* Header Bar for Processed Documents List */}
-          <div className="flex items-center justify-between p-4 rounded-xl border bg-[var(--app-panel-bg)] shadow-xs shrink-0" style={{ borderColor: 'var(--app-border)' }}>
+        <div className="flex flex-col gap-3.5 h-full overflow-hidden">
+          {/* Header Bar with Search, Bank Filter & Upload Button */}
+          <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-xl border bg-[var(--app-panel-bg)] shadow-xs shrink-0" style={{ borderColor: 'var(--app-border)' }}>
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center shadow-md">
-                <FileText size={20} />
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center shadow-xs shrink-0">
+                <FileText size={18} />
               </div>
               <div>
-                <h2 className="text-sm font-black text-[var(--app-heading)] tracking-tight">AI Processed Bank Statements ({aiBatches.length})</h2>
-                <p className="text-[11px] font-medium text-[var(--app-muted)]">Click on any processed document to view extracted transactions & approve vouchers.</p>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm font-black text-[var(--app-heading)] tracking-tight">AI Processed Bank Statements</h2>
+                  <span className="px-2 py-0.5 rounded-full text-[10.5px] font-black bg-indigo-500/10 text-indigo-600 border border-indigo-500/20">
+                    {totalDocs}
+                  </span>
+                </div>
+                <p className="text-[11px] font-medium text-[var(--app-muted)]">Click on any statement to view extracted transactions & approve vouchers.</p>
               </div>
             </div>
 
-            <button
-              onClick={() => setIsAiStatementModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider bg-[var(--app-accent)] text-white shadow-md hover:opacity-90 transition-all cursor-pointer"
-            >
-              <Upload size={14} />
-              <span>Upload New Bank Statement</span>
-            </button>
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Search Box */}
+              <div className="relative min-w-[200px]">
+                <Search className="absolute left-2.5 top-2.5 text-[var(--app-muted)]" size={13} />
+                <input
+                  type="text"
+                  value={aiStatementSearch}
+                  onChange={(e) => setAiStatementSearch(e.target.value)}
+                  placeholder="Search statements..."
+                  className="w-full h-8 pl-8 pr-7 border rounded-lg text-[11px] font-semibold outline-none transition-colors"
+                  style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-control-bg)', color: 'var(--app-heading)' }}
+                />
+                {aiStatementSearch && (
+                  <button onClick={() => setAiStatementSearch('')} className="absolute right-2 top-2 text-gray-400 hover:text-gray-600">
+                    <X size={12} />
+                  </button>
+                )}
+              </div>
+
+              {/* Bank Filter */}
+              <div className="relative min-w-[170px]">
+                <select
+                  value={aiStatementBankFilter}
+                  onChange={(e) => setAiStatementBankFilter(e.target.value)}
+                  className="w-full h-8 px-2.5 border rounded-lg text-[11px] font-bold outline-none cursor-pointer"
+                  style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-control-bg)', color: 'var(--app-heading)' }}
+                >
+                  <option value="">All Banks ({aiBatches.length})</option>
+                  {dynamicBankLedgers.map(bl => {
+                    const cnt = aiBatches.filter(b => b.bank_ledger === bl).length;
+                    return (
+                      <option key={bl} value={bl}>
+                        {bl} {cnt > 0 ? `(${cnt})` : ''}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+
+              {/* Upload Button */}
+              <button
+                onClick={() => {
+                  setSelectedUploadLedger(aiStatementBankFilter || '');
+                  setIsAiStatementModalOpen(true);
+                }}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider bg-[var(--app-accent)] text-white shadow-xs hover:opacity-90 transition-all cursor-pointer shrink-0"
+              >
+                <Upload size={13} />
+                <span>Upload Statement</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Micro Overview Stat Chips */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 shrink-0">
+            <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl border bg-[var(--app-panel-bg)] shadow-xs" style={{ borderColor: 'var(--app-border)' }}>
+              <div className="w-7 h-7 rounded-lg bg-indigo-500/10 text-indigo-600 flex items-center justify-center font-bold shrink-0">
+                <FileText size={14} />
+              </div>
+              <div className="truncate">
+                <span className="text-[9.5px] font-bold text-[var(--app-muted)] uppercase tracking-wider block truncate">Total Statements</span>
+                <span className="text-[13.5px] font-black text-[var(--app-heading)] leading-tight">{totalDocs}</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl border bg-[var(--app-panel-bg)] shadow-xs" style={{ borderColor: 'var(--app-border)' }}>
+              <div className="w-7 h-7 rounded-lg bg-purple-500/10 text-purple-600 flex items-center justify-center font-bold shrink-0">
+                <Sparkles size={14} />
+              </div>
+              <div className="truncate">
+                <span className="text-[9.5px] font-bold text-[var(--app-muted)] uppercase tracking-wider block truncate">Total Extracted</span>
+                <span className="text-[13.5px] font-black text-[var(--app-heading)] leading-tight">{totalTxnsCount} Items</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl border bg-[var(--app-panel-bg)] shadow-xs" style={{ borderColor: 'var(--app-border)' }}>
+              <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold shrink-0">
+                <CheckCircle2 size={14} />
+              </div>
+              <div className="truncate">
+                <span className="text-[9.5px] font-bold text-[var(--app-muted)] uppercase tracking-wider block truncate">Mapped & Ready</span>
+                <span className="text-[13.5px] font-black text-emerald-600 leading-tight">{totalReadyCount}</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl border bg-[var(--app-panel-bg)] shadow-xs" style={{ borderColor: 'var(--app-border)' }}>
+              <div className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold shrink-0">
+                <Info size={14} />
+              </div>
+              <div className="truncate">
+                <span className="text-[9.5px] font-bold text-[var(--app-muted)] uppercase tracking-wider block truncate">Review Needed</span>
+                <span className="text-[13.5px] font-black text-amber-600 leading-tight">{totalReviewCount}</span>
+              </div>
+            </div>
           </div>
 
           {/* Table of Processed Documents */}
@@ -535,72 +742,122 @@ const BankPanel = ({ mode: propMode, isDark }) => {
             <table className="w-full text-left border-collapse text-[12px]">
               <thead className="sticky top-0 bg-[var(--app-control-bg)] z-10 border-b" style={{ borderColor: 'var(--app-border)' }}>
                 <tr>
-                  <th className="py-3 px-4 font-black text-[var(--app-muted)] uppercase tracking-wider">Document Name</th>
-                  <th className="py-3 px-4 font-black text-[var(--app-muted)] uppercase tracking-wider">Target Bank Ledger</th>
-                  <th className="py-3 px-4 font-black text-[var(--app-muted)] uppercase tracking-wider">Upload Date & Time</th>
-                  <th className="py-3 px-4 font-black text-[var(--app-muted)] uppercase tracking-wider text-center">Extracted Items</th>
-                  <th className="py-3 px-4 font-black text-[var(--app-muted)] uppercase tracking-wider text-center">Status</th>
-                  <th className="py-3 px-4 font-black text-[var(--app-muted)] uppercase tracking-wider text-right">Action</th>
+                  <th className="py-2.5 px-4 font-black text-[var(--app-muted)] uppercase tracking-wider w-[30%]">Document Name</th>
+                  <th className="py-2.5 px-3 font-black text-[var(--app-muted)] uppercase tracking-wider w-[18%]">Target Bank Ledger</th>
+                  <th className="py-2.5 px-3 font-black text-[var(--app-muted)] uppercase tracking-wider w-[18%]">Upload Date & Time</th>
+                  <th className="py-2.5 px-3 font-black text-[var(--app-muted)] uppercase tracking-wider text-center w-[20%]">Extracted Items</th>
+                  <th className="py-2.5 px-4 font-black text-[var(--app-muted)] uppercase tracking-wider text-right w-[14%]">Action</th>
                 </tr>
               </thead>
               <tbody>
-                {aiBatches.map((batch) => {
-                  const createdDate = batch.created_at ? new Date(batch.created_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) : '—';
-                  const summary = batch.summary || {};
-                  const total = summary.total_count || (batch.items || []).length || 0;
-                  const ready = summary.ready_count || 0;
-                  const reviewReq = summary.review_required_count || 0;
-                  const saved = summary.saved_count || 0;
+                {filteredBatches.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-12 text-center text-[var(--app-muted)] font-semibold text-xs">
+                      No matching bank statements found.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredBatches.map((batch) => {
+                    const id = batch.batch_id || batch._id;
+                    const isOpening = openingBatchId === id;
+                    const dateObj = batch.created_at ? new Date(batch.created_at) : null;
+                    const dateStr = dateObj ? dateObj.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+                    const timeStr = dateObj ? dateObj.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) : '';
+                    const summary = batch.summary || {};
+                    const total = summary.total_count || (batch.items || []).length || 0;
+                    const ready = summary.ready_count || 0;
+                    const reviewReq = summary.review_required_count || 0;
+                    const saved = summary.saved_count || 0;
+                    const isPdf = (batch.file_name || '').toLowerCase().endsWith('.pdf');
 
-                  return (
-                    <tr
-                      key={batch.batch_id || batch._id}
-                      onClick={() => handleOpenBatch(batch.batch_id || batch._id)}
-                      className="border-b last:border-0 hover:bg-[var(--app-content-bg)]/60 cursor-pointer transition-colors"
-                      style={{ borderColor: 'var(--app-border)' }}
-                    >
-                      <td className="py-3.5 px-4 font-extrabold text-[var(--app-heading)]">
-                        <div className="flex items-center gap-2.5">
-                          <FileText className="text-[var(--app-accent)] shrink-0" size={16} />
-                          <span className="truncate max-w-[280px]" title={batch.file_name}>{batch.file_name}</span>
-                        </div>
-                      </td>
-                      <td className="py-3.5 px-4 font-semibold text-[var(--app-heading)]">
-                        {batch.bank_ledger || '—'}
-                      </td>
-                      <td className="py-3.5 px-4 font-medium text-[var(--app-muted)]">
-                        {createdDate}
-                      </td>
-                      <td className="py-3.5 px-4 text-center">
-                        <div className="flex items-center justify-center gap-1.5 flex-wrap">
-                          <span className="font-extrabold text-[var(--app-heading)]">{total} Items</span>
-                          {ready > 0 && <span className="px-1.5 py-0.5 rounded text-[9.5px] font-extrabold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">{ready} Ready</span>}
-                          {reviewReq > 0 && <span className="px-1.5 py-0.5 rounded text-[9.5px] font-extrabold bg-amber-500/10 text-amber-500 border border-amber-500/20">{reviewReq} Review Req</span>}
-                          {saved > 0 && <span className="px-1.5 py-0.5 rounded text-[9.5px] font-extrabold bg-purple-500/10 text-purple-500 border border-purple-500/20">{saved} Saved</span>}
-                        </div>
-                      </td>
-                      <td className="py-3.5 px-4 text-center">
-                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                          saved > 0 && saved === total ? 'bg-purple-500/15 text-purple-600 border border-purple-500/30' : 'bg-indigo-500/15 text-indigo-600 border border-indigo-500/30'
-                        }`}>
-                          {saved > 0 && saved === total ? 'Vouchers Saved' : 'Draft Review'}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4 text-right">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenBatch(batch.batch_id || batch._id);
-                          }}
-                          className="px-3.5 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider bg-[var(--app-accent)] text-white shadow-xs hover:opacity-90 transition-all cursor-pointer inline-flex items-center gap-1"
-                        >
-                          <span>View & Review Data</span>
-                          <span>→</span>
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
+                    return (
+                      <tr
+                        key={id}
+                        onClick={() => handleOpenBatch(id)}
+                        className="border-b last:border-0 hover:bg-[var(--app-content-bg)]/60 cursor-pointer transition-colors"
+                        style={{ borderColor: 'var(--app-border)' }}
+                      >
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-lg bg-[var(--app-accent)]/10 text-[var(--app-accent)] flex items-center justify-center shrink-0">
+                              <FileText size={16} />
+                            </div>
+                            <div className="min-w-0">
+                              <span className="font-bold text-[12.5px] text-[var(--app-heading)] block truncate max-w-[280px]" title={batch.file_name}>
+                                {batch.file_name}
+                              </span>
+                              <span className="text-[10px] font-bold text-[var(--app-muted)] uppercase tracking-wider">
+                                {isPdf ? 'PDF Statement' : 'Excel Statement'}
+                              </span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3 px-3">
+                          <div className="flex items-center gap-1.5">
+                            <Landmark size={13} className="text-indigo-500 shrink-0" />
+                            <span className="font-bold text-[12px] text-[var(--app-heading)] truncate max-w-[180px]" title={batch.bank_ledger}>
+                              {batch.bank_ledger || '—'}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-3">
+                          <div>
+                            <span className="font-bold text-[11.5px] text-[var(--app-heading)] block">{dateStr}</span>
+                            {timeStr && <span className="text-[10px] font-semibold text-[var(--app-muted)] block">{timeStr}</span>}
+                          </div>
+                        </td>
+                        <td className="py-3 px-3 text-center">
+                          <div className="flex flex-col items-center gap-1">
+                            <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                              <span className="font-black text-[11.5px] text-[var(--app-heading)]">{total} Items</span>
+                              {saved > 0 && saved === total ? (
+                                <span className="px-1.5 py-0.5 rounded text-[9.5px] font-extrabold bg-purple-500/10 text-purple-600 border border-purple-500/20">Saved</span>
+                              ) : (
+                                <span className="px-1.5 py-0.5 rounded text-[9.5px] font-extrabold bg-indigo-500/10 text-indigo-600 border border-indigo-500/20">Draft</span>
+                              )}
+                            </div>
+                            <div className="flex items-center justify-center gap-1 flex-wrap">
+                              {ready > 0 && <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">{ready} Ready</span>}
+                              {reviewReq > 0 && <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-amber-500/10 text-amber-600 border border-amber-500/20">{reviewReq} Review</span>}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <div className="inline-flex items-center justify-end gap-1.5">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenBatch(id);
+                              }}
+                              disabled={isOpening}
+                              className="px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider bg-[var(--app-accent)] text-white shadow-xs hover:opacity-90 transition-all cursor-pointer inline-flex items-center gap-1 disabled:opacity-50"
+                            >
+                              {isOpening ? (
+                                <RefreshCw size={12} className="animate-spin" />
+                              ) : (
+                                <>
+                                  <span>Review Data</span>
+                                  <span>→</span>
+                                </>
+                              )}
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteBatch(id, batch.file_name);
+                              }}
+                              disabled={deletingBatchId === id}
+                              title="Delete Statement"
+                              className="p-1.5 rounded-lg text-xs font-bold border border-rose-500/20 bg-rose-500/5 text-rose-500 hover:bg-rose-500 hover:text-white transition-all cursor-pointer inline-flex items-center justify-center disabled:opacity-50"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>
@@ -649,6 +906,10 @@ const BankPanel = ({ mode: propMode, isDark }) => {
         transactions={bankTransactions}
         isDark={isDark}
         onClose={() => setSelectedBankRow(null)}
+        onUploadStatement={() => {
+          setSelectedUploadLedger(selectedBankRow.ledger);
+          setIsUploadStatementOpen(true);
+        }}
       />
     );
   }
@@ -691,8 +952,12 @@ const BankPanel = ({ mode: propMode, isDark }) => {
       {isAddBankOpen && <AddBankModal onClose={() => setIsAddBankOpen(false)} BANKS={dynamicBanks} BANK_LEDGERS={dynamicBankLedgers} />}
       {isAiStatementModalOpen && (
         <BankStatementUploadModal
-          onClose={() => setIsAiStatementModalOpen(false)}
+          onClose={() => {
+            setIsAiStatementModalOpen(false);
+            setSelectedUploadLedger('');
+          }}
           BANK_LEDGERS={dynamicBankLedgers}
+          initialLedger={selectedUploadLedger || (selectedBankRow ? selectedBankRow.ledger : (selectedBank || ''))}
           onBatchCreated={(data) => {
             setActiveBatchData(data);
             setActiveTab('AI Voucher Review');
@@ -701,8 +966,12 @@ const BankPanel = ({ mode: propMode, isDark }) => {
       )}
       {isUploadStatementOpen && (
         <BankStatementUploadModal
-          onClose={() => setIsUploadStatementOpen(false)}
+          onClose={() => {
+            setIsUploadStatementOpen(false);
+            setSelectedUploadLedger('');
+          }}
           BANK_LEDGERS={dynamicBankLedgers}
+          initialLedger={selectedUploadLedger || (selectedBankRow ? selectedBankRow.ledger : (selectedBank || ''))}
           onBatchCreated={(data) => {
             setActiveBatchData(data);
             setActiveTab('AI Voucher Review');
@@ -754,8 +1023,11 @@ const BankPanel = ({ mode: propMode, isDark }) => {
               {activeTab === 'Manage Bank' && (
                 <>
                   <button
-                    onClick={() => setIsUploadStatementOpen(true)}
-                    className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold border hover:bg-[var(--app-control-hover)] transition-all"
+                    onClick={() => {
+                      setSelectedUploadLedger(selectedBankRow ? selectedBankRow.ledger : '');
+                      setIsUploadStatementOpen(true);
+                    }}
+                    className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold border hover:bg-[var(--app-control-hover)] transition-all cursor-pointer"
                     style={{ borderColor: 'var(--app-border)', color: 'var(--app-heading)' }}
                   >
                     <Upload size={14} className="text-emerald-500" />
@@ -763,7 +1035,7 @@ const BankPanel = ({ mode: propMode, isDark }) => {
                   </button>
                   <button
                     onClick={() => setIsAddBankOpen(true)}
-                    className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold bg-[var(--app-accent)] text-white shadow-xs hover:opacity-90 transition-all"
+                    className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold bg-[var(--app-accent)] text-white shadow-xs hover:opacity-90 transition-all cursor-pointer"
                   >
                     <Plus size={14} strokeWidth={2.5} />
                     <span>Add Bank Account</span>
@@ -789,8 +1061,11 @@ const BankPanel = ({ mode: propMode, isDark }) => {
                   </div>
 
                   <button
-                    onClick={() => setIsUploadStatementOpen(true)}
-                    className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold bg-[var(--app-accent)] text-white shadow-xs hover:opacity-90 transition-all"
+                    onClick={() => {
+                      setSelectedUploadLedger(selectedBank || '');
+                      setIsUploadStatementOpen(true);
+                    }}
+                    className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold bg-[var(--app-accent)] text-white shadow-xs hover:opacity-90 transition-all cursor-pointer"
                   >
                     <Upload size={14} />
                     <span>Upload Bank Statement</span>
@@ -1103,9 +1378,12 @@ const AddBankModal = ({ onClose, BANKS: propBanks, BANK_LEDGERS: propLedgers }) 
   }, [fetchMasterData]);
 
   const dbBankLedgers = (masterData?.ledgers || []).filter(l => {
-    const g = l.groupName ? l.groupName.toLowerCase().trim() : '';
-    const name = (l.ledgerName || l.name || '').toLowerCase();
-    return g.includes('bank') || name.includes('bank') || g === 'bank accounts' || g === 'bank od a/c';
+    const g = (l.groupName || l.parentGroup || '').toLowerCase().trim();
+    const name = (l.ledgerName || l.name || '').toLowerCase().trim();
+    const nonBankGroups = ['indirect expenses', 'direct expenses', 'indirect incomes', 'direct incomes', 'sundry debtors', 'sundry creditors'];
+    if (nonBankGroups.some(nb => g === nb || g.startsWith(nb))) return false;
+    if (['charges', 'interest', 'commission', 'fee', 'tax'].some(kw => name.includes(kw))) return false;
+    return g === 'bank accounts' || g === 'bank od a/c' || g === 'bank occ a/c' || g.includes('bank account');
   });
 
   const bankLedgerNames = propLedgers && propLedgers.length > 0
@@ -1248,7 +1526,7 @@ const AddLedgerModal = ({ title, type, onClose, LEDGER_GROUPS: propGroups }) => 
 
 /* --- Bank Details Page --- */
 
-const BankDetailsPage = ({ row, details, loading, balance, transactions: initialTransactions, isDark, onClose }) => {
+const BankDetailsPage = ({ row, details, loading, balance, transactions: initialTransactions, isDark, onClose, onUploadStatement }) => {
   const [statementData, setStatementData] = useState({ vouchers: [], kpis: { totalReceipts: 0, totalPayments: 0, netAmount: 0, totalCount: 0 } });
   const [statementLoading, setStatementLoading] = useState(true);
   const [sourceFilter, setSourceFilter] = useState('all');
@@ -1339,7 +1617,7 @@ const BankDetailsPage = ({ row, details, loading, balance, transactions: initial
         <div className="flex items-center gap-3">
           <button
             onClick={onClose}
-            className="flex items-center gap-1.5 px-3 py-1.5 border rounded-lg text-[11px] font-black uppercase tracking-wider hover:bg-[var(--app-control-hover)] transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 border rounded-lg text-[11px] font-black uppercase tracking-wider hover:bg-[var(--app-control-hover)] transition-colors cursor-pointer"
             style={{ borderColor: 'var(--app-border)', color: 'var(--app-muted)', backgroundColor: 'var(--app-control-bg)' }}
           >
             ← Back to List
@@ -1358,6 +1636,16 @@ const BankDetailsPage = ({ row, details, loading, balance, transactions: initial
             </p>
           </div>
         </div>
+
+        {onUploadStatement && (
+          <button
+            onClick={onUploadStatement}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider bg-[var(--app-accent)] text-white shadow-md hover:opacity-90 transition-all cursor-pointer"
+          >
+            <Upload size={14} />
+            <span>Upload Statement</span>
+          </button>
+        )}
       </div>
 
       {/* Loading state */}
@@ -1598,17 +1886,23 @@ const ColumnConfigPopup = ({ onClose, activeTab }) => {
   );
 };
 
-const BankStatementUploadModal = ({ onClose, BANK_LEDGERS, onBatchCreated }) => {
-  const effectiveLedgers = BANK_LEDGERS && BANK_LEDGERS.length > 0 ? BANK_LEDGERS : ['Primary Bank Account', 'HDFC Bank Account', 'ICICI Bank Account', 'SBI Bank Account'];
+const BankStatementUploadModal = ({ onClose, BANK_LEDGERS, initialLedger, onBatchCreated }) => {
+  const effectiveLedgers = Array.from(new Set([
+    ...(initialLedger ? [initialLedger] : []),
+    ...(BANK_LEDGERS && BANK_LEDGERS.length > 0 ? BANK_LEDGERS : ['Primary Bank Account'])
+  ])).filter(Boolean);
+
   const [file, setFile] = useState(null);
-  const [bankLedger, setBankLedger] = useState(effectiveLedgers[0] || 'Primary Bank Account');
+  const [bankLedger, setBankLedger] = useState(initialLedger || effectiveLedgers[0] || 'Primary Bank Account');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!bankLedger && effectiveLedgers.length > 0) {
+    if (initialLedger) {
+      setBankLedger(initialLedger);
+    } else if (!bankLedger && effectiveLedgers.length > 0) {
       setBankLedger(effectiveLedgers[0]);
     }
-  }, [BANK_LEDGERS]);
+  }, [initialLedger, BANK_LEDGERS]);
 
   const handleUpload = async () => {
     if (!file) {
@@ -1621,7 +1915,7 @@ const BankStatementUploadModal = ({ onClose, BANK_LEDGERS, onBatchCreated }) => 
     try {
       const res = await bankStatementAiApi.uploadStatement(file, targetLedger);
       if (res.success && res.data) {
-        toast.success(`Statement processed! Found ${res.data.summary.total_count} transactions.`);
+        toast.success(`Statement processed for '${targetLedger}'! Found ${res.data.summary.total_count} transactions.`);
         onBatchCreated(res.data);
         onClose();
       }
@@ -1646,8 +1940,18 @@ const BankStatementUploadModal = ({ onClose, BANK_LEDGERS, onBatchCreated }) => 
 
         <div className="p-8 space-y-6">
           <div>
-            <label className="text-[11px] font-extrabold uppercase text-[var(--app-muted)] block mb-2">Target Bank Ledger</label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-[11px] font-extrabold uppercase text-[var(--app-muted)]">Target Bank Ledger</label>
+              {bankLedger && (
+                <span className="text-[10.5px] font-extrabold text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                  Target: {bankLedger}
+                </span>
+              )}
+            </div>
             <SearchableDropdown placeholder="Select Bank Ledger" items={effectiveLedgers} value={bankLedger} onChange={setBankLedger} />
+            <p className="text-[10px] text-[var(--app-muted)] mt-1.5 font-medium">
+              Only verified bank accounts (Bank Accounts, Bank OD A/c) are listed.
+            </p>
           </div>
 
           <div>

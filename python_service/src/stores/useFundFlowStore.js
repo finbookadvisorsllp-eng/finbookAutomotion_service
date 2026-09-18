@@ -180,7 +180,15 @@ export const useFundFlowStore = create((set, get) => ({
     set((s) => ({ masterData: { ...s.masterData, loading: true } }));
     try {
       const res = await fundflowApi.getLedgers();
-      let compData = { voucherTypes: [], voucherTypesFull: [] };
+      let compData = {
+        voucherTypes: [],
+        voucherTypesFull: [],
+        allLedgers: [],
+        partyLedgers: [],
+        salesPartyLedgers: [],
+        purchasePartyLedgers: [],
+        cashBankLedgers: []
+      };
       try {
         const compRes = await apiClient.get('/companies/current/master-data').then(r => r.data);
         if (compRes.success && compRes.data) {
@@ -196,12 +204,17 @@ export const useFundFlowStore = create((set, get) => ({
           set({
             masterData: {
               ledgers: data.ledgers || [],
+              allLedgers: compData.allLedgers || [],
+              partyLedgers: compData.partyLedgers || [],
+              salesPartyLedgers: compData.salesPartyLedgers || [],
+              purchasePartyLedgers: compData.purchasePartyLedgers || [],
+              cashBankLedgers: compData.cashBankLedgers || [],
               gstLedgers: data.gstLedgers || [],
               tdsLedgers: data.tdsLedgers || [],
               costCenters: data.costCenters || [],
               costCategories: data.costCategories || [],
-              gstRates: data.gstRates || [],
-              tdsRates: data.tdsRates || [],
+              gstRates: data.gstRates || ['5%', '12%', '18%', '28%'],
+              tdsRates: data.tdsRates || ['1%', '2%', '5%', '10%'],
               voucherTypes: compData.voucherTypes || [],
               voucherTypesFull: compData.voucherTypesFull || [],
               loading: false
@@ -211,12 +224,17 @@ export const useFundFlowStore = create((set, get) => ({
           set({
             masterData: {
               ledgers: data || [],
+              allLedgers: compData.allLedgers || [],
+              partyLedgers: compData.partyLedgers || [],
+              salesPartyLedgers: compData.salesPartyLedgers || [],
+              purchasePartyLedgers: compData.purchasePartyLedgers || [],
+              cashBankLedgers: compData.cashBankLedgers || [],
               gstLedgers: [],
               tdsLedgers: [],
               costCenters: [],
               costCategories: [],
-              gstRates: [],
-              tdsRates: [],
+              gstRates: ['5%', '12%', '18%', '28%'],
+              tdsRates: ['1%', '2%', '5%', '10%'],
               voucherTypes: compData.voucherTypes || [],
               voucherTypesFull: compData.voucherTypesFull || [],
               loading: false

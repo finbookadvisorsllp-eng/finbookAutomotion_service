@@ -158,3 +158,24 @@ async def save_approved_vouchers(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=res.get("error", "Failed to save vouchers"))
 
     return res
+
+
+@router.delete("/batch/{batch_id}")
+async def delete_bank_statement_batch(
+    batch_id: str,
+    db = Depends(get_db)
+):
+    """
+    Completely deletes a bank statement draft batch and its uploaded document file.
+    """
+    service = BankStatementAIService(db)
+    success = service.delete_batch(batch_id)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Bank statement draft batch not found or already deleted"
+        )
+    return {
+        "success": True,
+        "message": "Bank statement draft deleted successfully"
+    }

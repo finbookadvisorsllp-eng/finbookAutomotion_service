@@ -135,6 +135,11 @@ async def get_fundflow_ledgers(
         query["companyId"] = comp["_id"]
 
     ledgers = list(db["ledgers"].find(query))
+    entry_ledgers = list(db["ledgers_entry"].find(query))
+    if not ledgers and not entry_ledgers:
+        ledgers = list(db["ledgers"].find({}))
+        entry_ledgers = list(db["ledgers_entry"].find({}))
+    ledgers = entry_ledgers + ledgers
 
     # 1. Identify ledger names that need GST/registration type fallback
     names_needing_fallback = []
