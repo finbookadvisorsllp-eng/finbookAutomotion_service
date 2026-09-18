@@ -19,10 +19,16 @@ export default function DocumentArchivePanel() {
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('All Documents');
   const [activeStatus, setActiveStatus] = useState('All Statuses');
+  const [activeSource, setActiveSource] = useState('All Sources');
+  const [activeOcr, setActiveOcr] = useState('All OCR Status');
+  const [activeInvoiceStatus, setActiveInvoiceStatus] = useState('All Invoice Status');
   const [loading, setLoading] = useState(false);
 
   const categories = ['All Documents', 'Manual Entry', 'Bulk Upload', 'OCR Upload'];
   const statuses = ['All Statuses', 'Draft', 'Pending Approval', 'Approved', 'Posted To Tally', 'Rejected'];
+  const sources = ['All Sources', 'Direct Upload', 'OCR Scanner', 'Email Ingestion', 'WhatsApp Web'];
+  const ocrStatuses = ['All OCR Status', 'OCR Scanned', 'Non-OCR Manual'];
+  const invoiceStatuses = ['All Invoice Status', 'Invoice Created', 'Unlinked File'];
 
   const getStatusKey = (statusText) => {
     if (!statusText) return 'pending_approval';
@@ -38,83 +44,122 @@ export default function DocumentArchivePanel() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // 1. Fetch Manual Entries from backend
+      const activeCompanyId = localStorage.getItem('selectedCompanyId') || localStorage.getItem('companyId') || localStorage.getItem('orgId') || '';
+
+      // 1. Fetch Manual Entries with actual file attachments from backend
       const [salesRes, purchaseRes, fundflowRes] = await Promise.all([
         salesApi.list({ limit: 150 }).catch(() => ({ data: [] })),
         purchaseApi.list({ limit: 150 }).catch(() => ({ data: [] })),
         fundflowApi.list({ limit: 150 }).catch(() => ({ data: [] }))
       ]);
 
-      const salesList = (salesRes.data || []).map(v => {
-        const status = (v.status || 'draft').toLowerCase();
-        return {
-          id: v._id || v.id,
-          name: v.invoiceNumber || v.voucherNumber || 'sales_voucher.pdf',
-          category: 'Manual Entry',
-          type: 'Sales Voucher',
-          linkedVoucher: v.voucherNumber || v.invoiceNumber || 'SI-' + (v._id || v.id),
-          date: v.voucherDate || v.invoiceDate || '—',
-          uploadedBy: 'Admin Operator',
-          status: status,
-          size: '1.2 MB'
-        };
-      });
+      // Only include sales vouchers with actual file attachments
+      const salesList = (salesRes.data || [])
+        .filter(v => v.attachmentUrl || v.fileUrl || v.documentUrl || v.fileName || v.attachment)
+        .map(v => {
+          const status = (v.status || 'draft').toLowerCase();
+          const fileName = v.fileName || v.attachmentName || (v.attachmentUrl ? v.attachmentUrl.split('/').pop() : `${v.invoiceNumber || 'sales_invoice'}.pdf`);
+          const invNo = v.voucherNumber || v.invoiceNumber || 'SI-' + (v._id || v.id);
+          return {
+            id: v._id || v.id,
+            name: fileName,
+            category: 'Manual Entry',
+            type: 'Sales Invoice Attachment',
+            linkedVoucher: invNo,
+            source: v.source || 'Direct Upload',
+            isOcrScanned: Boolean(v.isOcrScanned),
+            hasInvoice: true,
+            date: v.voucherDate || v.invoiceDate || '—',
+            uploadedBy: v.createdBy || 'User Operator',
+            status: status,
+            size: v.fileSize || '1.2 MB',
+            companyId: v.organizationId || v.companyId || activeCompanyId
+          };
+        });
 
-      const purchaseList = (purchaseRes.data || []).map(v => {
-        const status = (v.status || 'draft').toLowerCase();
-        return {
-          id: v._id || v.id,
-          name: v.invoiceNumber || v.voucherNumber || 'purchase_voucher.pdf',
-          category: 'Manual Entry',
-          type: 'Purchase Voucher',
-          linkedVoucher: v.voucherNumber || v.invoiceNumber || 'PI-' + (v._id || v.id),
-          date: v.voucherDate || v.invoiceDate || '—',
-          uploadedBy: 'Admin Operator',
-          status: status,
-          size: '950 KB'
-        };
-      });
+      // Only include purchase vouchers with actual file attachments
+      const purchaseList = (purchaseRes.data || [])
+        .filter(v => v.attachmentUrl || v.fileUrl || v.documentUrl || v.fileName || v.attachment)
+        .map(v => {
+          const status = (v.status || 'draft').toLowerCase();
+          const fileName = v.fileName || v.attachmentName || (v.attachmentUrl ? v.attachmentUrl.split('/').pop() : `${v.invoiceNumber || 'purchase_invoice'}.pdf`);
+          const invNo = v.voucherNumber || v.invoiceNumber || 'PI-' + (v._id || v.id);
+          return {
+            id: v._id || v.id,
+            name: fileName,
+            category: 'Manual Entry',
+            type: 'Purchase Bill Attachment',
+            linkedVoucher: invNo,
+            source: v.source || 'Direct Upload',
+            isOcrScanned: Boolean(v.isOcrScanned),
+            hasInvoice: true,
+            date: v.voucherDate || v.invoiceDate || '—',
+            uploadedBy: v.createdBy || 'User Operator',
+            status: status,
+            size: v.fileSize || '950 KB',
+            companyId: v.organizationId || v.companyId || activeCompanyId
+          };
+        });
 
-      const fundflowList = (fundflowRes.data || []).map(v => {
-        const status = (v.status || 'draft').toLowerCase();
-        const type = v.voucherType === 'cash_payment' ? 'Payment Voucher' : (v.voucherType === 'bank_payment' ? 'Receipt Voucher' : 'Contra Voucher');
-        return {
-          id: v._id || v.id,
-          name: 'fund_flow_' + (v._id || v.id) + '.pdf',
-          category: 'Manual Entry',
-          type: type,
-          linkedVoucher: v.voucherNumber || 'FF-' + (v._id || v.id),
-          date: v.voucherDate || '—',
-          uploadedBy: 'Admin Operator',
-          status: status,
-          size: '320 KB'
-        };
-      });
+      // Only include fundflow vouchers with actual file attachments
+      const fundflowList = (fundflowRes.data || [])
+        .filter(v => v.attachmentUrl || v.fileUrl || v.documentUrl || v.fileName || v.attachment)
+        .map(v => {
+          const status = (v.status || 'draft').toLowerCase();
+          const type = v.voucherType === 'cash_payment' ? 'Payment Receipt' : (v.voucherType === 'bank_payment' ? 'Bank Receipt' : 'Contra Receipt');
+          const fileName = v.fileName || v.attachmentName || `receipt_${v._id || v.id}.pdf`;
+          const invNo = v.voucherNumber || 'FF-' + (v._id || v.id);
+          return {
+            id: v._id || v.id,
+            name: fileName,
+            category: 'Manual Entry',
+            type: type,
+            linkedVoucher: invNo,
+            source: v.source || 'Direct Upload',
+            isOcrScanned: false,
+            hasInvoice: true,
+            date: v.voucherDate || '—',
+            uploadedBy: v.createdBy || 'User Operator',
+            status: status,
+            size: v.fileSize || '320 KB',
+            companyId: v.organizationId || v.companyId || activeCompanyId
+          };
+        });
 
-      // 2. Fetch Bulk Entries from localStorage
+      // 2. Fetch Bulk Uploaded Documents from localStorage
       let mappedBulk = [];
       const savedBulk = localStorage.getItem('fb_bulk_batches');
       if (savedBulk) {
-        const parsedBulk = JSON.parse(savedBulk);
-        mappedBulk = parsedBulk.map(b => {
-          let st = (b.status || 'Pending Approval').toLowerCase();
-          if (st.includes('post') || st.includes('sync')) st = 'posted_to_tally';
-          else if (st.includes('approved')) st = 'approved';
-          else if (st.includes('reject') || st.includes('fail')) st = 'rejected';
-          else st = 'pending_approval';
+        try {
+          const parsedBulk = JSON.parse(savedBulk);
+          mappedBulk = parsedBulk
+            .filter(b => !b.companyId || !activeCompanyId || String(b.companyId) === String(activeCompanyId))
+            .map(b => {
+              let st = (b.status || 'Pending Approval').toLowerCase();
+              if (st.includes('post') || st.includes('sync')) st = 'posted_to_tally';
+              else if (st.includes('approved')) st = 'approved';
+              else if (st.includes('reject') || st.includes('fail')) st = 'rejected';
+              else st = 'pending_approval';
 
-          return {
-            id: b.id,
-            name: b.filename,
-            category: 'Bulk Upload',
-            type: 'Bulk Batch',
-            linkedVoucher: b.id,
-            date: b.uploadDate || '—',
-            uploadedBy: 'Admin Operator',
-            status: st,
-            size: '2.4 MB'
-          };
-        });
+              const hasInv = st === 'posted_to_tally' || st === 'approved';
+
+              return {
+                id: b.id,
+                name: b.filename || 'bulk_data_batch.xlsx',
+                category: 'Bulk Upload',
+                type: 'Excel Batch Upload',
+                linkedVoucher: b.id,
+                source: b.source || 'Direct Upload',
+                isOcrScanned: false,
+                hasInvoice: hasInv,
+                date: b.uploadDate || '—',
+                uploadedBy: b.uploadedBy || 'User Operator',
+                status: st,
+                size: b.size || '2.4 MB',
+                companyId: b.companyId || activeCompanyId
+              };
+            });
+        } catch (e) {}
       }
 
       // Fetch individual Bulk Upload files
@@ -122,59 +167,103 @@ export default function DocumentArchivePanel() {
       if (savedBulkDocs) {
         try {
           const parsedBulkDocs = JSON.parse(savedBulkDocs);
-          parsedBulkDocs.forEach(doc => {
-            let st = (doc.status || 'Pending Approval').toLowerCase();
-            if (st === 'under review' || st === 'ready for review') st = 'pending_approval';
-            else if (st.includes('post') || st.includes('sync') || st === 'posted') st = 'posted_to_tally';
-            else if (st.includes('approved')) st = 'approved';
-            else if (st.includes('reject') || st.includes('fail')) st = 'rejected';
-            else st = 'pending_approval';
+          parsedBulkDocs
+            .filter(doc => !doc.companyId || !activeCompanyId || String(doc.companyId) === String(activeCompanyId))
+            .forEach(doc => {
+              let st = (doc.status || 'Pending Approval').toLowerCase();
+              if (st === 'under review' || st === 'ready for review') st = 'pending_approval';
+              else if (st.includes('post') || st.includes('sync') || st === 'posted') st = 'posted_to_tally';
+              else if (st.includes('approved')) st = 'approved';
+              else if (st.includes('reject') || st.includes('fail')) st = 'rejected';
+              else st = 'pending_approval';
 
-            mappedBulk.push({
-              id: doc.id,
-              name: doc.name || doc.filename || 'bulk_document.xlsx',
-              category: 'Bulk Upload',
-              type: doc.category || 'Bulk Document',
-              linkedVoucher: doc.docNo || doc.id,
-              date: doc.docDate || doc.uploadDate || '—',
-              uploadedBy: 'Admin Operator',
-              status: st,
-              size: doc.size || '1.5 MB'
+              const hasInv = Boolean(doc.docNo || st === 'posted_to_tally' || st === 'approved');
+
+              mappedBulk.push({
+                id: doc.id,
+                name: doc.name || doc.filename || 'bulk_document.xlsx',
+                category: 'Bulk Upload',
+                type: doc.category || 'Excel Spreadsheet',
+                linkedVoucher: doc.docNo || doc.id,
+                source: doc.source || 'Direct Upload',
+                isOcrScanned: false,
+                hasInvoice: hasInv,
+                date: doc.docDate || doc.uploadDate || '—',
+                uploadedBy: doc.uploadedBy || 'User Operator',
+                status: st,
+                size: doc.size || '1.5 MB',
+                companyId: doc.companyId || activeCompanyId
+              });
             });
-          });
         } catch (e) {
           console.error('Error loading bulk upload documents in archive', e);
         }
       }
 
-      // 3. Fetch OCR Entries from localStorage
+      // 3. Fetch OCR Scanned Documents from localStorage
       let mappedOcr = [];
       const savedOcr = localStorage.getItem('fb_ocr_documents');
       if (savedOcr) {
-        const parsedOcr = JSON.parse(savedOcr);
-        mappedOcr = parsedOcr.map(doc => {
-          let st = (doc.status || 'Pending Approval').toLowerCase();
-          if (st === 'under review' || st === 'ready for review') st = 'pending_approval';
-          else if (st.includes('post') || st.includes('sync') || st === 'posted') st = 'posted_to_tally';
-          else if (st.includes('approved')) st = 'approved';
-          else if (st.includes('reject') || st.includes('fail')) st = 'rejected';
-          else st = 'pending_approval';
+        try {
+          const parsedOcr = JSON.parse(savedOcr);
+          mappedOcr = parsedOcr
+            .filter(doc => !doc.companyId || !activeCompanyId || String(doc.companyId) === String(activeCompanyId))
+            .map(doc => {
+              let st = (doc.status || 'Pending Approval').toLowerCase();
+              if (st === 'under review' || st === 'ready for review') st = 'pending_approval';
+              else if (st.includes('post') || st.includes('sync') || st === 'posted') st = 'posted_to_tally';
+              else if (st.includes('approved')) st = 'approved';
+              else if (st.includes('reject') || st.includes('fail')) st = 'rejected';
+              else st = 'pending_approval';
 
-          return {
-            id: doc.id,
-            name: doc.filename || 'ocr_document.pdf',
-            category: 'OCR Upload',
-            type: doc.category || 'OCR Document',
-            linkedVoucher: doc.docNo || doc.id,
-            date: doc.docDate || doc.uploadDate || '—',
-            uploadedBy: 'System AI',
-            status: st,
-            size: '800 KB'
-          };
-        });
+              const hasInv = Boolean(doc.docNo || st === 'posted_to_tally' || st === 'approved');
+
+              return {
+                id: doc.id,
+                name: doc.filename || doc.name || 'ocr_scanned_invoice.pdf',
+                category: 'OCR Upload',
+                type: doc.category || 'Scanned PDF / Image',
+                linkedVoucher: doc.docNo || 'OCR-' + doc.id,
+                source: doc.source || (doc.channel === 'email' ? 'Email Ingestion' : (doc.channel === 'whatsapp' ? 'WhatsApp Web' : 'OCR Scanner')),
+                isOcrScanned: true,
+                hasInvoice: hasInv,
+                date: doc.docDate || doc.uploadDate || '—',
+                uploadedBy: doc.uploadedBy || 'OCR Scanner',
+                status: st,
+                size: doc.size || '800 KB',
+                companyId: doc.companyId || activeCompanyId
+              };
+            });
+        } catch (e) {}
       }
 
-      const merged = [...salesList, ...purchaseList, ...fundflowList, ...mappedBulk, ...mappedOcr];
+      // 4. Fetch My Documents uploads
+      let mappedMyDocs = [];
+      const savedMyDocs = localStorage.getItem('fb_my_documents');
+      if (savedMyDocs) {
+        try {
+          const parsedMyDocs = JSON.parse(savedMyDocs);
+          mappedMyDocs = parsedMyDocs
+            .filter(doc => !doc.companyId || !activeCompanyId || String(doc.companyId) === String(activeCompanyId))
+            .map(doc => ({
+              id: doc.id,
+              name: doc.filename || doc.name || 'user_document.pdf',
+              category: 'Manual Entry',
+              type: doc.category || 'Uploaded File',
+              linkedVoucher: doc.invoiceNo || doc.id,
+              source: doc.source || 'Direct Upload',
+              isOcrScanned: Boolean(doc.isOcrScanned),
+              hasInvoice: Boolean(doc.invoiceNo),
+              date: doc.uploadDate || '—',
+              uploadedBy: doc.uploadedBy || 'User Operator',
+              status: 'approved',
+              size: doc.size || '1.1 MB',
+              companyId: doc.companyId || activeCompanyId
+            }));
+        } catch (e) {}
+      }
+
+      const merged = [...salesList, ...purchaseList, ...fundflowList, ...mappedBulk, ...mappedOcr, ...mappedMyDocs];
       setArchives(merged);
     } catch (e) {
       console.error('Error fetching archive data:', e);
@@ -185,6 +274,9 @@ export default function DocumentArchivePanel() {
 
   useEffect(() => {
     fetchData();
+    const onCompanyChanged = () => fetchData();
+    window.addEventListener('company-changed', onCompanyChanged);
+    return () => window.removeEventListener('company-changed', onCompanyChanged);
   }, []);
 
   const handleDelete = (id) => {
@@ -199,8 +291,6 @@ export default function DocumentArchivePanel() {
     toast.success(`Downloading ${name}...`);
   };
 
-
-
   const allArchives = [...manuallyArchived, ...archives];
 
   // Filter logic
@@ -210,10 +300,7 @@ export default function DocumentArchivePanel() {
                           item.linkedVoucher.toLowerCase().includes(search.toLowerCase());
     if (!matchesSearch) return false;
     
-    // 2. Category Filter
-    if (activeCategory !== 'All Documents') {
-      if (item.category !== activeCategory) return false;
-    }
+
 
     // 3. Status Filter
     if (activeStatus !== 'All Statuses') {
@@ -227,14 +314,31 @@ export default function DocumentArchivePanel() {
       if (item.status !== statusMap[activeStatus]) return false;
     }
 
+    // 4. Source Channel Filter
+    if (activeSource !== 'All Sources') {
+      if (item.source !== activeSource) return false;
+    }
+
+    // 5. OCR Status Filter
+    if (activeOcr !== 'All OCR Status') {
+      if (activeOcr === 'OCR Scanned' && !item.isOcrScanned) return false;
+      if (activeOcr === 'Non-OCR Manual' && item.isOcrScanned) return false;
+    }
+
+    // 6. Invoice Status Filter
+    if (activeInvoiceStatus !== 'All Invoice Status') {
+      if (activeInvoiceStatus === 'Invoice Created' && !item.hasInvoice) return false;
+      if (activeInvoiceStatus === 'Unlinked File' && item.hasInvoice) return false;
+    }
+
     return true;
   });
 
   const stats = [
     { label: 'Total Archives', value: allArchives.length, icon: FileText },
-    { label: 'Manual Vouchers', value: allArchives.filter(a => a.category === 'Manual Entry').length, icon: FileSignature },
-    { label: 'Bulk Batches', value: allArchives.filter(a => a.category === 'Bulk Upload').length, icon: Layers },
-    { label: 'OCR Scans', value: allArchives.filter(a => a.category === 'OCR Upload').length, icon: ScanLine },
+    { label: 'OCR Scanned', value: allArchives.filter(a => a.isOcrScanned).length, icon: ScanLine },
+    { label: 'Invoices Created', value: allArchives.filter(a => a.hasInvoice).length, icon: FileSignature },
+    { label: 'Direct / External Uploads', value: allArchives.filter(a => a.source !== 'OCR Scanner').length, icon: Layers },
   ];
 
   const docColumns = [
@@ -242,13 +346,36 @@ export default function DocumentArchivePanel() {
     { key: 'name', header: 'Document Name', sortable: true, render: (r) => (
       <div className="flex items-center gap-1.5">
         <FileText size={13} style={{ color: 'var(--app-muted)' }} />
-        <span className="font-semibold truncate max-w-[200px]" style={{ color: 'var(--app-heading)' }} title={r.name}>{r.name}</span>
-        <span className="text-[10px] shrink-0" style={{ color: 'var(--app-muted)' }}>({r.size})</span>
+        <span className="font-semibold truncate max-w-[180px]" style={{ color: 'var(--app-heading)' }} title={r.name}>{r.name}</span>
+        <span className="text-[10px] shrink-0 font-mono" style={{ color: 'var(--app-muted)' }}>({r.size})</span>
       </div>
     ) },
-    { key: 'category', header: 'Category', sortable: true, render: (r) => <span style={{ color: 'var(--app-text)' }}>{r.category}</span> },
-    { key: 'type', header: 'Voucher Type', render: (r) => <span className="font-semibold" style={{ color: 'var(--app-accent)' }}>{r.type}</span> },
-    { key: 'linkedVoucher', header: 'Linked Voucher', sortable: true, render: (r) => <span className="font-semibold" style={{ color: 'var(--app-heading)' }}>{r.linkedVoucher}</span> },
+    { key: 'source', header: 'Channel Source', sortable: true, render: (r) => {
+      const src = r.source || 'Direct Upload';
+      const isEmail = src.includes('Email');
+      const isWa = src.includes('WhatsApp');
+      const isOcr = src.includes('OCR');
+      return (
+        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10.5px] font-bold ${
+          isWa ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20' :
+          isEmail ? 'bg-amber-500/10 text-amber-600 border border-amber-500/20' :
+          isOcr ? 'bg-purple-500/10 text-purple-600 border border-purple-500/20' :
+          'bg-blue-500/10 text-blue-600 border border-blue-500/20'
+        }`}>
+          {src}
+        </span>
+      );
+    } },
+    { key: 'isOcrScanned', header: 'OCR Status', align: 'center', sortable: true, render: (r) => (
+      <Badge tone={r.isOcrScanned ? 'accent' : 'neutral'}>
+        {r.isOcrScanned ? 'OCR Scanned' : 'Non-OCR Manual'}
+      </Badge>
+    ) },
+    { key: 'hasInvoice', header: 'Invoice Status', align: 'center', sortable: true, render: (r) => (
+      <Badge tone={r.hasInvoice ? 'success' : 'warning'}>
+        {r.hasInvoice ? `Invoice Created (${r.linkedVoucher})` : 'Unlinked File'}
+      </Badge>
+    ) },
     { key: 'date', header: 'Upload Date', align: 'center', sortable: true, render: (r) => <span style={{ color: 'var(--app-muted)' }}>{r.date}</span> },
     { key: 'uploadedBy', header: 'Uploaded By', render: (r) => <span style={{ color: 'var(--app-text)' }}>{r.uploadedBy}</span> },
     { key: 'status', header: 'Status', align: 'center', sortable: true, render: (r) => <Badge tone={STATUS_TONE[r.status] || 'neutral'}>{STATUS_LABEL[r.status] || r.status}</Badge> },
@@ -271,7 +398,7 @@ export default function DocumentArchivePanel() {
         </div>
         <div className="min-w-0">
           <h1 className="text-[17px] font-extrabold tracking-tight text-[var(--app-heading)] leading-none">Document Archive</h1>
-          <p className="text-[10px] text-[var(--app-muted)] mt-1 truncate">Store and retrieve every uploaded document, ledger attachment and OCR scan.</p>
+          <p className="text-[10px] text-[var(--app-muted)] mt-1 truncate">Store and retrieve every uploaded document, ledger attachment, OCR scan, email and WhatsApp feed.</p>
         </div>
       </div>
 
@@ -280,46 +407,65 @@ export default function DocumentArchivePanel() {
         {stats.map((s, i) => <StatCard key={s.label} index={i} label={s.label} value={s.value} icon={s.icon} />)}
       </div>
 
-      {/* Category tabs */}
-      <div className="flex items-center gap-4 overflow-x-auto border-b border-[var(--app-border)] shrink-0">
-        {categories.map(cat => (
-          <button
-            key={cat}
-            onClick={() => setActiveCategory(cat)}
-            className={`pb-1.5 text-[11px] font-bold tracking-wide whitespace-nowrap transition-all uppercase border-b-2 -mb-px ${
-              activeCategory === cat ? 'border-[var(--app-accent)] text-[var(--app-accent)]' : 'border-transparent text-[var(--app-muted)] hover:text-[var(--app-heading)]'
-            }`}
-          >
-            {cat}
-          </button>
-        ))}
-      </div>
 
-      {/* Status pills */}
-      <div className="flex items-center gap-1.5 overflow-x-auto shrink-0">
-        {statuses.map(st => (
-          <button
-            key={st}
-            onClick={() => setActiveStatus(st)}
-            className={`px-3 py-1 text-[10.5px] font-bold tracking-wide whitespace-nowrap transition-all uppercase rounded-full border ${
-              activeStatus === st ? 'bg-[var(--app-accent)] border-[var(--app-accent)] text-white shadow-sm' : 'bg-[var(--app-panel-bg)] border-[var(--app-border)] text-[var(--app-muted)] hover:text-[var(--app-heading)]'
-            }`}
-          >
-            {st}
-          </button>
-        ))}
+
+      {/* Filter Toolbar: Channel Source, OCR Status, Invoice Linkage, and Lifecycle Status */}
+      <div className="flex items-center gap-2 overflow-x-auto shrink-0 pb-1 flex-wrap">
+        {/* Source Dropdown Filter */}
+        <select
+          value={activeSource}
+          onChange={(e) => setActiveSource(e.target.value)}
+          className="h-7 px-2.5 text-[11px] font-bold rounded-lg border outline-none bg-[var(--app-panel-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)] cursor-pointer"
+        >
+          {sources.map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+
+        {/* OCR Status Dropdown Filter */}
+        <select
+          value={activeOcr}
+          onChange={(e) => setActiveOcr(e.target.value)}
+          className="h-7 px-2.5 text-[11px] font-bold rounded-lg border outline-none bg-[var(--app-panel-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)] cursor-pointer"
+        >
+          {ocrStatuses.map(o => <option key={o} value={o}>{o}</option>)}
+        </select>
+
+        {/* Invoice Linkage Dropdown Filter */}
+        <select
+          value={activeInvoiceStatus}
+          onChange={(e) => setActiveInvoiceStatus(e.target.value)}
+          className="h-7 px-2.5 text-[11px] font-bold rounded-lg border outline-none bg-[var(--app-panel-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)] cursor-pointer font-bold text-[var(--app-accent)]"
+        >
+          {invoiceStatuses.map(inv => <option key={inv} value={inv}>{inv}</option>)}
+        </select>
+
+        <span className="text-[var(--app-border)] font-light">|</span>
+
+        {/* Status pills */}
+        <div className="flex items-center gap-1 overflow-x-auto">
+          {statuses.map(st => (
+            <button
+              key={st}
+              onClick={() => setActiveStatus(st)}
+              className={`px-2.5 py-0.5 text-[10px] font-bold tracking-wide whitespace-nowrap transition-all uppercase rounded-full border ${
+                activeStatus === st ? 'bg-[var(--app-accent)] border-[var(--app-accent)] text-white shadow-xs' : 'bg-[var(--app-panel-bg)] border-[var(--app-border)] text-[var(--app-muted)] hover:text-[var(--app-heading)]'
+              }`}
+            >
+              {st}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Archive table */}
       <div className="flex-1 min-h-0">
         <DataTable
-          minWidth="960px"
+          minWidth="1050px"
           data={filteredArchives}
           rowKey={(r) => r.id}
           loading={loading}
-          emptyText="No documents match."
+          emptyText="No documents match the selected source, OCR status, or invoice filters."
           columns={docColumns}
-          search={{ value: search, onChange: setSearch, placeholder: 'Search archived files…' }}
+          search={{ value: search, onChange: setSearch, placeholder: 'Search archived files or invoices…' }}
         />
       </div>
     </div>

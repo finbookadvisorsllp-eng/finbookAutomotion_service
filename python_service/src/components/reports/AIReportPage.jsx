@@ -175,7 +175,7 @@ export default function AIReportPage() {
 
   const execSummary = reportData?.executive_summary || dailySummary.executive_summary || '';
   const bizSummary = dailySummary.business_summary || metricsPayload.business_summary || '';
-  
+
   const voucherStats = dailySummary.voucher_summary || metricsPayload.voucher_summary || metricsPayload || {};
   const masterStats = dailySummary.master_summary || metricsPayload.master_summary || {};
   const ocrStats = dailySummary.ocr_summary || metricsPayload.ocr_summary || {};
@@ -206,7 +206,7 @@ export default function AIReportPage() {
 
   // Filter active ingestion channels (> 0)
   const activeIngestionChannels = Object.entries(ingestionStats).filter(([_, count]) => count > 0);
-  
+
   // Filter active voucher statuses (> 0)
   const activeStatuses = Object.entries(statusStats).filter(([_, count]) => count > 0);
 
@@ -263,11 +263,11 @@ export default function AIReportPage() {
   ].filter(Boolean);
 
   // Dynamic grid class based on exact active card count
-  const breakdownGridClass = breakdownCards.length === 3 
+  const breakdownGridClass = breakdownCards.length === 3
     ? 'grid grid-cols-1 sm:grid-cols-3 gap-2.5'
-    : breakdownCards.length === 2 
-    ? 'grid grid-cols-1 sm:grid-cols-2 gap-2.5'
-    : 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5';
+    : breakdownCards.length === 2
+      ? 'grid grid-cols-1 sm:grid-cols-2 gap-2.5'
+      : 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5';
 
   // Channel Label Map
   const channelLabels = {
@@ -298,7 +298,7 @@ export default function AIReportPage() {
 
   return (
     <div className="w-full h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] p-2.5 sm:p-3 space-y-2.5 text-slate-800 dark:text-slate-100 select-none">
-      
+
       {/* ─── HEADER BAR (ULTRA-COMPACT) ─── */}
       <div className="bg-white dark:bg-slate-900 rounded-xl p-2.5 px-3.5 border border-slate-200/80 dark:border-slate-800 shadow-2xs flex flex-wrap items-center justify-between gap-2.5">
         <div className="flex items-center gap-2">
@@ -400,17 +400,16 @@ export default function AIReportPage() {
         </div>
       ) : !loading && (
         <div className="space-y-2.5 animate-fadeIn">
-          
+
           {/* ─── AGENT TABS SELECTOR (PREMIUM GLASSMORPHIC CHIPS) ─── */}
           <div className="flex flex-wrap items-center gap-1.5 bg-slate-100/60 dark:bg-slate-800/40 p-1 rounded-xl border border-slate-200/80 dark:border-slate-800/80 shadow-3xs">
             <button
               type="button"
               onClick={() => setActiveAgentTab('daily_summary')}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-extrabold transition-all duration-250 cursor-pointer ${
-                activeAgentTab === 'daily_summary'
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-extrabold transition-all duration-250 cursor-pointer ${activeAgentTab === 'daily_summary'
                   ? 'bg-indigo-600 text-white shadow-xs scale-102'
                   : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100 hover:bg-white dark:hover:bg-slate-850'
-              }`}
+                }`}
             >
               <Layers size={13} />
               <span>EOD Summary Agent</span>
@@ -419,11 +418,10 @@ export default function AIReportPage() {
             <button
               type="button"
               onClick={() => setActiveAgentTab('narration_quality')}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-extrabold transition-all duration-250 cursor-pointer relative ${
-                activeAgentTab === 'narration_quality'
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-extrabold transition-all duration-250 cursor-pointer relative ${activeAgentTab === 'narration_quality'
                   ? 'bg-indigo-600 text-white shadow-xs scale-102'
                   : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100 hover:bg-white dark:hover:bg-slate-850'
-              }`}
+                }`}
             >
               <FileText size={13} />
               <span>Narration Quality Agent</span>
@@ -435,11 +433,10 @@ export default function AIReportPage() {
             <button
               type="button"
               onClick={() => setActiveAgentTab('reference_verification')}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-extrabold transition-all duration-250 cursor-pointer ${
-                activeAgentTab === 'reference_verification'
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-extrabold transition-all duration-250 cursor-pointer ${activeAgentTab === 'reference_verification'
                   ? 'bg-indigo-600 text-white shadow-xs scale-102'
                   : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100 hover:bg-white dark:hover:bg-slate-850'
-              }`}
+                }`}
             >
               <FileCheck size={13} />
               <span>Reference Verification Agent</span>
@@ -448,11 +445,10 @@ export default function AIReportPage() {
             <button
               type="button"
               onClick={() => setActiveAgentTab('error_suggestion')}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-extrabold transition-all duration-250 cursor-pointer ${
-                activeAgentTab === 'error_suggestion'
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-extrabold transition-all duration-250 cursor-pointer ${activeAgentTab === 'error_suggestion'
                   ? 'bg-indigo-600 text-white shadow-xs scale-102'
                   : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100 hover:bg-white dark:hover:bg-slate-850'
-              }`}
+                }`}
             >
               <AlertTriangle size={13} />
               <span>Error Suggestion Agent</span>
@@ -798,38 +794,38 @@ export default function AIReportPage() {
                   </div>
 
                   {/* Recommendations and Top Issues */}
-                  {((narrationSummary.top_issues && narrationSummary.top_issues.length > 0) || 
+                  {((narrationSummary.top_issues && narrationSummary.top_issues.length > 0) ||
                     (narrationSummary.recommendations && narrationSummary.recommendations.length > 0)) && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 pt-2 border-t border-slate-100 dark:border-slate-800">
-                      {narrationSummary.top_issues && narrationSummary.top_issues.length > 0 && (
-                        <div className="space-y-1.5">
-                          <div className="text-[10px] font-bold text-rose-500 uppercase tracking-wider">Top Observed Issues</div>
-                          <div className="space-y-1">
-                            {narrationSummary.top_issues.map((issue, idx) => (
-                              <div key={idx} className="p-2 rounded-lg bg-rose-50/50 dark:bg-rose-950/20 text-rose-700 dark:text-rose-300 text-[10px] font-bold flex items-center gap-1.5">
-                                <AlertTriangle size={11} className="shrink-0 text-rose-500" />
-                                <span>{issue}</span>
-                              </div>
-                            ))}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 pt-2 border-t border-slate-100 dark:border-slate-800">
+                        {narrationSummary.top_issues && narrationSummary.top_issues.length > 0 && (
+                          <div className="space-y-1.5">
+                            <div className="text-[10px] font-bold text-rose-500 uppercase tracking-wider">Top Observed Issues</div>
+                            <div className="space-y-1">
+                              {narrationSummary.top_issues.map((issue, idx) => (
+                                <div key={idx} className="p-2 rounded-lg bg-rose-50/50 dark:bg-rose-950/20 text-rose-700 dark:text-rose-300 text-[10px] font-bold flex items-center gap-1.5">
+                                  <AlertTriangle size={11} className="shrink-0 text-rose-500" />
+                                  <span>{issue}</span>
+                                </div>
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
 
-                      {narrationSummary.recommendations && narrationSummary.recommendations.length > 0 && (
-                        <div className="space-y-1.5">
-                          <div className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider">Narration Guidelines & Tips</div>
-                          <div className="space-y-1">
-                            {narrationSummary.recommendations.map((rec, idx) => (
-                              <div key={idx} className="p-2 rounded-lg bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold flex items-center gap-1.5">
-                                <CheckCircle2 size={11} className="shrink-0 text-emerald-500" />
-                                <span>{rec}</span>
-                              </div>
-                            ))}
+                        {narrationSummary.recommendations && narrationSummary.recommendations.length > 0 && (
+                          <div className="space-y-1.5">
+                            <div className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider">Narration Guidelines & Tips</div>
+                            <div className="space-y-1">
+                              {narrationSummary.recommendations.map((rec, idx) => (
+                                <div key={idx} className="p-2 rounded-lg bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold flex items-center gap-1.5">
+                                  <CheckCircle2 size={11} className="shrink-0 text-emerald-500" />
+                                  <span>{rec}</span>
+                                </div>
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                        )}
+                      </div>
+                    )}
                 </div>
               )}
             </div>

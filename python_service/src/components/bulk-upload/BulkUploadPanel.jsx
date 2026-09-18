@@ -1,3 +1,4 @@
+// BulkUploadPanel — Finbook Enterprise Bulk Ingestion & Review (Verified Syntax)
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
@@ -73,6 +74,7 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
   const [sourceFilter, setSourceFilter] = useState('All Sources');
   const [typeFilter, setTypeFilter] = useState('All Types');
   const [categoryFilter, setCategoryFilter] = useState('All Categories');
+  const [showMainTemplateDropdown, setShowMainTemplateDropdown] = useState(false);
 
   // Modals / Details side sheets
   const [showRejectModal, setShowRejectModal] = useState(false);
@@ -118,16 +120,61 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
   const [aiReviewDoc, setAiReviewDoc] = useState(null);
   const [duplicateUploadInfo, setDuplicateUploadInfo] = useState(null); // { file, tempId, existingDoc }
 
-  const isExcelFile = previewDoc && ['xlsx', 'xls', 'csv'].includes((previewDoc.name || '').split('.').pop().toLowerCase());
+  const isExcelFile = previewDoc && (
+    ['xlsx', 'xls', 'csv'].includes((previewDoc.name || '').split('.').pop().toLowerCase()) ||
+    previewDoc.document_type === 'Bank Statement' ||
+    previewDoc.type === 'Bank Statement' ||
+    Boolean(previewDoc.excelData || previewDoc.excel_grid)
+  );
 
 
-  const [showInsightsPanel, setShowInsightsPanel] = useState(true);
+  const [showInsightsPanel, setShowInsightsPanel] = useState(false);
+  const [savedVouchers, setSavedVouchers] = useState([]);
   const [checkedDocIds, setCheckedDocIds] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
   const fileInputRef = useRef(null);
   const activePollRef = useRef(null);
   const activeUploadsRef = useRef({});
+
+  const fetchSavedVouchers = useCallback(async () => {
+    try {
+      const localSaved = JSON.parse(localStorage.getItem('saved_bulk_vouchers') || '[]');
+      const companyId = typeof selectedCompany === 'string'
+        ? selectedCompany
+        : (selectedCompany?.id || selectedCompany?._id || selectedCompany?.dbName || localStorage.getItem('selectedCompanyId') || '');
+      const res = await bulkUploadApi.getSavedVouchers(companyId);
+      
+      const map = new Map();
+      const allList = (res && res.success && Array.isArray(res.vouchers)) 
+        ? [...res.vouchers, ...localSaved] 
+        : localSaved;
+
+      allList.forEach(v => {
+        const key = v.voucherNumber || v.voucherNo || v.vchNo || v.id;
+        if (key) {
+          map.set(key, v);
+        }
+      });
+
+      const deduplicated = Array.from(map.values());
+      localStorage.setItem('saved_bulk_vouchers', JSON.stringify(deduplicated));
+      setSavedVouchers(deduplicated);
+    } catch (err) {
+      const localSaved = JSON.parse(localStorage.getItem('saved_bulk_vouchers') || '[]');
+      const map = new Map();
+      localSaved.forEach(v => {
+        const key = v.voucherNumber || v.voucherNo || v.vchNo || v.id;
+        if (key) map.set(key, v);
+      });
+      const deduplicated = Array.from(map.values());
+      setSavedVouchers(deduplicated);
+    }
+  }, [selectedCompany]);
+
+  useEffect(() => {
+    fetchSavedVouchers();
+  }, [fetchSavedVouchers]);
 
   // Clear polling interval on unmount
   useEffect(() => {
@@ -156,9 +203,10 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
     try {
       const res = await bulkUploadApi.listUploads();
       if (res && res.success && Array.isArray(res.documents)) {
-        const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5000/api/v2';
         const backendDocs = res.documents.map(doc => {
-          const mappedUrl = doc.fileUrl.startsWith('/') ? `${baseUrl}${doc.fileUrl}` : doc.fileUrl;
+          const mappedUrl = doc.fileUrl
+            ? (doc.fileUrl.startsWith('http') ? doc.fileUrl : `http://127.0.0.1:8000${doc.fileUrl}`)
+            : '';
           return {
             ...doc,
             fileUrl: mappedUrl,
@@ -186,6 +234,21 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
       window.removeEventListener('company-changed', handleCompanyChange);
     };
   }, [fetchDocuments, selectedCompany]);
+
+  // Auto-restore document review screen on page refresh (F5)
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const docIdToRestore = urlParams.get('docId') || sessionStorage.getItem('active_bulk_upload_doc_id');
+    if (docIdToRestore && !previewDoc && !aiReviewDoc) {
+      bulkUploadApi.getDocument(docIdToRestore).then(res => {
+        if (res && res.success && res.document) {
+          handleOpenPreview(res.document);
+        }
+      }).catch(err => {
+        console.error("Failed to restore active document on page refresh:", err);
+      });
+    }
+  }, []);
 
   // Polling for processing uploads
   useEffect(() => {
@@ -395,7 +458,7 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
       delete activeUploadsRef.current[tempId];
 
       if (res.success) {
-        const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5000/api/v2';
+        const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api/v2';
         const persistentFileUrl = `${baseUrl}/bulk-upload/file/${res.upload_id}`;
         setDocuments(prev => prev.map(d => {
           if (d.id === tempId) {
@@ -490,7 +553,7 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
       } else if (lowerName.includes('receipt')) {
         type = 'Receipt Voucher';
         category = 'Financial';
-      } else if (lowerName.includes('statement') || lowerName.includes('bank')) {
+      } else if (lowerName.includes('statement') || lowerName.includes('bank') || lowerName.includes('optransaction') || lowerName.includes('history') || lowerName.includes('passbook') || lowerName.includes('txn')) {
         type = 'Bank Statement';
         category = 'Financial';
       } else if (lowerName.includes('report') || lowerName.includes('gst')) {
@@ -557,7 +620,7 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
           }
 
           if (res.success) {
-            const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5000/api/v2';
+            const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api/v2';
             const persistentFileUrl = `${baseUrl}/bulk-upload/file/${res.upload_id}`;
 
             setDocuments(prev => prev.map(d => {
@@ -597,10 +660,17 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
           try {
             const aiRes = await bulkUploadApi.analyzeSpreadsheet(file);
             if (aiRes.success) {
+              const persistentId = aiRes.upload_id || tempId;
+              const persistentUrl = aiRes.file_url ? `http://127.0.0.1:8000${aiRes.file_url}` : fileUrl;
+              const isDuplicate = aiRes.is_duplicate_file;
+
               setDocuments(prev => prev.map(d => {
                 if (d.id === tempId) {
                   return {
                     ...d,
+                    id: persistentId,
+                    uploadId: persistentId,
+                    fileUrl: persistentUrl,
                     excelData: aiRes.excel_grid,
                     type: aiRes.document_type || d.type,
                     aiReasoning: aiRes.ai_reasoning,
@@ -609,13 +679,20 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
                     importReadinessScore: aiRes.import_readiness_score,
                     masterMatchingResults: aiRes.master_matching_results,
                     validationResults: aiRes.validation_results,
-                    status: 'Ready For Review',
+                    groupedVouchers: aiRes.grouped_vouchers,
+                    status: isDuplicate ? 'DUPLICATE_FILE' : 'Ready For Review',
                     progress: undefined
                   };
                 }
                 return d;
               }));
-              toast.success(`Successfully analyzed ${file.name} with AI mapping!`);
+
+              if (isDuplicate) {
+                toast.warning(`Duplicate File Warning: ${file.name} was previously uploaded on ${aiRes.previous_upload?.uploaded_on || 'earlier date'}.`);
+              } else {
+                toast.success(`Successfully analyzed & saved ${file.name} to persistent storage!`);
+              }
+              setTimeout(() => fetchDocuments(), 1000);
             } else {
               throw new Error('Analysis failed');
             }
@@ -827,57 +904,93 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
     setShowAIDetailsModal(true);
   };
 
+  const handleCloseReview = useCallback(() => {
+    setPreviewDoc(null);
+    setAiReviewDoc(null);
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('docId');
+      window.history.replaceState({}, '', url.toString());
+      sessionStorage.removeItem('active_bulk_upload_doc_id');
+    } catch (e) {}
+  }, []);
+
   const handleOpenPreview = async (doc) => {
     const ext = (doc.name || '').split('.').pop().toLowerCase();
-    if (['pdf', 'png', 'jpg', 'jpeg'].includes(ext)) {
-      if (doc.id && doc.id.toString().startsWith('DOC-')) {
-        toast.info('Document is still uploading. Please wait...');
-        return;
-      }
+    
+    // Resolve file URL cleanly
+    let fileUrl = doc.fileUrl || '';
+    if (fileUrl && fileUrl.startsWith('/')) {
+      fileUrl = `http://127.0.0.1:8000${fileUrl}`;
+    }
 
-      // If document is still processing/AI is running, show toast and do not open the review screen
-      const statusLower = (doc.status || '').toLowerCase();
-      if (['processing', 'uploading', 'ocr_running', 'ocr done', 'ai_running', 'layout_running', 'layout_complete', 'processing...'].includes(statusLower)) {
-        toast.info("AI is analyzing this document. It will take less than 5 seconds. Please wait...");
-        return;
-      }
+    const docWithUrl = {
+      ...doc,
+      fileUrl: fileUrl
+    };
 
-      // Clear any previous polling interval (no longer needed here — review screen polls internally)
-      if (activePollRef.current) {
-        clearInterval(activePollRef.current);
-        activePollRef.current = null;
+    // Store active document ID in URL & sessionStorage for page refresh persistence
+    try {
+      const docIdToStore = doc.id || doc.uploadId;
+      if (docIdToStore) {
+        const url = new URL(window.location.href);
+        url.searchParams.set('docId', docIdToStore);
+        window.history.replaceState({}, '', url.toString());
+        sessionStorage.setItem('active_bulk_upload_doc_id', docIdToStore);
       }
-      // Dismiss any stale loading toasts
-      toast.dismiss(`poll-${doc.id}`);
+    } catch (e) {}
 
-      // Open review screen IMMEDIATELY regardless of pipeline stage.
-      // OcrManualReviewScreen handles progressive loading via /ocr/progress polling.
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5000/api/v2';
-      const docWithUrl = {
-        ...doc,
-        fileUrl: doc.fileUrl && doc.fileUrl.startsWith('/') ? `${baseUrl}${doc.fileUrl}` : (doc.fileUrl || `${baseUrl}/bulk-upload/file/${doc.id}`)
-      };
+    const isBankStatement = doc.document_type === 'Bank Statement' ||
+                            doc.type === 'Bank Statement' ||
+                            doc.category === 'Bank Statement' ||
+                            (doc.name || '').toLowerCase().includes('statement') ||
+                            (doc.name || '').toLowerCase().includes('optransactionhistory') ||
+                            Boolean(doc.excel_grid || doc.excelData);
+
+    if (['pdf', 'png', 'jpg', 'jpeg', 'webp', 'tiff'].includes(ext) && !isBankStatement) {
       setAiReviewDoc(docWithUrl);
       return;
     }
 
-    setPreviewDoc(doc);
-    if (['xlsx', 'xls', 'csv'].includes(ext)) {
-      setOcrResult(null);
-      setTableSearchQuery('');
-      setStatusFilter('All Rows');
+    // For Excel, CSV, or PDF Bank Statements -> Open Excel Grid View!
+    setOcrResult(null);
+    setTableSearchQuery('');
+    setStatusFilter('All Rows');
+    setResolvedErrors(0);
+    setResolvedWarnings(0);
+    setAiIssues([]);
+    setIgnoredIssueIds([]);
 
-      const grid = doc.excelData || [
-        ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'],
-        ['Invoice No', 'Date', 'Party Ledger', 'GSTIN', 'Total Amount', 'GST %', 'Status', 'Remarks', 'Created By', 'Branch']
-      ];
-
-      setExcelGridData(grid);
-      setResolvedErrors(0);
-      setResolvedWarnings(0);
-      setAiIssues([]);
-      setIgnoredIssueIds([]);
+    let finalDoc = docWithUrl;
+    let grid = doc.excelData || doc.excel_grid;
+    if ((!grid || !Array.isArray(grid) || grid.length < 2) && doc.id) {
+      try {
+        const res = await bulkUploadApi.getDocument(doc.id);
+        if (res.success && res.document) {
+          const fetched = res.document;
+          grid = fetched.excel_grid || fetched.excelData;
+          finalDoc = {
+            ...docWithUrl,
+            ...fetched,
+            validationResults: fetched.validation_results || fetched.validationResults || [],
+            validationSummary: fetched.validation_summary || fetched.validationSummary || {},
+            columnMapping: fetched.column_mapping || fetched.columnMapping || [],
+            type: fetched.document_type || fetched.type || (isBankStatement ? 'Bank Statement' : 'Accounting Spreadsheet'),
+            document_type: fetched.document_type || (isBankStatement ? 'Bank Statement' : 'Accounting Spreadsheet')
+          };
+        }
+      } catch (e) {
+        console.error("Failed to fetch document detail from backend", e);
+      }
     }
+
+    const defaultGrid = [
+      ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'],
+      ['Voucher Date', 'Voucher Type', 'Particulars / Narration', 'Reference No', 'Debit (Dr)', 'Credit (Cr)', 'Party / Counterpart Ledger', 'Amount', 'Status']
+    ];
+
+    setPreviewDoc(finalDoc);
+    setExcelGridData(grid && grid.length >= 2 ? grid : defaultGrid);
   };
 
 
@@ -1042,12 +1155,13 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
       : documents.filter(doc => doc.source !== 'OCR Upload');
     const total = list.length;
     const processing = list.filter(d => d.status === 'Processing').length;
-    const completed = list.filter(d => ['Categorized', 'Validated', 'Ready For Review'].includes(d.status)).length;
+    const completed = list.filter(d => ['Categorized', 'Validated', 'Ready For Review', 'Completed', 'Approved'].includes(d.status)).length;
+    const draftSaved = list.filter(d => d.status === 'Draft Saved').length;
     const duplicates = list.filter(d => d.status === 'Duplicate Found').length;
     const rejected = list.filter(d => d.status === 'Rejected').length;
     const missing = list.filter(d => d.status === 'Missing Information').length;
 
-    return { total, processing, completed, duplicates, rejected, missing };
+    return { total, processing, completed, draftSaved, duplicates, rejected, missing };
   }, [documents, ocrOnly]);
 
   // --- Filter and Pagination Logic ---
@@ -1122,15 +1236,18 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
     );
   };
 
-  const getTypeBadge = (type) => {
+  const getTypeBadge = (type, aiClassification) => {
     const typeStyles = {
       'Purchase Invoice': 'bg-blue-50/50 text-blue-700 border-blue-100',
       'Sales Invoice': 'bg-emerald-50/50 text-emerald-700 border-emerald-100',
+      'Payment Voucher': 'bg-violet-50/50 text-violet-700 border-violet-100',
+      'Receipt Voucher': 'bg-indigo-50/50 text-indigo-700 border-indigo-100',
+      'Contra Voucher': 'bg-amber-50/50 text-amber-700 border-amber-100',
+      'Bank Statement': 'bg-cyan-50/50 text-cyan-700 border-cyan-100',
       'Expense Bill': 'bg-rose-50/50 text-rose-700 border-rose-100',
       'Receipt': 'bg-teal-50/50 text-teal-700 border-teal-100',
       'Credit Note': 'bg-violet-50/50 text-violet-700 border-violet-100',
       'Debit Note': 'bg-amber-50/50 text-amber-700 border-amber-100',
-      'Bank Statement': 'bg-cyan-50/50 text-cyan-700 border-cyan-100',
       'GST Report': 'bg-indigo-50/50 text-indigo-700 border-indigo-100',
       'Purchase Register': 'bg-slate-100 text-slate-700 border-slate-200',
       'Sales Register': 'bg-slate-100 text-slate-700 border-slate-200',
@@ -1139,9 +1256,20 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
     };
     const style = typeStyles[type] || 'bg-slate-50 text-slate-500 border-slate-100';
     return (
-      <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-semibold border ${style}`}>
-        {type}
-      </span>
+      <div className="flex flex-col items-start gap-1">
+        <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-semibold border ${style}`}>
+          {type}
+        </span>
+        {aiClassification?.voucher_category && (
+          <span
+            className="inline-flex items-center gap-1 text-[8.5px] font-bold text-amber-700 bg-amber-50 border border-amber-200/80 px-1.5 py-0.5 rounded shadow-2xs"
+            title={aiClassification.reasoning || ''}
+          >
+            <Sparkles size={9} className="text-amber-500" />
+            <span>AI: {aiClassification.voucher_category} ({aiClassification.confidence}%)</span>
+          </span>
+        )}
+      </div>
     );
   };
 
@@ -1192,7 +1320,10 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
       'Duplicate Found': { bg: 'bg-rose-50 text-rose-700 border-rose-200', text: 'Duplicate Found', icon: ShieldAlert },
       'Rejected': { bg: 'bg-red-50 text-red-700 border-red-200', text: 'Rejected', icon: AlertCircle },
       'Missing Information': { bg: 'bg-amber-50 text-amber-700 border-amber-200 cursor-pointer hover:bg-amber-100', text: 'Missing Info', icon: AlertTriangle },
-      'Ready For Review': { bg: 'bg-indigo-50 text-indigo-700 border-indigo-200', text: 'Ready For Review', icon: Search }
+      'Ready For Review': { bg: 'bg-indigo-50 text-indigo-700 border-indigo-200', text: 'Ready For Review', icon: Search },
+      'Draft Saved': { bg: 'bg-purple-50 text-purple-700 border-purple-200', text: 'Draft Saved', icon: FolderOpen },
+      'Completed': { bg: 'bg-emerald-50 text-emerald-700 border-emerald-200', text: 'Approved & Imported', icon: CheckCircle2 },
+      'Approved': { bg: 'bg-emerald-50 text-emerald-700 border-emerald-200', text: 'Approved & Imported', icon: CheckCircle2 }
     };
 
     function LayersIcon(props) {
@@ -1480,6 +1611,157 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
       </div>
     );
   };
+
+  const handleDeleteSavedVoucher = useCallback(async (vch) => {
+    const vNo = vch.voucherNo || vch.voucherNumber || vch.vchNo || vch.id;
+    if (!window.confirm(`Are you sure you want to delete voucher ${vNo} from database?`)) return;
+
+    try {
+      const companyId = typeof selectedCompany === 'string'
+        ? selectedCompany
+        : (selectedCompany?.id || selectedCompany?._id || selectedCompany?.dbName || localStorage.getItem('selectedCompanyId') || '');
+
+      // 1. Delete from MongoDB Database
+      if (typeof bulkUploadApi.deleteSavedVoucher === 'function') {
+        try {
+          await bulkUploadApi.deleteSavedVoucher(vNo, companyId);
+        } catch (dbErr) {
+          if (vch.id && vch.id !== vNo) {
+            try {
+              await bulkUploadApi.deleteSavedVoucher(vch.id, companyId);
+            } catch (e) {
+              console.warn("MongoDB deletion fallback skipped:", e);
+            }
+          }
+        }
+      }
+
+      // 2. Remove from localStorage
+      const localSaved = JSON.parse(localStorage.getItem('saved_bulk_vouchers') || '[]');
+      const updatedLocal = localSaved.filter(s => {
+        const sKey = s.voucherNo || s.voucherNumber || s.vchNo || s.id;
+        return sKey !== vNo && s.id !== vch.id;
+      });
+      localStorage.setItem('saved_bulk_vouchers', JSON.stringify(updatedLocal));
+
+      // 3. Remove from state
+      setSavedVouchers(prev => prev.filter(s => (s.voucherNo || s.voucherNumber || s.vchNo || s.id) !== vNo && s.id !== vch.id));
+
+      toast.success(`Deleted voucher ${vNo} from MongoDB & local panel!`);
+    } catch (err) {
+      console.error("Failed to delete saved voucher:", err);
+      toast.error("Failed to delete voucher.");
+    }
+  }, [selectedCompany]);
+
+  const handleEditSavedVoucher = useCallback((vch) => {
+    setAiReviewDoc(vch);
+  }, []);
+
+  const renderSavedVouchersTable = () => (
+    <div className="bg-[var(--app-panel-bg)] border border-[var(--app-border)]/60 rounded-lg shadow-2xs overflow-hidden flex flex-col flex-1 min-h-0">
+      <div className="overflow-x-auto flex-1">
+        <table className="w-full text-left border-collapse min-w-[1000px] text-xs whitespace-nowrap table-fixed">
+          <colgroup>
+            <col style={{ width: '140px' }} />
+            <col style={{ width: '160px' }} />
+            <col style={{ width: '200px' }} />
+            <col style={{ width: '110px' }} />
+            <col style={{ width: '90px' }} />
+            <col style={{ width: '130px' }} />
+            <col style={{ width: '140px' }} />
+            <col style={{ width: '110px' }} />
+          </colgroup>
+          <thead>
+            <tr className="bg-[var(--app-table-head-bg)]/80 border-b border-[var(--app-border)] text-[var(--app-muted)] font-bold uppercase tracking-wider text-[11px]">
+              <th className="py-2 px-3 font-extrabold">Voucher No</th>
+              <th className="py-2 px-3 font-extrabold">Document Type</th>
+              <th className="py-2 px-3 font-extrabold">Party Name</th>
+              <th className="py-2 px-3 font-extrabold">Date</th>
+              <th className="py-2 px-3 font-extrabold text-center">Items</th>
+              <th className="py-2 px-3 font-extrabold">Total Amount</th>
+              <th className="py-2 px-3 font-extrabold text-center">Status</th>
+              <th className="py-2 px-3 font-extrabold text-center">Action</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[var(--app-row-border)] font-medium text-[var(--app-text)]">
+            {savedVouchers.length > 0 ? (
+              savedVouchers.map((vch, idx) => {
+                const itemsCount = vch.items ? vch.items.length : 1;
+                const isApproved = (vch.status || '').toLowerCase().includes('approved') || (vch.status || '').toLowerCase().includes('completed');
+                return (
+                  <tr key={vch.id || idx} className="hover:bg-[var(--app-row-hover)]/60 transition-colors h-11">
+                    <td className="py-2 px-3 font-mono font-black text-indigo-600 dark:text-indigo-400">
+                      {vch.voucherNo || vch.voucherNumber || '-'}
+                    </td>
+                    <td className="py-2 px-3 font-bold text-slate-800 dark:text-slate-200">
+                      <span className="px-2 py-0.5 rounded-full text-[9.5px] font-black uppercase bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200/40">
+                        {vch.docType || vch.voucherType || 'Sales Voucher'}
+                      </span>
+                    </td>
+                    <td className="py-2 px-3 font-extrabold text-slate-900 dark:text-slate-100">
+                      {vch.partyName || vch.party || 'Unspecified Party'}
+                    </td>
+                    <td className="py-2 px-3 font-mono text-slate-600 dark:text-slate-400">
+                      {vch.voucherDate || vch.date || '-'}
+                    </td>
+                    <td className="py-2 px-3 text-center font-bold">
+                      <span className="px-2 py-0.5 rounded-md text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                        {itemsCount} {itemsCount > 1 ? 'Items' : 'Item'}
+                      </span>
+                    </td>
+                    <td className="py-2 px-3 font-mono font-black text-slate-900 dark:text-slate-100">
+                      ₹ {parseFloat(vch.totalAmount || vch.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </td>
+                    <td className="py-2 px-3 text-center">
+                      {isApproved ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9.5px] font-black bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 border border-emerald-250/25">
+                          <CheckCircle2 size={10} className="text-emerald-500" />
+                          <span>Approved & Imported</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9.5px] font-black bg-purple-50 dark:bg-purple-950/20 text-purple-700 dark:text-purple-400 border border-purple-250/25">
+                          <FolderOpen size={10} className="text-purple-500" />
+                          <span>Draft Saved</span>
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-2 px-3 text-center">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button
+                          onClick={() => handleEditSavedVoucher(vch)}
+                          className="p-1.5 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-lg transition border border-indigo-200/50 cursor-pointer"
+                          title="Edit Voucher"
+                        >
+                          <Edit2 size={13} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteSavedVoucher(vch)}
+                          className="p-1.5 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-600 dark:text-rose-400 rounded-lg transition border border-rose-200/50 cursor-pointer"
+                          title="Delete Voucher"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
+            ) : (
+              <tr>
+                <td colSpan={8} className="p-12 text-center text-[var(--app-muted)] font-medium">
+                  <div className="flex flex-col items-center justify-center gap-1.5">
+                    <Database size={24} className="text-[var(--app-border)]" />
+                    <span>No saved vouchers yet. Upload files and click "Save Draft" or "Approve & Import" to save vouchers into MongoDB!</span>
+                  </div>
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 
   const handleAiAutoFix = () => {
     if (aiIssues.length === 0) {
@@ -2123,7 +2405,7 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
         <OcrManualReviewScreen
           doc={aiReviewDoc}
           isDark={isDark}
-          onClose={() => setAiReviewDoc(null)}
+          onClose={handleCloseReview}
           onSaveSuccess={() => {
             // Update the document in the list with the 'Validated' status
             setDocuments(prev => prev.map(d => {
@@ -2135,7 +2417,7 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
               }
               return d;
             }));
-            setAiReviewDoc(null);
+            handleCloseReview();
           }}
         />
       )}
@@ -2147,7 +2429,7 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
             excelGridData={excelGridData}
             setExcelGridData={setExcelGridData}
             setDocuments={setDocuments}
-            onClose={() => setPreviewDoc(null)}
+            onClose={handleCloseReview}
           />
         ) : (
           <div className="flex-1 flex flex-col overflow-hidden text-xs font-sans min-w-0 select-text">
@@ -2156,7 +2438,7 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
               <div className="flex items-center gap-3">
                 {/* Back Navigation Button */}
                 <button
-                  onClick={() => setPreviewDoc(null)}
+                  onClick={handleCloseReview}
                   className="p-1.5 hover:bg-[var(--app-row-hover)] rounded-lg text-[var(--app-text)] cursor-pointer transition border-none bg-transparent"
                   title="Back to Uploaded Documents"
                 >
@@ -2812,46 +3094,94 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
             </div>
           )}
           {/* PAGE HEADER - matches ManualEntryPanel tab style exactly */}
-          <div className="m3-scope flex items-center gap-1 overflow-x-auto themed-scrollbar pb-2 mb-2.5 shrink-0 select-none">
-            {[
-              { id: 'Upload Documents', count: null, label: 'Upload' },
-              { id: 'Uploaded Documents', count: stats.total, label: 'Uploaded' },
-              { id: 'Duplicate Documents', count: stats.duplicates, label: 'Duplicate' },
-              { id: 'Rejected Documents', count: stats.rejected, label: 'Rejected' }
-            ].map(tab => {
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => {
-                    setActiveTab(tab.id);
-                    setCheckedDocIds([]);
-                  }}
-                  className="relative flex items-center gap-2 px-4 h-10 rounded-full shrink-0 transition-colors hover:bg-[var(--m3-surface-container)] cursor-pointer"
-                  style={{ color: isActive ? 'var(--m3-on-secondary-container)' : 'var(--m3-on-surface-variant)' }}
-                >
-                  {isActive && (
-                    <motion.span
-                      layoutId="m3-bulk-tab"
-                      className="absolute inset-0 rounded-full"
-                      style={{ backgroundColor: 'var(--m3-secondary-container)' }}
-                      transition={{ type: 'spring', stiffness: 500, damping: 40 }}
-                    />
-                  )}
-                  <span className="relative flex items-center gap-2">
-                    <span className="text-[13px] font-semibold whitespace-nowrap">{tab.label}</span>
-                    {tab.count !== null && (
-                      <span className={`text-[11px] px-1.5 py-0.5 rounded-full font-bold transition-all ${isActive
-                          ? 'bg-[var(--app-accent)] text-white'
-                          : 'bg-slate-200/60 dark:bg-slate-700 text-[var(--app-text)]/85'
-                        }`}>
-                        {tab.count}
-                      </span>
+          <div className="flex items-center justify-between gap-2 pb-2 mb-2.5 shrink-0 select-none">
+            <div className="m3-scope flex items-center gap-1 overflow-x-auto themed-scrollbar">
+              {[
+                { id: 'Upload Documents', count: null, label: 'Upload' },
+                { id: 'Uploaded Documents', count: stats.total, label: 'Uploaded' },
+                { id: 'Saved Vouchers', count: savedVouchers.length, label: 'Saved Vouchers' },
+                { id: 'Duplicate Documents', count: stats.duplicates, label: 'Duplicate' },
+                { id: 'Rejected Documents', count: stats.rejected, label: 'Rejected' }
+              ].map(tab => {
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => {
+                      setActiveTab(tab.id);
+                      setCheckedDocIds([]);
+                    }}
+                    className="relative flex items-center gap-2 px-4 h-10 rounded-full shrink-0 transition-colors hover:bg-[var(--m3-surface-container)] cursor-pointer"
+                    style={{ color: isActive ? 'var(--m3-on-secondary-container)' : 'var(--m3-on-surface-variant)' }}
+                  >
+                    {isActive && (
+                      <motion.span
+                        layoutId="m3-bulk-tab"
+                        className="absolute inset-0 rounded-full"
+                        style={{ backgroundColor: 'var(--m3-secondary-container)' }}
+                        transition={{ type: 'spring', stiffness: 500, damping: 40 }}
+                      />
                     )}
-                  </span>
-                </button>
-              );
-            })}
+                    <span className="relative flex items-center gap-2">
+                      <span className="text-[13px] font-semibold whitespace-nowrap">{tab.label}</span>
+                      {tab.count !== null && (
+                        <span className={`text-[11px] px-1.5 py-0.5 rounded-full font-bold transition-all ${isActive
+                            ? 'bg-[var(--app-accent)] text-white'
+                            : 'bg-slate-200/60 dark:bg-slate-700 text-[var(--app-text)]/85'
+                          }`}>
+                          {tab.count}
+                        </span>
+                      )}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* DOWNLOAD TEMPLATE DROPDOWN BUTTON */}
+            <div className="relative shrink-0 z-30">
+              <button
+                onClick={() => setShowMainTemplateDropdown(!showMainTemplateDropdown)}
+                className="h-9 px-3.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 rounded-xl text-xs font-extrabold transition flex items-center gap-1.5 cursor-pointer shadow-2xs shrink-0 whitespace-nowrap"
+              >
+                <FileSpreadsheet size={14} className="text-emerald-600 dark:text-emerald-400" />
+                <span>Download Template</span>
+                <ChevronDown size={12} className="text-emerald-600 dark:text-emerald-400" />
+              </button>
+
+              {showMainTemplateDropdown && (
+                <div className="absolute right-0 top-full mt-1.5 w-64 bg-white dark:bg-[#1c1c26] border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl z-50 p-1.5 animate-in fade-in slide-in-from-top-2 duration-150">
+                  <div className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 px-2 py-1 tracking-wider border-b border-slate-100 dark:border-slate-800 mb-1">
+                    Select Standard Excel Template
+                  </div>
+                  {[
+                    { title: 'Sales (With Item)', file: 'Sales_Voucher_Template_With_Item.xlsx', desc: 'Inventory items, Qty, Rate, GST' },
+                    { title: 'Sales (Without Item)', file: 'Sales_Voucher_Template_Without_Item.xlsx', desc: 'Services & Accounting ledgers' },
+                    { title: 'Purchase (With Item)', file: 'Purchase_Voucher_Template_With_Item.xlsx', desc: 'Raw materials & Stock items' },
+                    { title: 'Purchase (Without Item)', file: 'Purchase_Voucher_Template_Without_Item.xlsx', desc: 'Expenses & Supplier bills' },
+                    { title: 'Payment Voucher', file: 'Payment_Voucher_Template.xlsx', desc: 'Vendor payments & Expenses' },
+                    { title: 'Receipt Voucher', file: 'Receipt_Voucher_Template.xlsx', desc: 'Customer receipts & Income' },
+                    { title: 'Contra Voucher', file: 'Contra_Voucher_Template.xlsx', desc: 'Bank-to-bank & Cash transfers' }
+                  ].map(tpl => (
+                    <button
+                      key={tpl.file}
+                      onClick={() => {
+                        window.open(`http://127.0.0.1:8000/uploads/templates/${tpl.file}`, '_blank');
+                        toast.success(`Downloading ${tpl.title} Template...`);
+                        setShowMainTemplateDropdown(false);
+                      }}
+                      className="w-full text-left p-2 hover:bg-slate-50 dark:hover:bg-slate-800/60 rounded-lg transition flex items-center justify-between group cursor-pointer border-none bg-transparent"
+                    >
+                      <div className="flex flex-col min-w-0 pr-2">
+                        <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition truncate">{tpl.title}</span>
+                        <span className="text-[9.5px] text-slate-400 dark:text-slate-500 truncate">{tpl.desc}</span>
+                      </div>
+                      <Download size={12} className="text-slate-400 group-hover:text-emerald-500 shrink-0" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* MAIN VIEWPORT CONTAINER */}
@@ -3091,11 +3421,14 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
                     </div>
                   </div>
                   {/* ENTERPRISE DATA TABLE */}
-                  <div className="bg-[var(--app-panel-bg)] border border-[var(--app-border)]/60 rounded-lg shadow-2xs overflow-hidden flex flex-col flex-1 min-h-0">
-                    <div className="overflow-x-auto flex-1">
-                      <table className="w-full text-left border-collapse min-w-[1180px] text-xs whitespace-nowrap table-fixed">
-                        <colgroup>
-                          <col style={{ width: '40px' }} />
+                  {activeTab === 'Saved Vouchers' ? (
+                    renderSavedVouchersTable()
+                  ) : (
+                    <div className="bg-[var(--app-panel-bg)] border border-[var(--app-border)]/60 rounded-lg shadow-2xs overflow-hidden flex flex-col flex-1 min-h-0">
+                      <div className="overflow-x-auto flex-1">
+                        <table className="w-full text-left border-collapse min-w-[1180px] text-xs whitespace-nowrap table-fixed">
+                          <colgroup>
+                            <col style={{ width: '40px' }} />
                           <col style={{ width: '220px' }} />
                           <col style={{ width: '120px' }} />
                           <col style={{ width: '130px' }} />
@@ -3163,7 +3496,7 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
                                   <td className="py-1 px-2">{getSourceBadge(doc.source)}</td>
 
                                   {/* Detected Type */}
-                                  <td className="py-1 px-2">{getTypeBadge(doc.type)}</td>
+                                  <td className="py-1 px-2">{getTypeBadge(doc.type, doc.ai_classification || doc.aiClassification)}</td>
 
                                   {/* Category */}
                                   <td className="py-1 px-2">{getCategoryBadge(doc.category)}</td>
@@ -3304,165 +3637,11 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
                       </div>
                     </div>
                   </div>
-                </div>
-              )}
-            </div>
-
-            {/* RIGHT COLUMN: AI UPLOAD INSIGHTS COLLAPSIBLE SIDE PANEL */}
-            <AnimatePresence>
-              {showInsightsPanel && activeTab !== 'Upload Documents' && (
-                <motion.div
-                  initial={{ width: 0, opacity: 0 }}
-                  animate={{ width: 260, opacity: 1 }}
-                  exit={{ width: 0, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="border-l border-[var(--app-border)] bg-[var(--app-panel-bg)] flex flex-col shrink-0 overflow-y-auto"
-                >
-                  <div className="p-2.5 border-b border-[var(--app-border)] flex justify-between items-center bg-[var(--app-table-head-bg)]/50">
-                    <span className="font-bold text-[var(--app-heading)] text-xs tracking-tight flex items-center gap-1.5">
-                      <Scan size={14} className="text-[var(--app-accent)]" />
-                      <span>AI Upload Insights</span>
-                    </span>
-                    <button
-                      onClick={() => setShowInsightsPanel(false)}
-                      className="p-1 hover:bg-[var(--app-row-hover)] rounded text-[var(--app-muted)] hover:text-[var(--app-heading)] cursor-pointer bg-transparent border-none"
-                    >
-                      <X size={15} />
-                    </button>
-                  </div>
-
-                  <div className="p-3 flex flex-col gap-3">
-                    {/* Stats Breakdown List */}
-                    <div className="bg-[var(--app-content-bg)]/40 border border-[var(--app-border)]/60 rounded-lg p-2.5 flex flex-col gap-2">
-                      <div className="flex justify-between items-center text-[11px]">
-                        <span className="text-[var(--app-muted)] font-bold">Total Uploaded</span>
-                        <span className="font-extrabold text-[var(--app-heading)]">{stats.total}</span>
-                      </div>
-                      <div className="w-full bg-[var(--app-border)] h-1 rounded-full overflow-hidden">
-                        <div className="bg-[var(--app-accent)] h-full rounded-full" style={{ width: '100%' }}></div>
-                      </div>
-
-                      <div className="flex justify-between items-center text-[11px] mt-1">
-                        <span className="text-[var(--app-muted)] font-bold">Financial Docs</span>
-                        <span className="font-extrabold text-[var(--app-heading)]">
-                          {documents.filter(d => d.category === 'Financial').length}
-                        </span>
-                      </div>
-                      <div className="w-full bg-[var(--app-border)] h-1 rounded-full overflow-hidden">
-                        <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${(documents.filter(d => d.category === 'Financial').length / Math.max(1, stats.total)) * 100}%` }}></div>
-                      </div>
-
-                      <div className="flex justify-between items-center text-[11px] mt-1">
-                        <span className="text-[var(--app-muted)] font-bold">Non-Financial Docs</span>
-                        <span className="font-extrabold text-[var(--app-heading)]">
-                          {documents.filter(d => d.category === 'Non-Financial').length}
-                        </span>
-                      </div>
-                      <div className="w-full bg-[var(--app-border)] h-1 rounded-full overflow-hidden">
-                        <div className="bg-slate-400 h-full rounded-full" style={{ width: `${(documents.filter(d => d.category === 'Non-Financial').length / Math.max(1, stats.total)) * 100}%` }}></div>
-                      </div>
-
-                      <div className="flex justify-between items-center text-[11px] mt-1">
-                        <span className="text-[var(--app-muted)] font-bold">Duplicate Docs</span>
-                        <span className="font-extrabold text-[var(--app-heading)]">{stats.duplicates}</span>
-                      </div>
-                      <div className="w-full bg-[var(--app-border)] h-1 rounded-full overflow-hidden">
-                        <div className="bg-rose-500 h-full rounded-full" style={{ width: `${(stats.duplicates / Math.max(1, stats.total)) * 100}%` }}></div>
-                      </div>
-
-                      <div className="flex justify-between items-center text-[11px] mt-1">
-                        <span className="text-[var(--app-muted)] font-bold">Rejected Docs</span>
-                        <span className="font-extrabold text-[var(--app-heading)]">{stats.rejected}</span>
-                      </div>
-                      <div className="w-full bg-[var(--app-border)] h-1 rounded-full overflow-hidden">
-                        <div className="bg-red-650 h-full rounded-full" style={{ width: `${(stats.rejected / Math.max(1, stats.total)) * 100}%` }}></div>
-                      </div>
-
-                      <div className="flex justify-between items-center text-[11px] mt-1">
-                        <span className="text-[var(--app-muted)] font-bold">Missing Fields</span>
-                        <span className="font-extrabold text-amber-600">{stats.missing}</span>
-                      </div>
-                      <div className="w-full bg-[var(--app-border)] h-1 rounded-full overflow-hidden">
-                        <div className="bg-amber-500 h-full rounded-full" style={{ width: `${(stats.missing / Math.max(1, stats.total)) * 100}%` }}></div>
-                      </div>
-                    </div>
-
-                    {/* AI Performance Gauge */}
-                    <div className="border border-[var(--app-border)]/60 rounded-lg p-2.5 flex flex-col items-center justify-center text-center bg-[var(--app-panel-bg)]">
-                      <span className="text-[9.5px] font-bold text-[var(--app-muted)] uppercase tracking-wider block mb-1.5">
-                        Average OCR Accuracy
-                      </span>
-
-                      {/* Gauge Ring Shape */}
-                      <div className="relative w-20 h-20 flex items-center justify-center">
-                        <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-                          <path
-                            className="text-[var(--app-border)]/50"
-                            strokeWidth="3"
-                            stroke="currentColor"
-                            fill="none"
-                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                          />
-                          <path
-                            className="text-[var(--app-accent)]"
-                            strokeWidth="3.2"
-                            strokeDasharray="98, 100"
-                            strokeLinecap="round"
-                            stroke="currentColor"
-                            fill="none"
-                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                          />
-                        </svg>
-                        <div className="absolute flex flex-col items-center justify-center">
-                          <span className="text-sm font-extrabold text-[var(--app-heading)] leading-none">98%</span>
-                          <span className="text-[7.5px] text-[var(--app-muted)] mt-0.5 uppercase tracking-wide">Confidence</span>
-                        </div>
-                      </div>
-
-                      <p className="text-[9.5px] text-[var(--app-muted)] leading-normal mt-2 px-1">
-                        AI models are learning continuously. Data validation triggers for records under 90% confidence index.
-                      </p>
-                    </div>
-
-                    {/* Processing Queue List */}
-                    <div className="flex flex-col gap-1.5">
-                      <span className="text-[11px] font-bold text-[var(--app-heading)] tracking-tight">Active Queue</span>
-                      <div className="flex flex-col gap-1.5 max-h-[190px] overflow-y-auto pr-1">
-                        {documents.filter(d => d.status === 'Processing').length > 0 ? (
-                          documents
-                            .filter(d => d.status === 'Processing')
-                            .map(item => (
-                              <div key={item.id} className="p-1.5 border border-[var(--app-border)]/60 rounded-md flex items-center justify-between gap-2 bg-[var(--app-content-bg)]/20">
-                                <div className="flex items-center gap-1.5 min-w-0">
-                                  {getDocIcon(item.name)}
-                                  <div className="flex flex-col min-w-0">
-                                    <span className="text-[10.5px] font-bold text-[var(--app-text)] truncate max-w-[130px] block">
-                                      {item.name}
-                                    </span>
-                                    <span className="text-[9px] text-[var(--app-muted)] font-mono leading-none mt-0.5">
-                                      {item.id}
-                                    </span>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-1 shrink-0">
-                                  <RefreshCw size={11} className="text-amber-500 animate-spin" />
-                                  <span className="text-[9px] font-bold font-mono text-[var(--app-muted)]">{item.progress || 0}%</span>
-                                </div>
-                              </div>
-                            ))
-                        ) : (
-                          <div className="py-6 text-center border border-dashed border-[var(--app-border)] rounded-xl text-[var(--app-muted)] text-[10.5px]">
-                            No active files in OCR processing queue.
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                )}
+              </div>
+            )}
           </div>
+        </div>
 
           {/* --- POPUP 1: REJECT MODAL DIALOG --- */}
           <AnimatePresence>

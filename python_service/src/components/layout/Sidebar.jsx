@@ -26,26 +26,10 @@ const NAV = [
       'Manual Voucher Entry', 'Bulk Upload', 'OCR Upload', 'Text to Entry','Approval Center', 
     ],
   },
-  {
-    label: 'Sales', icon: TrendingUp, children: [
-      'Sales Inbox', 'Sales Review', 'Sales Archive', 'Sales Order', 'Sales Invoice', 'Credit Note (Sales Return)',
-    ],
-  },
-  {
-    label: 'Purchase', icon: ShoppingCart, children: [
-      'Purchase Inbox', 'Purchase Review', 'Purchase Archive', 'Purchase Order', 'Purchase Invoice', 'Debit Note (Purchase Return)',
-    ],
-  },
-  {
-    label: 'Fund Flow', icon: ArrowLeftRight, children: [
-      'Payment', 'Receipt', 'Contra', 'Fund Flow Review', 'Fund Flow Archive',
-    ],
-  },
-  {
-    label: 'Bank', icon: Landmark, children: [
-      'Manage Bank', 'Manage Rule', 'Inbox', 'Bank Review', 'Bank Archive',
-    ],
-  },
+  { label: 'Sales', icon: TrendingUp },
+  { label: 'Purchase', icon: ShoppingCart },
+  { label: 'Fund Flow', icon: ArrowLeftRight },
+  { label: 'Bank', icon: Landmark },
   { label: 'Masters', icon: BookOpen },
   { label: 'Integrations', icon: Plug, children: ['Tally Connector', 'Document Archive'] },
   { label: 'Administration', icon: Settings, children: ['Companies', 'Clients', 'User & Role Management', 'Configuration'] },

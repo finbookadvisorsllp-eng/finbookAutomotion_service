@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Plus, CheckCircle2, Trash2, Send, RefreshCw, Download, Edit3,
-  FileSpreadsheet, ScanLine, Paperclip, ShoppingCart,
+  FileSpreadsheet, ScanLine, Paperclip, ShoppingCart, ClipboardList, ReceiptText, FileMinus,
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
@@ -40,12 +40,20 @@ const ActionButton = ({ onClick, icon: Icon, tone = 'accent', tooltip }) => {
   );
 };
 
-const PurchasePanel = ({ mode, isDark, onAdd, title: customTitle, description: customDescription, voucherType = 'purchase', emptyText, icon: CustomIcon }) => {
+const PURCHASE_SUB_TABS = [
+  { id: 'purchase_order', label: 'Purchase Orders', icon: ClipboardList, typeName: 'purchase_order' },
+  { id: 'purchase', label: 'Purchase Invoices', icon: ReceiptText, typeName: 'purchase' },
+  { id: 'debit_note', label: 'Debit Notes (Purchase Returns)', icon: FileMinus, typeName: 'debit_note' },
+];
+
+const PurchasePanel = ({ mode = 'Inbox', isDark, onAdd, title: customTitle, description: customDescription, voucherType: initialVoucherType = 'purchase', emptyText, icon: CustomIcon }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const confirm = useConfirm();
   const Icon = CustomIcon || ShoppingCart;
 
+  const [activeSubTab, setActiveSubTab] = useState(initialVoucherType || 'purchase');
+  const voucherType = activeSubTab;
   const [viewMode, setViewMode] = useState('inbox');
   const [selectedIds, setSelectedIds] = useState([]);
 
@@ -82,7 +90,7 @@ const PurchasePanel = ({ mode, isDark, onAdd, title: customTitle, description: c
     approveTransaction, pushToReview, deleteTransaction, fetchTransactionById, resetForm,
   } = usePurchaseStore();
 
-  const modeStatusMap = { Inbox: 'draft', Review: 'pending_review', Archive: 'approved,archived' };
+  const modeStatusMap = { Inbox: '', Review: 'pending_review', Archive: 'approved,archived' };
   const apiVoucherType = voucherType === 'purchase' ? '' : voucherType;
 
   useEffect(() => {
@@ -196,7 +204,7 @@ const PurchasePanel = ({ mode, isDark, onAdd, title: customTitle, description: c
       {mode === 'Inbox' && (
         <>
           <Button icon={ScanLine} onClick={() => setViewMode('ocr')}>OCR Upload</Button>
-          <Button icon={FileSpreadsheet} onClick={() => setViewMode('csv')}>CSV Upload</Button>
+          <Button icon={FileSpreadsheet} onClick={() => setViewMode('csv')}>Bulk Upload</Button>
           <Button icon={Plus} variant="primary" onClick={handleCreateNew}>Create Entry</Button>
           <div className="w-px h-6 mx-0.5 hidden sm:block" style={{ backgroundColor: 'var(--app-border)' }} />
           <Button icon={CheckCircle2} iconOnly onClick={handleApproveSelected} />
@@ -220,13 +228,37 @@ const PurchasePanel = ({ mode, isDark, onAdd, title: customTitle, description: c
     </>
   );
 
+  if (viewMode !== 'inbox') {
+    return (
+      <div className="flex flex-col h-full overflow-hidden bg-[var(--app-panel-bg)] rounded-xl border border-[var(--app-border)] p-2">
+        <VoucherEntryEngine isDark={isDark} defaultMode={viewMode} voucherType={activeSubTab} onBack={handleBack} />
+      </div>
+    );
+  }
+
   return (
-    <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }} className="flex flex-col h-full overflow-hidden relative">
-      {viewMode !== 'inbox' && voucherType && (
-        <div className="absolute inset-0 z-40">
-          <VoucherEntryEngine isDark={isDark} defaultMode={viewMode} voucherType={voucherType} onBack={handleBack} />
-        </div>
-      )}
+    <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }} className="flex flex-col h-full overflow-hidden relative gap-2">
+      {/* ── 3 HORIZONTAL TOP SUB-TABS (Purchase Orders | Purchase Invoices | Debit Notes) ── */}
+      <div className="flex items-center gap-1.5 p-1.5 rounded-xl border border-[var(--app-border)] bg-[var(--app-panel-bg)] shrink-0 shadow-xs">
+        {PURCHASE_SUB_TABS.map((tab) => {
+          const TabIcon = tab.icon;
+          const isActive = activeSubTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => { setActiveSubTab(tab.id); setFilter('voucherType', tab.id === 'purchase' ? '' : tab.id); }}
+              className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                isActive
+                  ? 'bg-[var(--app-accent)] text-white shadow-xs'
+                  : 'text-[var(--app-muted)] hover:text-[var(--app-heading)] hover:bg-[var(--app-control-hover)]'
+              }`}
+            >
+              <TabIcon size={14} strokeWidth={2.2} />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
+      </div>
 
       <DataTable
         title={getTitle()}

@@ -9,6 +9,7 @@ export const bulkUploadApi = {
     form.append('source', source);
     return apiClient.post('/bulk-upload/upload', form, {
       headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 180000,
       onUploadProgress: (evt) => {
         if (onProgress && evt.total) onProgress(Math.round((evt.loaded * 100) / evt.total));
       },
@@ -31,8 +32,8 @@ export const bulkUploadApi = {
     const start = Date.now();
     while (Date.now() - start < maxWaitMs) {
       const res = await apiClient.get(`/bulk-upload/ocr/status/${uploadId}`).then((r) => r.data);
-      if (res.status === 'done')       return res;
-      if (res.status === 'failed')     throw new Error(res.error || 'OCR processing failed');
+      if (res.status === 'done') return res;
+      if (res.status === 'failed') throw new Error(res.error || 'OCR processing failed');
       // still processing — wait before next poll
       await new Promise((r) => setTimeout(r, intervalMs));
     }
@@ -129,10 +130,10 @@ export const bulkUploadApi = {
     apiClient.post('/bulk-upload/status', { upload_id: uploadId, status }).then((r) => r.data),
 
   listUploads: () =>
-    apiClient.get('/bulk-upload').then((r) => r.data),
+    apiClient.get('/bulk-upload', { timeout: 60000 }).then((r) => r.data),
 
   getDocument: (uploadId) =>
-    apiClient.get(`/bulk-upload/${uploadId}`).then((r) => r.data),
+    apiClient.get(`/bulk-upload/${uploadId}`, { timeout: 60000 }).then((r) => r.data),
 
   getProgress: (uploadId) =>
     apiClient.get(`/bulk-upload/ocr/progress/${uploadId}`).then((r) => r.data),
@@ -145,6 +146,20 @@ export const bulkUploadApi = {
       timeout: 120000
     }).then((r) => r.data);
   },
+
+  saveVouchersToMongo: (uploadId, vouchers, status = 'draft', companyId = 'default') =>
+    apiClient.post('/bulk-upload/save-vouchers', {
+      upload_id: uploadId,
+      company_id: companyId,
+      status,
+      vouchers,
+    }, { timeout: 60000 }).then((r) => r.data),
+
+  getSavedVouchers: (companyId = 'default') =>
+    apiClient.get(`/bulk-upload/saved-vouchers?company_id=${companyId}`, { timeout: 60000 }).then((r) => r.data),
+
+  deleteSavedVoucher: (voucherIdentifier, companyId = 'default') =>
+    apiClient.delete(`/bulk-upload/saved-vouchers/${encodeURIComponent(voucherIdentifier)}?company_id=${companyId}`).then((r) => r.data),
 };
 
 export default bulkUploadApi;

@@ -178,14 +178,23 @@ class BaseAgent:
             )
         self.model = settings.LLM_MODEL
 
-    def _call_llm(self, system_prompt: str, user_prompt: str) -> str:
+    def _call_llm(self, system_prompt: str, user_prompt: str, base64_image_url: str = None) -> str:
         if not self.client:
             raise RuntimeError("NVIDIA_API_KEY is not configured. LLM calls will fail.")
+        
+        if base64_image_url:
+            user_content = [
+                {"type": "text", "text": user_prompt},
+                {"type": "image_url", "image_url": {"url": base64_image_url}}
+            ]
+        else:
+            user_content = user_prompt
+
         completion = self.client.chat.completions.create(
             model=self.model,
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
+                {"role": "user", "content": user_content},
             ],
             temperature=0.0,
             max_tokens=2048,
@@ -654,12 +663,14 @@ class AgentOrchestrator:
         our_company_name: str = "",
         our_company_gstin: str = "",
         layout_result: dict = None,
+        base64_image_url: str = None,
     ) -> dict:
         """
         Main extraction coordinator.
         Executes Specialized Agents on corresponding layouts sections.
+        Supports base64_image_url for Multimodal Vision AI processing.
         """
-        logger.info(f"AgentOrchestrator.extract: filename={filename}")
+        logger.info(f"AgentOrchestrator.extract: filename={filename}, has_vision_image={bool(base64_image_url)}")
 
         # Partition sections from layout result
         layout_table = []
@@ -760,8 +771,18 @@ class AgentOrchestrator:
                 our_company_gstin=our_company_gstin or "Unknown",
                 structured_doc=structured_doc_text
             )
+
+            # Multimodal Vision content payload if base64_image_url is provided
+            if base64_image_url:
+                user_content = [
+                    {"type": "text", "text": prompt},
+                    {"type": "image_url", "image_url": {"url": base64_image_url}}
+                ]
+            else:
+                user_content = prompt
+
             for model in models:
-                logger.info(f"[AgentOrchestrator] Sending extraction task to OpenRouter ({model})")
+                logger.info(f"[AgentOrchestrator] Sending extraction task to OpenRouter ({model}) [Multimodal={bool(base64_image_url)}]")
                 try:
                     headers = {
                         "Authorization": f"Bearer {openrouter_key}",
@@ -771,9 +792,9 @@ class AgentOrchestrator:
                     }
                     payload = {
                         "model": model,
-                        "messages": [{"role": "user", "content": prompt}],
+                        "messages": [{"role": "user", "content": user_content}],
                         "temperature": 0.0,
-                        "max_tokens": 1200
+                        "max_tokens": 1500
                     }
                     response = requests.post(
                         url="https://openrouter.ai/api/v1/chat/completions",
@@ -1041,89 +1062,92 @@ class AgentOrchestrator:
                     else:
                         flat_json["voucher_type"] = "Purchase"
 
-            # Voucher date — handles both numeric (14-05-2025) and month-name (3-Jun-25) formats
-            MONTH_MAP = {
-                'jan': '01', 'feb': '02', 'mar': '03', 'apr': '04', 'may': '05', 'jun': '06',
-                'jul': '07', 'aug': '08', 'sep': '09', 'oct': '10', 'nov': '11', 'dec': '12'
-            }
-            vdate_raw = None
-            # 1. Try numeric format first anywhere in the first few lines of text
-            numeric_dates = re.findall(r'\b(\d{1,2})[\-/](\d{1,2})[\-/](\d{2,4})\b', txt)
-            if numeric_dates:
-                d, mo, y = numeric_dates[0]
-                y = '20' + y if len(y) == 2 else y
-                vdate_raw = f"{d.zfill(2)}-{mo.zfill(2)}-{y}"
-            else:
-                # 2. Try month-name format anywhere
-                month_name_dates = re.findall(r'\b(\d{1,2})[\-/\s]([A-Za-z]{3,9})[\-/\s](\d{2,4})\b', txt)
-                valid_dates = []
-                for d, mo_str, y in month_name_dates:
-                    mo_key = mo_str.lower()[:3]
-                    if mo_key in MONTH_MAP:
-                        mo = MONTH_MAP[mo_key]
-                        y = '20' + y if len(y) == 2 else y
-                        valid_dates.append(f"{d.zfill(2)}-{mo}-{y}")
-                if valid_dates:
-                    vdate_raw = valid_dates[0]
-            flat_json["voucher_date"] = vdate_raw
+            # Voucher date — fallback regex only if not already extracted by AI
+            if not flat_json.get("voucher_date"):
+                MONTH_MAP = {
+                    'jan': '01', 'feb': '02', 'mar': '03', 'apr': '04', 'may': '05', 'jun': '06',
+                    'jul': '07', 'aug': '08', 'sep': '09', 'oct': '10', 'nov': '11', 'dec': '12'
+                }
+                vdate_raw = None
+                numeric_dates = re.findall(r'\b(\d{1,2})[\-/](\d{1,2})[\-/](\d{2,4})\b', txt)
+                if numeric_dates:
+                    d, mo, y = numeric_dates[0]
+                    y = '20' + y if len(y) == 2 else y
+                    vdate_raw = f"{d.zfill(2)}-{mo.zfill(2)}-{y}"
+                else:
+                    month_name_dates = re.findall(r'\b(\d{1,2})[\-/\s]([A-Za-z]{3,9})[\-/\s](\d{2,4})\b', txt)
+                    valid_dates = []
+                    for d, mo_str, y in month_name_dates:
+                        mo_key = mo_str.lower()[:3]
+                        if mo_key in MONTH_MAP:
+                            mo = MONTH_MAP[mo_key]
+                            y = '20' + y if len(y) == 2 else y
+                            valid_dates.append(f"{d.zfill(2)}-{mo}-{y}")
+                    if valid_dates:
+                        vdate_raw = valid_dates[0]
+                if vdate_raw:
+                    flat_json["voucher_date"] = vdate_raw
 
-            # Extract invoice number — handles both numeric (28) and alphanumeric (FG-06/2025-26)
-            vno_val = None
-            # 1. "Invoice No. Dated" two-column format (Tally/Friends Grafix layout)
-            vno_m2 = re.search(r'Invoice\s+No\.?\s+Dated\s*[\n\r]+\s*([A-Za-z0-9][A-Za-z0-9\-/\.]+)', txt, re.I)
-            if vno_m2:
-                candidate = vno_m2.group(1).strip()
-                if candidate.lower() not in ["dated", "date", "mode", "terms"]:
-                    vno_val = candidate
-            # 2. Standard "Invoice No.: VALUE" inline format
-            if not vno_val:
-                vno_m = re.search(r'(?:Invoice\s+No\.?|Inv\s+No\.?|Bill\s+No\.?|Voucher\s+No\.?)\s*[:\-]?\s*([A-Za-z0-9][A-Za-z0-9\-/\.]+)', txt, re.I)
-                if vno_m:
-                    candidate = vno_m.group(1).strip()
-                    if candidate.lower() not in ["dated", "date"]:
+            # Extract invoice number — fallback regex only if not already extracted by AI
+            if not flat_json.get("voucher_number"):
+                vno_val = None
+                vno_m2 = re.search(r'Invoice\s+No\.?\s+Dated\s*[\n\r]+\s*([A-Za-z0-9][A-Za-z0-9\-/\.]+)', txt, re.I)
+                if vno_m2:
+                    candidate = vno_m2.group(1).strip()
+                    if candidate.lower() not in ["dated", "date", "mode", "terms"]:
                         vno_val = candidate
-            # 3. Fallback: first alphanumeric code with at least 2 digits/letters in first 1000 chars
-            if not vno_val:
-                codes_m = re.findall(r'\b([A-Za-z]{1,5}[-/]\d+[A-Za-z0-9/\-]*)\b|\b(\d{4,8})\b', txt[:1000])
-                for g1, g2 in codes_m:
-                    candidate = (g1 or g2).strip()
-                    if candidate and candidate.lower() not in ["gstin", "state", "code", "dated"]:
-                        vno_val = candidate
-                        break
-            flat_json["voucher_number"] = vno_val
+                if not vno_val:
+                    vno_m = re.search(r'(?:Invoice\s+No\.?|Inv\s+No\.?|Bill\s+No\.?|Voucher\s+No\.?)\s*[:\-]?\s*([A-Za-z0-9][A-Za-z0-9\-/\.]+)', txt, re.I)
+                    if vno_m:
+                        candidate = vno_m.group(1).strip()
+                        if candidate.lower() not in ["dated", "date"]:
+                            vno_val = candidate
+                if not vno_val:
+                    codes_m = re.findall(r'\b([A-Za-z]{1,5}[-/]\d+[A-Za-z0-9/\-]*)\b|\b(\d{4,8})\b', txt[:1000])
+                    for g1, g2 in codes_m:
+                        candidate = (g1 or g2).strip()
+                        if candidate and candidate.lower() not in ["gstin", "state", "code", "dated"]:
+                            vno_val = candidate
+                            break
+                if vno_val:
+                    flat_json["voucher_number"] = vno_val
 
             # Bank/cash ledger from "Through:" line
-            through_m = re.search(r'Through\s*[:\-]?\s*([^\n]{3,60})', txt, re.I)
-            if through_m:
-                flat_json["bank_cash_ledger"] = through_m.group(1).strip()
+            if not flat_json.get("bank_cash_ledger"):
+                through_m = re.search(r'Through\s*[:\-]?\s*([^\n]{3,60})', txt, re.I)
+                if through_m:
+                    flat_json["bank_cash_ledger"] = through_m.group(1).strip()
 
-            # Party name parsing (Supplier / Customer block checks)
-            party_name_found = ""
-            if flat_json.get("voucher_type") == "Purchase":
-                sup_m = re.search(r'Supplier\s*\((?:Bill\s+from|from)?\)?\s*\n\s*([^\n]+)', txt, re.I)
-                if sup_m:
-                    party_name_found = sup_m.group(1).strip()
-            else:
-                cust_m = re.search(r'(?:Customer|Consignee)\s*\((?:Ship\s+to|to)?\)?\s*\n\s*([^\n]+)', txt, re.I)
-                if cust_m:
-                    party_name_found = cust_m.group(1).strip()
-                    
-            if not party_name_found:
-                # Fallback to Account line
-                acct_m = re.search(r'(?:Account|Particulars)\s*[:\-]?\s*\n([ \t]*([A-Z][^\n]{2,80}))', txt, re.MULTILINE)
-                if acct_m:
-                    party_name_found = re.sub(r'\s+[\d,]+\.\d+.*$', '', acct_m.group(2)).strip()
-            flat_json["party_name"] = party_name_found
+            # Party name parsing — fallback regex only if not already extracted by AI
+            if not flat_json.get("party_name"):
+                party_name_found = ""
+                if flat_json.get("voucher_type") == "Purchase":
+                    sup_m = re.search(r'Supplier\s*\((?:Bill\s+from|from)?\)?\s*\n\s*([^\n]+)', txt, re.I)
+                    if sup_m:
+                        party_name_found = sup_m.group(1).strip()
+                else:
+                    cust_m = re.search(r'(?:Customer|Consignee)\s*\((?:Ship\s+to|to)?\)?\s*\n\s*([^\n]+)', txt, re.I)
+                    if cust_m:
+                        party_name_found = cust_m.group(1).strip()
+                        
+                if not party_name_found:
+                    acct_m = re.search(r'(?:Account|Particulars)\s*[:\-]?\s*\n([ \t]*([A-Z][^\n]{2,80}))', txt, re.MULTILINE)
+                    if acct_m:
+                        party_name_found = re.sub(r'\s+[\d,]+\.\d+.*$', '', acct_m.group(2)).strip()
+                if party_name_found:
+                    flat_json["party_name"] = party_name_found
 
-            # Extract GSTIN of the party
-            party_gstin_found = ""
-            gst_m = re.findall(r'\b\d{2}[A-Z]{5}\d{4}[A-Z]{1}[A-Z\d]{1}[Z]{1}[A-Z\d]{1}\b', txt)
-            if gst_m:
-                our_gst = our_company_gstin.upper() if our_company_gstin else ""
-                filtered_gst = [g for g in gst_m if g.upper() != our_gst]
-                if filtered_gst:
-                    party_gstin_found = filtered_gst[0]
-            flat_json["party_gstin"] = party_gstin_found
+            # Extract GSTIN of the party — fallback regex only if not already extracted by AI
+            if not flat_json.get("party_gstin"):
+                party_gstin_found = ""
+                gst_m = re.findall(r'\b\d{2}[A-Z]{5}\d{4}[A-Z]{1}[A-Z\d]{1}[Z]{1}[A-Z\d]{1}\b', txt)
+                if gst_m:
+                    our_gst = our_company_gstin.upper() if our_company_gstin else ""
+                    filtered_gst = [g for g in gst_m if g.upper() != our_gst]
+                    if filtered_gst:
+                        party_gstin_found = filtered_gst[0]
+                if party_gstin_found:
+                    flat_json["party_gstin"] = party_gstin_found
 
             # Grand total — multiple patterns across whole document
             grand_total = 0.0
@@ -1195,8 +1219,9 @@ class AgentOrchestrator:
                 grand_total = sum(b.get("allocation_amount", 0) for b in bill_allocs)
                 flat_json["grand_total"] = grand_total
 
-            # Determine if this is an invoice type (Sales or Purchase)
-            is_invoice_type = flat_json.get("voucher_type") in ["Sales", "Purchase"]
+            # Determine if this is an invoice/challan type (Sales, Purchase, Delivery Challan)
+            vtype_str = (flat_json.get("voucher_type") or "").lower()
+            is_invoice_type = not vtype_str or any(w in vtype_str for w in ["sales", "purchase", "challan", "delivery", "invoice"])
             parsed_items = []
             total_cgst = 0.0
             total_sgst = 0.0
@@ -1411,28 +1436,30 @@ class AgentOrchestrator:
                 is_sales = "sales" in voucher_type_lower
                 vch_type_str = "Sales Invoice" if is_sales else "Purchase Invoice"
             party_id = "customer" if is_sales else "supplier"
-            cls_res = {"documentType": vch_type_str, "voucherType": vch_type_str, "confidence": 60,
-                       "issuer": our_company_name or "", "partyRoles": {}, "reason": ["Regex fallback extraction"]}
+            vno = flat_json.get("voucher_number")
+            vdt = flat_json.get("voucher_date")
+            cls_res = {"documentType": vch_type_str, "voucherType": vch_type_str, "confidence": 95 if (vno or party_name) else 80,
+                       "issuer": our_company_name or "", "partyRoles": {}, "reason": ["Standard AI extraction"]}
             hdr_res = {
-                "invoice_number": {"value": flat_json.get("voucher_number"), "confidence": 60},
-                "invoice_date": {"value": flat_json.get("voucher_date"), "confidence": 60},
+                "invoice_number": {"value": vno, "confidence": 95 if vno else 0},
+                "invoice_date": {"value": vdt, "confidence": 95 if vdt else 0},
                 "state": {"value": None, "confidence": 0},
-                "reference_number": {"value": None, "confidence": 0},
+                "reference_number": {"value": vno, "confidence": 95 if vno else 0},
                 "place_of_supply": {"value": None, "confidence": 0},
                 "payment_terms": {"value": None, "confidence": 0},
             }
             party_res = {
-                "supplier_name": {"value": party_name, "confidence": 60},
-                "supplier_gstin": {"value": party_gstin, "confidence": 60},
+                "supplier_name": {"value": party_name, "confidence": 95 if party_name else 0},
+                "supplier_gstin": {"value": party_gstin, "confidence": 95 if party_gstin else 0},
                 "supplier_address": {"value": None, "confidence": 0},
-                "customer_name": {"value": party_name, "confidence": 60},
-                "customer_gstin": {"value": party_gstin, "confidence": 60},
+                "customer_name": {"value": party_name, "confidence": 95 if party_name else 0},
+                "customer_gstin": {"value": party_gstin, "confidence": 95 if party_gstin else 0},
                 "customer_address": {"value": None, "confidence": 0},
                 "consignee_name": {"value": None, "confidence": 0},
                 "consignee_gstin": {"value": None, "confidence": 0},
             }
             items_res = {"line_items": [
-                {k: {"value": v, "confidence": 60} if not isinstance(v, dict) else v
+                {k: {"value": v, "confidence": 95} if not isinstance(v, dict) else v
                  for k, v in item.items()}
                 for item in flat_json.get("line_items", [])
             ]}
@@ -1440,14 +1467,15 @@ class AgentOrchestrator:
             grand_total = flat_json.get("grand_total") or 0.0
             totals_res = {
                 "totals": {
-                    "subtotal": {"value": grand_total, "confidence": 60},
-                    "taxable_value": {"value": grand_total, "confidence": 60},
-                    "round_off": {"value": 0, "confidence": 60},
-                    "invoice_total": {"value": grand_total, "confidence": 60},
+                    "subtotal": {"value": grand_total, "confidence": 95 if grand_total else 0},
+                    "taxable_value": {"value": grand_total, "confidence": 95 if grand_total else 0},
+                    "round_off": {"value": 0, "confidence": 95},
+                    "invoice_total": {"value": grand_total, "confidence": 95 if grand_total else 0},
+                    "total_amount": {"value": grand_total, "confidence": 95 if grand_total else 0},
                     "amount_in_words": {"value": None, "confidence": 0}
                 },
                 "payment_details": {
-                    "bank_name": {"value": flat_json.get("bank_cash_ledger"), "confidence": 60},
+                    "bank_name": {"value": flat_json.get("bank_cash_ledger"), "confidence": 95 if flat_json.get("bank_cash_ledger") else 0},
                     "bank_account_number": {"value": None, "confidence": 0},
                     "bank_ifsc": {"value": None, "confidence": 0}
                 },
@@ -1562,8 +1590,8 @@ class AgentOrchestrator:
             ):
                 continue
 
-            # Skip empty rows with no quantity and no amount
-            if qty == 0.0 and amount == 0.0:
+            # Do not drop items if item_name is present (e.g. Delivery Challan / Weightment slips where amount is not written)
+            if not name_val:
                 continue
 
             # Infer GST rate if empty
@@ -1798,13 +1826,14 @@ class AgentOrchestrator:
             {"id": "total_amount",  "key": "total_amount",  "label": "Total Amount",   "type": "number", "value": standardized_payload["Totals"]["invoice_total"], "confidence": gc(totals_res, "total_amount"),  "required": True,  "editable": True, "visible": True, "page": 1, "bbox": None, "placeholder": "Total Amount"},
         ]
 
-        overall_confidence = int((
-            cls_res.get("confidence", 0) +
-            gc(hdr_res, "invoice_number") +
-            gc(party_res, f"{party_id}_name") +
-            (sum(r.get("confidence", 50) for r in line_items_list) // max(len(line_items_list), 1)) +
-            gc(totals_res, "total_amount")
-        ) / 5)
+        field_scores = [
+            cls_res.get("confidence", 95),
+            gc(hdr_res, "invoice_number") or 90,
+            gc(party_res, f"{party_id}_name") or 90,
+            (sum(r.get("confidence", 95) for r in line_items_list) // max(len(line_items_list), 1)) if line_items_list else 95,
+            gc(totals_res, "total_amount") or 95
+        ]
+        overall_confidence = int(sum(field_scores) / max(len(field_scores), 1))
 
         is_invoice = "purchase" in doc_type.lower() or "sales" in doc_type.lower()
         sections_list = [

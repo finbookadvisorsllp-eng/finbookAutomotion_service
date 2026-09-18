@@ -21,20 +21,16 @@ class SalesVoucherService:
         party_details = await self.repo.get_party_details(payload.partyLedgerName)
         party_state = party_details["gstState"] or company_state
 
-        # 3. Generate Sequential Voucher Number if not provided or if series is Default
-        # Change by Anjalee: Use Tally-style type-specific prefix for voucher numbering
-        voucher_type_raw = (payload.voucherType or "sales_invoice").lower().replace(" ", "_")
+        # 3. Generate Sequential Voucher Number atomically via VoucherNumberService at SAVE TIME
         voucher_number = payload.voucherNumber
-        if not voucher_number or payload.voucherSeries == "Default":
-            prefix_map = {
-                "sales_invoice": "SI",
-                "sales_order": "SO",
-                "credit_note": "CN",
-            }
-            prefix = prefix_map.get(voucher_type_raw, "SV")
-            seq = await self.repo.get_dynamic_next_sequence(voucher_type_raw, prefix, consume=True)
-            year = datetime.now().year
-            voucher_number = f"{prefix}-{year}-{str(seq).zfill(4)}"
+        if not voucher_number:
+            from app.anjalee.services.voucher_number_service import VoucherNumberService
+            voucher_number = await VoucherNumberService.get_next_voucher_number(
+                db=self.repo.db,
+                company_id=company_id,
+                voucher_type=payload.voucherType or "sales_invoice",
+                series_id=payload.voucherSeries or "MAIN"
+            )
 
         # 4. Convert Pydantic entries to dictionaries for calculation
         sales_entries_dict = [entry.model_dump() for entry in payload.salesEntries] if payload.salesEntries else []

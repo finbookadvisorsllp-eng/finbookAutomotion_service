@@ -8,3 +8,4 @@ jsondata
 **/.env.*
 !.env.example
 !**/.env.example
+bulk_test_files

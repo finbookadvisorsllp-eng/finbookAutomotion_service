@@ -32,11 +32,24 @@ async def get_user_by_id(user_id: str) -> Optional[dict]:
 
 
 async def get_organization_by_id(org_id: str) -> Optional[dict]:
-    """Find an organization record by ID."""
+    """Find an organization record by ID, slug, or dbName."""
     db = await get_async_iam_db()
     try:
-        query_id = ObjectId(org_id) if ObjectId.is_valid(org_id) else org_id
-        org = await db["organizations"].find_one({"_id": query_id})
+        org_id_str = str(org_id).strip()
+        query_conditions = [
+            {"slug": org_id_str},
+            {"name": org_id_str},
+            {"displayName": org_id_str},
+            {"dbName": org_id_str}
+        ]
+        if len(org_id_str) == 24 and ObjectId.is_valid(org_id_str):
+            try:
+                query_conditions.append({"_id": ObjectId(org_id_str)})
+            except Exception:
+                pass
+        query_conditions.append({"_id": org_id_str})
+
+        org = await db["organizations"].find_one({"$or": query_conditions})
         if org:
             org["_id"] = str(org["_id"])
         return org
@@ -63,13 +76,14 @@ async def get_organizations_by_ids(org_ids: List[str]) -> List[dict]:
 
 
 async def update_user_last_login(user_id: str) -> bool:
-    """Update lastLoginAt timestamp for a user."""
+    """Update lastLogin and lastLoginAt timestamp for a user."""
     db = await get_async_iam_db()
     try:
         query_id = ObjectId(user_id) if ObjectId.is_valid(user_id) else user_id
+        now = datetime.utcnow()
         result = await db["users"].update_one(
             {"_id": query_id},
-            {"$set": {"lastLoginAt": datetime.utcnow()}}
+            {"$set": {"lastLogin": now, "lastLoginAt": now}}
         )
         return result.modified_count > 0
     except Exception:

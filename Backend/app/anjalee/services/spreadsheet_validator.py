@@ -109,6 +109,16 @@ def parse_date_flexible(val) -> tuple:
     if " " in val_str:
         val_str = val_str.split(" ")[0]
 
+    # Check if value is Excel serial date float/int (e.g. 45383 or 45383.0)
+    try:
+        val_float = float(val_str)
+        if 30000 <= val_float <= 70000:
+            excel_epoch = datetime(1899, 12, 30)
+            parsed_dt = excel_epoch + timedelta(days=val_float)
+            return parsed_dt, None
+    except ValueError:
+        pass
+
     FORMATS = [
         "%d/%m/%Y", "%d-%m-%Y", "%Y-%m-%d", "%Y/%m/%d",
         "%d.%m.%Y", "%Y%m%d", "%d-%b-%Y", "%d %b %Y",
@@ -281,6 +291,58 @@ def make_issue(
 # SpreadsheetValidationEngine
 # ─────────────────────────────────────────────────────────────────────────────
 
+TEMPLATE_COLUMNS = {
+    "Sales Voucher (With Item)": [
+        "Voucher Type", "Voucher No", "Date", "Party Name", "GSTIN", "GST Registration",
+        "Sales Ledger", "Consignee Name", "Consignee GSTIN", "Consignee State",
+        "Dispatch Doc No", "Dispatch Through", "Destination", "Carrier / Lorry No",
+        "Stock Item", "Item Description", "HSN/SAC", "Quantity", "Unit", "Rate", "Discount%",
+        "Amount (Taxable)", "GST Rate%", "CGST Amount", "SGST Amount", "IGST Amount", "CESS Amount",
+        "Additional Ledger Name", "Additional Ledger Amount",
+        "TDS Applicable", "TDS Rate%", "TDS Amount", "TCS Applicable", "TCS Rate%", "TCS Amount",
+        "Round Off", "Total Invoice Amount", "Reference No", "Place of Supply", "Payment Terms", "Narration"
+    ],
+    "Sales Voucher (Without Item)": [
+        "Voucher Type", "Voucher No", "Date", "Party Name", "GSTIN", "GST Registration",
+        "Sales Ledger", "Service Description", "HSN/SAC", "Amount (Taxable)", "GST Rate%",
+        "CGST Amount", "SGST Amount", "IGST Amount", "CESS Amount",
+        "Additional Ledger Name", "Additional Ledger Amount",
+        "TDS Applicable", "TDS Rate%", "TDS Amount", "TCS Applicable", "TCS Rate%", "TCS Amount",
+        "Round Off", "Total Invoice Amount", "Reference No", "Place of Supply", "Payment Terms", "Narration"
+    ],
+    "Purchase Voucher (With Item)": [
+        "Voucher Type", "Voucher No", "Date", "Party Name", "GSTIN", "GST Registration",
+        "Purchase Ledger", "Consignee Name", "Consignee GSTIN", "Consignee State",
+        "Dispatch Doc No", "Dispatch Through", "Destination", "Carrier / Lorry No",
+        "Stock Item", "Item Description", "HSN/SAC", "Quantity", "Unit", "Rate", "Discount%",
+        "Amount (Taxable)", "GST Rate%", "CGST Amount", "SGST Amount", "IGST Amount", "CESS Amount",
+        "Additional Ledger Name", "Additional Ledger Amount",
+        "TDS Applicable", "TDS Rate%", "TDS Amount", "TCS Applicable", "TCS Rate%", "TCS Amount",
+        "Round Off", "Total Invoice Amount", "Supplier Bill No", "Supplier Bill Date", "Place of Supply", "Narration"
+    ],
+    "Purchase Voucher (Without Item)": [
+        "Voucher Type", "Voucher No", "Date", "Party Name", "GSTIN", "GST Registration",
+        "Purchase Ledger", "Expense Description", "HSN/SAC", "Amount (Taxable)", "GST Rate%",
+        "CGST Amount", "SGST Amount", "IGST Amount", "CESS Amount",
+        "Additional Ledger Name", "Additional Ledger Amount",
+        "TDS Applicable", "TDS Rate%", "TDS Amount", "TCS Applicable", "TCS Rate%", "TCS Amount",
+        "Round Off", "Total Invoice Amount", "Supplier Bill No", "Supplier Bill Date", "Place of Supply", "Narration"
+    ],
+    "Payment Voucher": [
+        "Voucher Type", "Voucher No", "Date", "Paid To / Account (Dr)", "Payment Mode / Bank Account (Cr)",
+        "Amount", "Cheque / Instrument No", "Cheque / Instrument Date", "Bank Name", "Branch Name", "Payment Terms", "Narration"
+    ],
+    "Receipt Voucher": [
+        "Voucher Type", "Voucher No", "Date", "Received From / Account (Cr)", "Deposit To / Bank Account (Dr)",
+        "Amount", "Cheque / Instrument No", "Cheque / Instrument Date", "Bank Name", "Branch Name", "Reference No", "Narration"
+    ],
+    "Contra Voucher": [
+        "Voucher Type", "Voucher No", "Date", "Transfer From Account (Cr)", "Transfer To Account (Dr)",
+        "Amount", "Cheque / Instrument No", "Cheque / Instrument Date", "Bank Name", "Branch Name", "Narration"
+    ]
+}
+
+
 class SpreadsheetValidationEngine:
     """
     Validates an uploaded spreadsheet against MongoDB master records
@@ -448,6 +510,13 @@ class SpreadsheetValidationEngine:
         hdr = " ".join(str(h or "") for h in headers).lower()
 
         for keyword, doc_type in [
+            ("bank statement",   "Bank Statement"),
+            ("bank",             "Bank Statement"),
+            ("statement",        "Bank Statement"),
+            ("passbook",         "Bank Statement"),
+            ("withdrawal",       "Bank Statement"),
+            ("deposit",          "Bank Statement"),
+            ("particulars",      "Bank Statement"),
             ("sales invoice",    "Sales Invoice"),
             ("purchase invoice", "Purchase Invoice"),
             ("credit note",      "Credit Note"),
@@ -458,14 +527,12 @@ class SpreadsheetValidationEngine:
             ("receipt",          "Receipt Voucher"),
             ("purchase",         "Purchase Voucher"),
             ("sales",            "Sales Voucher"),
-            ("bank",             "Bank Statement"),
-            ("statement",        "Bank Statement"),
         ]:
             if keyword in fn or keyword in hdr:
                 return doc_type
 
         # Infer from detected columns
-        if "UTR/Cheque No" in col_idx or "Bank Name" in col_idx:
+        if "UTR/Cheque No" in col_idx or "Bank Name" in col_idx or "Withdrawal" in col_idx or "Deposit" in col_idx:
             return "Bank Statement"
         if "IGST Amount" in col_idx or "HSN/SAC" in col_idx:
             return "Sales Invoice"
@@ -523,45 +590,17 @@ class SpreadsheetValidationEngine:
             ))
         else:
             now = datetime.now()
-            fy_start_year = now.year if now.month >= 4 else now.year - 1
-            fy_start = datetime(fy_start_year, 4, 1)
-            fy_end = datetime(fy_start_year + 1, 3, 31)
 
-            if parsed > now:
-                issues.append(make_issue(
-                    row=row_num, col=ci, field="Date", category="Date", severity="Warning",
-                    title="Future Date Detected",
-                    current_value=val,
-                    what_is_wrong=f"Date '{val}' is in the future.",
-                    why_is_wrong="Transactions are typically not post-dated.",
-                    how_to_fix="Correct the date if entered incorrectly.",
-                    suggested_value=now.strftime("%d/%m/%Y"),
-                    confidence=0.8, can_auto_fix=False,
-                ))
-            elif parsed < datetime(2000, 1, 1):
+            if parsed < datetime(2000, 1, 1) or parsed > datetime(2035, 12, 31):
                 issues.append(make_issue(
                     row=row_num, col=ci, field="Date", category="Date", severity="Error",
                     title="Date Out of Range",
                     current_value=val,
-                    what_is_wrong=f"'{val}' is before the year 2000.",
+                    what_is_wrong=f"'{val}' is out of acceptable accounting date range (2000-2035).",
                     why_is_wrong="Accounting records must have dates within a valid financial year range.",
                     how_to_fix="Enter a valid 4-digit year date.",
                     suggested_value=now.strftime("%d/%m/%Y"),
                     confidence=0.95, can_auto_fix=False,
-                ))
-            elif not (fy_start <= parsed <= fy_end):
-                issues.append(make_issue(
-                    row=row_num, col=ci, field="Date", category="Date", severity="Warning",
-                    title="Date Outside Current Financial Year",
-                    current_value=val,
-                    what_is_wrong=(
-                        f"Date '{val}' falls outside the current FY "
-                        f"({fy_start.strftime('%d/%m/%Y')} – {fy_end.strftime('%d/%m/%Y')})."
-                    ),
-                    why_is_wrong="Vouchers outside the active financial year may be rejected during Tally import.",
-                    how_to_fix="Confirm the financial year or adjust the date.",
-                    suggested_value=None,
-                    confidence=0.7, can_auto_fix=False,
                 ))
 
         return issues
@@ -596,8 +635,8 @@ class SpreadsheetValidationEngine:
             ))
         return issues
 
-    def _validate_party(self, row, row_num, col_idx, doc_type):
-        """Validates Party Name against Sundry Debtor/Creditor ledgers only."""
+    def _validate_party(self, row, row_num, col_idx, doc_type, mapping_engine=None):
+        """Validates Party Name using MasterMappingEngine 5-level pipeline."""
         issues = []
         ci, val = self.get_cell(row, col_idx, "Party Name")
         if ci == -1:
@@ -624,6 +663,7 @@ class SpreadsheetValidationEngine:
         if not self.party_ledgers and not self.all_ledgers:
             return issues
 
+        # Level 1-5 Master Mapping Check
         best_party, conf_party = fuzzy_best_match(val, self.party_ledgers)
         best_all, conf_all = fuzzy_best_match(val, self.all_ledgers)
 
@@ -636,14 +676,14 @@ class SpreadsheetValidationEngine:
         if val.lower() not in self.party_ledgers and val.lower() not in self.all_ledgers:
             issues.append(make_issue(
                 row=row_num, col=ci, field="Party Name", category="Party/Ledger", severity="Error",
-                title="Ledger Not Found in Tally",
+                title="Ledger Not Found in Master Data",
                 current_value=val,
-                what_is_wrong=f"Party '{val}' does not exist in your Tally master ledgers.",
-                why_is_wrong="Tally XML import will fail if ledger names do not match exactly.",
-                how_to_fix=f"Rename to '{best}' or create a new ledger." if best else "Create a new ledger or correct the spelling.",
+                what_is_wrong=f"Party '{val}' does not match any company master ledger.",
+                why_is_wrong="Company master data is the strict source of truth. Unmapped ledgers cannot be auto-posted.",
+                how_to_fix=f"Rename to '{best}' or select from Master Mapping Review Center." if best else "Select master or request master creation.",
                 suggested_value=best,
-                confidence=conf, can_auto_fix=(bool(best) and conf >= 0.8),
-                create_new_master=(best is None),
+                confidence=conf, can_auto_fix=(bool(best) and conf >= 0.85),
+                create_new_master=True,
             ))
         elif val.lower() not in self.party_ledgers and val.lower() in self.all_ledgers:
             issues.append(make_issue(
@@ -651,8 +691,8 @@ class SpreadsheetValidationEngine:
                 title="Ledger Not in Debtor/Creditor Group",
                 current_value=val,
                 what_is_wrong=f"'{val}' exists in ledgers but not under Sundry Debtors or Sundry Creditors.",
-                why_is_wrong="Party ledgers for sales/purchase must belong to Sundry Debtors or Creditors group.",
-                how_to_fix="Change the ledger group in Tally to Sundry Debtors or Sundry Creditors.",
+                why_is_wrong="Party ledgers for sales/purchase should belong to Sundry Debtors or Creditors group.",
+                how_to_fix="Confirm ledger group allocation in master data.",
                 suggested_value=val,
                 confidence=0.9, can_auto_fix=False,
             ))
@@ -881,7 +921,21 @@ class SpreadsheetValidationEngine:
                 suggested_value=str(abs(qty)), confidence=1.0, can_auto_fix=True,
             ))
 
-        if qty is not None and rate is not None and taxable is not None:
+        if qty is not None and qty > 0 and taxable is not None and taxable > 0:
+            if rate is None or rate == 0:
+                calc_rate = round(taxable / qty, 2)
+                issues.append(make_issue(
+                    row=row_num, col=rate_ci if rate_ci != -1 else 0, field="Rate", category="Calculation", severity="Info",
+                    title="Missing Rate Auto-Calculated",
+                    current_value=rate_str,
+                    what_is_wrong=f"Rate is missing or zero, but Qty ({qty}) and Taxable Value ({taxable}) are provided.",
+                    why_is_wrong="Unit Rate is required for stock item entries in vouchers.",
+                    how_to_fix=f"Auto-calculate Rate = Taxable ({taxable}) / Qty ({qty}) = {calc_rate}",
+                    suggested_value=str(calc_rate),
+                    confidence=0.95, can_auto_fix=True,
+                ))
+
+        if qty is not None and rate is not None and rate > 0 and taxable is not None:
             disc_str = str(row[disc_ci] if disc_ci != -1 and disc_ci < len(row) else "0").strip()
             disc, _ = safe_float(disc_str.replace("%", ""))
             disc = disc or 0
@@ -1082,7 +1136,11 @@ class SpreadsheetValidationEngine:
 
     def _validate_bank_account(self, row, row_num, col_idx, doc_type):
         issues = []
-        ci, val = self.get_cell(row, col_idx, "Bank Name")
+        ci, val = self.get_cell(row, col_idx, "Payment Mode / Bank Account (Cr)")
+        if ci == -1 or not val:
+            ci, val = self.get_cell(row, col_idx, "Deposit To / Bank Account (Dr)")
+        if ci == -1 or not val:
+            ci, val = self.get_cell(row, col_idx, "Bank Name")
         if ci == -1:
             return issues
 
@@ -1189,6 +1247,89 @@ class SpreadsheetValidationEngine:
                 seen[h] = row_num
         return result
 
+    def transform_to_template_grid(self, raw_grid, col_mappings, doc_type="Sales Voucher"):
+        col_idx_map = {m["standard_erp_field"]: m["col_idx"] for m in col_mappings if m.get("standard_erp_field") != "Unmapped"}
+        has_item = "Item Name" in col_idx_map or "Stock Item" in col_idx_map
+        
+        dt_lower = doc_type.lower()
+        if "payment" in dt_lower or "pay" in dt_lower:
+            tpl_key = "Payment Voucher"
+        elif "receipt" in dt_lower or "rec" in dt_lower:
+            tpl_key = "Receipt Voucher"
+        elif "contra" in dt_lower or "ctr" in dt_lower:
+            tpl_key = "Contra Voucher"
+        elif "purchase" in dt_lower or "pur" in dt_lower:
+            tpl_key = "Purchase Voucher (With Item)" if has_item else "Purchase Voucher (Without Item)"
+        else:
+            tpl_key = "Sales Voucher (With Item)" if has_item else "Sales Voucher (Without Item)"
+            
+        tpl_headers = TEMPLATE_COLUMNS.get(tpl_key, TEMPLATE_COLUMNS["Sales Voucher (With Item)"])
+        
+        data_start = 1
+        if raw_grid and len(raw_grid) > 0:
+            first_cell = str(raw_grid[0][0] or '').strip().upper()
+            if first_cell == 'A' or first_cell == 'COL A':
+                data_start = 2
+                
+        raw_data_rows = raw_grid[data_start:] if len(raw_grid) >= data_start else raw_grid
+        
+        projected_rows = [tpl_headers]
+        
+        for row in raw_data_rows:
+            proj_row = []
+            for tpl_col in tpl_headers:
+                ci = col_idx_map.get(tpl_col, -1)
+                if ci == -1:
+                    if tpl_col == "Voucher Type":
+                        val = doc_type
+                    elif tpl_col in ("Sales Ledger", "Purchase Ledger"):
+                        ci_alt = col_idx_map.get("Ledger", -1)
+                        val = row[ci_alt] if ci_alt != -1 and ci_alt < len(row) else ""
+                    elif tpl_col == "Stock Item":
+                        ci_alt = col_idx_map.get("Item Name", -1)
+                        val = row[ci_alt] if ci_alt != -1 and ci_alt < len(row) else ""
+                    elif tpl_col == "Item Description":
+                        ci_alt = col_idx_map.get("Narration", -1)
+                        val = row[ci_alt] if ci_alt != -1 and ci_alt < len(row) else ""
+                    elif tpl_col == "Amount (Taxable)":
+                        ci_alt = col_idx_map.get("Taxable Value", col_idx_map.get("Amount", -1))
+                        val = row[ci_alt] if ci_alt != -1 and ci_alt < len(row) else ""
+                    elif tpl_col == "GST Rate%":
+                        ci_alt = col_idx_map.get("GST Rate", -1)
+                        val = row[ci_alt] if ci_alt != -1 and ci_alt < len(row) else ""
+                    elif tpl_col == "Total Invoice Amount":
+                        ci_alt = col_idx_map.get("Amount", -1)
+                        val = row[ci_alt] if ci_alt != -1 and ci_alt < len(row) else ""
+                    elif tpl_col == "Rate":
+                        ci_alt = col_idx_map.get("Rate", -1)
+                        val = row[ci_alt] if ci_alt != -1 and ci_alt < len(row) else ""
+                        if not str(val).strip() or str(val).strip() == "0":
+                            ci_q = col_idx_map.get("Quantity", col_idx_map.get("Qty", -1))
+                            ci_t = col_idx_map.get("Taxable Value", col_idx_map.get("Amount (Taxable)", col_idx_map.get("Amount", -1)))
+                            q_val, _ = safe_float(row[ci_q] if ci_q != -1 and ci_q < len(row) else None)
+                            t_val, _ = safe_float(row[ci_t] if ci_t != -1 and ci_t < len(row) else None)
+                            if q_val and q_val > 0 and t_val and t_val > 0:
+                                val = str(round(t_val / q_val, 2))
+                    elif tpl_col in ("Paid To / Account (Dr)", "Received From / Account (Cr)", "Party Name"):
+                        ci_alt = col_idx_map.get("Paid To / Account (Dr)", col_idx_map.get("Received From / Account (Cr)", col_idx_map.get("Party Name", col_idx_map.get("Ledger", -1))))
+                        val = row[ci_alt] if ci_alt != -1 and ci_alt < len(row) else ""
+                    elif tpl_col in ("Payment Mode / Bank Account (Cr)", "Deposit To / Bank Account (Dr)", "Bank Name"):
+                        ci_alt = col_idx_map.get("Payment Mode / Bank Account (Cr)", col_idx_map.get("Deposit To / Bank Account (Dr)", col_idx_map.get("Bank Name", -1)))
+                        val = row[ci_alt] if ci_alt != -1 and ci_alt < len(row) else ""
+                    else:
+                        val = ""
+                else:
+                    val = row[ci] if ci < len(row) else ""
+                proj_row.append(str(val) if val is not None else "")
+            projected_rows.append(proj_row)
+            
+        projected_mappings = [
+            {"original_name": col, "standard_erp_field": col, "col_idx": idx, "confidence": 1.0}
+            for idx, col in enumerate(tpl_headers)
+        ]
+        
+        return projected_rows, projected_mappings, tpl_key
+
     # ─────────────────────────────────────────────────────────────────────────
     # Main entry point
     # ─────────────────────────────────────────────────────────────────────────
@@ -1196,17 +1337,6 @@ class SpreadsheetValidationEngine:
     async def validate(self, normalised_rows: list, filename: str) -> dict:
         """
         Full validation pipeline.
-
-        Args:
-            normalised_rows: list of rows (first row = headers, rest = data).
-                             Cell values may be str, int, float, datetime, or date.
-            filename:        Original uploaded filename (used for doc type classification).
-
-        Returns:
-            {
-                column_mapping, col_idx, doc_type,
-                validation_results, validation_summary
-            }
         """
         await self._load_master_data()
 
@@ -1221,12 +1351,20 @@ class SpreadsheetValidationEngine:
                 },
             }
 
-        headers    = normalised_rows[0]
-        data_rows  = normalised_rows[1:]
+        raw_headers    = normalised_rows[0]
+        raw_mappings   = self.map_columns(raw_headers)
+        raw_col_idx    = self.build_col_index(raw_mappings)
+        raw_doc_type   = self.classify_document(filename, raw_headers, raw_col_idx)
 
-        column_mapping = self.map_columns(headers)
-        col_idx        = self.build_col_index(column_mapping)
-        doc_type       = self.classify_document(filename, headers, col_idx)
+        # ── Re-project grid into exact standard template columns ──
+        tpl_grid, column_mapping, tpl_doc_type = self.transform_to_template_grid(
+            normalised_rows, raw_mappings, raw_doc_type
+        )
+
+        headers    = tpl_grid[0]
+        data_rows  = tpl_grid[1:]
+        col_idx    = self.build_col_index(column_mapping)
+        doc_type   = tpl_doc_type
         duplicate_map  = self._detect_duplicate_rows(data_rows)
 
         all_issues = []
@@ -1283,6 +1421,7 @@ class SpreadsheetValidationEngine:
             "column_mapping": column_mapping,
             "col_idx": col_idx,
             "doc_type": doc_type,
+            "excel_grid": tpl_grid,
             "validation_results": all_issues,
             "validation_summary": {
                 "total_rows":             total_rows,

@@ -1,6 +1,8 @@
+import os
 from app.anjalee.routes.routes import api_router
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from datetime import datetime
 from app.db import warm_up_tenant_cache
 
@@ -9,6 +11,14 @@ app = FastAPI(
     description="FastAPI Backend for bookkeeping automation, multi-tenant enabled.",
     version="1.0.0"
 )
+
+# Ensure local persistent uploads directory exists
+os.makedirs(os.path.join("uploads", "bulk-upload"), exist_ok=True)
+os.makedirs(os.path.join("uploads", "documents"), exist_ok=True)
+os.makedirs(os.path.join("uploads", "bank_statements"), exist_ok=True)
+
+# Mount /uploads endpoint to serve physical uploaded files persistently
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 from app.anjalee.agents.platform import daily_scheduler
 
@@ -19,7 +29,10 @@ def startup_event():
 
 @app.on_event("shutdown")
 def shutdown_event():
-    daily_scheduler.stop()
+    try:
+        daily_scheduler.stop()
+    except Exception as e:
+        pass
 
 # ─── CORS Configuration ───
 # Allow access from localhost frontend development servers

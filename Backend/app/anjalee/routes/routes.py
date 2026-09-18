@@ -57,10 +57,11 @@ api_router.include_router(ledgers.router)
 from . import masters
 api_router.include_router(masters.router)
 
-from . import clients
-api_router.include_router(clients.router)
+from . import bank_statement_ai
+api_router.include_router(bank_statement_ai.router)
 
 api_router.include_router(protected_router)
+
 
 
 

@@ -13,6 +13,27 @@ def get_fundflow_service(db = Depends(get_db)) -> FundFlowService:
     repo = FundFlowRepository(db)
     return FundFlowService(repo)
 
+@router.get("/bank-statement")
+async def get_bank_statement(
+    bankLedger: str,
+    voucherType: Optional[str] = None,
+    source: Optional[str] = None,
+    search: Optional[str] = None,
+    companyId: Optional[str] = None,
+    service: FundFlowService = Depends(get_fundflow_service)
+):
+    result = service.get_bank_statement(
+        bank_ledger=bankLedger,
+        company_id=companyId,
+        voucher_type=voucherType,
+        source=source,
+        search=search
+    )
+    return {
+        "success": True,
+        "data": result
+    }
+
 @router.get("/stats")
 async def get_summary_stats(
     voucherType: str = "bank_payment",
@@ -24,6 +45,7 @@ async def get_summary_stats(
         "success": True,
         "data": stats
     }
+
 
 @router.get("")
 async def list_transactions(

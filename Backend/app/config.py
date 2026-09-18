@@ -82,8 +82,8 @@ class Settings:
         return {k: v for k, v in seed.items() if k and v}
 
     
-    # Default Database Name to fetch data locally
-    DEFAULT_DB_NAME: str = "finbook_23aafff9731l1z7"
+    # Dynamic IAM default database setting
+    DEFAULT_DB_NAME: str = _clean(os.getenv("DEFAULT_DB_NAME"))
 
     # Shared IAM Authentication settings
     IAM_DB_NAME: str = os.getenv("IAM_DB_NAME") or "iam"

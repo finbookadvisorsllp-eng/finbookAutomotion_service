@@ -138,12 +138,41 @@ class PurchaseService:
         self._calculate_and_apply_taxes(doc_data, payload)
         
         if not doc_data.get("voucherNumber"):
-            voucher_type = doc_data["voucherType"]
-            prefix = PURCHASE_PREFIXES.get(voucher_type, "PI")
-                
-            seq = self.repo.get_dynamic_next_sequence(voucher_type, prefix, consume=True)
-            year = datetime.now().year
-            doc_data["voucherNumber"] = f"{prefix}-{year}-{str(seq).zfill(4)}"
+            from app.anjalee.services.voucher_number_service import VoucherNumberService
+            import asyncio
+            v_type = doc_data.get("voucherType") or "purchase_invoice"
+            comp_id = doc_data.get("companyId")
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    # If event loop is running, use future or direct call
+                    v_no = loop.run_until_complete(VoucherNumberService.get_next_voucher_number(
+                        db=self.repo.db,
+                        company_id=comp_id,
+                        voucher_type=v_type,
+                        series_id="MAIN"
+                    ))
+                else:
+                    v_no = asyncio.run(VoucherNumberService.get_next_voucher_number(
+                        db=self.repo.db,
+                        company_id=comp_id,
+                        voucher_type=v_type,
+                        series_id="MAIN"
+                    ))
+            except Exception:
+                try:
+                    v_no = asyncio.run(VoucherNumberService.get_next_voucher_number(
+                        db=self.repo.db,
+                        company_id=comp_id,
+                        voucher_type=v_type,
+                        series_id="MAIN"
+                    ))
+                except Exception:
+                    prefix = PURCHASE_PREFIXES.get(v_type, "PUR")
+                    seq = self.repo.get_dynamic_next_sequence(v_type, prefix, consume=True)
+                    v_no = f"{prefix}-{datetime.now().year}-{str(seq).zfill(4)}"
+
+            doc_data["voucherNumber"] = v_no
             
         inserted_id = self.repo.insert_transaction(doc_data)
         doc_data["_id"] = inserted_id

@@ -40,6 +40,54 @@ const DEFAULT_FORM = {
   status: 'draft',
 };
 
+export const getStateCode = (gstRegistrationOrState) => {
+  if (!gstRegistrationOrState) return '';
+  const numMatch = String(gstRegistrationOrState).match(/\b\d{2}\b/);
+  if (numMatch) return numMatch[0];
+  
+  const regLower = String(gstRegistrationOrState).toLowerCase();
+  const states = {
+    'jammu': '01', 'himachal': '02', 'punjab': '03', 'chandigarh': '04', 'uttarakhand': '05',
+    'haryana': '06', 'delhi': '07', 'rajasthan': '08', 'uttar pradesh': '09', 'bihar': '10',
+    'sikkim': '11', 'arunachal': '12', 'nagaland': '13', 'manipur': '14', 'mizoram': '15',
+    'tripura': '16', 'meghalaya': '17', 'assam': '18', 'west bengal': '19', 'jharkhand': '20',
+    'odisha': '21', 'chhattisgarh': '22', 'madhya pradesh': '23', 'gujarat': '24', 'daman': '25',
+    'dadra': '26', 'maharashtra': '27', 'andhra': '28', 'karnataka': '29', 'goa': '30',
+    'lakshadweep': '31', 'kerala': '32', 'tamil nadu': '33', 'puducherry': '34', 'andaman': '35',
+    'telangana': '36', 'ladakh': '38'
+  };
+  for (const [stateName, code] of Object.entries(states)) {
+    if (regLower.includes(stateName)) return code;
+  }
+  return '';
+};
+
+export const determineIsInterstate = (partyGstinOrState, companyGstinOrState) => {
+  const partyCode = partyGstinOrState ? (partyGstinOrState.trim().substring(0, 2).match(/^\d\d$/) ? partyGstinOrState.trim().substring(0, 2) : getStateCode(partyGstinOrState)) : '';
+  const companyCode = companyGstinOrState ? (companyGstinOrState.trim().substring(0, 2).match(/^\d\d$/) ? companyGstinOrState.trim().substring(0, 2) : getStateCode(companyGstinOrState)) : '23'; // Default MP
+  return Boolean(partyCode && companyCode && partyCode !== companyCode);
+};
+
+export const calculateLineGst = (taxableAmount, gstRate, isInterstate) => {
+  const tax = (parseFloat(taxableAmount) || 0) * (parseFloat(gstRate) || 0) / 100;
+  if (isInterstate) {
+    return {
+      cgst: 0,
+      sgst: 0,
+      igst: parseFloat(tax.toFixed(2)),
+      totalTax: parseFloat(tax.toFixed(2))
+    };
+  } else {
+    const half = parseFloat((tax / 2).toFixed(2));
+    return {
+      cgst: half,
+      sgst: half,
+      igst: 0,
+      totalTax: parseFloat((half * 2).toFixed(2))
+    };
+  }
+};
+
 const calculateFormTotals = (form) => {
   let baseTotal = 0;
   let cgstTotal = 0;
@@ -49,32 +97,9 @@ const calculateFormTotals = (form) => {
   let itemAmount = 0;
   let ledgerAmount = 0;
 
-  // Compare first 2 chars of partyGstin and gstRegistration to determine if interstate
-  const getStateCode = (gstRegistration) => {
-    if (!gstRegistration) return '';
-    const numMatch = gstRegistration.match(/\b\d{2}\b/);
-    if (numMatch) return numMatch[0];
-    
-    const regLower = gstRegistration.toLowerCase();
-    const states = {
-      'jammu': '01', 'himachal': '02', 'punjab': '03', 'chandigarh': '04', 'uttarakhand': '05',
-      'haryana': '06', 'delhi': '07', 'rajasthan': '08', 'uttar pradesh': '09', 'bihar': '10',
-      'sikkim': '11', 'arunachal': '12', 'nagaland': '13', 'manipur': '14', 'mizoram': '15',
-      'tripura': '16', 'meghalaya': '17', 'assam': '18', 'west bengal': '19', 'jharkhand': '20',
-      'odisha': '21', 'chhattisgarh': '22', 'madhya pradesh': '23', 'gujarat': '24', 'daman': '25',
-      'dadra': '26', 'maharashtra': '27', 'andhra': '28', 'karnataka': '29', 'goa': '30',
-      'lakshadweep': '31', 'kerala': '32', 'tamil nadu': '33', 'puducherry': '34', 'andaman': '35',
-      'telangana': '36', 'ladakh': '38'
-    };
-    for (const [stateName, code] of Object.entries(states)) {
-      if (regLower.includes(stateName)) return code;
-    }
-    return '';
-  };
-
   const partyState = form.partyGstin?.trim().substring(0, 2);
   const companyState = getStateCode(form.gstRegistration) || '23';
-  const isInterstate = partyState && companyState && partyState !== companyState;
+  const isInterstate = determineIsInterstate(form.partyGstin || form.partyState, form.gstRegistration);
 
   // Extract CESS rate from any CESS ledger in additionalCharges or salesLines
   let cessRate = 0;
@@ -106,7 +131,7 @@ const calculateFormTotals = (form) => {
     });
   }
 
-  if (Array.isArray(form.salesLines)) {
+  if (form.entryTab !== 'with_item' && Array.isArray(form.salesLines)) {
     form.salesLines.forEach((c) => {
       const nameUpper = (c.ledgerName || c.salesLedger || '').toUpperCase();
       const isTaxLedger = nameUpper.includes('CGST') || nameUpper.includes('SGST') || nameUpper.includes('IGST') || nameUpper.includes('UTGST') || nameUpper.includes('CESS');
@@ -181,7 +206,7 @@ const calculateFormTotals = (form) => {
       sgstTotal = form.productLines.reduce((sum, l) => sum + (l.sgst || 0), 0);
       igstTotal = form.productLines.reduce((sum, l) => sum + (l.igst || 0), 0);
       cessTotal = form.productLines.reduce((sum, l) => sum + (l.cess || 0), 0);
-      baseTotal = form.productLines.reduce((sum, l) => sum + (l.taxableAmount || 0), 0);
+      baseTotal = form.productLines.reduce((sum, l) => sum + (parseFloat(l.amount) || parseFloat(l.taxableAmount) || 0), 0);
     }
   }
 
@@ -383,9 +408,8 @@ const calculateFormTotals = (form) => {
     grandTotal: grandTotal.toFixed(2),
     gstDetails,
     hsnTaxDetails,
-    ledgerTaxDetails,
   };
-};;
+};
 
 const normalizeVoucherType = (type) => {
   if (!type) return 'sales_invoice';

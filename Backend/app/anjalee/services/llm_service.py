@@ -19,13 +19,17 @@ class LLMService:
             )
         self.model = settings.LLM_MODEL
 
-    def _clean_json_string(self, content: str) -> str:
+    def _clean_json_string(self, content: Optional[str]) -> str:
         """
         Cleans the string returned by LLM to extract the JSON object.
         Strips markdown code blocks and trailing/leading characters.
         """
+        if not content:
+            return "{}"
         content = content.strip()
-        match = re.search(r"({.*})", content, re.DOTALL)
+        content = re.sub(r"^```(?:json)?\s*", "", content, flags=re.MULTILINE)
+        content = re.sub(r"\s*```$", "", content, flags=re.MULTILINE)
+        match = re.search(r"(\{.*\})", content, re.DOTALL)
         if match:
             return match.group(1)
         return content
@@ -417,7 +421,80 @@ Rules:
             return {}
 
 
+    def classify_bulk_upload_content(self, text_content: str) -> Dict[str, Any]:
+        """
+        AI Auto-Classification Engine for Bulk Uploads.
+        Reads file text/rows (from PDF, OCR, Excel, CSV) and classifies into:
+        - 'Sales Invoice'
+        - 'Purchase Invoice'
+        - 'Payment Voucher'
+        - 'Receipt Voucher'
+        - 'Contra Voucher'
+        - 'Bank Statement'
+        Returns dict: { voucher_category, confidence, reasoning }
+        """
+        if not text_content or not text_content.strip():
+            return {
+                "voucher_category": "Sales Invoice",
+                "confidence": 50,
+                "reasoning": "Fallback default category for empty content."
+            }
+
+        system_prompt = """You are an expert AI Financial Document Classifier for Indian ERP systems.
+Your job is to read raw text/rows extracted from an uploaded business file (Excel, CSV, PDF, or image OCR) and classify it into EXACTLY ONE of these voucher categories:
+
+Categories:
+1. "Sales Invoice" (Sales bills, tax invoices issued to customers, outward supplies, sales register)
+2. "Purchase Invoice" (Purchase bills, inward supplies, vendor invoices, purchase register)
+3. "Payment Voucher" (Payments made to vendors/parties, cash payments, bank payment entries)
+4. "Receipt Voucher" (Customer collections, money received, bank receipt entries)
+5. "Contra Voucher" (Cash-to-Bank, Bank-to-Bank transfers, cash deposit, cash withdrawal)
+6. "Bank Statement" (Bank account statement, passbook lines, UTR/NEFT/RTGS transaction history with running balance)
+
+Output ONLY a valid JSON object matching this schema:
+{
+  "voucher_category": "<exact category string from the 6 options above>",
+  "confidence": <integer 0-100>,
+  "reasoning": "<one concise sentence explaining why this category was selected based on headers/data>"
+}"""
+
+        user_prompt = f"Uploaded File Text / Sample Rows:\n\n{text_content[:6000]}"
+
+        try:
+            logger.info("Calling LLM classify_bulk_upload_content")
+            completion = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                temperature=0.0,
+                max_tokens=200
+            )
+            raw = completion.choices[0].message.content
+            cleaned = self._clean_json_string(raw)
+            parsed = json.loads(cleaned)
+            
+            cat = parsed.get("voucher_category")
+            if cat not in ["Sales Invoice", "Purchase Invoice", "Payment Voucher", "Receipt Voucher", "Contra Voucher", "Bank Statement"]:
+                cat = "Sales Invoice"
+                
+            return {
+                "voucher_category": cat,
+                "confidence": int(parsed.get("confidence") or 85),
+                "reasoning": parsed.get("reasoning") or f"AI auto-classified as {cat}."
+            }
+        except Exception as e:
+            logger.error(f"Error in classify_bulk_upload_content: {e}", exc_info=True)
+            return {
+                "voucher_category": "Sales Invoice",
+                "confidence": 50,
+                "reasoning": f"Classification failed ({str(e)}). Defaulted to Sales Invoice."
+            }
+
+
 llm_service = LLMService()
+
 
 # ─── Phase 3 & 4 Document AI Methods ─────────────────────────────────────────
 
@@ -639,6 +716,106 @@ CRITICAL RULES:
             logger.error(f"extract_full_accounting_data error: {e}", exc_info=True)
             return _empty_extraction_result()
 
+    def extract_handwritten_vision(self, base64_image_url: str, document_type: str = "Delivery Challan") -> dict:
+        """
+        Multimodal Vision AI Extraction for Handwritten Bills, Delivery Challans, and Receipts.
+        Reads handwritten Hindi/English text directly from the page image.
+        """
+        system_prompt = f"""You are a specialized Multimodal Vision AI for extracting handwritten Indian business documents (Delivery Challans, Weightment Slips, Bills, Hand Cash Memos).
+
+Analyze the attached document image carefully. Read both PRINTED labels AND HANDWRITTEN entries (including English, Hinglish, Devanagari/Hindi handwriting, signatures, and math calculations).
+
+For example:
+- Document Type: Delivery Challan / Invoice
+- Challan No / Invoice No: Read handwritten numbers (e.g., 1867)
+- Date: Convert handwritten dates to YYYY-MM-DD or DD/MM/YYYY
+- Buyer / Party: Read handwritten buyer name (e.g., "priyansh transport")
+- Material / Item Name: Read handwritten items (e.g., "M-Sand", "Cement", vehicle numbers like "MP09HJ2074")
+- Quantity / Weightment: Read handwritten quantities/weights (e.g. 20, or calculation net weight like 46720 - 12370 = 34.350)
+
+Output ONLY a valid JSON object matching this schema:
+{{
+  "header": {{
+    "values": {{
+      "invoiceNumber": null,
+      "invoiceDate": null,
+      "supplierName": null,
+      "customerName": null,
+      "supplierGSTIN": null,
+      "customerGSTIN": null,
+      "vehicleNumber": null,
+      "referenceNumber": null,
+      "narration": null
+    }},
+    "confidence": {{
+      "invoiceNumber": 90, "invoiceDate": 90, "supplierName": 85, "customerName": 85,
+      "supplierGSTIN": 0, "customerGSTIN": 0, "vehicleNumber": 85, "referenceNumber": 85,
+      "narration": 80
+    }}
+  }},
+  "items": [
+    {{
+      "values": {{
+        "itemName": null, "description": null, "hsnCode": null,
+        "quantity": null, "unit": null, "rate": null, "discount": 0,
+        "taxableAmount": null, "cgst": 0, "sgst": 0, "igst": 0, "lineTotal": null
+      }},
+      "confidence": {{
+        "itemName": 85, "description": 80, "hsnCode": 0, "quantity": 85,
+        "unit": 80, "rate": 0, "discount": 0, "taxableAmount": 85,
+        "cgst": 0, "sgst": 0, "igst": 0, "lineTotal": 85
+      }}
+    }}
+  ]],
+  "totals": {{
+    "values": {{
+      "subtotal": null, "grandTotal": null, "paidAmount": null, "balanceAmount": null
+    }},
+    "confidence": {{
+      "subtotal": 85, "grandTotal": 85, "paidAmount": 0, "balanceAmount": 0
+    }}
+  }},
+  "additionalFields": {{
+    "values": {{
+      "isHandwritten": true,
+      "signatureText": null,
+      "weightmentDetails": null
+    }},
+    "confidence": {{}}
+  }},
+  "suggestions": [
+    {{"type": "info", "message": "✍️ Handwritten Document Vision Extraction Applied"}}
+  ],
+  "overallConfidence": 85
+}}"""
+
+        try:
+            logger.info(f"DocumentAI.extract_handwritten_vision: sending image request, model={self.model}")
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": "Please extract all handwritten and printed accounting fields from this document image."},
+                        {"type": "image_url", "image_url": {"url": base64_image_url}}
+                    ]
+                }
+            ]
+            completion = self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                temperature=0.0,
+                max_tokens=2500
+            )
+            raw = completion.choices[0].message.content
+            logger.info(f"DocumentAI.extract_handwritten_vision raw response length: {len(raw)}")
+            cleaned = self._clean_json(raw)
+            result = json.loads(cleaned)
+            return result
+        except Exception as e:
+            logger.error(f"extract_handwritten_vision failed: {e}", exc_info=True)
+            return _empty_extraction_result()
+
 
 
 
@@ -731,19 +908,20 @@ class DynamicDocumentAI:
             )
         self.model = settings.LLM_MODEL
 
-    def generate_dynamic_schema(self, ocr_text: str, our_company_name: str = "", our_company_gstin: str = "", filename: str = "") -> dict:
+    def generate_dynamic_schema(self, ocr_text: str, our_company_name: str = "", our_company_gstin: str = "", filename: str = "", base64_image_url: str = None) -> dict:
         """
         Redirects dynamic schema generation to agent_orchestrator to ensure
-        unified extraction, local regex fallback support, and flat JSON keys.
+        unified extraction, local regex fallback support, flat JSON keys, and Multimodal Vision AI processing.
         """
         try:
             from app.anjalee.services.extraction_agents import agent_orchestrator
-            logger.info(f"Redirecting DynamicDocumentAI.generate_dynamic_schema to agent_orchestrator.extract: filename={filename}")
+            logger.info(f"Redirecting DynamicDocumentAI.generate_dynamic_schema to agent_orchestrator.extract: filename={filename}, has_vision={bool(base64_image_url)}")
             return agent_orchestrator.extract(
                 ocr_text=ocr_text,
                 filename=filename,
                 our_company_name=our_company_name,
-                our_company_gstin=our_company_gstin
+                our_company_gstin=our_company_gstin,
+                base64_image_url=base64_image_url
             )
         except Exception as e:
             logger.error(f"Dynamic schema generation failed: {e}", exc_info=True)

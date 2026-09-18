@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Plus, CheckCircle2, Trash2, Send, RefreshCw, Download, Edit3,
-  FileSpreadsheet, ScanLine, BarChart3, Link, Paperclip,
+  FileSpreadsheet, ScanLine, BarChart3, Link, Paperclip, ClipboardList, ReceiptText, FileMinus,
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
@@ -37,12 +37,20 @@ const ActionButton = ({ onClick, icon: Icon, tone = 'accent', tooltip }) => {
   );
 };
 
-const SalesPanel = ({ mode, isDark, onAdd, title: customTitle, description: customDescription, voucherType = 'sales', emptyText, icon: CustomIcon }) => {
+const SALES_SUB_TABS = [
+  { id: 'sales_order', label: 'Sales Orders', icon: ClipboardList, typeName: 'sales_order' },
+  { id: 'sales', label: 'Sales Invoices', icon: ReceiptText, typeName: 'sales' },
+  { id: 'credit_note', label: 'Credit Notes (Sales Returns)', icon: FileMinus, typeName: 'credit_note' },
+];
+
+const SalesPanel = ({ mode = 'Inbox', isDark, onAdd, title: customTitle, description: customDescription, voucherType: initialVoucherType = 'sales', emptyText, icon: CustomIcon }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const confirm = useConfirm();
   const Icon = CustomIcon || BarChart3;
 
+  const [activeSubTab, setActiveSubTab] = useState(initialVoucherType || 'sales');
+  const voucherType = activeSubTab;
   const [viewMode, setViewMode] = useState('inbox');
   const [selectedIds, setSelectedIds] = useState([]);
 
@@ -79,7 +87,7 @@ const SalesPanel = ({ mode, isDark, onAdd, title: customTitle, description: cust
     approveTransaction, pushToReview, deleteTransaction, fetchById, resetForm,
   } = useSalesStore();
 
-  const modeStatusMap = { Inbox: 'draft', Review: 'pending_review', Archive: 'approved,archived' };
+  const modeStatusMap = { Inbox: '', Review: 'pending_review', Archive: 'approved,archived' };
   const apiVoucherType = voucherType === 'sales' ? '' : voucherType;
 
   useEffect(() => {
@@ -215,7 +223,7 @@ const SalesPanel = ({ mode, isDark, onAdd, title: customTitle, description: cust
       {mode === 'Inbox' && (
         <>
           <Button icon={ScanLine} onClick={() => setViewMode('ocr')}>OCR Upload</Button>
-          <Button icon={FileSpreadsheet} onClick={() => setViewMode('csv')}>CSV Upload</Button>
+          <Button icon={FileSpreadsheet} onClick={() => setViewMode('csv')}>Bulk Upload</Button>
           <Button icon={Plus} variant="primary" onClick={handleCreateNew}>Create Entry</Button>
           <div className="w-px h-6 mx-0.5 hidden sm:block" style={{ backgroundColor: 'var(--app-border)' }} />
           <Button icon={CheckCircle2} iconOnly onClick={handleApproveSelected} />
@@ -239,13 +247,37 @@ const SalesPanel = ({ mode, isDark, onAdd, title: customTitle, description: cust
     </>
   );
 
+  if (viewMode !== 'inbox') {
+    return (
+      <div className="flex flex-col h-full overflow-hidden bg-[var(--app-panel-bg)] rounded-xl border border-[var(--app-border)] p-2">
+        <VoucherEntryEngine isDark={isDark} defaultMode={viewMode} voucherType={activeSubTab} onBack={handleBack} />
+      </div>
+    );
+  }
+
   return (
-    <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }} className="flex flex-col h-full overflow-hidden relative">
-      {viewMode !== 'inbox' && voucherType && (
-        <div className="absolute inset-0 z-40">
-          <VoucherEntryEngine isDark={isDark} defaultMode={viewMode} voucherType={voucherType} onBack={handleBack} />
-        </div>
-      )}
+    <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }} className="flex flex-col h-full overflow-hidden relative gap-2">
+      {/* ── 3 HORIZONTAL TOP SUB-TABS (Sales Orders | Sales Invoices | Credit Notes) ── */}
+      <div className="flex items-center gap-1.5 p-1.5 rounded-xl border border-[var(--app-border)] bg-[var(--app-panel-bg)] shrink-0 shadow-xs">
+        {SALES_SUB_TABS.map((tab) => {
+          const TabIcon = tab.icon;
+          const isActive = activeSubTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => { setActiveSubTab(tab.id); setFilter('voucherType', tab.id === 'sales' ? '' : tab.id); }}
+              className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                isActive
+                  ? 'bg-[var(--app-accent)] text-white shadow-xs'
+                  : 'text-[var(--app-muted)] hover:text-[var(--app-heading)] hover:bg-[var(--app-control-hover)]'
+              }`}
+            >
+              <TabIcon size={14} strokeWidth={2.2} />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
+      </div>
 
       <DataTable
         title={getTitle()}

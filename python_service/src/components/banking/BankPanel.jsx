@@ -24,26 +24,38 @@ import {
   FileText,
   ClipboardList,
   Check,
-  Landmark
+  Landmark,
+  Sparkles
 } from 'lucide-react';
 import { motion } from 'motion/react';
+import { toast } from 'sonner';
 import DataTable from '../ui/DataTable';
 import Badge, { statusTone } from '../ui/Badge';
 import StatCard from '../ui/StatCard';
 import ObjectDoodle from '../ui/ObjectDoodle';
 import { useFundFlowStore } from '../../stores/useFundFlowStore';
 import fundflowApi from '../../services/fundflowApi';
+import bankStatementAiApi from '../../services/bankStatementAiApi';
+import BulkUploadPanel from '../bulk-upload/BulkUploadPanel';
+import BankAiReviewPanel from './BankAiReviewPanel';
 
 // All dropdown data is fetched dynamically from the database via useFundFlowStore.
 // No hardcoded arrays — see BankPanel component body for dynamic derivations.
 
 const TAB_META = {
-  'Manage Bank': { title: 'Bank Main', subtitle: 'Manage linked bank accounts and their Tally ledgers.' },
-  'Manage Rule': { title: 'Bank Rule', subtitle: 'Auto-classify statement lines into vouchers with rules.' },
-  'Inbox': { title: 'Bank Inbox', subtitle: 'Unreconciled statement lines awaiting a ledger match.' },
+  'Manage Bank': { title: 'Bank Ledgers & Accounts', subtitle: 'Manage linked bank accounts, Tally ledgers and current balances.' },
+  'Inbox': { title: 'Bank Reconciliation (BRS)', subtitle: 'Reconcile bank statement entries with Tally ledgers.' },
+  'AI Voucher Review': { title: 'AI Bank Statement Voucher Review', subtitle: 'Review AI categorizations, edit counterpart ledgers, and save approved vouchers.' },
   'Review': { title: 'Bank Review', subtitle: 'Verify and approve matched transactions before posting.' },
   'Archive': { title: 'Bank Archive', subtitle: 'Approved transactions posted to Tally.' },
 };
+
+const BANK_SUB_TABS = [
+  { id: 'Inbox', label: 'Bank Reconciliation (BRS)', icon: FileText },
+  { id: 'Manage Bank', label: 'Bank Ledgers & Accounts', icon: Landmark },
+  { id: 'AI Voucher Review', label: 'AI Voucher Review', icon: Sparkles },
+];
+
 
 const BankPanel = ({ mode: propMode, isDark }) => {
   const [activeTab, setActiveTab] = useState(propMode || 'Manage Bank');
@@ -60,11 +72,7 @@ const BankPanel = ({ mode: propMode, isDark }) => {
   const [isBankFilterOpen, setIsBankFilterOpen] = useState(false);
   const [isAddBankLedgerOpen, setIsAddBankLedgerOpen] = useState(false);
 
-  // Modals for Bank Rule
-  const [isAddRuleOpen, setIsAddRuleOpen] = useState(false);
-  const [isBulkUploadRulesOpen, setIsBulkUploadRulesOpen] = useState(false);
-  const [isRuleFilterOpen, setIsRuleFilterOpen] = useState(false);
-  const [isAddPartyLedgerOpen, setIsAddPartyLedgerOpen] = useState(false);
+
 
   // Modals for Inbox/Review/Archive
   const [isColumnConfigOpen, setIsColumnConfigOpen] = useState(false);
@@ -210,7 +218,10 @@ const BankPanel = ({ mode: propMode, isDark }) => {
 
   const fallbackBanks = ['HDFC Bank', 'ICICI Bank', 'State Bank of India', 'Axis Bank', 'Kotak Mahindra Bank', 'Punjab National Bank', 'HSBC', 'Standard Chartered', 'DBS Bank', 'Yes Bank'];
   const dynamicBanks = Array.from(new Set([...dbBankAccounts.map(a => a.bank), ...fallbackBanks])).filter(Boolean);
-  const dynamicBankLedgers = dbBankAccounts.map(a => a.ledger).filter(Boolean);
+  const fallbackBankLedgers = ['Primary Bank Account', 'HDFC Bank Account', 'ICICI Bank Account', 'SBI Bank Account', 'Axis Bank Account'];
+  const storeBankLedgers = (fundFlowStore.masterData?.cashBankLedgers || []).filter(l => l.toLowerCase().includes('bank') || l.toLowerCase().includes('a/c') || l.toLowerCase().includes('account'));
+  const derivedBankLedgers = dbBankAccounts.map(a => a.ledger).filter(Boolean);
+  const dynamicBankLedgers = Array.from(new Set([...derivedBankLedgers, ...storeBankLedgers, ...fallbackBankLedgers])).filter(Boolean);
 
   const fallbackLedgerGroups = ['Bank Accounts', 'Bank OD A/c', 'Cash-in-Hand', 'Current Assets', 'Loans (Liability)', 'Indirect Expenses', 'Indirect Incomes', 'Suspense Account'];
   const dynamicLedgerGroups = Array.from(new Set((fundFlowStore.masterData?.ledgers || []).map(l => l.groupName).filter(Boolean)));
@@ -284,15 +295,7 @@ const BankPanel = ({ mode: propMode, isDark }) => {
             <IconButton icon={Download} color="purple" />
           </>
         );
-      case 'Manage Rule':
-        return (
-          <>
-            <IconButton icon={Plus} color="emerald" onClick={() => setIsAddRuleOpen(true)} />
-            <IconButton icon={Upload} color="emerald" onClick={() => setIsBulkUploadRulesOpen(true)} />
-            <IconButton icon={Download} color="purple" />
-            <IconButton icon={Trash2} color="red" />
-          </>
-        );
+
       case 'Inbox':
         return (
           <>
@@ -353,18 +356,7 @@ const BankPanel = ({ mode: propMode, isDark }) => {
       },
       { key: 'act', header: 'Action', align: 'center', width: '150px', render: () => <div className="flex items-center justify-center gap-1"><RowAct icon={Upload} /><RowAct icon={Edit3} /><RowAct icon={RefreshCw} tone="hover:text-emerald-500" /><RowAct icon={Trash2} tone="hover:text-rose-500" /></div> },
     ],
-    'Manage Rule': [
-      srCol,
-      { key: 'account', header: 'Account', sortable: true, render: (r) => <span className="font-bold" style={{ color: 'var(--app-heading)' }}>{r.account}</span> },
-      { key: 'dateRange', header: 'Date Range', sortable: true, render: (r) => <span className="font-semibold" style={{ color: 'var(--app-muted)' }}>{r.dateRange}</span> },
-      { key: 'description', header: 'Description', sortable: true, render: (r) => <span className="font-semibold">{r.description}</span> },
-      { key: 'mode', header: 'Mode', render: (r) => <Badge tone="neutral">{r.mode}</Badge> },
-      { key: 'type', header: 'Type', render: (r) => <Badge tone={typeTone(r.type)}>{r.type}</Badge> },
-      amtCol,
-      { key: 'party', header: 'Party Ledger', sortable: true, render: (r) => <span className="font-semibold">{r.party}</span> },
-      { key: 'replaced', header: 'Replaced', render: (r) => <span className="font-semibold" style={{ color: 'var(--app-muted)' }}>{r.replaced}</span> },
-      { key: 'act', header: 'Action', align: 'center', width: '70px', render: () => <RowAct icon={Trash2} tone="hover:text-rose-500" /> },
-    ],
+
     'Inbox': [
       srCol,
       { key: 'date', header: 'Date', sortable: true, render: (r) => <span className="font-semibold" style={{ color: 'var(--app-muted)' }}>{r.date}</span> },
@@ -385,10 +377,8 @@ const BankPanel = ({ mode: propMode, isDark }) => {
       { key: 'act', header: '', align: 'center', width: '60px', render: () => <Info size={14} className="mx-auto" style={{ color: 'var(--app-muted)' }} /> },
     ],
   };
-  const bankRuleData = [];
   const DATA = {
     'Manage Bank': dbBankAccounts,
-    'Manage Rule': bankRuleData,
     'Inbox': inboxData,
     'Review': reviewData,
     'Archive': archiveData
@@ -406,12 +396,7 @@ const BankPanel = ({ mode: propMode, isDark }) => {
           { label: 'Banks Linked', value: uniq(dbBankAccounts, 'bank'), icon: FileText },
           { label: 'Account Holders', value: uniq(dbBankAccounts, 'accountName'), icon: CheckCircle2 },
         ];
-      case 'Manage Rule':
-        return [
-          { label: 'Active Rules', value: bankRuleData.length, icon: ClipboardList },
-          { label: 'Mapped Parties', value: uniq(bankRuleData, 'party'), icon: FileText },
-          { label: 'Auto-Replace Types', value: uniq(bankRuleData, 'replaced'), icon: RefreshCw },
-        ];
+
       case 'Inbox':
         return [
           { label: 'Unreconciled', value: inboxData.length, icon: Info },
@@ -435,7 +420,194 @@ const BankPanel = ({ mode: propMode, isDark }) => {
     }
   };
 
+  const [activeBatchData, setActiveBatchData] = useState(null);
+  const [aiBatches, setAiBatches] = useState([]);
+  const [aiBatchesLoading, setAiBatchesLoading] = useState(false);
+  const [isAiStatementModalOpen, setIsAiStatementModalOpen] = useState(false);
+
+  const fetchAiBatches = async () => {
+    setAiBatchesLoading(true);
+    try {
+      const res = await bankStatementAiApi.getBatches();
+      if (res.success && res.data) {
+        setAiBatches(res.data);
+      }
+    } catch (err) {
+      console.error('Failed to load AI statement batches:', err);
+    } finally {
+      setAiBatchesLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'AI Voucher Review') {
+      fetchAiBatches();
+    }
+  }, [activeTab]);
+
+  const handleOpenBatch = async (batchId) => {
+    setAiBatchesLoading(true);
+    try {
+      const res = await bankStatementAiApi.getBatchReview(batchId);
+      if (res.success && res.data) {
+        setActiveBatchData(res.data);
+      }
+    } catch (err) {
+      toast.error('Failed to load document data');
+    } finally {
+      setAiBatchesLoading(false);
+    }
+  };
+
   const renderActive = () => {
+    if (activeTab === 'AI Voucher Review') {
+      if (activeBatchData) {
+        return (
+          <BankAiReviewPanel
+            batchData={activeBatchData}
+            onClose={() => {
+              setActiveBatchData(null);
+              fetchAiBatches();
+            }}
+            onRefreshList={() => {
+              fundFlowStore.fetchTransactions();
+              fetchAiBatches();
+            }}
+          />
+        );
+      }
+
+      if (aiBatchesLoading) {
+        return (
+          <div className="flex flex-col items-center justify-center h-[400px] border rounded-2xl p-8" style={{ borderColor: 'var(--app-border)' }}>
+            <div className="w-8 h-8 rounded-full border-2 border-[var(--app-accent)] border-t-transparent animate-spin mb-3" />
+            <span className="text-xs font-semibold" style={{ color: 'var(--app-muted)' }}>Loading AI processed bank statements...</span>
+          </div>
+        );
+      }
+
+      if (aiBatches.length === 0) {
+        return (
+          <div className="flex flex-col items-center justify-center h-[400px] border-2 border-dashed rounded-2xl p-8 text-center" style={{ borderColor: 'var(--app-border)' }}>
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center mb-4 shadow-lg">
+              <Sparkles size={32} />
+            </div>
+            <h3 className="text-lg font-black text-[var(--app-heading)]">AI Bank Statement to Voucher Ingestion</h3>
+            <p className="text-xs font-semibold text-[var(--app-muted)] max-w-md mt-1 mb-6">
+              Upload your PDF or Excel/CSV bank statement. Our AI automatically extracts transactions, matches counterpart ledgers against active company masters, and generates Payment/Receipt voucher drafts for review.
+            </p>
+            <button
+              onClick={() => setIsAiStatementModalOpen(true)}
+              className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider bg-[var(--app-accent)] text-white shadow-lg hover:opacity-90 transition-all cursor-pointer"
+            >
+              <Upload size={16} />
+              <span>Upload Bank Statement (PDF / Excel)</span>
+            </button>
+          </div>
+        );
+      }
+
+      return (
+        <div className="flex flex-col gap-4 h-full overflow-hidden">
+          {/* Header Bar for Processed Documents List */}
+          <div className="flex items-center justify-between p-4 rounded-xl border bg-[var(--app-panel-bg)] shadow-xs shrink-0" style={{ borderColor: 'var(--app-border)' }}>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center shadow-md">
+                <FileText size={20} />
+              </div>
+              <div>
+                <h2 className="text-sm font-black text-[var(--app-heading)] tracking-tight">AI Processed Bank Statements ({aiBatches.length})</h2>
+                <p className="text-[11px] font-medium text-[var(--app-muted)]">Click on any processed document to view extracted transactions & approve vouchers.</p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setIsAiStatementModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider bg-[var(--app-accent)] text-white shadow-md hover:opacity-90 transition-all cursor-pointer"
+            >
+              <Upload size={14} />
+              <span>Upload New Bank Statement</span>
+            </button>
+          </div>
+
+          {/* Table of Processed Documents */}
+          <div className="flex-1 overflow-auto border rounded-xl bg-[var(--app-panel-bg)] shadow-xs" style={{ borderColor: 'var(--app-border)' }}>
+            <table className="w-full text-left border-collapse text-[12px]">
+              <thead className="sticky top-0 bg-[var(--app-control-bg)] z-10 border-b" style={{ borderColor: 'var(--app-border)' }}>
+                <tr>
+                  <th className="py-3 px-4 font-black text-[var(--app-muted)] uppercase tracking-wider">Document Name</th>
+                  <th className="py-3 px-4 font-black text-[var(--app-muted)] uppercase tracking-wider">Target Bank Ledger</th>
+                  <th className="py-3 px-4 font-black text-[var(--app-muted)] uppercase tracking-wider">Upload Date & Time</th>
+                  <th className="py-3 px-4 font-black text-[var(--app-muted)] uppercase tracking-wider text-center">Extracted Items</th>
+                  <th className="py-3 px-4 font-black text-[var(--app-muted)] uppercase tracking-wider text-center">Status</th>
+                  <th className="py-3 px-4 font-black text-[var(--app-muted)] uppercase tracking-wider text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {aiBatches.map((batch) => {
+                  const createdDate = batch.created_at ? new Date(batch.created_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) : '—';
+                  const summary = batch.summary || {};
+                  const total = summary.total_count || (batch.items || []).length || 0;
+                  const ready = summary.ready_count || 0;
+                  const reviewReq = summary.review_required_count || 0;
+                  const saved = summary.saved_count || 0;
+
+                  return (
+                    <tr
+                      key={batch.batch_id || batch._id}
+                      onClick={() => handleOpenBatch(batch.batch_id || batch._id)}
+                      className="border-b last:border-0 hover:bg-[var(--app-content-bg)]/60 cursor-pointer transition-colors"
+                      style={{ borderColor: 'var(--app-border)' }}
+                    >
+                      <td className="py-3.5 px-4 font-extrabold text-[var(--app-heading)]">
+                        <div className="flex items-center gap-2.5">
+                          <FileText className="text-[var(--app-accent)] shrink-0" size={16} />
+                          <span className="truncate max-w-[280px]" title={batch.file_name}>{batch.file_name}</span>
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4 font-semibold text-[var(--app-heading)]">
+                        {batch.bank_ledger || '—'}
+                      </td>
+                      <td className="py-3.5 px-4 font-medium text-[var(--app-muted)]">
+                        {createdDate}
+                      </td>
+                      <td className="py-3.5 px-4 text-center">
+                        <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                          <span className="font-extrabold text-[var(--app-heading)]">{total} Items</span>
+                          {ready > 0 && <span className="px-1.5 py-0.5 rounded text-[9.5px] font-extrabold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">{ready} Ready</span>}
+                          {reviewReq > 0 && <span className="px-1.5 py-0.5 rounded text-[9.5px] font-extrabold bg-amber-500/10 text-amber-500 border border-amber-500/20">{reviewReq} Review Req</span>}
+                          {saved > 0 && <span className="px-1.5 py-0.5 rounded text-[9.5px] font-extrabold bg-purple-500/10 text-purple-500 border border-purple-500/20">{saved} Saved</span>}
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4 text-center">
+                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                          saved > 0 && saved === total ? 'bg-purple-500/15 text-purple-600 border border-purple-500/30' : 'bg-indigo-500/15 text-indigo-600 border border-indigo-500/30'
+                        }`}>
+                          {saved > 0 && saved === total ? 'Vouchers Saved' : 'Draft Review'}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 text-right">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenBatch(batch.batch_id || batch._id);
+                          }}
+                          className="px-3.5 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider bg-[var(--app-accent)] text-white shadow-xs hover:opacity-90 transition-all cursor-pointer inline-flex items-center gap-1"
+                        >
+                          <span>View & Review Data</span>
+                          <span>→</span>
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
+    }
+
     const colKey = (activeTab === 'Review' || activeTab === 'Archive') ? 'ReviewArchive' : activeTab;
     const columns = COLUMNS[colKey] || COLUMNS['Manage Bank'];
     const all = DATA[activeTab] || [];
@@ -448,7 +620,7 @@ const BankPanel = ({ mode: propMode, isDark }) => {
         rowKey={(r) => r.id}
         loading={fundFlowStore.loading.list || fundFlowStore.masterData.loading}
         emptyText="No bank transactions found."
-        minWidth={activeTab === 'Manage Rule' ? '1200px' : (activeTab === 'Manage Bank' && selectedBankRow ? '700px' : '900px')}
+        minWidth={activeTab === 'Manage Bank' && selectedBankRow ? '700px' : '900px'}
         selectable
         selectedKeys={selectedRows}
         onToggleRow={(id) => setSelectedRows((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]))}
@@ -459,6 +631,7 @@ const BankPanel = ({ mode: propMode, isDark }) => {
       />
     );
   };
+
 
   if (activeTab === 'Manage Bank' && selectedBankRow) {
     const bankTransactions = allTransactions.filter(tx => 
@@ -485,48 +658,65 @@ const BankPanel = ({ mode: propMode, isDark }) => {
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
-      className="flex flex-col gap-4 h-full overflow-hidden relative"
+      className="flex flex-col gap-3 h-full overflow-hidden relative"
     >
       <style>{`
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
 
+      {/* ── HORIZONTAL TOP SUB-TABS (Bank Reconciliation | Bank Ledgers | AI Voucher Review) ── */}
+      <div className="flex items-center gap-1.5 p-1.5 rounded-xl border border-[var(--app-border)] bg-[var(--app-panel-bg)] shrink-0 shadow-xs">
+        {BANK_SUB_TABS.map((tab) => {
+          const TabIcon = tab.icon;
+          const isActive = activeTab === tab.id || (tab.id === 'Inbox' && ['Inbox', 'Review', 'Archive'].includes(activeTab));
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                isActive
+                  ? 'bg-[var(--app-accent)] text-white shadow-xs'
+                  : 'text-[var(--app-muted)] hover:text-[var(--app-heading)] hover:bg-[var(--app-control-hover)]'
+              }`}
+            >
+              <TabIcon size={14} strokeWidth={2.2} />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
       {/* Popups for Bank Main */}
       {isAddBankOpen && <AddBankModal onClose={() => setIsAddBankOpen(false)} BANKS={dynamicBanks} BANK_LEDGERS={dynamicBankLedgers} />}
-      {isUploadStatementOpen && <UploadStatementModal onClose={() => setIsUploadStatementOpen(false)} BANKS={dynamicBanks} />}
+      {isAiStatementModalOpen && (
+        <BankStatementUploadModal
+          onClose={() => setIsAiStatementModalOpen(false)}
+          BANK_LEDGERS={dynamicBankLedgers}
+          onBatchCreated={(data) => {
+            setActiveBatchData(data);
+            setActiveTab('AI Voucher Review');
+          }}
+        />
+      )}
+      {isUploadStatementOpen && (
+        <BankStatementUploadModal
+          onClose={() => setIsUploadStatementOpen(false)}
+          BANK_LEDGERS={dynamicBankLedgers}
+          onBatchCreated={(data) => {
+            setActiveBatchData(data);
+            setActiveTab('AI Voucher Review');
+          }}
+        />
+      )}
+
       {isBankFilterOpen && <FilterDrawer title="Filter" onClose={() => setIsBankFilterOpen(false)}>
         <input type="text" placeholder="Bank Name" className="w-full h-8 border rounded-lg px-3 text-[11px] font-bold outline-none focus:border-[var(--app-accent)] shadow-sm" style={{ borderColor: 'var(--app-border)' }} />
         <SearchableDropdown placeholder="Bank Ledger" items={dynamicBankLedgers} isSmall />
       </FilterDrawer>}
       {isAddBankLedgerOpen && <AddLedgerModal title="Add Bank Ledger" type="Bank" onClose={() => setIsAddBankLedgerOpen(false)} LEDGER_GROUPS={finalLedgerGroups} />}
 
-      {/* Popups for Bank Rule */}
-      {isAddRuleOpen && <AddRuleModal
-        onClose={() => setIsAddRuleOpen(false)}
-        ACCOUNT_NUMBERS={dynamicAccountNumbers}
-        PARTY_LEDGERS={dynamicPartyLedgers}
-        PAYMENT_MODES={finalPaymentModes}
-        TRANSACTION_TYPES={finalTransactionTypes}
-        REPLACED_TYPES={dynamicReplacedTypes}
-      />}
-      {isBulkUploadRulesOpen && <BulkUploadRulesModal onClose={() => setIsBulkUploadRulesOpen(false)} />}
-      {isRuleFilterOpen && <FilterDrawer title="Filter" onClose={() => setIsRuleFilterOpen(false)}>
-        <SearchableDropdown placeholder="Account Number" items={dynamicAccountNumbers} isSmall />
-        <div className="flex gap-2">
-          <div className="flex-1 relative"><input type="text" placeholder="From Date" className="w-full h-8 border rounded-lg px-3 text-[11px] font-bold outline-none focus:border-[var(--app-accent)]" style={{ borderColor: 'var(--app-border)' }} /><Calendar className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--app-muted)]" size={12} /></div>
-          <div className="flex-1 relative"><input type="text" placeholder="To Date" className="w-full h-8 border rounded-lg px-3 text-[11px] font-bold outline-none focus:border-[var(--app-accent)]" style={{ borderColor: 'var(--app-border)' }} /><Calendar className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--app-muted)]" size={12} /></div>
-        </div>
-        <input type="text" placeholder="Description" className="w-full h-8 border rounded-lg px-3 text-[11px] font-bold outline-none focus:border-[var(--app-accent)]" style={{ borderColor: 'var(--app-border)' }} />
-        <SearchableDropdown placeholder="Payment Mode" items={finalPaymentModes} isSmall />
-        <SearchableDropdown placeholder="Type" items={finalTransactionTypes} isSmall />
-        <div className="flex gap-2">
-          <input type="text" placeholder="From Amount" className="flex-1 h-8 border rounded-lg px-3 text-[11px] font-bold outline-none focus:border-[var(--app-accent)]" style={{ borderColor: 'var(--app-border)' }} />
-          <input type="text" placeholder="To Amount" className="flex-1 h-8 border rounded-lg px-3 text-[11px] font-bold outline-none focus:border-[var(--app-accent)]" style={{ borderColor: 'var(--app-border)' }} />
-        </div>
-        <SearchableDropdown placeholder="Party Ledger" items={dynamicPartyLedgers} isSmall />
-      </FilterDrawer>}
-      {isAddPartyLedgerOpen && <AddLedgerModal title="Add Party Ledger" type="Party" onClose={() => setIsAddPartyLedgerOpen(false)} LEDGER_GROUPS={finalLedgerGroups} />}
+
 
       {/* Shared Modals */}
       {isColumnConfigOpen && <ColumnConfigPopup onClose={() => setIsColumnConfigOpen(false)} activeTab={activeTab} />}
@@ -542,113 +732,84 @@ const BankPanel = ({ mode: propMode, isDark }) => {
         </div>
       </FilterDrawer>}
 
-      {/* Header */}
-      <div className="rounded-xl border p-3.5 shrink-0" style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-panel-bg)' }}>
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="h-10 w-10 rounded-xl flex items-center justify-center text-white shadow-sm shrink-0" style={{ background: 'var(--app-accent-gradient)' }}>
-            <Landmark size={18} strokeWidth={2.2} />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h1 className="text-[17px] font-extrabold tracking-tight" style={{ color: 'var(--app-heading)' }}>
-                {TAB_META[activeTab]?.title || 'Bank'}
-              </h1>
-              <span className="px-2 py-0.5 rounded text-[9.5px] font-extrabold uppercase tracking-wider shrink-0" style={{ backgroundColor: 'var(--app-accent-soft)', color: 'var(--app-accent)', border: '1px solid var(--app-border)' }}>
-                {activeTab}
-              </span>
-            </div>
-            <p className="text-[10px] font-medium mt-0.5 truncate" style={{ color: 'var(--app-muted)' }}>
-              {TAB_META[activeTab]?.subtitle}
-            </p>
-          </div>
-
-          <div className="flex gap-2 items-center ml-2">
-            {getHeaderIcons()}
-
-            {(activeTab === 'Inbox' || activeTab === 'Review' || activeTab === 'Archive') && (
-              <div className="flex items-center gap-2 ml-2 flex-wrap">
-                <div className="relative min-w-[140px]">
-                  <select
-                    className="w-full h-8 pl-3 pr-8 rounded-lg border text-[12px] appearance-none outline-none focus-ring cursor-pointer"
-                    style={{ borderColor: 'var(--app-border)', color: 'var(--app-heading)', backgroundColor: 'var(--app-control-bg)' }}
-                    value={selectedBank}
-                    onChange={(e) => setSelectedBank(e.target.value)}
-                  >
-                    <option value="">Select Bank</option>
-                    {dynamicBanks.map(b => <option key={b} value={b}>{b}</option>)}
-                  </select>
-                  <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--app-muted)' }} size={14} />
-                </div>
-                <div className="relative min-w-[180px]">
-                  <select
-                    className="w-full h-8 pl-3 pr-8 rounded-lg border text-[12px] appearance-none outline-none focus-ring cursor-pointer"
-                    style={{ borderColor: 'var(--app-border)', color: 'var(--app-heading)', backgroundColor: 'var(--app-control-bg)' }}
-                  >
-                    <option value="">Select Bank Statement</option>
-                    {dynamicBankLedgers.map(l => <option key={l} value={l}>{l}</option>)}
-                  </select>
-                  <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--app-muted)' }} size={14} />
-                </div>
+      {/* Clean Header Bar */}
+      {activeTab !== 'AI Voucher Review' && (
+        <div className="rounded-xl border p-3 shrink-0" style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-panel-bg)' }}>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl flex items-center justify-center text-white shadow-sm shrink-0" style={{ background: 'var(--app-accent-gradient)' }}>
+                <Landmark size={18} strokeWidth={2.2} />
               </div>
-            )}
-          </div>
-
-          {activeTab === 'Inbox' && (
-            <div className="flex items-center gap-4 ml-2 flex-wrap">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" className="w-4 h-4 rounded accent-[var(--app-accent)]" />
-                <span className="text-[11px] font-semibold uppercase tracking-wider whitespace-nowrap" style={{ color: 'var(--app-muted)' }}>Not Selected Ledger</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" className="w-4 h-4 rounded accent-[var(--app-accent)]" />
-                <span className="text-[11px] font-semibold uppercase tracking-wider whitespace-nowrap" style={{ color: 'var(--app-muted)' }}>Selected Ledger</span>
-              </label>
+              <div>
+                <h1 className="text-[16px] font-extrabold tracking-tight" style={{ color: 'var(--app-heading)' }}>
+                  {TAB_META[activeTab]?.title || 'Bank'}
+                </h1>
+                <p className="text-[11px] font-medium mt-0.5" style={{ color: 'var(--app-muted)' }}>
+                  {TAB_META[activeTab]?.subtitle}
+                </p>
+              </div>
             </div>
-          )}
-        </div>
 
-        {(activeTab === 'Manage Bank' || activeTab === 'Manage Rule') && (
-          <div className="flex-1 min-w-[200px] max-w-[300px] px-2">
-            <div className="relative group">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--app-muted)' }} size={13} />
-              <input
-                type="text"
-                placeholder="Search…"
-                className="w-full h-9 rounded-lg border pl-9 pr-3 text-[12.5px] outline-none transition-all focus-ring"
-                style={{ backgroundColor: 'var(--app-control-bg)', borderColor: 'var(--app-border)', color: 'var(--app-heading)' }}
-              />
+            <div className="flex items-center gap-2.5 ml-auto flex-wrap">
+              {activeTab === 'Manage Bank' && (
+                <>
+                  <button
+                    onClick={() => setIsUploadStatementOpen(true)}
+                    className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold border hover:bg-[var(--app-control-hover)] transition-all"
+                    style={{ borderColor: 'var(--app-border)', color: 'var(--app-heading)' }}
+                  >
+                    <Upload size={14} className="text-emerald-500" />
+                    <span>Upload Statement</span>
+                  </button>
+                  <button
+                    onClick={() => setIsAddBankOpen(true)}
+                    className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold bg-[var(--app-accent)] text-white shadow-xs hover:opacity-90 transition-all"
+                  >
+                    <Plus size={14} strokeWidth={2.5} />
+                    <span>Add Bank Account</span>
+                  </button>
+                </>
+              )}
+
+
+
+              {(activeTab === 'Inbox' || activeTab === 'Review' || activeTab === 'Archive') && (
+                <>
+                  <div className="relative min-w-[180px]">
+                    <select
+                      className="w-full h-8 pl-3 pr-8 rounded-lg border text-[12px] appearance-none outline-none focus-ring cursor-pointer font-semibold"
+                      style={{ borderColor: 'var(--app-border)', color: 'var(--app-heading)', backgroundColor: 'var(--app-control-bg)' }}
+                      value={selectedBank}
+                      onChange={(e) => setSelectedBank(e.target.value)}
+                    >
+                      <option value="">All Bank Accounts</option>
+                      {dynamicBanks.map(b => <option key={b} value={b}>{b}</option>)}
+                    </select>
+                    <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--app-muted)' }} size={14} />
+                  </div>
+
+                  <button
+                    onClick={() => setIsUploadStatementOpen(true)}
+                    className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold bg-[var(--app-accent)] text-white shadow-xs hover:opacity-90 transition-all"
+                  >
+                    <Upload size={14} />
+                    <span>Upload Bank Statement</span>
+                  </button>
+                </>
+              )}
             </div>
           </div>
-        )}
-
-        <div className="flex items-center gap-2 ml-auto">
-          {activeTab === 'Manage Bank' && <IconButton icon={FileText} color="blue" onClick={() => setIsAddBankLedgerOpen(true)} />}
-          {activeTab === 'Manage Rule' && <IconButton icon={FileText} color="blue" onClick={() => setIsAddPartyLedgerOpen(true)} />}
-
-          {(activeTab === 'Inbox' || activeTab === 'Review' || activeTab === 'Archive') && (
-            <>
-              <IconButton icon={Layout} color="blue" onClick={() => setIsColumnConfigOpen(true)} />
-              <IconButton icon={Settings} color="blue" onClick={() => setIsColumnConfigOpen(true)} />
-            </>
-          )}
-
-          <IconButton icon={HelpCircle} color="purple" />
-          <IconButton icon={Filter} color="blue" onClick={() => {
-            if (activeTab === 'Manage Bank') setIsBankFilterOpen(true);
-            else if (activeTab === 'Manage Rule') setIsRuleFilterOpen(true);
-            else setIsInboxFilterOpen(true);
-          }} />
         </div>
-        </div>
-      </div>
+      )}
 
       {/* KPI cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 shrink-0">
-        {tabKpis().map((k, i) => (
-          <StatCard key={`${activeTab}-${k.label}`} index={i} label={k.label} value={k.value} icon={k.icon} />
-        ))}
-      </div>
+      {tabKpis().length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 shrink-0">
+          {tabKpis().map((k, i) => (
+            <StatCard key={`${activeTab}-${k.label}`} index={i} label={k.label} value={k.value} icon={k.icon} />
+          ))}
+        </div>
+      )}
 
       <div className="flex-1 overflow-hidden flex gap-3">
         <div className={`transition-all duration-300 overflow-hidden ${activeTab === 'Manage Bank' && selectedBankRow ? 'flex-[3]' : 'flex-1'}`}>
@@ -1027,157 +1188,7 @@ const AddBankModal = ({ onClose, BANKS: propBanks, BANK_LEDGERS: propLedgers }) 
   );
 };
 
-const UploadStatementModal = ({ onClose, BANKS: propBanks }) => {
-  const modalBanks = propBanks && propBanks.length > 0 ? propBanks : [];
-  const [bank, setBank] = useState('');
 
-  return (
-    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 animate-in fade-in duration-300">
-      <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px]" onClick={onClose} />
-      <div className="relative w-[800px] bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col">
-        <div className="p-6 flex items-center justify-between border-b" style={{ borderColor: 'var(--app-row-border)' }}>
-          <h2 className="text-[16px] font-black text-[var(--app-accent)] tracking-tight">Upload Statement</h2>
-          <button onClick={onClose} className="p-1 text-[var(--app-muted)] hover:text-[var(--app-text)] transition-colors"><X size={20} /></button>
-        </div>
-
-        <div className="p-8 space-y-6">
-          <div className="space-y-4">
-            <SearchableDropdown label="Bank *" items={modalBanks} value={bank} onChange={setBank} />
-
-            <div className="relative">
-              <input type="text" placeholder="Date Range" className="w-full h-12 border rounded-xl px-4 text-[13px] font-bold outline-none focus:border-[var(--app-accent)] shadow-sm bg-[var(--app-content-bg)]/40 text-[var(--app-heading)] hover:border-[var(--app-border)] transition-colors" style={{ borderColor: 'var(--app-border)' }} />
-              <Calendar className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--app-muted)]" size={18} />
-            </div>
-          </div>
-
-          <div className="text-center space-y-1.5 py-2">
-            <p className="text-[12px] font-black text-red-500 tracking-tight">Header in file must be Present*</p>
-            <p className="text-[12px] font-black text-red-500 tracking-tight">File processing may take upto 30 mins*</p>
-            <p className="text-[12px] font-black text-red-500 tracking-tight">Document should be no more than 40 pages and 30 MB in size*</p>
-          </div>
-
-          <div className="flex flex-col items-center justify-center gap-2 py-8 bg-[var(--app-content-bg)]/30 rounded-2xl border border-[var(--app-border)]">
-            <ObjectDoodle name="upload" className="w-28 h-24" />
-            <button className="text-[13px] font-bold hover:text-[var(--app-accent)] transition-colors" style={{ color: 'var(--app-text)' }}>Click here to Choose Files</button>
-            <div className="w-4/5 mt-4">
-              <div className="h-28 border-2 border-dashed border-[var(--app-border)] rounded-2xl flex items-center justify-center bg-[var(--app-panel-bg)] shadow-inner">
-                <span className="text-[13px] font-bold text-[var(--app-muted)] italic">Drag and drop files here</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex justify-center pt-2">
-            <button className="m3-interactive bg-[var(--app-accent)] hover:opacity-90 text-white px-12 py-2.5 rounded-lg text-[13px] font-black uppercase tracking-widest shadow-xl dark:shadow-none transition-all hover:opacity-90">
-              Upload
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-/* --- Rule Related Popups --- */
-const AddRuleModal = ({ onClose, ACCOUNT_NUMBERS: propAccNumbers, PARTY_LEDGERS: propPartyLedgers, PAYMENT_MODES: propPayModes, TRANSACTION_TYPES: propTxTypes, REPLACED_TYPES: propReplacedTypes }) => {
-  const modalAccNumbers = propAccNumbers || [];
-  const modalPartyLedgers = propPartyLedgers || [];
-  const modalPayModes = propPayModes || [];
-  const modalTxTypes = propTxTypes || [];
-  const modalReplacedTypes = propReplacedTypes || [];
-
-  const [account, setAccount] = useState('');
-  const [payMode, setPayMode] = useState('');
-  const [type, setType] = useState('');
-  const [replacedType, setReplacedType] = useState('');
-  const [partyLedger, setPartyLedger] = useState('');
-
-  return (
-    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 animate-in fade-in duration-300">
-      <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px]" onClick={onClose} />
-      <div className="relative w-[800px] bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col">
-        <div className="p-6 flex items-center justify-between border-b" style={{ borderColor: 'var(--app-row-border)' }}>
-          <h2 className="text-[18px] font-black text-[var(--app-accent)] tracking-tight">Add Rule</h2>
-          <button onClick={onClose} className="p-1 text-[var(--app-muted)] hover:text-[var(--app-text)] transition-colors"><X size={22} /></button>
-        </div>
-
-        <div className="px-10 pb-10 space-y-6 mt-4">
-          <div className="h-[180px] w-full bg-[var(--app-accent-soft)] rounded-2xl flex items-center justify-center overflow-hidden">
-            <ObjectDoodle name="scan" className="w-44 h-36" />
-          </div>
-
-          <div className="space-y-6">
-            <div>
-              <h3 className="text-[13px] font-black text-[var(--app-accent)] uppercase tracking-widest mb-4">Conditional Field</h3>
-              <div className="grid grid-cols-3 gap-4">
-                <SearchableDropdown placeholder="Account Number" items={modalAccNumbers} value={account} onChange={setAccount} />
-                <div className="relative">
-                  <input type="text" placeholder="Voucher Date" className="w-full h-11 border rounded-xl px-4 text-[13px] font-bold outline-none focus:border-[var(--app-accent)] shadow-sm bg-[var(--app-content-bg)]/40 text-[var(--app-heading)] hover:border-[var(--app-border)] transition-colors" style={{ borderColor: 'var(--app-border)' }} />
-                  <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--app-muted)]" size={16} />
-                </div>
-                <input type="text" placeholder="Description" className="h-11 border rounded-xl px-4 text-[13px] font-bold outline-none focus:border-[var(--app-accent)] shadow-sm bg-[var(--app-content-bg)]/40 text-[var(--app-heading)] hover:border-[var(--app-border)] transition-colors" style={{ borderColor: 'var(--app-border)' }} />
-                <SearchableDropdown placeholder="Payment Mode" items={modalPayModes} value={payMode} onChange={setPayMode} />
-                <SearchableDropdown placeholder="Type" items={modalTxTypes} value={type} onChange={setType} />
-                <input type="text" placeholder="Amount(Min)" className="h-11 border rounded-xl px-4 text-[13px] font-bold outline-none focus:border-[var(--app-accent)] shadow-sm bg-[var(--app-content-bg)]/40 text-[var(--app-heading)] hover:border-[var(--app-border)] transition-colors" style={{ borderColor: 'var(--app-border)' }} />
-                <input type="text" placeholder="Amount(Max)" className="h-11 border rounded-xl px-4 text-[13px] font-bold outline-none focus:border-[var(--app-accent)] shadow-sm bg-[var(--app-content-bg)]/40 text-[var(--app-heading)] hover:border-[var(--app-border)] transition-colors" style={{ borderColor: 'var(--app-border)' }} />
-              </div>
-            </div>
-
-            <div>
-              <h3 className="text-[13px] font-black text-[var(--app-accent)] uppercase tracking-widest mb-4 border-t pt-4" style={{ borderColor: 'var(--app-row-border)' }}>Action Field</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <SearchableDropdown placeholder="Replaced Type" items={modalReplacedTypes} value={replacedType} onChange={setReplacedType} />
-                <SearchableDropdown placeholder="Party Ledger" items={modalPartyLedgers} value={partyLedger} onChange={setPartyLedger} />
-              </div>
-            </div>
-          </div>
-
-          <div className="flex justify-center pt-2">
-            <button className="m3-interactive bg-[var(--app-accent)] hover:opacity-90 text-white px-14 py-2.5 rounded-lg text-[13px] font-black uppercase tracking-widest shadow-xl dark:shadow-none transition-all">
-              submit
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const BulkUploadRulesModal = ({ onClose }) => {
-  return (
-    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 animate-in fade-in duration-300">
-      <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px]" onClick={onClose} />
-      <div className="relative w-[800px] bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col">
-        <div className="p-6 flex items-center justify-between border-b" style={{ borderColor: 'var(--app-row-border)' }}>
-          <h2 className="text-[16px] font-black text-[var(--app-accent)] tracking-tight">Bulk Upload Bank Rules</h2>
-          <button onClick={onClose} className="p-1 text-[var(--app-muted)] hover:text-[var(--app-text)] transition-colors"><X size={20} /></button>
-        </div>
-
-        <div className="p-10 space-y-8">
-          <div className="text-center space-y-1.5">
-            <p className="text-[13px] font-bold text-[var(--app-accent)]">Supported formats: .xlsx, .xls</p>
-            <p className="text-[13px] font-bold text-[var(--app-accent)]">Maximum file size: 10 MB</p>
-          </div>
-
-          <div className="flex flex-col items-center justify-center gap-2 py-10 bg-[var(--app-content-bg)]/30 rounded-2xl border border-[var(--app-border)]">
-            <ObjectDoodle name="upload" className="w-28 h-24" />
-            <button className="text-[13px] font-bold hover:text-[var(--app-accent)] transition-colors" style={{ color: 'var(--app-text)' }}>Click here to Choose File</button>
-            <div className="w-[90%] mt-4">
-              <div className="h-28 border-2 border-dashed border-[var(--app-border)] rounded-2xl flex items-center justify-center bg-[var(--app-panel-bg)] shadow-inner">
-                <span className="text-[13px] font-bold text-[var(--app-muted)]">Drag and drop file here</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex justify-center pt-2">
-            <button className="m3-interactive bg-[var(--app-accent)] hover:opacity-90 text-white px-12 py-2.5 rounded-lg text-[13px] font-black uppercase tracking-widest shadow-xl dark:shadow-none transition-all hover:opacity-90">
-              Validate
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 const AddLedgerModal = ({ title, type, onClose, LEDGER_GROUPS: propGroups }) => {
   const modalGroups = propGroups && propGroups.length > 0 ? propGroups : [];
@@ -1237,7 +1248,28 @@ const AddLedgerModal = ({ title, type, onClose, LEDGER_GROUPS: propGroups }) => 
 
 /* --- Bank Details Page --- */
 
-const BankDetailsPage = ({ row, details, loading, balance, transactions, isDark, onClose }) => {
+const BankDetailsPage = ({ row, details, loading, balance, transactions: initialTransactions, isDark, onClose }) => {
+  const [statementData, setStatementData] = useState({ vouchers: [], kpis: { totalReceipts: 0, totalPayments: 0, netAmount: 0, totalCount: 0 } });
+  const [statementLoading, setStatementLoading] = useState(true);
+  const [sourceFilter, setSourceFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [searchFilter, setSearchFilter] = useState('');
+
+  useEffect(() => {
+    if (!row?.ledger) return;
+    setStatementLoading(true);
+    fundflowApi.getBankStatement(row.ledger)
+      .then((res) => {
+        if (res.success && res.data) {
+          setStatementData(res.data);
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to load bank statement:', err);
+      })
+      .finally(() => setStatementLoading(false));
+  }, [row?.ledger]);
+
   const maskAccount = (num) => {
     if (!num || num === '—') return '—';
     const s = String(num).replace(/\s/g, '');
@@ -1254,8 +1286,44 @@ const BankDetailsPage = ({ row, details, loading, balance, transactions, isDark,
 
   const currentBal = details?.outstandingBalance !== undefined ? details.outstandingBalance : balance;
   const openingBal = details?.openingBalance ?? 0;
-  const totalTxCount = transactions.length;
-  const pendingTxCount = transactions.filter(t => t.status === 'pending_approval').length;
+
+  // Filter vouchers locally
+  const rawVouchers = statementData.vouchers.length > 0 ? statementData.vouchers : (initialTransactions || []).map(tx => ({
+    id: tx._id,
+    voucherNumber: tx.voucherNumber || '—',
+    voucherDate: tx.voucherDate,
+    voucherType: tx.voucherType === 'cash_payment' ? 'Payment' : tx.voucherType === 'bank_payment' ? 'Receipt' : 'Contra',
+    partyName: (tx.ledgerRows || []).map(r => r.ledgerName).filter(Boolean).join(', ') || tx.partyLedger || '—',
+    amount: parseFloat(tx.amount) || 0,
+    source: (tx.createdVia || 'manual_entry').includes('excel') ? 'excel_upload' : 'manual_entry',
+    status: tx.status || 'draft',
+    narration: tx.narration || ''
+  }));
+
+  const filteredVouchers = rawVouchers.filter((v) => {
+    if (sourceFilter !== 'all' && (v.source || '').toLowerCase() !== sourceFilter.toLowerCase()) return false;
+    if (typeFilter !== 'all' && (v.voucherType || '').toLowerCase() !== typeFilter.toLowerCase()) return false;
+    if (searchFilter.trim()) {
+      const q = searchFilter.trim().toLowerCase();
+      const matchParty = (v.partyName || '').toLowerCase().includes(q);
+      const matchNum = String(v.voucherNumber || '').toLowerCase().includes(q);
+      const matchNarr = (v.narration || '').toLowerCase().includes(q);
+      if (!matchParty && !matchNum && !matchNarr) return false;
+    }
+    return true;
+  });
+
+  const getSourceBadge = (src) => {
+    switch (src) {
+      case 'tally_sync':
+        return <span className="px-2 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wider bg-blue-500/10 text-blue-600 border border-blue-200/50">Tally Sync</span>;
+      case 'excel_upload':
+        return <span className="px-2 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wider bg-emerald-500/10 text-emerald-600 border border-emerald-200/50">Excel Upload</span>;
+      case 'manual_entry':
+      default:
+        return <span className="px-2 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wider bg-purple-500/10 text-purple-600 border border-purple-200/50">Manual Entry</span>;
+    }
+  };
 
   return (
     <motion.div
@@ -1282,22 +1350,22 @@ const BankDetailsPage = ({ row, details, loading, balance, transactions, isDark,
                 {row.bank} ({row.ledger})
               </h1>
               <span className="px-2 py-0.5 rounded text-[9.5px] font-extrabold uppercase tracking-wider bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-                Active
+                Active Bank Ledger
               </span>
             </div>
             <p className="text-[10px] text-[var(--app-muted)] mt-0.5">
-              Account Holder: {row.accountName || details?.companyName || 'Primary Account'}
+              Account Holder: {row.accountName || details?.companyName || 'Primary Account'} | A/C No: {maskAccount(row.accountNumber)}
             </p>
           </div>
         </div>
       </div>
 
       {/* Loading state */}
-      {loading ? (
+      {loading || statementLoading ? (
         <div className="flex-1 flex items-center justify-center">
           <div className="flex flex-col items-center gap-3">
             <div className="w-8 h-8 rounded-full border-2 border-[var(--app-accent)] border-t-transparent animate-spin" />
-            <span className="text-[11px] font-semibold text-[var(--app-muted)]">Loading bank information…</span>
+            <span className="text-[11px] font-semibold text-[var(--app-muted)]">Loading bank vouchers and statement…</span>
           </div>
         </div>
       ) : (
@@ -1311,22 +1379,86 @@ const BankDetailsPage = ({ row, details, loading, balance, transactions, isDark,
               </div>
             </div>
             <div className="rounded-xl border p-3 bg-[var(--app-control-bg)] shadow-sm" style={{ borderColor: 'var(--app-border)' }}>
-              <span className="text-[9px] font-bold text-[var(--app-muted)] uppercase tracking-wider">Opening Balance</span>
-              <div className="text-[16px] font-black mt-1 text-[var(--app-heading)]">
-                {fmtBalance(openingBal)}
+              <span className="text-[9px] font-bold text-[var(--app-muted)] uppercase tracking-wider">Total Receipts (Inflow)</span>
+              <div className="text-[16px] font-black mt-1 text-emerald-500">
+                ₹ {(statementData.kpis?.totalReceipts || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
               </div>
             </div>
             <div className="rounded-xl border p-3 bg-[var(--app-control-bg)] shadow-sm" style={{ borderColor: 'var(--app-border)' }}>
-              <span className="text-[9px] font-bold text-[var(--app-muted)] uppercase tracking-wider">Total Vouchers</span>
-              <div className="text-[16px] font-black mt-1 text-[var(--app-heading)]">
-                {totalTxCount}
+              <span className="text-[9px] font-bold text-[var(--app-muted)] uppercase tracking-wider">Total Payments (Outflow)</span>
+              <div className="text-[16px] font-black mt-1 text-rose-500">
+                ₹ {(statementData.kpis?.totalPayments || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
               </div>
             </div>
             <div className="rounded-xl border p-3 bg-[var(--app-control-bg)] shadow-sm" style={{ borderColor: 'var(--app-border)' }}>
-              <span className="text-[9px] font-bold text-[var(--app-muted)] uppercase tracking-wider">Pending Review</span>
-              <div className="text-[16px] font-black mt-1 text-amber-500">
-                {pendingTxCount}
+              <span className="text-[9px] font-bold text-[var(--app-muted)] uppercase tracking-wider">Total Connected Vouchers</span>
+              <div className="text-[16px] font-black mt-1 text-[var(--app-heading)]">
+                {rawVouchers.length}
               </div>
+            </div>
+          </div>
+
+          {/* Filter Bar */}
+          <div className="rounded-xl border p-3 bg-[var(--app-control-bg)] flex flex-wrap items-center justify-between gap-3" style={{ borderColor: 'var(--app-border)' }}>
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Source Filters */}
+              <span className="text-[10px] font-bold uppercase text-[var(--app-muted)] mr-1">Source:</span>
+              {[
+                { id: 'all', label: 'All Sources' },
+                { id: 'tally_sync', label: 'Tally Sync' },
+                { id: 'excel_upload', label: 'Excel Bulk' },
+                { id: 'manual_entry', label: 'Manual Entry' }
+              ].map(s => (
+                <button
+                  key={s.id}
+                  onClick={() => setSourceFilter(s.id)}
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-extrabold transition-all ${
+                    sourceFilter === s.id
+                      ? 'bg-[var(--app-accent)] text-white shadow-xs'
+                      : 'border text-[var(--app-muted)] hover:text-[var(--app-heading)]'
+                  }`}
+                  style={sourceFilter !== s.id ? { borderColor: 'var(--app-border)' } : {}}
+                >
+                  {s.label}
+                </button>
+              ))}
+
+              <div className="h-4 w-px bg-[var(--app-border)] mx-1" />
+
+              {/* Voucher Type Filters */}
+              <span className="text-[10px] font-bold uppercase text-[var(--app-muted)] mr-1">Type:</span>
+              {[
+                { id: 'all', label: 'All Types' },
+                { id: 'payment', label: 'Payment' },
+                { id: 'receipt', label: 'Receipt' },
+                { id: 'contra', label: 'Contra' }
+              ].map(t => (
+                <button
+                  key={t.id}
+                  onClick={() => setTypeFilter(t.id)}
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-extrabold transition-all ${
+                    typeFilter === t.id
+                      ? 'bg-[var(--app-heading)] text-white shadow-xs'
+                      : 'border text-[var(--app-muted)] hover:text-[var(--app-heading)]'
+                  }`}
+                  style={typeFilter !== t.id ? { borderColor: 'var(--app-border)' } : {}}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Search Input */}
+            <div className="relative min-w-[200px]">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--app-muted)]" size={13} />
+              <input
+                type="text"
+                placeholder="Filter vouchers..."
+                value={searchFilter}
+                onChange={(e) => setSearchFilter(e.target.value)}
+                className="w-full h-8 pl-8 pr-3 border rounded-lg text-[11px] font-semibold outline-none focus:border-[var(--app-accent)]"
+                style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-panel-bg)', color: 'var(--app-heading)' }}
+              />
             </div>
           </div>
 
@@ -1336,7 +1468,7 @@ const BankDetailsPage = ({ row, details, loading, balance, transactions, isDark,
             <div className="lg:col-span-1 space-y-4">
               <div className="rounded-xl border p-4 bg-[var(--app-control-bg)] shadow-sm" style={{ borderColor: 'var(--app-border)' }}>
                 <h3 className="text-[10px] font-black uppercase tracking-wider text-[var(--app-accent)] border-b pb-2 mb-3" style={{ borderColor: 'var(--app-border)' }}>
-                  Bank Information
+                  Bank Ledger Details
                 </h3>
                 <div className="space-y-3">
                   <div className="flex flex-col">
@@ -1363,12 +1495,6 @@ const BankDetailsPage = ({ row, details, loading, balance, transactions, isDark,
                     <span className="text-[9px] font-bold text-[var(--app-muted)] uppercase tracking-wider">Ledger Group</span>
                     <span className="text-[12px] font-bold text-[var(--app-heading)]">{details?.groupName || 'Bank Accounts'}</span>
                   </div>
-                  <div className="flex flex-col">
-                    <span className="text-[9px] font-bold text-[var(--app-muted)] uppercase tracking-wider">Status</span>
-                    <span className="text-[12px] font-bold text-emerald-500 flex items-center gap-1.5 mt-0.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Active
-                    </span>
-                  </div>
                 </div>
               </div>
             </div>
@@ -1376,67 +1502,53 @@ const BankDetailsPage = ({ row, details, loading, balance, transactions, isDark,
             {/* Right Column: Transaction History Card */}
             <div className="lg:col-span-2 space-y-3">
               <div className="rounded-xl border p-4 bg-[var(--app-control-bg)] shadow-sm" style={{ borderColor: 'var(--app-border)' }}>
-                <h3 className="text-[10px] font-black uppercase tracking-wider text-[var(--app-accent)] border-b pb-2 mb-3" style={{ borderColor: 'var(--app-border)' }}>
-                  Transaction History
-                </h3>
+                <div className="flex items-center justify-between border-b pb-2 mb-3" style={{ borderColor: 'var(--app-border)' }}>
+                  <h3 className="text-[10px] font-black uppercase tracking-wider text-[var(--app-accent)]">
+                    Voucher List & Bank Statement ({filteredVouchers.length})
+                  </h3>
+                </div>
                 <div className="overflow-x-auto animate-in fade-in duration-300">
-                  {transactions.length > 0 ? (
+                  {filteredVouchers.length > 0 ? (
                     <table className="w-full text-left border-collapse text-[11px]">
                       <thead>
                         <tr className="border-b" style={{ borderColor: 'var(--app-border)' }}>
                           <th className="py-2 font-black text-[var(--app-muted)] uppercase tracking-wider">Date</th>
                           <th className="py-2 font-black text-[var(--app-muted)] uppercase tracking-wider">Voucher No</th>
+                          <th className="py-2 font-black text-[var(--app-muted)] uppercase tracking-wider">Source</th>
                           <th className="py-2 font-black text-[var(--app-muted)] uppercase tracking-wider">Type</th>
-                          <th className="py-2 font-black text-[var(--app-muted)] uppercase tracking-wider">Party/Ledger</th>
+                          <th className="py-2 font-black text-[var(--app-muted)] uppercase tracking-wider">Party / Ledger</th>
                           <th className="py-2 font-black text-[var(--app-muted)] uppercase tracking-wider text-right">Amount</th>
                           <th className="py-2 font-black text-[var(--app-muted)] uppercase tracking-wider text-center">Status</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {transactions.map((tx, idx) => {
+                        {filteredVouchers.map((tx, idx) => {
                           const dateStr = tx.voucherDate ? new Date(tx.voucherDate).toLocaleDateString('en-IN') : '—';
-                          const partyNames = (tx.ledgerRows || []).map(r => r.ledgerName).filter(Boolean).join(', ') || tx.partyLedger || '—';
-                          const type = tx.voucherType === 'cash_payment' ? 'Payment' : tx.voucherType === 'bank_payment' ? 'Receipt' : 'Contra';
-                          const isReceipt = tx.voucherType === 'bank_payment';
+                          const isReceipt = tx.voucherType === 'Receipt';
                           const txAmount = parseFloat(tx.amount) || 0;
-                          
-                          // Format status labels/tones
-                          let statusLabel = 'Draft';
-                          let statusTone = 'neutral';
-                          if (tx.status === 'pending_approval') {
-                            statusLabel = 'Pending';
-                            statusTone = 'warning';
-                          } else if (tx.status === 'approved' || tx.status === 'posted_to_tally') {
-                            statusLabel = 'Approved';
-                            statusTone = 'success';
-                          } else if (tx.status === 'failed_tally') {
-                            statusLabel = 'Failed';
-                            statusTone = 'danger';
-                          }
 
                           return (
-                            <tr key={tx._id || idx} className="border-b last:border-0 hover:bg-[var(--app-content-bg)]/50 transition-colors" style={{ borderColor: 'var(--app-border)' }}>
-                              <td className="py-2 font-semibold text-[var(--app-heading)]">{dateStr}</td>
-                              <td className="py-2 font-bold text-[var(--app-heading)]">{tx.voucherNumber || '—'}</td>
-                              <td className="py-2 font-bold">
+                            <tr key={tx.id || idx} className="border-b last:border-0 hover:bg-[var(--app-content-bg)]/50 transition-colors" style={{ borderColor: 'var(--app-border)' }}>
+                              <td className="py-2.5 font-semibold text-[var(--app-heading)]">{dateStr}</td>
+                              <td className="py-2.5 font-bold text-[var(--app-heading)] font-mono">{tx.voucherNumber || '—'}</td>
+                              <td className="py-2.5">{getSourceBadge(tx.source)}</td>
+                              <td className="py-2.5 font-bold">
                                 <span className={`px-2 py-0.5 rounded text-[9.5px] uppercase font-black tracking-wider ${
-                                  type === 'Receipt' ? 'bg-emerald-500/10 text-emerald-500' :
-                                  type === 'Payment' ? 'bg-amber-500/10 text-amber-500' : 'bg-blue-500/10 text-blue-500'
+                                  tx.voucherType === 'Receipt' ? 'bg-emerald-500/10 text-emerald-500' :
+                                  tx.voucherType === 'Payment' ? 'bg-rose-500/10 text-rose-500' : 'bg-blue-500/10 text-blue-500'
                                 }`}>
-                                  {type}
+                                  {tx.voucherType}
                                 </span>
                               </td>
-                              <td className="py-2 font-semibold text-[var(--app-heading)] max-w-[150px] truncate" title={partyNames}>{partyNames}</td>
-                              <td className={`py-2 font-bold text-right ${isReceipt ? 'text-emerald-500' : 'text-rose-500'}`}>
+                              <td className="py-2.5 font-semibold text-[var(--app-heading)] max-w-[160px] truncate" title={tx.partyName}>
+                                {tx.partyName}
+                              </td>
+                              <td className={`py-2.5 font-bold text-right tabular-nums ${isReceipt ? 'text-emerald-500' : 'text-rose-500'}`}>
                                 ₹ {txAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                               </td>
-                              <td className="py-2 text-center">
-                                <span className={`px-2 py-0.5 rounded text-[9.5px] uppercase font-black tracking-wider ${
-                                  statusTone === 'success' ? 'bg-emerald-500/10 text-emerald-500' :
-                                  statusTone === 'warning' ? 'bg-amber-500/10 text-amber-500' :
-                                  statusTone === 'danger' ? 'bg-rose-500/10 text-rose-500' : 'bg-slate-500/10 text-slate-500'
-                                }`}>
-                                  {statusLabel}
+                              <td className="py-2.5 text-center">
+                                <span className="px-2 py-0.5 rounded text-[9.5px] uppercase font-black tracking-wider bg-emerald-500/10 text-emerald-500">
+                                  {tx.status || 'Active'}
                                 </span>
                               </td>
                             </tr>
@@ -1445,8 +1557,8 @@ const BankDetailsPage = ({ row, details, loading, balance, transactions, isDark,
                       </tbody>
                     </table>
                   ) : (
-                    <div className="py-8 text-center text-[var(--app-muted)] font-semibold">
-                      No transactions recorded for this bank account.
+                    <div className="py-12 text-center text-[var(--app-muted)] font-semibold italic">
+                      No vouchers match the selected bank ledger & filter criteria.
                     </div>
                   )}
                 </div>
@@ -1486,4 +1598,100 @@ const ColumnConfigPopup = ({ onClose, activeTab }) => {
   );
 };
 
+const BankStatementUploadModal = ({ onClose, BANK_LEDGERS, onBatchCreated }) => {
+  const effectiveLedgers = BANK_LEDGERS && BANK_LEDGERS.length > 0 ? BANK_LEDGERS : ['Primary Bank Account', 'HDFC Bank Account', 'ICICI Bank Account', 'SBI Bank Account'];
+  const [file, setFile] = useState(null);
+  const [bankLedger, setBankLedger] = useState(effectiveLedgers[0] || 'Primary Bank Account');
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!bankLedger && effectiveLedgers.length > 0) {
+      setBankLedger(effectiveLedgers[0]);
+    }
+  }, [BANK_LEDGERS]);
+
+  const handleUpload = async () => {
+    if (!file) {
+      toast.error('Please select a bank statement file (PDF or Excel/CSV)');
+      return;
+    }
+    const targetLedger = bankLedger || effectiveLedgers[0] || 'Primary Bank Account';
+
+    setLoading(true);
+    try {
+      const res = await bankStatementAiApi.uploadStatement(file, targetLedger);
+      if (res.success && res.data) {
+        toast.success(`Statement processed! Found ${res.data.summary.total_count} transactions.`);
+        onBatchCreated(res.data);
+        onClose();
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Failed to process bank statement');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 animate-in fade-in duration-300">
+      <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px]" onClick={onClose} />
+      <div className="relative w-[650px] bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col">
+        <div className="p-6 flex items-center justify-between border-b" style={{ borderColor: 'var(--app-row-border)' }}>
+          <div className="flex items-center gap-2">
+            <Sparkles className="text-[var(--app-accent)]" size={20} />
+            <h2 className="text-[18px] font-black text-[var(--app-heading)] tracking-tight">AI Bank Statement Ingestion</h2>
+          </div>
+          <button onClick={onClose} className="p-1 text-[var(--app-muted)] hover:text-[var(--app-heading)] transition-colors"><X size={20} /></button>
+        </div>
+
+        <div className="p-8 space-y-6">
+          <div>
+            <label className="text-[11px] font-extrabold uppercase text-[var(--app-muted)] block mb-2">Target Bank Ledger</label>
+            <SearchableDropdown placeholder="Select Bank Ledger" items={effectiveLedgers} value={bankLedger} onChange={setBankLedger} />
+          </div>
+
+          <div>
+            <label className="text-[11px] font-extrabold uppercase text-[var(--app-muted)] block mb-2">Bank Statement File (.pdf, .xlsx, .xls, .csv)</label>
+            <div className="border-2 border-dashed rounded-2xl p-6 text-center bg-[var(--app-control-bg)] hover:border-[var(--app-accent)] transition-all cursor-pointer relative" style={{ borderColor: 'var(--app-border)' }}>
+              <input
+                type="file"
+                accept=".pdf,.xlsx,.xls,.csv"
+                onChange={(e) => setFile(e.target.files[0])}
+                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+              />
+              <Upload className="mx-auto text-[var(--app-accent)] mb-2" size={28} />
+              {file ? (
+                <div>
+                  <span className="text-xs font-black text-[var(--app-heading)] block">{file.name}</span>
+                  <span className="text-[10px] font-semibold text-[var(--app-muted)]">{(file.size / 1024).toFixed(1)} KB</span>
+                </div>
+              ) : (
+                <div>
+                  <span className="text-xs font-bold text-[var(--app-heading)] block">Click or Drag & Drop Bank Statement</span>
+                  <span className="text-[10px] font-semibold text-[var(--app-muted)]">Supports PDF statements, Excel (.xlsx, .xls) and CSV files</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <button onClick={onClose} className="px-5 py-2.5 rounded-xl border text-xs font-bold hover:bg-[var(--app-control-hover)]" style={{ borderColor: 'var(--app-border)', color: 'var(--app-muted)' }}>
+              Cancel
+            </button>
+            <button
+              onClick={handleUpload}
+              disabled={loading || !file}
+              className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider bg-[var(--app-accent)] text-white shadow-md hover:opacity-90 disabled:opacity-50 transition-all cursor-pointer"
+            >
+              {loading ? <RefreshCw className="animate-spin" size={14} /> : <Sparkles size={14} />}
+              <span>{loading ? 'Processing AI Extraction...' : 'Upload & Process AI Statement'}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default BankPanel;
+

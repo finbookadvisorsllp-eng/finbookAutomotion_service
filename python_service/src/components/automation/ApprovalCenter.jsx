@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  CheckCircle2, XCircle, Send, FileText, AlertTriangle, Plus, X, Layers, User, Search, Eye, HelpCircle, 
-  Download, ArrowLeft, Sparkles, Pencil, ChevronDown, Trash2, ZoomIn, ZoomOut, Maximize2, Check, ChevronRight, 
+import {
+  CheckCircle2, XCircle, Send, FileText, AlertTriangle, Plus, X, Layers, User, Search, Eye, HelpCircle,
+  Download, ArrowLeft, Sparkles, Pencil, ChevronDown, Trash2, ZoomIn, ZoomOut, Maximize2, Check, ChevronRight,
   MessageSquare, ExternalLink, Calendar, MoreVertical, UploadCloud
 } from 'lucide-react';
 import ObjectDoodle from '../ui/ObjectDoodle';
@@ -30,125 +30,125 @@ const statusTextColors = {
 
 // Mock Fallback Data
 const defaultMockManualEntries = [
-  { 
-    id: 'ap-1', 
-    voucherNumber: 'VOU-2026-001', 
-    date: '19 Jun 2026', 
-    company: 'Friends Grafix', 
-    type: 'Sales Voucher', 
-    amount: 15400.00, 
-    status: 'Pending Approval', 
-    confidence: 100, 
+  {
+    id: 'ap-1',
+    voucherNumber: 'VOU-2026-001',
+    date: '19 Jun 2026',
+    company: 'Friends Grafix',
+    type: 'Sales Voucher',
+    amount: 15400.00,
+    status: 'Pending Approval',
+    confidence: 100,
     statusText: 'Ready to Post',
     source: 'Manual Voucher Entry',
-    details: { 
-      ledger: 'Sundry Debtors', 
-      tax: 'IGST (18%)', 
+    details: {
+      ledger: 'Sundry Debtors',
+      tax: 'IGST (18%)',
       taxAmount: 2349.15,
       taxableValue: 13050.85,
-      attachments: 'invoice_1092.pdf', 
-      comments: 'Automated match passed. GSTIN verified.' 
-    } 
+      attachments: 'invoice_1092.pdf',
+      comments: 'Automated match passed. GSTIN verified.'
+    }
   },
-  { 
-    id: 'ap-2', 
-    voucherNumber: 'VOU-2026-002', 
-    date: '19 Jun 2026', 
-    company: 'Office Care Solutions', 
-    type: 'Purchase Voucher', 
-    amount: 8450.00, 
-    status: 'Pending Approval', 
-    confidence: 95, 
+  {
+    id: 'ap-2',
+    voucherNumber: 'VOU-2026-002',
+    date: '19 Jun 2026',
+    company: 'Office Care Solutions',
+    type: 'Purchase Voucher',
+    amount: 8450.00,
+    status: 'Pending Approval',
+    confidence: 95,
     statusText: 'Needs Review',
     source: 'Manual Voucher Entry',
-    details: { 
-      ledger: 'Printing & Stationery', 
-      tax: 'CGST/SGST (18%)', 
+    details: {
+      ledger: 'Printing & Stationery',
+      tax: 'CGST/SGST (18%)',
       taxAmount: 1288.98,
       taxableValue: 7161.02,
-      attachments: 'bill_29202.png', 
-      comments: 'Needs ledger confirmation.' 
-    } 
+      attachments: 'bill_29202.png',
+      comments: 'Needs ledger confirmation.'
+    }
   },
-  { 
-    id: 'ap-3', 
-    voucherNumber: 'VOU-2026-003', 
-    date: '19 Jun 2026', 
-    company: 'HDFC Fuel Corp', 
-    type: 'Payment Voucher', 
-    amount: 2500.00, 
-    status: 'Pending Approval', 
-    confidence: 85, 
+  {
+    id: 'ap-3',
+    voucherNumber: 'VOU-2026-003',
+    date: '19 Jun 2026',
+    company: 'HDFC Fuel Corp',
+    type: 'Payment Voucher',
+    amount: 2500.00,
+    status: 'Pending Approval',
+    confidence: 85,
     statusText: 'Mapping Missing',
     source: 'Manual Voucher Entry',
-    details: { 
-      ledger: 'Bank Charges', 
-      tax: 'Exempt', 
+    details: {
+      ledger: 'Bank Charges',
+      tax: 'Exempt',
       taxAmount: 0,
       taxableValue: 2500.00,
-      attachments: 'receipt_hdfc.pdf', 
-      comments: 'Fuel expenses.' 
-    } 
+      attachments: 'receipt_hdfc.pdf',
+      comments: 'Fuel expenses.'
+    }
   },
-  { 
-    id: 'ap-4', 
-    voucherNumber: 'VOU-2026-004', 
-    date: '18 Jun 2026', 
-    company: 'Super Cleaners', 
-    type: 'Contra Voucher', 
-    amount: 4800.00, 
-    status: 'Approved', 
-    confidence: 100, 
+  {
+    id: 'ap-4',
+    voucherNumber: 'VOU-2026-004',
+    date: '18 Jun 2026',
+    company: 'Super Cleaners',
+    type: 'Contra Voucher',
+    amount: 4800.00,
+    status: 'Approved',
+    confidence: 100,
     statusText: 'Ready to Post',
     source: 'Manual Voucher Entry',
-    details: { 
-      ledger: 'Cash Account', 
-      tax: '—', 
+    details: {
+      ledger: 'Cash Account',
+      tax: '—',
       taxAmount: 0,
       taxableValue: 4800.00,
-      attachments: '—', 
-      comments: 'Cash deposit.' 
-    } 
+      attachments: '—',
+      comments: 'Cash deposit.'
+    }
   },
-  { 
-    id: 'ap-5', 
-    voucherNumber: 'VOU-2026-005', 
-    date: '18 Jun 2026', 
-    company: 'Aman Deep & Co', 
-    type: 'Debit Note', 
-    amount: 18900.00, 
-    status: 'Rejected', 
-    confidence: 60, 
+  {
+    id: 'ap-5',
+    voucherNumber: 'VOU-2026-005',
+    date: '18 Jun 2026',
+    company: 'Aman Deep & Co',
+    type: 'Debit Note',
+    amount: 18900.00,
+    status: 'Rejected',
+    confidence: 60,
     statusText: 'High Risk',
     source: 'Manual Voucher Entry',
-    details: { 
-      ledger: 'Purchase Returns', 
-      tax: 'IGST (18%)', 
+    details: {
+      ledger: 'Purchase Returns',
+      tax: 'IGST (18%)',
       taxAmount: 2883.05,
       taxableValue: 16016.95,
-      attachments: 'debit_note_05.pdf', 
-      comments: 'Incorrect tax rate allocation.' 
-    } 
+      attachments: 'debit_note_05.pdf',
+      comments: 'Incorrect tax rate allocation.'
+    }
   },
-  { 
-    id: 'ap-6', 
-    voucherNumber: 'VOU-2026-006', 
-    date: '16 Jun 2026', 
-    company: 'Anjalee Logistics', 
-    type: 'Credit Note', 
-    amount: 32000.00, 
-    status: 'Posted To Tally', 
-    confidence: 98, 
+  {
+    id: 'ap-6',
+    voucherNumber: 'VOU-2026-006',
+    date: '16 Jun 2026',
+    company: 'Anjalee Logistics',
+    type: 'Credit Note',
+    amount: 32000.00,
+    status: 'Posted To Tally',
+    confidence: 98,
     statusText: 'Ready to Post',
     source: 'Manual Voucher Entry',
-    details: { 
-      ledger: 'Sales Returns', 
-      tax: 'CGST/SGST (18%)', 
+    details: {
+      ledger: 'Sales Returns',
+      tax: 'CGST/SGST (18%)',
       taxAmount: 4881.36,
       taxableValue: 27118.64,
-      attachments: 'credit_note_06.pdf', 
-      comments: 'Returned damaged stock.' 
-    } 
+      attachments: 'credit_note_06.pdf',
+      comments: 'Returned damaged stock.'
+    }
   }
 ];
 
@@ -465,7 +465,7 @@ export default function ApprovalCenter() {
       } else {
         docs = defaultMockOcrDocs;
       }
-      
+
       const updatedDocs = docs.map(doc => {
         if (doc.id === selectedEntry.id) {
           return {
@@ -712,7 +712,7 @@ export default function ApprovalCenter() {
         <div className="flex items-center gap-1.5">
           {!isPosted && (
             <>
-              <button 
+              <button
                 onClick={() => {
                   handleReject(entry.id);
                   setCurrentView('list');
@@ -721,7 +721,7 @@ export default function ApprovalCenter() {
               >
                 <Trash2 size={12} /> Reject
               </button>
-              <button 
+              <button
                 onClick={() => {
                   handleSendBack(entry.id);
                   setCurrentView('list');
@@ -736,7 +736,7 @@ export default function ApprovalCenter() {
 
         <div className="flex items-center gap-1.5">
           {!isApproved && (
-            <button 
+            <button
               onClick={() => {
                 handleApprove(entry.id);
                 setCurrentView('list');
@@ -748,7 +748,7 @@ export default function ApprovalCenter() {
           )}
 
           {isApproved && !isPosted && (
-            <button 
+            <button
               onClick={() => {
                 handleSyncTally(entry.id);
                 setCurrentView('list');
@@ -760,7 +760,7 @@ export default function ApprovalCenter() {
           )}
 
           {!isApproved && (
-            <button 
+            <button
               onClick={() => {
                 handleApprove(entry.id);
                 handleSyncTally(entry.id);
@@ -827,7 +827,7 @@ export default function ApprovalCenter() {
           </div>
 
           <div className="flex items-center gap-3">
-            <button 
+            <button
               onClick={() => setCurrentView('list')}
               className="px-2.5 py-1 border border-[var(--app-border)] hover:bg-[var(--app-content-bg)] text-[var(--app-heading)] font-extrabold rounded-lg text-[11px] transition-all flex items-center gap-1"
             >
@@ -842,7 +842,7 @@ export default function ApprovalCenter() {
             <div className="bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-xl p-2 shadow-sm flex flex-col min-h-0 flex-1 justify-between">
               <div>
                 <h3 className="text-[var(--app-muted)] font-bold text-[9px] tracking-wider uppercase border-b border-[var(--app-border)] pb-0.5 mb-1 shrink-0">DOUBLE-ENTRY ACCOUNTING BREAKDOWN</h3>
-                
+
                 <div className="flex justify-between items-center text-[10.5px] shrink-0 mb-1 px-1">
                   <div>
                     <span className="text-[var(--app-muted)] font-medium">Voucher Type</span>
@@ -866,7 +866,7 @@ export default function ApprovalCenter() {
                   <span>Total Voucher Value</span>
                   <span className="text-emerald-500 font-extrabold">₹{amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                 </div>
-                
+
                 {raw.narration && (
                   <div className="bg-[var(--app-content-bg)] p-2 border rounded-lg text-[var(--app-muted)] text-[11px]">
                     <span className="text-[8px] uppercase font-bold text-[var(--app-muted)] block mb-0.25">Narration / Remarks</span>
@@ -971,9 +971,9 @@ export default function ApprovalCenter() {
               Filename: <span className="font-semibold text-[var(--app-text)]">{batch.filename}</span> | Upload Date: <span className="font-semibold text-[var(--app-text)]">{batch.uploadDate}</span>
             </p>
           </div>
-          
+
           <div className="flex items-center gap-3">
-            <button 
+            <button
               onClick={() => setCurrentView('list')}
               className="px-2.5 py-1 border border-[var(--app-border)] hover:bg-[var(--app-content-bg)] text-[var(--app-heading)] font-extrabold rounded-lg text-[11px] transition-all flex items-center gap-1"
             >
@@ -985,7 +985,7 @@ export default function ApprovalCenter() {
         {/* Spreadsheet records list */}
         <div className="flex-1 bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-xl p-2 shadow-sm flex flex-col min-h-0">
           <h3 className="text-[var(--app-muted)] font-bold text-[9px] tracking-wider uppercase border-b border-[var(--app-border)] pb-0.5 mb-1.5 shrink-0">BATCH RECORDS SPREADSHEET VIEW ({batch.records?.length || 0} rows)</h3>
-          
+
           <div className="flex-1 overflow-auto themed-scrollbar min-h-0">
             <table className="w-full text-left border-collapse min-w-[1000px] text-[10.5px]">
               <thead>
@@ -1018,9 +1018,8 @@ export default function ApprovalCenter() {
                     <td className="py-1 px-2 text-right text-[var(--app-muted)] font-normal">₹{r.taxAmount.toLocaleString('en-IN')}</td>
                     <td className="py-1 px-2 text-right font-black text-[var(--app-heading)] dark:text-white">₹{r.totalAmount.toLocaleString('en-IN')}</td>
                     <td className="py-1 px-2 text-center">
-                      <span className={`px-1 py-0.25 rounded text-[9px] font-bold ${
-                        r.status === 'Valid' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-400' : 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400'
-                      }`}>
+                      <span className={`px-1 py-0.25 rounded text-[9px] font-bold ${r.status === 'Valid' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-400' : 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400'
+                        }`}>
                         {r.status}
                       </span>
                     </td>
@@ -1056,9 +1055,9 @@ export default function ApprovalCenter() {
               OCR Processed Document | Confidence: <span className="text-emerald-500 font-extrabold">{docEntry.confidence}%</span> | Upload Date: <span className="font-semibold text-[var(--app-text)]">{docEntry.date}</span>
             </p>
           </div>
-          
+
           <div className="flex items-center gap-3">
-            <button 
+            <button
               onClick={() => setCurrentView('list')}
               className="px-2.5 py-1 border border-[var(--app-border)] hover:bg-[var(--app-content-bg)] text-[var(--app-heading)] font-extrabold rounded-lg text-[11px] transition-all flex items-center gap-1"
             >
@@ -1073,7 +1072,7 @@ export default function ApprovalCenter() {
           <div className="col-span-12 lg:col-span-6 flex flex-col min-h-0">
             <div className="bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-xl p-2 shadow-sm flex flex-col min-h-0 flex-1">
               <h3 className="text-[var(--app-muted)] font-bold text-[9px] tracking-wider uppercase border-b border-[var(--app-border)] pb-0.5 mb-1 shrink-0">DOCUMENT PREVIEW</h3>
-              
+
               <div className="flex-1 relative bg-[var(--app-content-bg)] rounded-xl p-2 flex flex-col items-center justify-between border border-[var(--app-border)] min-h-0 overflow-hidden">
                 <div className="bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-lg shadow-sm w-full p-3 text-[9px] space-y-2 font-sans text-[var(--app-heading)] min-h-0 overflow-y-auto flex flex-col justify-between flex-1 mb-0.5 themed-scrollbar">
                   <div className="flex justify-between items-start border-b border-[var(--app-border)] pb-1.5">
@@ -1088,7 +1087,7 @@ export default function ApprovalCenter() {
                       <p className="text-[var(--app-muted)] font-mono text-[7.5px] font-bold">Date: {doc.docDate || '19-06-2026'}</p>
                     </div>
                   </div>
-                  
+
                   <div className="text-[9px] py-0.5 border-b border-slate-50 pb-1.5">
                     <p className="font-bold text-[var(--app-muted)]">Bill To:</p>
                     <p className="font-extrabold text-slate-855 mt-0.25">{doc.partyLedger || 'Customer Account'}</p>
@@ -1158,73 +1157,73 @@ export default function ApprovalCenter() {
             <div className="bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-xl p-2 shadow-sm flex flex-col min-h-0 flex-1 justify-between">
               <div className="space-y-2 overflow-y-auto pr-1 themed-scrollbar">
                 <h3 className="text-[var(--app-muted)] font-bold text-[9px] tracking-wider uppercase border-b border-[var(--app-border)] pb-0.5 mb-1 shrink-0">EDIT EXTRACTED OCR DATA</h3>
-                
+
                 <div className="grid grid-cols-2 gap-2 text-[11px]">
                   <div className="col-span-2 flex flex-col gap-0.5">
                     <label className="text-[var(--app-muted)] font-bold text-[8.5px] uppercase">Supplier (Vendor)</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       value={ocrForm.vendor}
-                      onChange={(e) => setOcrForm({...ocrForm, vendor: e.target.value})}
+                      onChange={(e) => setOcrForm({ ...ocrForm, vendor: e.target.value })}
                       className="w-full px-2 py-1 border rounded-lg outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)] transition-all font-bold text-[11px]"
                     />
                   </div>
 
                   <div className="flex flex-col gap-0.5">
                     <label className="text-[var(--app-muted)] font-bold text-[8.5px] uppercase">Invoice No (Doc No)</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       value={ocrForm.docNo}
-                      onChange={(e) => setOcrForm({...ocrForm, docNo: e.target.value})}
+                      onChange={(e) => setOcrForm({ ...ocrForm, docNo: e.target.value })}
                       className="w-full px-2 py-1 border rounded-lg outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)] transition-all font-mono font-bold text-[11px]"
                     />
                   </div>
 
                   <div className="flex flex-col gap-0.5">
                     <label className="text-[var(--app-muted)] font-bold text-[8.5px] uppercase">Date</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       value={ocrForm.docDate}
-                      onChange={(e) => setOcrForm({...ocrForm, docDate: e.target.value})}
+                      onChange={(e) => setOcrForm({ ...ocrForm, docDate: e.target.value })}
                       className="w-full px-2 py-1 border rounded-lg outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)] transition-all font-bold text-[11px]"
                     />
                   </div>
 
                   <div className="flex flex-col gap-0.5">
                     <label className="text-[var(--app-muted)] font-bold text-[8.5px] uppercase">GSTIN</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       value={ocrForm.gstin}
-                      onChange={(e) => setOcrForm({...ocrForm, gstin: e.target.value})}
+                      onChange={(e) => setOcrForm({ ...ocrForm, gstin: e.target.value })}
                       className="w-full px-2 py-1 border rounded-lg outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)] transition-all font-mono font-bold text-[11px]"
                     />
                   </div>
 
                   <div className="flex flex-col gap-0.5">
                     <label className="text-[var(--app-muted)] font-bold text-[8.5px] uppercase">Total Amount</label>
-                    <input 
-                      type="number" 
+                    <input
+                      type="number"
                       value={ocrForm.amount}
-                      onChange={(e) => setOcrForm({...ocrForm, amount: e.target.value})}
+                      onChange={(e) => setOcrForm({ ...ocrForm, amount: e.target.value })}
                       className="w-full px-2 py-1 border rounded-lg outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)] transition-all font-bold text-emerald-500 text-[11px]"
                     />
                   </div>
 
                   <div className="col-span-2 flex flex-col gap-0.5">
                     <label className="text-[var(--app-muted)] font-bold text-[8.5px] uppercase">Ledger Account (Party Ledger)</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       value={ocrForm.partyLedger}
-                      onChange={(e) => setOcrForm({...ocrForm, partyLedger: e.target.value})}
+                      onChange={(e) => setOcrForm({ ...ocrForm, partyLedger: e.target.value })}
                       className="w-full px-2 py-1 border rounded-lg outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)] transition-all font-bold text-[var(--app-accent)] text-[11px]"
                     />
                   </div>
 
                   <div className="col-span-2 flex flex-col gap-0.5">
                     <label className="text-[var(--app-muted)] font-bold text-[8.5px] uppercase">Narration</label>
-                    <textarea 
+                    <textarea
                       value={ocrForm.narration}
-                      onChange={(e) => setOcrForm({...ocrForm, narration: e.target.value})}
+                      onChange={(e) => setOcrForm({ ...ocrForm, narration: e.target.value })}
                       className="w-full h-12 px-2 py-1 border rounded-lg outline-none bg-[var(--app-content-bg)] text-[var(--app-heading)] border-[var(--app-border)] focus:border-[var(--app-accent)] transition-all font-bold text-[11px]"
                     />
                   </div>
@@ -1232,7 +1231,7 @@ export default function ApprovalCenter() {
               </div>
 
               <div className="border-t border-[var(--app-border)] pt-1.5 mt-1.5 flex justify-end">
-                <button 
+                <button
                   onClick={handleSaveOcrForm}
                   className="px-3 py-1 m3-interactive bg-[var(--app-accent)] hover:opacity-90 text-white font-extrabold rounded-lg flex items-center gap-1 text-[11px] transition-all shadow-sm"
                 >
@@ -1252,7 +1251,7 @@ export default function ApprovalCenter() {
   // Selector for specialized page view inside Approval Center
   const renderDetailPage = () => {
     if (!selectedEntry) return null;
-    
+
     if (selectedEntry.source === 'Manual Voucher Entry') {
       return renderManualDetailView(selectedEntry);
     } else if (selectedEntry.source === 'Bulk Upload') {
@@ -1364,7 +1363,7 @@ export default function ApprovalCenter() {
             search={{ value: searchQuery, onChange: (v) => { setSearchQuery(v); setPage(1); }, placeholder: 'Search vouchers…' }}
             filters={filterChips}
             actions={bulkActions}
-            pagination={{ page: 1, total: filteredEntries.length, label: `${filteredEntries.length} entr${filteredEntries.length === 1 ? 'y' : 'ies'}`, onPrev: () => {}, onNext: () => {}, disableNext: true }}
+            pagination={{ page: 1, total: filteredEntries.length, label: `${filteredEntries.length} entr${filteredEntries.length === 1 ? 'y' : 'ies'}`, onPrev: () => { }, onNext: () => { }, disableNext: true }}
           />
         </div>
       </div>
@@ -1375,7 +1374,7 @@ export default function ApprovalCenter() {
   const _legacyListView = () => {
     return (
       <div className="flex flex-col h-full overflow-hidden text-[12.5px] text-[var(--app-heading)] bg-[#f8fafc] p-1.5">
-        
+
         {/* Title Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between pb-1.5 shrink-0 gap-1.5">
           <div className="flex items-center gap-2">
@@ -1411,11 +1410,10 @@ export default function ApprovalCenter() {
                     setSelectedEntryId(firstOfTab.id);
                   }
                 }}
-                className={`flex items-center gap-2 px-3 py-1 rounded-lg border text-left min-w-[150px] shrink-0 transition-all duration-200 ${
-                  isSelected
+                className={`flex items-center gap-2 px-3 py-1 rounded-lg border text-left min-w-[150px] shrink-0 transition-all duration-200 ${isSelected
                     ? 'bg-[var(--app-accent-soft)] dark:bg-[var(--app-accent-soft)] border-[var(--app-accent)] text-[var(--app-accent)] dark:text-[var(--app-accent)] shadow-sm font-extrabold scale-[1.01]'
                     : 'bg-[var(--app-panel-bg)] hover:bg-[var(--app-content-bg)] border-[var(--app-border)] text-[var(--app-muted)] hover:text-[var(--app-heading)] dark:hover:text-white shadow-sm font-semibold'
-                }`}
+                  }`}
               >
                 <div className={`p-1 rounded-md ${isSelected ? 'bg-[var(--app-accent-soft)] text-[var(--app-accent)] dark:text-[var(--app-accent)]' : 'bg-[var(--app-border)]/50 text-[var(--app-muted)]'}`}>
                   <tab.icon size={12} />
@@ -1431,32 +1429,32 @@ export default function ApprovalCenter() {
 
         {/* Main Table Card */}
         <div className="flex-1 flex flex-col bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-xl overflow-hidden shadow-sm min-h-0">
-          
+
           {/* Table Controls */}
           <div className="p-1.5 border-b border-[var(--app-border)] shrink-0 flex flex-wrap items-center justify-between gap-2 bg-[var(--app-content-bg)]/50">
-            
+
             {/* Left: Filter Tabs */}
             <div className="flex items-center gap-1">
-              <button 
-                onClick={() => { setFilterTab('Total'); setPage(1); }} 
+              <button
+                onClick={() => { setFilterTab('Total'); setPage(1); }}
                 className={`px-2 py-1 rounded-md text-center transition-all text-[11px] font-extrabold ${filterTab === 'Total' ? 'bg-[var(--app-accent)] text-white shadow-sm' : 'bg-[var(--app-panel-bg)] hover:bg-[var(--app-content-bg)] text-[var(--app-heading)] border border-[var(--app-border)]'}`}
               >
                 {sourceFilteredEntries.length} Total
               </button>
-              <button 
-                onClick={() => { setFilterTab('Pending'); setPage(1); }} 
+              <button
+                onClick={() => { setFilterTab('Pending'); setPage(1); }}
                 className={`px-2 py-1 rounded-md text-center transition-all text-[11px] font-extrabold ${filterTab === 'Pending' ? 'bg-amber-500 text-white shadow-sm' : 'bg-[var(--app-panel-bg)] hover:bg-[var(--app-content-bg)] text-[var(--app-heading)] border border-[var(--app-border)]'}`}
               >
                 {sourceFilteredEntries.filter(e => e.status.toLowerCase() === 'pending_approval').length} Pending
               </button>
-              <button 
-                onClick={() => { setFilterTab('Approved'); setPage(1); }} 
+              <button
+                onClick={() => { setFilterTab('Approved'); setPage(1); }}
                 className={`px-2 py-1 rounded-md text-center transition-all text-[11px] font-extrabold ${filterTab === 'Approved' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-[var(--app-panel-bg)] hover:bg-[var(--app-content-bg)] text-[var(--app-heading)] border border-[var(--app-border)]'}`}
               >
                 {sourceFilteredEntries.filter(e => e.status.toLowerCase() === 'approved' || e.status.toLowerCase() === 'posted_to_tally').length} Approved
               </button>
-              <button 
-                onClick={() => { setFilterTab('Rejected'); setPage(1); }} 
+              <button
+                onClick={() => { setFilterTab('Rejected'); setPage(1); }}
                 className={`px-2 py-1 rounded-md text-center transition-all text-[11px] font-extrabold ${filterTab === 'Rejected' ? 'bg-rose-600 text-white shadow-sm' : 'bg-[var(--app-panel-bg)] hover:bg-[var(--app-content-bg)] text-[var(--app-heading)] border border-[var(--app-border)]'}`}
               >
                 {sourceFilteredEntries.filter(e => e.status.toLowerCase() === 'rejected').length} Rejected
@@ -1471,21 +1469,21 @@ export default function ApprovalCenter() {
                     {selectedIds.length} Selected
                   </span>
                   <span className="text-[var(--app-muted)]">|</span>
-                  <button 
+                  <button
                     onClick={handleBulkApprove}
                     className="text-[10.5px] font-extrabold text-emerald-500 hover:text-emerald-700 dark:text-emerald-400 uppercase tracking-wider transition-all"
                   >
                     Approve
                   </button>
                   <span className="text-[var(--app-muted)]">•</span>
-                  <button 
+                  <button
                     onClick={handleBulkSyncTally}
                     className="text-[10.5px] font-extrabold text-[var(--app-accent)] hover:text-[var(--app-accent)] dark:text-[var(--app-accent)] uppercase tracking-wider transition-all"
                   >
                     Push Tally
                   </button>
                   <span className="text-[var(--app-muted)]">•</span>
-                  <button 
+                  <button
                     onClick={() => {
                       selectedIds.forEach(id => handleReject(id));
                       setSelectedIds([]);
@@ -1495,7 +1493,7 @@ export default function ApprovalCenter() {
                     Reject
                   </button>
                   <span className="text-[var(--app-muted)]">•</span>
-                  <button 
+                  <button
                     onClick={() => setSelectedIds([])}
                     className="text-[10.5px] font-semibold text-[var(--app-muted)] hover:text-[var(--app-heading)] dark:hover:text-white transition-colors"
                   >
@@ -1554,7 +1552,7 @@ export default function ApprovalCenter() {
                   {filteredEntries.length > 0 ? (
                     filteredEntries.map((entry) => {
                       const isSelected = selectedIds.includes(entry.id);
-                      
+
                       const typeColors = {
                         'Sales Voucher': 'bg-[var(--app-accent-soft)] text-[var(--app-accent)] border-[var(--app-border)] dark:bg-[var(--app-accent-soft)] dark:text-[var(--app-accent)] dark:border-[var(--app-border)]',
                         'Purchase Voucher': 'bg-[var(--app-accent-soft)] text-[var(--app-accent)] border-[var(--app-border)] dark:bg-[var(--app-accent-soft)] dark:text-[var(--app-accent)] dark:border-[var(--app-border)]',
@@ -1568,7 +1566,7 @@ export default function ApprovalCenter() {
                       const rowStatusColors = statusTextColors[entry.statusText] || 'bg-[var(--app-content-bg)] text-slate-705 border-[var(--app-border)]';
 
                       return (
-                        <tr 
+                        <tr
                           key={entry.id}
                           className={`border-b border-[var(--app-border)] hover:bg-[var(--app-content-bg)]/50 transition-all font-semibold ${isSelected ? 'bg-[var(--app-accent-soft)] dark:bg-[var(--app-accent-soft)]' : ''}`}
                         >
@@ -1602,7 +1600,7 @@ export default function ApprovalCenter() {
                           </td>
                           <td className="py-1.5 px-3 text-center">
                             <div className="flex items-center justify-center gap-1">
-                              <button 
+                              <button
                                 onClick={() => { setSelectedEntryId(entry.id); setCurrentView('detail'); }}
                                 className="p-1 hover:bg-[var(--app-table-head-bg)] rounded text-[var(--app-muted)] hover:text-[var(--app-heading)] dark:hover:text-white transition-colors"
                                 title="Open Document Review"
@@ -1611,21 +1609,21 @@ export default function ApprovalCenter() {
                               </button>
                               {entry.status === 'Pending Approval' && (
                                 <>
-                                  <button 
+                                  <button
                                     onClick={() => handleApprove(entry.id)}
                                     className="p-1 hover:bg-emerald-50 dark:hover:bg-emerald-955/30 rounded text-emerald-500 transition-colors"
                                     title="Approve"
                                   >
                                     <CheckCircle2 size={13} />
                                   </button>
-                                  <button 
+                                  <button
                                     onClick={() => handleSyncTally(entry.id)}
                                     className="p-1 hover:bg-[var(--app-accent-soft)] dark:hover:bg-[var(--app-accent-soft)] rounded text-[var(--app-accent)] transition-colors"
                                     title="Push to Tally"
                                   >
                                     <Send size={13} />
                                   </button>
-                                  <button 
+                                  <button
                                     onClick={() => handleReject(entry.id)}
                                     className="p-1 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded text-rose-500 transition-colors"
                                     title="Reject"
@@ -1635,7 +1633,7 @@ export default function ApprovalCenter() {
                                 </>
                               )}
                               {entry.status === 'Approved' && (
-                                <button 
+                                <button
                                   onClick={() => handleSyncTally(entry.id)}
                                   className="p-1 hover:bg-[var(--app-accent-soft)] dark:hover:bg-[var(--app-accent-soft)] rounded text-[var(--app-accent)] transition-colors"
                                   title="Push to Tally"

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Plus, CheckCircle2, Trash2, RefreshCw, Download, Edit3,
-  MessageSquare, Wallet, ScanLine, FileSpreadsheet, Send,
+  MessageSquare, Wallet, ScanLine, FileSpreadsheet, Send, ArrowUpRight, ArrowDownLeft, ArrowLeftRight,
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
@@ -33,10 +33,19 @@ const ActionButton = ({ onClick, icon: Icon, tone = 'accent', tooltip }) => {
   );
 };
 
-const PettyCashPanel = ({ mode, isDark, voucherType, title: customTitle }) => {
+const FUNDFLOW_SUB_TABS = [
+  { id: 'cash_payment', label: 'Payment Vouchers', icon: ArrowUpRight, typeName: 'cash_payment' },
+  { id: 'bank_payment', label: 'Receipt Vouchers', icon: ArrowDownLeft, typeName: 'bank_payment' },
+  { id: 'contra', label: 'Contra Vouchers', icon: ArrowLeftRight, typeName: 'contra' },
+];
+
+const PettyCashPanel = ({ mode = 'Inbox', isDark, voucherType: initialVoucherType = 'cash_payment', title: customTitle }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const confirm = useConfirm();
+
+  const [activeSubTab, setActiveSubTab] = useState(initialVoucherType || 'cash_payment');
+  const voucherType = activeSubTab;
   const [viewMode, setViewMode] = useState('inbox');
   const [selectedIds, setSelectedIds] = useState([]);
 
@@ -76,7 +85,7 @@ const PettyCashPanel = ({ mode, isDark, voucherType, title: customTitle }) => {
 
   useEffect(() => {
     let statusFilter = '';
-    if (mode === 'Inbox') statusFilter = 'draft,rejected';
+    if (mode === 'Inbox') statusFilter = '';
     else if (mode === 'Review') statusFilter = 'pending_review';
     else if (mode === 'Archive') statusFilter = 'approved,archived';
     setFilter('status', statusFilter);
@@ -178,9 +187,9 @@ const PettyCashPanel = ({ mode, isDark, voucherType, title: customTitle }) => {
     <>
       {mode === 'Inbox' && (
         <>
-          <Button icon={ScanLine} onClick={() => setViewMode('ocr')}>OCR</Button>
-          <Button icon={FileSpreadsheet} onClick={() => setViewMode('csv')}>CSV</Button>
-          <Button icon={Plus} variant="primary" onClick={() => setViewMode('manual')}>Create</Button>
+          <Button icon={ScanLine} onClick={() => setViewMode('ocr')}>OCR Upload</Button>
+          <Button icon={FileSpreadsheet} onClick={() => setViewMode('csv')}>Bulk Upload</Button>
+          <Button icon={Plus} variant="primary" onClick={() => setViewMode('manual')}>Create Entry</Button>
           <div className="w-px h-6 mx-0.5 hidden sm:block" style={{ backgroundColor: 'var(--app-border)' }} />
           <Button icon={CheckCircle2} iconOnly onClick={handleApproveSelected} />
           <Button icon={Trash2} variant="danger" iconOnly onClick={handleDeleteSelected} />
@@ -203,13 +212,37 @@ const PettyCashPanel = ({ mode, isDark, voucherType, title: customTitle }) => {
     </>
   );
 
+  if (viewMode !== 'inbox') {
+    return (
+      <div className="flex flex-col h-full overflow-hidden bg-[var(--app-panel-bg)] rounded-xl border border-[var(--app-border)] p-2">
+        <VoucherEntryEngine isDark={isDark} defaultMode={viewMode} voucherType={activeSubTab} onBack={handleBack} />
+      </div>
+    );
+  }
+
   return (
-    <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }} className="flex flex-col h-full overflow-hidden relative">
-      {viewMode !== 'inbox' && voucherType && (
-        <div className="absolute inset-0 z-40">
-          <VoucherEntryEngine isDark={isDark} defaultMode={viewMode} voucherType={voucherType} onBack={handleBack} />
-        </div>
-      )}
+    <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }} className="flex flex-col h-full overflow-hidden relative gap-2">
+      {/* ── 3 HORIZONTAL TOP SUB-TABS (Payment Vouchers | Receipt Vouchers | Contra Vouchers) ── */}
+      <div className="flex items-center gap-1.5 p-1.5 rounded-xl border border-[var(--app-border)] bg-[var(--app-panel-bg)] shrink-0 shadow-xs">
+        {FUNDFLOW_SUB_TABS.map((tab) => {
+          const TabIcon = tab.icon;
+          const isActive = activeSubTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => { setActiveSubTab(tab.id); setFilter('voucherType', tab.id); }}
+              className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                isActive
+                  ? 'bg-[var(--app-accent)] text-white shadow-xs'
+                  : 'text-[var(--app-muted)] hover:text-[var(--app-heading)] hover:bg-[var(--app-control-hover)]'
+              }`}
+            >
+              <TabIcon size={14} strokeWidth={2.2} />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
+      </div>
 
       <DataTable
         title={getTitle()}

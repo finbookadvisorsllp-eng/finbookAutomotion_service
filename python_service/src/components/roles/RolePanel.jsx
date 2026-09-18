@@ -284,6 +284,7 @@ export default function RolePanel({ mode: propMode }) {
   // -------------------------------------------------------------
   const handleOpenRoleEditor = (roleObj = null) => {
     if (roleObj) {
+      const isRoleAdmin = String(roleObj.name || roleObj.displayName || '').toLowerCase() === 'admin' || String(roleObj.name || roleObj.displayName || '').toLowerCase() === 'administrator';
       setEditingRole({
         id: roleObj.id || roleObj.name,
         name: roleObj.displayName || roleObj.name,
@@ -294,7 +295,18 @@ export default function RolePanel({ mode: propMode }) {
         updatedAt: roleObj.updatedAt || '2024-05-20',
         isSystem: roleObj.isSystem || false
       });
-      setMatrixState(roleObj.permissions || {});
+      
+      if (isRoleAdmin) {
+        const fullMatrix = {};
+        MODULE_GROUPS.forEach(grp => {
+          grp.modules.forEach(m => {
+            fullMatrix[m.id] = { view: true, create: true, edit: true, delete: true, approve: true };
+          });
+        });
+        setMatrixState(fullMatrix);
+      } else {
+        setMatrixState(roleObj.permissions || {});
+      }
     } else {
       setEditingRole({
         id: '',

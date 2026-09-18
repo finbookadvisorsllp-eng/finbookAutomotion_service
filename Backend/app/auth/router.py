@@ -208,10 +208,11 @@ async def login(payload: LoginRequest, request: Request):
     response_orgs = [
         OrgData(
             id=str(o["_id"]),
-            slug=o["slug"],
-            name=o["name"],
-            displayName=o.get("displayName") or o["name"],
+            slug=o.get("slug", ""),
+            name=o.get("name", ""),
+            displayName=o.get("displayName") or o.get("name", ""),
             status=o.get("status", "active"),
+            dbName=o.get("dbName"),
         )
         for o in active_orgs
     ]
@@ -266,20 +267,34 @@ async def switch_organization(
     org_id = payload.organizationId
     
     user_org_ids = []
-    if "organizations" in user:
-        user_org_ids.extend(user["organizations"])
-    if "companyIds" in user:
-        user_org_ids.extend(user["companyIds"])
-    if "orgs" in user:
+    if "organizationId" in user and user["organizationId"]:
+        user_org_ids.append(str(user["organizationId"]))
+    if "orgId" in user and user["orgId"]:
+        user_org_ids.append(str(user["orgId"]))
+    if "organizations" in user and user["organizations"]:
+        user_org_ids.extend([str(o) for o in user["organizations"] if o])
+    if "companyIds" in user and user["companyIds"]:
+        user_org_ids.extend([str(c) for c in user["companyIds"] if c])
+    if "orgs" in user and user["orgs"]:
         for o in user["orgs"]:
             if isinstance(o, dict) and "orgId" in o:
-                user_org_ids.append(o["orgId"])
+                user_org_ids.append(str(o["orgId"]))
             elif isinstance(o, str):
-                user_org_ids.append(o)
+                user_org_ids.append(str(o))
                 
-    user_org_ids = [str(oid) for oid in user_org_ids if oid]
+    user_org_ids = list(set([str(oid).strip() for oid in user_org_ids if oid]))
 
-    if org_id not in user_org_ids:
+    # Target organization document
+    org = await get_organization_by_id(org_id)
+    if not org or org.get("status") != "active":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Organization not found or inactive",
+        )
+
+    # Validate org membership matching org _id, dbName, slug, or name
+    target_matches = {str(org["_id"]), org.get("dbName", ""), org.get("slug", ""), org.get("name", "")}
+    if not any(match in user_org_ids for match in target_matches if match):
         await log_event(
             event_type="access_denied",
             user_id=user["_id"],
@@ -370,10 +385,11 @@ async def switch_organization(
             refreshToken=org_refresh_token,
             organization=OrgData(
                 id=str(org["_id"]),
-                slug=org["slug"],
-                name=org["name"],
-                displayName=org.get("displayName") or org["name"],
+                slug=org.get("slug", ""),
+                name=org.get("name", ""),
+                displayName=org.get("displayName") or org.get("name", ""),
                 status=org.get("status", "active"),
+                dbName=org.get("dbName"),
             ),
         ),
     )
@@ -539,31 +555,9 @@ async def list_roles(request: Request):
     async for o in db["organizations"].find({}):
         all_valid_org_ids.add(str(o["_id"]))
 
-    # Clean orphaned IDs from user documents and ensure ONLY 'organizations' array is stored
-    async for u in db["users"].find({}):
-        raw_orgs = u.get("organizations", u.get("companyIds", []))
-        if not isinstance(raw_orgs, list): raw_orgs = [raw_orgs]
-        cleaned_orgs = [str(cid) for cid in raw_orgs if str(cid) in all_valid_org_ids]
-        if not cleaned_orgs and active_org_id and str(active_org_id) in all_valid_org_ids:
-            cleaned_orgs = [str(active_org_id)]
-        
-        await db["users"].update_one(
-            {"_id": u["_id"]},
-            {
-                "$set": {
-                    "organizations": cleaned_orgs,
-                    "updatedAt": datetime.utcnow()
-                },
-                "$unset": {
-                    "companyIds": "",
-                    "orgs": ""
-                }
-            }
-        )
-
     roles = []
     seen_names = set()
-    user_org_filter = {"organizations": {"$in": list(active_org_ids)}} if active_org_ids else {}
+    user_org_filter = {"$or": [{"organizations": {"$in": list(active_org_ids)}}, {"organizationId": {"$in": list(active_org_ids)}}]} if active_org_ids else {}
 
     # Fetch custom roles from database
     custom_roles_cursor = db["roles"].find({})
@@ -937,7 +931,8 @@ async def list_users(request: Request):
     async for u in cursor:
         u_id = str(u["_id"])
         u_org_ids = set()
-        
+        if u.get("organizationId"):
+            u_org_ids.add(str(u.get("organizationId")))
         for o in (u.get("organizations") or []):
             if o: u_org_ids.add(str(o))
         for c in (u.get("companyIds") or []):
@@ -948,7 +943,7 @@ async def list_users(request: Request):
 
         # Enforce strict organization scoping for User & Role Management
         if active_org_ids:
-            is_matched = bool(u_org_ids.intersection(active_org_ids)) or (u_id == str(current_user_id)) or (not u_org_ids)
+            is_matched = bool(u_org_ids.intersection(active_org_ids))
             if not is_matched:
                 continue
 
@@ -983,9 +978,19 @@ async def list_users(request: Request):
         if "status" in u and u["status"] != "active":
             is_act = False
 
-        last_log = u.get("lastLogin", "Never logged in")
-        if isinstance(last_log, dict) and "$date" in last_log:
-            last_log = last_log["$date"]
+        raw_last = u.get("lastLogin") or u.get("lastLoginAt")
+        if not raw_last:
+            last_log_str = "Never logged in"
+        elif isinstance(raw_last, datetime):
+            last_log_str = raw_last.strftime("%d %b %Y, %I:%M %p")
+        elif isinstance(raw_last, dict) and "$date" in raw_last:
+            try:
+                dt = datetime.fromtimestamp(raw_last["$date"] / 1000.0)
+                last_log_str = dt.strftime("%d %b %Y, %I:%M %p")
+            except Exception:
+                last_log_str = str(raw_last["$date"])
+        else:
+            last_log_str = str(raw_last)
 
         users.append({
             "id": u_id,
@@ -997,7 +1002,7 @@ async def list_users(request: Request):
             "company": comp_name,
             "permissions": u.get("permissions") if isinstance(u.get("permissions"), dict) else {},
             "apps": u.get("apps", []),
-            "lastLogin": last_log
+            "lastLogin": last_log_str
         })
     return {"success": True, "data": users}
 

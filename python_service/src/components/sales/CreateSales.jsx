@@ -821,7 +821,7 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
         )}
 
         {/* ─── 2. Voucher Types & Summary Row ─── */}
-        <div className="sticky top-12 z-20 shrink-0 flex flex-wrap items-center justify-between gap-4 px-4 py-2 border-b" style={{ borderColor: 'var(--m3-outline-variant)', backgroundColor: 'var(--m3-surface-container-low)' }}>
+        <div className={`${isOcrMode ? 'sticky top-0 z-20' : 'sticky top-12 z-20'} shrink-0 flex flex-wrap items-center justify-between gap-4 px-4 py-2 border-b`} style={{ borderColor: 'var(--m3-outline-variant)', backgroundColor: 'var(--m3-surface-container-low)' }}>
           {/* Voucher Types */}
           {!onSaveSuccess && (
             <div className="flex gap-1.5 overflow-x-auto no-scrollbar py-0.5">

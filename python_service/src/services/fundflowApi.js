@@ -59,6 +59,9 @@ export const fundflowApi = {
 
   getPartyDetails: (partyName, fy = '2025-2026') =>
     apiClient.get(`${FUNDFLOW_BASE}/party-details`, { params: { partyName, fy } }).then((r) => r.data),
+
+  getBankStatement: (bankLedger, params = {}) =>
+    apiClient.get(`${FUNDFLOW_BASE}/bank-statement`, { params: { bankLedger, ...params } }).then((r) => r.data),
 };
 
 export default fundflowApi;

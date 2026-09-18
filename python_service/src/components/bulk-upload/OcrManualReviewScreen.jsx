@@ -118,7 +118,7 @@ export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSucc
         const fullRes = await bulkUploadApi.getDocument(doc.id);
         if (fullRes.success && fullRes.document) {
           const d = fullRes.document;
-          const base = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5000/api/v2';
+          const base = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api/v2';
           if (d.fileUrl && d.fileUrl.startsWith('/')) d.fileUrl = `${base}${d.fileUrl}`;
           setCurrentDoc(d);
           setPipelineStage('ai_complete');
@@ -164,7 +164,7 @@ export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSucc
   // ── Resolve file URL ──────────────────────────────────────────────────────
   let fileUrl = currentDoc?.fileUrl || doc?.fileUrl || doc?.previewUrl || null;
   if (fileUrl && fileUrl.startsWith('/')) {
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5000/api/v2';
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api/v2';
     fileUrl = `${baseUrl}${fileUrl}`;
   }
 
@@ -215,8 +215,9 @@ export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSucc
   const documentType = overrideDocType || currentDoc?.docType || currentDoc?.dynamic_schema?.document_type || currentDoc?.type || doc?.type || doc?.docType || '';
   const docTypeLower = documentType.toLowerCase();
 
+  const isChallanDoc = docTypeLower.includes('challan') || docTypeLower.includes('delivery');
   const isSales = docTypeLower.includes('sales') || docTypeLower.includes('credit');
-  const isPurchase = docTypeLower.includes('purchase') || docTypeLower.includes('debit');
+  const isPurchase = docTypeLower.includes('purchase') || docTypeLower.includes('debit') || isChallanDoc || docTypeLower.includes('bill');
   const isInvoice = isSales || isPurchase;
   
   const getVoucherType = () => {
@@ -941,10 +942,13 @@ export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSucc
     const schema = docWithSchema?.dynamic_schema;
     const docType = customDocType || docWithSchema?.docType || docWithSchema?.dynamic_schema?.document_type || docWithSchema?.type || '';
     const docTypeLower = docType.toLowerCase();
-    
+    const isChallan = docTypeLower.includes('challan') || docTypeLower.includes('delivery');
     const sales = docTypeLower.includes('sales') || docTypeLower.includes('credit');
-    const purchase = docTypeLower.includes('purchase') || docTypeLower.includes('debit');
-    const isInvoiceDoc = sales || purchase;
+    const purchase = docTypeLower.includes('purchase') || docTypeLower.includes('debit') || isChallan || docTypeLower.includes('bill');
+    
+    const rawProdLines = schema?.productLines || [];
+    const hasActualItems = rawProdLines.some(l => (l.stockItem && l.stockItem.trim() !== '') || (parseFloat(l.billQuantity) || 0) > 0 || (parseFloat(l.amount) || 0) > 0);
+    const isInvoiceDoc = sales || purchase || hasActualItems;
 
     // Check if schema is in new flat format or old sections format
     const isFlatSchema = schema && (schema.voucherNumber !== undefined || schema.partyLedger !== undefined || schema.productLines !== undefined);
@@ -955,7 +959,7 @@ export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSucc
       const pLedger = schema.partyLedger || '';
       const pGstin = schema.partyGstin || '';
       const gstReg = schema.gstRegistration || '';
-      const eTab = schema.entryTab || 'without_item';
+      const eTab = schema.entryTab || (hasActualItems ? 'with_item' : 'without_item');
       
       const prodLines = (schema.productLines || []).map((line, idx) => ({
         id: line.id || (Date.now() + idx),
@@ -1250,7 +1254,7 @@ export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSucc
               const fullRes = await bulkUploadApi.getDocument(doc.id);
               if (active && fullRes.success && fullRes.document) {
                 const d = fullRes.document;
-                const base = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5000/api/v2';
+                const base = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api/v2';
                 if (d.fileUrl && d.fileUrl.startsWith('/')) d.fileUrl = `${base}${d.fileUrl}`;
                 setCurrentDoc(d);
                 initStore(d);
@@ -1454,9 +1458,17 @@ export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSucc
       }
     }
 
+    const ocrInvoiceTotal = parseFloat(
+      currentDoc?.dynamic_schema?.totals?.invoice_total ||
+      currentDoc?.dynamic_schema?.totals?.total_amount ||
+      currentDoc?.structured_data?.Totals?.invoice_total ||
+      currentDoc?.structured_data?.Totals?.total_amount ||
+      0
+    );
+
     const expectedTotal = Math.round((taxableValue + cgstTotal + sgstTotal + igstTotal + totalRound) * 100) / 100;
-    if (grandTotal > 0 && Math.abs(expectedTotal - grandTotal) > 2.0) {
-      errors.push({ message: `Calculated total (${expectedTotal.toFixed(2)}) ≠ invoice total (${grandTotal.toFixed(2)})` });
+    if (ocrInvoiceTotal > 0 && Math.abs(expectedTotal - ocrInvoiceTotal) > 2.0) {
+      warnings.push({ message: `Calculated total (${expectedTotal.toFixed(2)}) ≠ OCR document total (${ocrInvoiceTotal.toFixed(2)})` });
     }
 
     return { error_count: errors.length, warning_count: warnings.length, errors, warnings };
@@ -1499,6 +1511,12 @@ export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSucc
               {documentType && (
                 <span className="bg-[var(--app-accent-soft)] text-[var(--app-accent)] text-[8.5px] font-black px-1.5 py-0.5 rounded border border-[var(--app-accent)]/20 uppercase tracking-wider">
                   {documentType}
+                </span>
+              )}
+              {(currentDoc?.dynamic_schema?.additionalFields?.values?.isHandwritten || confidence < 70) && (
+                <span className="bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 text-[8.5px] font-black px-2 py-0.5 rounded-full border border-amber-200/50 flex items-center gap-1">
+                  <span>✍️</span>
+                  <span>Handwritten Vision AI</span>
                 </span>
               )}
             </div>

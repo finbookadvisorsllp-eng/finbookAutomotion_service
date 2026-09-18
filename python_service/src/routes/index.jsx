@@ -154,6 +154,7 @@ export const router = createBrowserRouter([
       // Settings
       { path: 'settings/configuration', element: <ConfigurationRoute /> },
 
+      { path: 'sales', element: <SalesInboxRoute /> },
       { path: 'sales/inbox', element: <SalesInboxRoute /> },
       { path: 'sales/review', element: <SalesReviewRoute /> },
       { path: 'sales/archive', element: <SalesArchiveRoute /> },
@@ -162,6 +163,7 @@ export const router = createBrowserRouter([
       { path: 'sales/invoices', element: <SalesInvoiceRoute /> },
       { path: 'sales/credit-notes', element: <CreditNoteRoute /> },
 
+      { path: 'purchase', element: <PurchaseInboxRoute /> },
       { path: 'purchase/inbox', element: <PurchaseInboxRoute /> },
       { path: 'purchase/review', element: <PurchaseReviewRoute /> },
       { path: 'purchase/archive', element: <PurchaseArchiveRoute /> },
@@ -169,12 +171,14 @@ export const router = createBrowserRouter([
       { path: 'purchase/invoices', element: <PurchaseInvoiceRoute /> },
       { path: 'purchase/debit-notes', element: <DebitNoteRoute /> },
 
+      { path: 'fund-flow', element: <CashPaymentRoute /> },
       { path: 'fund-flow/cash-payment', element: <CashPaymentRoute /> },
       { path: 'fund-flow/bank-payment', element: <BankPaymentRoute /> },
       { path: 'fund-flow/contra', element: <ContraRoute /> },
       { path: 'fund-flow/review', element: <FundFlowReviewRoute /> },
       { path: 'fund-flow/archive', element: <FundFlowArchiveRoute /> },
 
+      { path: 'bank', element: <BankInboxRoute /> },
       { path: 'bank/manage', element: <ManageBankRoute /> },
       { path: 'bank/rules', element: <ManageRuleRoute /> },
       { path: 'bank/inbox', element: <BankInboxRoute /> },

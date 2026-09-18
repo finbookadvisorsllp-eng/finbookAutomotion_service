@@ -95,7 +95,7 @@ const calculateFormTotals = (form) => {
     });
   }
 
-  if (Array.isArray(form.purchaseLines)) {
+  if (form.entryTab !== 'with_item' && Array.isArray(form.purchaseLines)) {
     form.purchaseLines.forEach((c) => {
       const nameUpper = (c.ledgerName || c.purchaseLedger || '').toUpperCase();
       const isTaxLedger = nameUpper.includes('CGST') || nameUpper.includes('SGST') || nameUpper.includes('IGST') || nameUpper.includes('UTGST') || nameUpper.includes('CESS');
@@ -170,7 +170,7 @@ const calculateFormTotals = (form) => {
       sgstTotal = form.productLines.reduce((sum, l) => sum + (l.sgst || 0), 0);
       igstTotal = form.productLines.reduce((sum, l) => sum + (l.igst || 0), 0);
       cessTotal = form.productLines.reduce((sum, l) => sum + (l.cess || 0), 0);
-      baseTotal = form.productLines.reduce((sum, l) => sum + (l.taxableAmount || 0), 0);
+      baseTotal = form.productLines.reduce((sum, l) => sum + (parseFloat(l.amount) || parseFloat(l.taxableAmount) || 0), 0);
     }
   }
 

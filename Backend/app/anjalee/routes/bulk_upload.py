@@ -9,6 +9,7 @@ from datetime import datetime, date
 from concurrent.futures import ThreadPoolExecutor
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, status, BackgroundTasks, Form, Request
 from fastapi.responses import FileResponse
+from typing import Optional, List, Dict, Any
 from pydantic import BaseModel
 from bson import ObjectId
 from app.db import get_async_db, MONGO_URI, DB_NAME
@@ -165,22 +166,146 @@ def _run_ocr_background(file_path: str, file_type: str, upload_id: str, mongo_ur
                 else:
                     company_gstin = comp.get("gstin") or ""
 
-        if full_text.strip():
-            # ── STAGE 4: AI Agent Extraction ──────────────────────────────────
-            logger.info(f"[BG] Stage 4 — Agent extraction for upload_id={upload_id}")
+        if full_text.strip() or file_path:
+            # ── STAGE 4: AI Agent & Bank Statement Auto-Classification ───────
+            logger.info(f"[BG] Stage 4 — AI classification & extraction for upload_id={upload_id}")
             db["bulk_uploads"].update_one(
                 {"_id": ObjectId(upload_id)},
                 {"$set": {"pipeline_stage": "ai_running", "pipeline_progress": 65}}
             )
 
             filename = (record or {}).get("filename", "") if record else ""
-            schema = agent_orchestrator.extract(
-                full_text,
-                filename=filename,
-                our_company_name=company_name,
-                our_company_gstin=company_gstin,
-                layout_result=layout_result if 'layout_result' in locals() else None
+            source_type = (record or {}).get("source", "")
+
+            # 1. Run AI Auto-Classification on document text
+            sample_text = full_text[:4000] if full_text else filename
+            ai_classification = llm_service.classify_bulk_upload_content(sample_text)
+
+            is_bank_statement = (
+                ai_classification.get("voucher_category") == "Bank Statement"
+                or source_type == "Bank Statement Import"
+                or any(k in filename.lower() for k in ["bank", "statement", "passbook", "optransactionhistory", "optransaction", "transaction", "history", "txn", "account_statement"])
+                or any(k in full_text.lower()[:3000] for k in ["transactions list", "available balance", "statement of account", "bank statement", "withdrawal", "deposit", "cr/dr", "value date", "txn posted date"])
             )
+
+            if is_bank_statement:
+                logger.info(f"[BG] Document auto-classified as BANK STATEMENT for upload_id={upload_id}. Extracting row-wise vouchers...")
+                from app.anjalee.services.bank_statement_ai_service import BankStatementAIService
+                bank_service = BankStatementAIService(db)
+                batch_res = bank_service.process_and_create_batch_draft(
+                    file_path=file_path,
+                    file_name=filename,
+                    file_type=file_type,
+                    bank_ledger="Bank Account",
+                    company_id=company_id
+                )
+                
+                ai_classification["voucher_category"] = "Bank Statement"
+
+                items = batch_res.get("items", [])
+                grid = [
+                    ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'],
+                    ['Voucher Date', 'Voucher Type', 'Particulars / Narration', 'Reference No', 'Debit (Dr)', 'Credit (Cr)', 'Party / Counterpart Ledger', 'Amount', 'Status']
+                ]
+                for item in items:
+                    tx_date = item.get("voucherDate", "")
+                    v_type = item.get("voucherType", "Payment")
+                    narration = item.get("narration", "")
+                    ref_no = item.get("referenceNumber", "")
+                    debit = f"{item.get('debit', 0.0):.2f}" if item.get('debit', 0.0) > 0 else ""
+                    credit = f"{item.get('credit', 0.0):.2f}" if item.get('credit', 0.0) > 0 else ""
+                    party_ledger = item.get("partyLedger") or item.get("againstLedger") or ""
+                    amt = f"{item.get('amount', 0.0):.2f}"
+                    status = "Valid" if item.get("status") in ["ready", "user_edited"] else "Review Required"
+                    grid.append([tx_date, f"{v_type} Voucher", narration, ref_no, debit, credit, party_ledger, amt, status])
+
+                col_mapping = [
+                    {"original_name": "Voucher Date", "standard_erp_field": "Voucher Date", "col_idx": 0},
+                    {"original_name": "Voucher Type", "standard_erp_field": "Voucher Type", "col_idx": 1},
+                    {"original_name": "Particulars / Narration", "standard_erp_field": "Particulars", "col_idx": 2},
+                    {"original_name": "Reference No", "standard_erp_field": "Reference No", "col_idx": 3},
+                    {"original_name": "Debit (Dr)", "standard_erp_field": "Debit", "col_idx": 4},
+                    {"original_name": "Credit (Cr)", "standard_erp_field": "Credit", "col_idx": 5},
+                    {"original_name": "Party / Counterpart Ledger", "standard_erp_field": "Party Name", "col_idx": 6},
+                    {"original_name": "Amount", "standard_erp_field": "Total Amount", "col_idx": 7},
+                    {"original_name": "Status", "standard_erp_field": "Status", "col_idx": 8},
+                ]
+
+                grouped_vouchers = []
+                for idx, item in enumerate(items):
+                    v_type = item.get("voucherType", "Payment")
+                    is_rec = v_type.lower() == "receipt" or float(item.get("credit", 0.0) or 0.0) > 0
+                    grouped_vouchers.append({
+                        "voucher_id": item.get("item_id") or f"VG-{str(idx+1).zfill(3)}",
+                        "voucher_type": f"{v_type} Voucher",
+                        "party_ledger": item.get("partyLedger") or item.get("againstLedger") or item.get("narration") or "Unspecified Party",
+                        "invoice_date": item.get("voucherDate", ""),
+                        "invoice_number": item.get("referenceNumber") or f"BS-{str(idx+1).zfill(4)}",
+                        "ref_no": item.get("referenceNumber", ""),
+                        "narration": item.get("narration", ""),
+                        "debit": float(item.get("debit", 0.0) or 0.0),
+                        "credit": float(item.get("credit", 0.0) or 0.0),
+                        "amount": float(item.get("amount", 0.0) or 0.0),
+                        "status": "Ready" if item.get("status") in ["ready", "user_edited"] else "Review Required",
+                        "is_bank_statement": True,
+                        "raw_type": "CR" if is_rec else "DR",
+                        "confidence": item.get("confidence", 90),
+                        "review_reason": item.get("review_reason", ""),
+                        "user_reasoning": item.get("user_reasoning", "")
+                    })
+
+                db["bulk_uploads"].update_one(
+                    {"_id": ObjectId(upload_id)},
+                    {"$set": {
+                        "document_type": "Bank Statement",
+                        "type": "Bank Statement",
+                        "category": "Financial",
+                        "excel_grid": grid,
+                        "excelData": grid,
+                        "column_mapping": col_mapping,
+                        "grouped_vouchers": grouped_vouchers,
+                        "batch_id": batch_res.get("batch_id")
+                    }}
+                )
+
+                schema = {
+                    "document_type": "Bank Statement",
+                    "overall_confidence": ai_classification.get("confidence", 98),
+                    "sections": [
+                        {
+                            "id": "voucher_details",
+                            "title": "Bank Statement Overview",
+                            "order": 1,
+                            "fields": [
+                                {"id": "voucher_type", "label": "Voucher Category", "type": "text", "value": "Bank Statement", "editable": False},
+                                {"id": "batch_id", "label": "Batch ID", "type": "text", "value": batch_res.get("batch_id"), "editable": False},
+                                {"id": "total_transactions", "label": "Total Transactions Extracted", "type": "number", "value": len(items), "editable": False},
+                                {"id": "narration", "label": "AI Reasoning", "type": "textarea", "value": ai_classification.get("reasoning", "Bank Statement with row-wise transactions extracted")}
+                            ]
+                        }
+                    ],
+                    "bank_statement_items": items,
+                    "bank_statement_batch_id": batch_res.get("batch_id")
+                }
+            else:
+                # Fetch base64 page image for Multimodal Vision AI (handwritten bills, photos, scans)
+                vision_b64_url = None
+                try:
+                    b64_imgs = ocr_service.get_document_images_base64(file_path, file_type, max_pages=1)
+                    if b64_imgs:
+                        vision_b64_url = b64_imgs[0]
+                        logger.info(f"[VISION AI OCR] Prepared Vision Image URL for upload_id={upload_id}")
+                except Exception as b64_err:
+                    logger.warning(f"[VISION AI OCR] Could not get base64 image: {b64_err}")
+
+                schema = agent_orchestrator.extract(
+                    full_text,
+                    filename=filename,
+                    our_company_name=company_name,
+                    our_company_gstin=company_gstin,
+                    layout_result=layout_result if 'layout_result' in locals() else None,
+                    base64_image_url=vision_b64_url
+                )
 
             # Save to dedicated ai_extractions collection (Stage 4)
             db["ai_extractions"].update_one(
@@ -273,13 +398,31 @@ def _run_ocr_background(file_path: str, file_type: str, upload_id: str, mongo_ur
                             logger.info(f"Merged successfully. Main items count={len(main_table['rows'])}")
                             return
 
+            # Compute AI Auto-Classification across 6 accounting categories
+            sample_text = full_text[:4000] if full_text else filename
+            ai_classification = llm_service.classify_bulk_upload_content(sample_text)
+
+            if is_bank_statement:
+                doc_type_val = "Bank Statement"
+                ai_classification["voucher_category"] = "Bank Statement"
+                ai_classification["confidence"] = 98
+                ai_classification["reasoning"] = "PDF Bank Statement Transaction History"
+            else:
+                doc_type_val = schema.get("document_type") or ai_classification.get("voucher_category") or "Unknown"
+
+            cat_val = "Financial" if is_bank_statement or doc_type_val != "Unknown" else "Unknown"
+
             # Update bulk_uploads with final schema (keeps review UI working)
             final_status = "Ready For Review"
             db["bulk_uploads"].update_one(
                 {"_id": ObjectId(upload_id)},
                 {"$set": {
                     "status":            final_status,
+                    "document_type":     doc_type_val,
+                    "type":              doc_type_val,
+                    "category":          cat_val,
                     "dynamic_schema":    schema,
+                    "ai_classification": ai_classification,
                     "pipeline_stage":    "ai_complete",
                     "pipeline_progress": 100
                 }}
@@ -503,7 +646,7 @@ async def get_ocr_progress(
         {"_id": ObjectId(upload_id)},
         # Only fetch the fields we need — faster query
         {"status": 1, "pipeline_stage": 1, "pipeline_progress": 1,
-         "dynamic_schema": 1, "ocr_error": 1, "filename": 1}
+         "dynamic_schema": 1, "ocr_error": 1, "filename": 1, "ai_classification": 1}
     )
     if not record:
         raise HTTPException(status_code=404, detail=f"Upload ID {upload_id} not found.")
@@ -1038,9 +1181,11 @@ async def ai_analyze(
     # Return cached schema unless force_rerun
     if record.get("dynamic_schema") and not payload.force_rerun:
         cached_schema = record["dynamic_schema"]
-        has_flat_keys = "voucherNumber" in cached_schema or "partyLedger" in cached_schema
-        if has_flat_keys:
-            logger.info(f"ai_analyze: returning cached dynamic_schema for {upload_id}")
+        p_led = cached_schema.get("partyLedger") or ""
+        v_num = cached_schema.get("voucherNumber") or ""
+        # Only return cached schema if partyLedger or voucherNumber is actually populated (not "Missing" or empty)
+        if (p_led and p_led != "Missing") or (v_num and v_num != "Missing"):
+            logger.info(f"ai_analyze: returning valid cached dynamic_schema for {upload_id}")
             return {
                 "success": True,
                 "upload_id": upload_id,
@@ -1048,15 +1193,12 @@ async def ai_analyze(
                 "schema": record["dynamic_schema"]
             }
         else:
-            logger.info(f"ai_analyze: cached schema lacks flat keys. Re-running analysis for {upload_id}")
+            logger.info(f"ai_analyze: cached schema has Missing fields. Forcing re-run for {upload_id}")
 
-    # Ensure OCR is complete
-    ocr_data = record.get("ocr_data")
-    if not ocr_data:
-        raise HTTPException(
-            status_code=400,
-            detail="OCR has not been completed. Call /ocr/process and wait for it to finish before calling /ai/analyze."
-        )
+    # Ensure OCR is complete (or file exists for image vision analysis)
+    ocr_data = record.get("ocr_data") or {}
+    file_path = record.get("file_path") or ""
+    file_type = record.get("file_type") or "pdf"
 
     # Build full text from all OCR pages
     pages = ocr_data.get("pages", [])
@@ -1066,8 +1208,19 @@ async def ai_analyze(
         if p.get("text", "").strip()
     )
 
-    if not full_text.strip():
-        raise HTTPException(status_code=400, detail="OCR text is empty. Cannot analyze document.")
+    if not full_text.strip() and not file_path:
+        raise HTTPException(status_code=400, detail="OCR text and file path are both empty. Cannot analyze document.")
+
+    # Fetch base64 page image for Multimodal Vision AI (handwritten bills, photos, scans)
+    vision_b64_url = None
+    if file_path:
+        try:
+            b64_imgs = ocr_service.get_document_images_base64(file_path, file_type, max_pages=1)
+            if b64_imgs:
+                vision_b64_url = b64_imgs[0]
+                logger.info(f"[VISION AI OCR] Prepared Vision Image URL for upload_id={upload_id} in ai_analyze")
+        except Exception as b64_err:
+            logger.warning(f"[VISION AI OCR] Could not get base64 image in ai_analyze: {b64_err}")
 
     # Get company details dynamically
     company_id = request.headers.get("x-company-id") or request.headers.get("x-company") or str(record.get("company_id") or "")
@@ -1107,7 +1260,8 @@ async def ai_analyze(
         full_text,
         company_name,
         company_gstin,
-        record.get("filename", "")
+        record.get("filename", ""),
+        vision_b64_url
     )
 
     # Enrich with metadata
@@ -1227,29 +1381,123 @@ async def serve_uploaded_file(
     return FileResponse(file_path, media_type=media_type, headers=headers)
 
 
+def build_synthesized_grid_and_vouchers(r: dict) -> tuple[list, list]:
+    """
+    Ensures excel_grid and grouped_vouchers are non-empty for documents that
+    have extracted data in bank_statement_items, dynamic_schema, or ocr_data.
+    """
+    existing_grid = r.get("excel_grid") or r.get("excelData")
+    existing_vouchers = r.get("grouped_vouchers") or r.get("groupedVouchers")
+
+    if existing_grid and isinstance(existing_grid, list) and len(existing_grid) >= 3 and existing_vouchers and isinstance(existing_vouchers, list) and len(existing_vouchers) > 0:
+        return existing_grid, existing_vouchers
+
+    grid = [
+        ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'],
+        ['Voucher Date', 'Voucher Type', 'Particulars / Narration', 'Reference No', 'Debit (Dr)', 'Credit (Cr)', 'Party / Counterpart Ledger', 'Amount', 'Status']
+    ]
+    grouped_vouchers = list(existing_vouchers) if (existing_vouchers and isinstance(existing_vouchers, list)) else []
+
+    dyn_schema = r.get("dynamic_schema") or {}
+    items = dyn_schema.get("bank_statement_items") or r.get("bank_statement_items") or []
+
+    if not items and isinstance(dyn_schema.get("sections"), list):
+        for sec in dyn_schema.get("sections", []):
+            if isinstance(sec, dict) and "fields" in sec:
+                for field in sec.get("fields", []):
+                    if isinstance(field, dict) and field.get("type") == "table" and "rows" in field:
+                        items = field.get("rows", [])
+                        break
+
+    if items and len(grouped_vouchers) == 0:
+        for idx, item in enumerate(items):
+            if isinstance(item, dict):
+                tx_date = item.get("voucherDate") or item.get("invoiceDate") or item.get("date") or ""
+                v_type = item.get("voucherType") or item.get("type") or "Payment"
+                narration = item.get("narration") or item.get("particulars") or item.get("description") or ""
+                ref_no = item.get("referenceNumber") or item.get("refNo") or item.get("invoiceNumber") or f"BS-{str(idx+1).zfill(4)}"
+                debit_val = float(item.get("debit", 0.0) or item.get("debitAmount", 0.0) or 0.0)
+                credit_val = float(item.get("credit", 0.0) or item.get("creditAmount", 0.0) or 0.0)
+                party_ledger = item.get("partyLedger") or item.get("partyName") or item.get("againstLedger") or narration or "Unspecified Party"
+                total_amt = float(item.get("amount", 0.0) or item.get("totalAmount", 0.0) or (debit_val if debit_val > 0 else credit_val))
+                is_rec = credit_val > 0 or "receipt" in str(v_type).lower()
+
+                v_type_str = f"{v_type if 'Voucher' in str(v_type) else str(v_type) + ' Voucher'}"
+                grouped_vouchers.append({
+                    "voucher_id": item.get("item_id") or f"VG-{str(idx+1).zfill(3)}",
+                    "voucher_type": v_type_str,
+                    "party_ledger": party_ledger,
+                    "invoice_date": tx_date,
+                    "invoice_number": ref_no,
+                    "ref_no": ref_no,
+                    "narration": narration,
+                    "debit": debit_val,
+                    "credit": credit_val,
+                    "amount": total_amt,
+                    "status": "Ready",
+                    "is_bank_statement": True,
+                    "raw_type": "CR" if is_rec else "DR",
+                    "confidence": item.get("confidence", 95),
+                    "review_reason": item.get("review_reason", "Extracted transaction"),
+                    "user_reasoning": item.get("user_reasoning", "Extracted transaction")
+                })
+
+    if grouped_vouchers and len(grid) == 2:
+        for v in grouped_vouchers:
+            tx_date = v.get("invoice_date", "")
+            v_type = v.get("voucher_type", "Payment Voucher")
+            narr = v.get("narration", "")
+            ref_no = v.get("ref_no") or v.get("invoice_number", "")
+            debit_str = f"{v.get('debit', 0.0):.2f}" if v.get('debit', 0.0) > 0 else ""
+            credit_str = f"{v.get('credit', 0.0):.2f}" if v.get('credit', 0.0) > 0 else ""
+            party = v.get("party_ledger", "")
+            amt_str = f"{v.get('amount', 0.0):.2f}"
+            st = v.get("status", "Ready")
+            grid.append([tx_date, v_type, narr, ref_no, debit_str, credit_str, party, amt_str, st])
+
+    final_grid = existing_grid if (existing_grid and isinstance(existing_grid, list) and len(existing_grid) >= 3) else grid
+    final_vouchers = grouped_vouchers if (grouped_vouchers and isinstance(grouped_vouchers, list) and len(grouped_vouchers) > 0) else (existing_vouchers or [])
+    return final_grid, final_vouchers
+
+
 @router.get("", response_model=dict)
 async def list_uploads(
+    company_id: Optional[str] = None,
     db = Depends(get_async_db)
 ):
     """
     Lists all bulk uploads from database.
+    Checks primary tenant DB and fallback DB so uploaded records are never missing.
     """
     try:
         cursor = db["bulk_uploads"].find().sort("upload_date", -1)
-        records = await cursor.to_list(length=100)
-        
+        if hasattr(cursor, "to_list"):
+            res = cursor.to_list(length=100)
+            records = await res if (asyncio.iscoroutine(res) or hasattr(res, "__await__")) else res
+        else:
+            records = list(cursor[:100])
+
+        if not records:
+            from app.db import client
+            fallback_db = client["finbook_23aafff9731l1z7"]
+            fb_cursor = fallback_db["bulk_uploads"].find().sort("upload_date", -1)
+            records = list(fb_cursor[:100])
+
         uploads = []
         for r in records:
-            file_url = f"/bulk-upload/file/{str(r['_id'])}"
-            # Handle size conversion safely
-            file_size = "2.4 MB"
             file_path = r.get("file_path")
+            file_url = f"/bulk-upload/file/{str(r['_id'])}"
+
+            # Handle size conversion safely
+            file_size = r.get("file_size", "2.4 MB")
             if file_path and os.path.exists(file_path):
                 sz = os.path.getsize(file_path)
                 if sz > 1024 * 1024:
                     file_size = f"{sz / (1024 * 1024):.1f} MB"
                 else:
                     file_size = f"{sz / 1024:.0f} KB"
+
+            syn_grid, syn_vouchers = build_synthesized_grid_and_vouchers(r)
 
             uploads.append({
                 "id": str(r["_id"]),
@@ -1262,14 +1510,135 @@ async def list_uploads(
                 "uploadedOn": r.get("upload_date").strftime("%d-%m-%Y, %I:%M %p") if r.get("upload_date") else "",
                 "size": file_size,
                 "status": r.get("status", "Uploaded"),
-                "confidence": r.get("confidence") or r.get("dynamic_schema", {}).get("confidence") or 95,
+                "confidence": r.get("confidence_score") or r.get("confidence") or r.get("dynamic_schema", {}).get("confidence") or 98,
+                "confidence_score": r.get("confidence_score") or r.get("import_readiness_score") or 98,
                 "fileUrl": file_url,
-                "dynamic_schema": r.get("dynamic_schema")
+                "dynamic_schema": r.get("dynamic_schema"),
+                "excel_grid": syn_grid,
+                "excelData": syn_grid,
+                "column_mapping": r.get("column_mapping", []),
+                "columnMapping": r.get("column_mapping", []),
+                "validation_results": r.get("validation_results", []),
+                "validationResults": r.get("validation_results", []),
+                "validation_summary": r.get("validation_summary", {}),
+                "validationSummary": r.get("validation_summary", {}),
+                "grouped_vouchers": syn_vouchers,
+                "groupedVouchers": syn_vouchers,
+                "ai_reasoning": r.get("ai_reasoning", ""),
+                "aiReasoning": r.get("ai_reasoning", "")
             })
         return {"success": True, "documents": uploads}
     except Exception as e:
         logger.error(f"Failed to list uploads: {e}")
         return {"success": False, "error": str(e)}
+
+
+@router.get("/templates/download/{template_name}")
+async def download_excel_template(template_name: str):
+    """
+    Serves downloadable standard Excel templates for Sales & Purchase vouchers (With & Without Item).
+    """
+    from fastapi.responses import FileResponse
+    t_clean = template_name.lower().replace("%20", "-").replace(" ", "-").replace("_", "-")
+    if "sales" in t_clean and "without" in t_clean:
+        filename = "Sales_Voucher_Template_Without_Item.xlsx"
+    elif "sales" in t_clean:
+        filename = "Sales_Voucher_Template_With_Item.xlsx"
+    elif "purchase" in t_clean and "without" in t_clean:
+        filename = "Purchase_Voucher_Template_Without_Item.xlsx"
+    elif "purchase" in t_clean:
+        filename = "Purchase_Voucher_Template_With_Item.xlsx"
+    else:
+        filename = valid_templates.get(t_clean, "Sales_Voucher_Template_With_Item.xlsx")
+    candidate_paths = [
+        os.path.join("uploads", "templates", filename),
+        os.path.join("Backend", "uploads", "templates", filename),
+        os.path.join("Backend", "Backend", "uploads", "templates", filename),
+        os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "uploads", "templates", filename))
+    ]
+    file_path = next((p for p in candidate_paths if os.path.exists(p)), None)
+    if not file_path:
+        raise HTTPException(status_code=404, detail=f"Template file '{filename}' missing on server.")
+        
+    return FileResponse(
+        file_path,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        filename=filename
+    )
+
+
+@router.get("/saved-vouchers", response_model=dict)
+async def get_saved_bulk_vouchers(
+    company_id: Optional[str] = None,
+    db = Depends(get_async_db)
+):
+    """
+    Fetches all individual vouchers saved from Bulk Upload across sales_vouchers, purchase_vouchers, and vouchers collections.
+    """
+    query = {
+        "$or": [
+            {"source": "Bulk Upload"},
+            {"isBulkUpload": True}
+        ]
+    }
+
+    vouchers_map = {}
+
+    for coll_name in ["sales_vouchers", "purchase_vouchers", "vouchers"]:
+        cursor = db[coll_name].find(query).sort("created_at", -1)
+        if hasattr(cursor, "to_list"):
+            res = cursor.to_list(length=1000)
+            docs = await res if (asyncio.iscoroutine(res) or hasattr(res, "__await__")) else res
+        else:
+            docs = list(cursor[:1000])
+
+        for doc in docs:
+            v_no = doc.get("voucherNumber") or doc.get("invoiceNumber") or str(doc["_id"])
+            if v_no not in vouchers_map:
+                doc["_id"] = str(doc["_id"])
+                if isinstance(doc.get("created_at"), datetime):
+                    doc["created_at"] = doc["created_at"].strftime("%Y-%m-%d %H:%M:%S")
+                vouchers_map[v_no] = doc
+
+    deduplicated = list(vouchers_map.values())
+    return {
+        "success": True,
+        "count": len(deduplicated),
+        "vouchers": deduplicated
+    }
+
+
+@router.delete("/saved-vouchers/{voucher_identifier}", response_model=dict)
+async def delete_saved_bulk_voucher(
+    voucher_identifier: str,
+    company_id: Optional[str] = None,
+    db = Depends(get_async_db)
+):
+    """
+    Deletes a saved voucher from MongoDB across sales_vouchers, purchase_vouchers, and vouchers collections.
+    Accepts voucherNumber or MongoDB ObjectId string.
+    """
+    query_conditions = [
+        {"voucherNumber": voucher_identifier},
+        {"invoiceNumber": voucher_identifier},
+        {"vchNo": voucher_identifier}
+    ]
+
+    if ObjectId.is_valid(voucher_identifier):
+        query_conditions.append({"_id": ObjectId(voucher_identifier)})
+
+    query = {"$or": query_conditions}
+
+    deleted_count = 0
+    for coll_name in ["sales_vouchers", "purchase_vouchers", "vouchers", "fund_flow_transactions"]:
+        res = await db[coll_name].delete_many(query)
+        deleted_count += res.deleted_count
+
+    return {
+        "success": True,
+        "deleted_count": deleted_count,
+        "message": f"Successfully deleted voucher '{voucher_identifier}' from MongoDB!"
+    }
 
 
 @router.get("/{upload_id}", response_model=dict)
@@ -1304,6 +1673,8 @@ async def get_upload_detail(
         if dynamic_draft.get("document_type"):
             dynamic_schema["document_type"] = dynamic_draft["document_type"]
 
+    syn_grid, syn_vouchers = build_synthesized_grid_and_vouchers(record)
+
     doc = {
         "id": str(record["_id"]),
         "uploadId": str(record["_id"]),
@@ -1315,9 +1686,18 @@ async def get_upload_detail(
         "uploadedOn": record.get("upload_date").strftime("%d-%m-%Y, %I:%M %p") if record.get("upload_date") else "",
         "size": file_size,
         "status": record.get("status", "Uploaded"),
-        "confidence": record.get("confidence") or (dynamic_schema or {}).get("confidence") or 95,
-        "fileUrl": f"/bulk-upload/file/{str(record['_id'])}",
-        "dynamic_schema": dynamic_schema
+        "confidence": record.get("confidence_score") or record.get("confidence") or (dynamic_schema or {}).get("confidence") or 98,
+        "confidence_score": record.get("confidence_score") or record.get("import_readiness_score") or 98,
+        "fileUrl": record.get("file_url") or f"/bulk-upload/file/{str(record['_id'])}",
+        "dynamic_schema": dynamic_schema,
+        "excel_grid": syn_grid,
+        "excelData": syn_grid,
+        "column_mapping": record.get("column_mapping", []),
+        "validation_results": record.get("validation_results", []),
+        "validation_summary": record.get("validation_summary", {}),
+        "grouped_vouchers": syn_vouchers,
+        "groupedVouchers": syn_vouchers,
+        "ai_reasoning": record.get("ai_reasoning", "")
     }
     return {"success": True, "document": doc}
 
@@ -1357,28 +1737,6 @@ async def delete_upload(
     return {"success": True, "detail": "Upload deleted successfully."}
 
 
-class UpdateStatusRequest(BaseModel):
-    upload_id: str
-    status: str
-
-
-@router.post("/status", response_model=dict)
-async def update_bulk_upload_status(
-    payload: UpdateStatusRequest,
-    db = Depends(get_async_db)
-):
-    """Updates the status of a bulk upload document."""
-    upload_id = payload.upload_id
-    if not ObjectId.is_valid(upload_id):
-        raise HTTPException(status_code=400, detail="Invalid upload_id.")
-    
-    await db["bulk_uploads"].update_one(
-        {"_id": ObjectId(upload_id)},
-        {"$set": {"status": payload.status}}
-    )
-    return {"success": True, "upload_id": upload_id, "status": payload.status}
-
-
 @router.post("/analyze-spreadsheet", response_model=dict)
 async def analyze_spreadsheet(
     file: UploadFile = File(...),
@@ -1386,20 +1744,48 @@ async def analyze_spreadsheet(
 ):
     """
     Full accounting-grade AI validation engine for bulk Excel/CSV uploads.
-
-    Parses the uploaded file, classifies the document type, maps all columns to
-    standard ERP fields, and runs 25+ validation categories against MongoDB master
-    records (ledgers, stock items, banks, HSN codes, voucher duplicates, company
-    financial year) using SpreadsheetValidationEngine.
-
-    Returns structured ValidationIssue objects with row/col indices, confidence
-    scores, suggested values, canAutoFix flags, and a complete validation summary.
     """
+    import hashlib
     from app.anjalee.services.spreadsheet_validator import SpreadsheetValidationEngine
+    from app.anjalee.services.voucher_grouping_engine import VoucherGroupingEngine
+    from app.anjalee.services.master_mapping_engine import MasterMappingEngine
 
     filename = file.filename or "spreadsheet.xlsx"
     contents = await file.read()
     ext = filename.rsplit('.', 1)[-1].lower()
+
+    # Generate SHA-256 fingerprint of normalized file content
+    file_hash = hashlib.sha256(contents).hexdigest()
+
+    # Check for exact duplicate file in MongoDB
+    existing_file = await db["bulk_uploads"].find_one({"file_hash": file_hash})
+    is_duplicate_file = existing_file is not None
+
+    # Save physical file persistently to local uploads directory on disk
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    unique_filename = f"{uuid.uuid4()}_{filename}"
+    saved_file_path = os.path.join(UPLOAD_DIR, unique_filename)
+    
+    with open(saved_file_path, "wb") as f:
+        f.write(contents)
+
+    file_size_formatted = f"{len(contents) / (1024 * 1024):.1f} MB" if len(contents) > 1024 * 1024 else f"{len(contents) / 1024:.0f} KB"
+
+    # Insert persistent record into bulk_uploads MongoDB collection
+    upload_doc = {
+        "filename": filename,
+        "file_hash": file_hash,
+        "file_path": saved_file_path,
+        "file_url": f"/uploads/bulk-upload/{unique_filename}",
+        "file_size": file_size_formatted,
+        "upload_date": datetime.utcnow(),
+        "uploaded_by": "Anjal Singh (You)",
+        "status": "DUPLICATE_FILE" if is_duplicate_file else "Analyzed",
+        "source": "Bulk Upload Engine",
+        "category": "Accounting Spreadsheet",
+    }
+    insert_res = await db["bulk_uploads"].insert_one(upload_doc)
+    persistent_upload_id = str(insert_res.inserted_id)
 
     rows = []
 
@@ -1467,26 +1853,63 @@ async def analyze_spreadsheet(
 
     excel_grid = [alphabet_headers] + grid_rows
 
+    # Compute AI Auto-Classification across 6 accounting categories
+    grid_sample_text = "\n".join([", ".join([str(c) for c in r[:10]]) for r in grid_rows[:15]])
+    ai_classification = llm_service.classify_bulk_upload_content(grid_sample_text)
+
     # Run SpreadsheetValidationEngine
     engine = SpreadsheetValidationEngine(db)
     result = await engine.validate(normalized_rows, filename)
 
+    excel_grid = result.get("excel_grid", excel_grid)
     doc_type = result["doc_type"]
     column_mapping = result["column_mapping"]
+    col_idx = result["col_idx"]
     validation_results = result["validation_results"]
     summary = result["validation_summary"]
 
+    # Group item-wise rows into unified accounting vouchers
+    grouped_vouchers = VoucherGroupingEngine.group_rows(excel_grid, col_idx, doc_type)
+
     confidence_score = min(98, 80 + int(summary["import_readiness_score"] * 0.18))
+    ai_reasoning_text = (
+        f"Spreadsheet classified as {doc_type} with {len(column_mapping)} columns mapped. "
+        f"Grouped into {len(grouped_vouchers)} vouchers across {summary['total_rows']} rows. "
+        f"Found {summary['error_count']} errors, {summary['warning_count']} warnings. Import readiness: {summary['import_readiness_score']}%."
+    )
+
+    # Persist the full extracted Excel grid, grouped vouchers, column mapping and AI validation results in MongoDB
+    await db["bulk_uploads"].update_one(
+        {"_id": insert_res.inserted_id},
+        {"$set": {
+            "excel_grid": excel_grid,
+            "document_type": doc_type,
+            "column_mapping": column_mapping,
+            "grouped_vouchers": grouped_vouchers,
+            "validation_results": validation_results,
+            "validation_summary": summary,
+            "confidence_score": confidence_score,
+            "import_readiness_score": summary["import_readiness_score"],
+            "ai_reasoning": ai_reasoning_text,
+            "ai_classification": ai_classification,
+            "status": "DUPLICATE_FILE" if is_duplicate_file else "Ready For Review"
+        }}
+    )
 
     return {
         "success": True,
+        "upload_id": persistent_upload_id,
+        "is_duplicate_file": is_duplicate_file,
+        "previous_upload": {
+            "filename": existing_file.get("filename"),
+            "uploaded_on": existing_file.get("upload_date").strftime("%d-%m-%Y, %I:%M %p") if existing_file.get("upload_date") else "",
+            "status": existing_file.get("status")
+        } if is_duplicate_file else None,
+        "file_url": f"/uploads/bulk-upload/{unique_filename}",
         "excel_grid": excel_grid,
         "document_type": doc_type,
-        "ai_reasoning": (
-            f"Spreadsheet classified as {doc_type} with {len(column_mapping)} columns mapped. "
-            f"Found {summary['error_count']} errors, {summary['warning_count']} warnings across "
-            f"{summary['total_rows']} rows. Import readiness: {summary['import_readiness_score']}%."
-        ),
+        "grouped_vouchers": grouped_vouchers,
+        "ai_reasoning": ai_reasoning_text,
         "column_mapping": column_mapping,
         "confidence_score": confidence_score,
         "import_readiness_score": summary["import_readiness_score"],
@@ -1495,5 +1918,291 @@ async def analyze_spreadsheet(
             "items_status": "Perfect match" if not any(v["field"] == "Item Name" for v in validation_results if v["severity"] == "Error") else "Mismatch"
         },
         "validation_results": validation_results,
-        "validation_summary": summary,
+        "validation_summary": summary
     }
+
+
+@router.post("/master-mappings/approve", response_model=dict)
+async def approve_master_mapping(
+    payload: dict,
+    request: Request,
+    db = Depends(get_async_db)
+):
+    """
+    Saves a user-approved master mapping into company_aliases collection
+    and updates matching rows in the uploaded document.
+    """
+    from app.anjalee.services.master_mapping_engine import MasterMappingEngine
+    
+    upload_id = payload.get("upload_id")
+    uploaded_value = payload.get("uploaded_value")
+    approved_master_name = payload.get("approved_master_name")
+    category = payload.get("category", "party")
+    company_id = payload.get("company_id") if (payload.get("company_id") and str(payload.get("company_id")).lower() not in ("default", "undefined", "null")) else extract_company_ref_from_request(request)
+
+    if not uploaded_value or not approved_master_name:
+        raise HTTPException(status_code=400, detail="uploaded_value and approved_master_name are required.")
+
+    mapping_engine = MasterMappingEngine(db, company_id=company_id)
+    await mapping_engine.save_alias(uploaded_value, approved_master_name, category)
+
+    return {
+        "success": True,
+        "message": f"Saved alias mapping: '{uploaded_value}' -> '{approved_master_name}'",
+        "approved_master_name": approved_master_name
+    }
+
+
+class SaveBulkVouchersRequest(BaseModel):
+    upload_id: Optional[str] = "bulk_upload"
+    company_id: Optional[str] = "default"
+    status: Optional[str] = "draft"
+    vouchers: list = []
+
+@router.post("/save-vouchers", response_model=dict)
+async def save_bulk_vouchers(
+    payload: SaveBulkVouchersRequest,
+    request: Request,
+    db = Depends(get_async_db)
+):
+    """
+    Saves bulk upload vouchers into MongoDB collections ('sales_vouchers', 'purchase_vouchers', 'vouchers')
+    per voucher number, making them accessible across the entire system and matching manual voucher entry.
+    """
+    upload_id = payload.upload_id or "bulk_upload"
+    comp_header = request.headers.get("x-company-id") or request.headers.get("x-company") or request.headers.get("x-org-id")
+    company_id = payload.company_id if (payload.company_id and payload.company_id != "default") else (comp_header or "default")
+    save_status = payload.status or "draft"
+    vouchers = payload.vouchers or []
+
+    if not vouchers:
+        return {"success": True, "saved_count": 0, "message": "No vouchers provided"}
+
+    saved_count = 0
+    saved_vouchers_list = []
+
+    from app.anjalee.services.voucher_number_service import VoucherNumberService
+
+    for vch in vouchers:
+        ext_invoice_no = vch.get("invoiceNumber") or vch.get("vchNo") or vch.get("voucherNo") or ""
+        vch_type_raw = str(vch.get("docType") or vch.get("voucherType") or "Sales Voucher").strip()
+        vch_type_lower = vch_type_raw.lower()
+        
+        is_sales = "sales" in vch_type_lower
+        is_purchase = "purchase" in vch_type_lower
+        is_payment = "payment" in vch_type_lower
+        is_receipt = "receipt" in vch_type_lower
+
+        if is_purchase:
+            voucher_type = "purchase_invoice"
+            coll_target = "purchase_vouchers"
+        elif is_sales:
+            voucher_type = "sales_invoice"
+            coll_target = "sales_vouchers"
+        else:
+            voucher_type = vch_type_raw
+            coll_target = "vouchers"
+
+        # Check if this voucher has ALREADY been saved in the database under company_id
+        vch_id = vch.get("id") or vch.get("_id")
+        assigned_vch_no = None
+
+        if vch_id and not str(vch_id).startswith("draft_") and not str(vch_id).startswith("vch_"):
+            try:
+                existing_doc = await db[coll_target].find_one({"_id": ObjectId(vch_id)}) if ObjectId.is_valid(vch_id) else None
+                if existing_doc:
+                    assigned_vch_no = existing_doc.get("voucherNumber")
+            except Exception:
+                pass
+
+        if not assigned_vch_no:
+            assigned_vch_no = await VoucherNumberService.get_next_voucher_number(
+                db=db,
+                company_id=company_id,
+                voucher_type=voucher_type,
+                series_id="MAIN"
+            )
+
+        vch_no = assigned_vch_no
+        vch_date = vch.get("dateVal") or vch.get("voucherDate") or vch.get("invoiceDate") or vch.get("date") or datetime.now().strftime("%Y-%m-%d")
+        party_name = vch.get("party") or vch.get("partyName") or vch.get("partyLedgerName") or "Unspecified Party"
+        party_gstin = vch.get("partyGstin") or vch.get("partyGSTIN") or vch.get("gstin") or ""
+        
+        # Calculate item lines
+        raw_items = vch.get("items") or vch.get("productLines") or vch.get("inventoryEntries") or []
+        formatted_items = []
+        
+        total_base = 0.0
+        total_cgst = 0.0
+        total_sgst = 0.0
+        total_igst = 0.0
+        
+        for idx, item in enumerate(raw_items):
+            stock_item = item.get("stockItem") or item.get("itemName") or item.get("name") or "Stock Item"
+            hsn = item.get("hsnSacCode") or item.get("hsnSac") or item.get("hsnCode") or item.get("hsn") or ""
+            qty = float(item.get("billQuantity") or item.get("quantity") or item.get("qty") or 0.0)
+            rate = float(item.get("billRate") or item.get("rate") or 0.0)
+            amt = float(item.get("amount") or (qty * rate) or 0.0)
+            taxable = float(item.get("taxableAmount") or item.get("taxable") or amt)
+            gst_rate = float(item.get("gstRate") or item.get("gst_percent") or 0.0)
+            
+            cgst = float(item.get("cgst") or 0.0)
+            sgst = float(item.get("sgst") or 0.0)
+            igst = float(item.get("igst") or 0.0)
+            
+            if gst_rate > 0 and (cgst == 0 and sgst == 0 and igst == 0):
+                if party_gstin and len(party_gstin) >= 2 and not party_gstin.startswith("23"):
+                    igst = round(taxable * (gst_rate / 100.0), 2)
+                else:
+                    half_tax = round(taxable * (gst_rate / 200.0), 2)
+                    cgst = half_tax
+                    sgst = half_tax
+
+            total_tax = cgst + sgst + igst
+            
+            total_base += taxable
+            total_cgst += cgst
+            total_sgst += sgst
+            total_igst += igst
+            
+            formatted_items.append({
+                "srNo": idx + 1,
+                "stockItemId": str(ObjectId()),
+                "stockItem": stock_item,
+                "description": item.get("description") or item.get("remarks") or "",
+                "hsnSacCode": hsn,
+                "billQuantity": qty,
+                "billRate": rate,
+                "discountPercent": float(item.get("discountPercent") or 0.0),
+                "amount": amt if amt > 0 else taxable,
+                "taxableAmount": taxable,
+                "gstRate": gst_rate,
+                "cgst": cgst,
+                "sgst": sgst,
+                "igst": igst,
+                "totalTax": total_tax
+            })
+            
+        calc_total = total_base + total_cgst + total_sgst + total_igst
+        grand_total = float(vch.get("totalAmount") or vch.get("grandTotal") or vch.get("amount") or (calc_total if calc_total > 0 else 0.0))
+        
+        is_intra = (total_igst == 0)
+        company_id_val = ObjectId(company_id) if (company_id and ObjectId.is_valid(company_id)) else company_id
+
+        # EXACT KEY-VALUE PAIRS MATCHING MANUAL VOUCHER ENTRY (sales_service.py)
+        doc = {
+            "companyId": company_id_val,
+            "company_id": company_id_val,
+            "orgId": company_id_val,
+            "voucherNumber": vch_no,
+            "invoiceNumber": ext_invoice_no or vch_no,
+            "voucherDate": vch_date,
+            "voucherType": voucher_type,
+            "voucherSeries": "Default",
+            "referenceNumber": vch.get("referenceNumber"),
+            "creditNoteDate": vch.get("creditNoteDate"),
+            "docType": vch_type_raw,
+            "salesLedger": vch.get("salesLedger") or vch.get("ledger") or ("Sales" if is_sales else "Purchase"),
+            "consigneeLedger": vch.get("consigneeLedger"),
+            "consigneeGstin": vch.get("consigneeGstin") or "",
+            "partyLedgerId": None,
+            "partyLedgerName": party_name,
+            "partyName": party_name,
+            "partyLedger": party_name,
+            "party": party_name,
+            "partyGSTIN": party_gstin,
+            "gstRegistrationType": "Regular" if party_gstin else "Consumer",
+            "partyState": vch.get("partyState") or vch.get("state") or "Madhya Pradesh",
+            "companyState": "Madhya Pradesh",
+            "isIntraState": is_intra,
+            "taxType": "CGST_SGST" if is_intra else "IGST",
+            "baseAmount": total_base,
+            "cgstAmount": total_cgst,
+            "sgstAmount": total_sgst,
+            "igstAmount": total_igst,
+            "cessAmount": 0.0,
+            "tcsAmount": 0.0,
+            "roundOffAmount": round(grand_total - (total_base + total_cgst + total_sgst + total_igst), 2),
+            "grandTotal": grand_total,
+            "totalAmount": grand_total,
+            "amount": grand_total,
+            "entryTab": "with_item" if formatted_items else "without_item",
+            "gstRegistration": party_name,
+            "entryMode": "bulk_upload",
+            "ocrMetadata": vch.get("ocrMetadata"),
+            "bulkMetadata": vch.get("bulkMetadata"),
+            "salesEntries": [],
+            "inventoryEntries": formatted_items,
+            "productLines": formatted_items,
+            "items": formatted_items,
+            "additionalCharges": [],
+            "tcsDetails": [],
+            "tdsDetails": [],
+            "gstSummary": {
+                "taxableValue": total_base,
+                "cgst": total_cgst,
+                "sgst": total_sgst,
+                "igst": total_igst
+            },
+            "narration": vch.get("narration") or f"Bulk Uploaded Voucher {vch_no}",
+            "status": "APPROVED" if save_status == "approved" else "DRAFT",
+            "isBulkUpload": True,
+            "source": "Bulk Upload",
+            "bulkUploadId": upload_id,
+            "isDeleted": False,
+            "createdAt": datetime.utcnow(),
+            "updatedAt": datetime.utcnow(),
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        }
+
+        query = {
+            "companyId": company_id,
+            "$or": [
+                {"voucherNumber": vch_no},
+                {"invoiceNumber": vch_no}
+            ]
+        }
+
+        # 1. General vouchers collection
+        await db["vouchers"].update_one(query, {"$set": doc}, upsert=True)
+
+        # 2. Type-specific collections (matching manual voucher entry)
+        if is_sales:
+            await db["sales_vouchers"].update_one(query, {"$set": doc}, upsert=True)
+        elif is_purchase:
+            await db["purchase_vouchers"].update_one(query, {"$set": doc}, upsert=True)
+        else:
+            await db["fund_flow_transactions"].update_one(query, {"$set": doc}, upsert=True)
+
+        saved_vouchers_list.append({
+            "id": str(doc.get("_id") or vch_no),
+            "voucherNumber": vch_no,
+            "voucherNo": vch_no,
+            "vchNo": vch_no,
+            "invoiceNumber": ext_invoice_no or vch_no,
+            "partyName": party_name,
+            "voucherDate": vch_date,
+            "voucherType": voucher_type,
+            "grandTotal": grand_total,
+            "amount": grand_total,
+            "status": new_doc_status
+        })
+
+        saved_count += 1
+
+    if upload_id and ObjectId.is_valid(upload_id):
+        await db["bulk_uploads"].update_one(
+            {"_id": ObjectId(upload_id)},
+            {"$set": {"status": new_doc_status, "updated_at": datetime.utcnow()}}
+        )
+
+    return {
+        "success": True,
+        "saved_count": saved_count,
+        "vouchers": saved_vouchers_list,
+        "message": f"Successfully saved {saved_count} vouchers into MongoDB!"
+    }
+
+
+

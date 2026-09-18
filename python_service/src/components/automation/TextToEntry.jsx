@@ -327,7 +327,7 @@ export const TextToEntry = () => {
   const [loading, setLoading] = useState(true);
   const [loadingChat, setLoadingChat] = useState(false);
   const [pageData, setPageData] = useState(null);
-  
+
   const [conversations, setConversations] = useState([]);
   const [activeConvId, setActiveConvId] = useState(null);
   const [statusFilter, setStatusFilter] = useState('All'); // 'All' | 'Draft' | 'Approved'
@@ -343,7 +343,7 @@ export const TextToEntry = () => {
   // --- Input & Form States ---
   const [inputText, setInputText] = useState('');
   const [isThinking, setIsThinking] = useState(false);
-  
+
   // --- Full Page Worksheet Review Mode ---
   const [isReviewMode, setIsReviewMode] = useState(false);
 
@@ -508,12 +508,12 @@ export const TextToEntry = () => {
       } catch (e) {
         console.error("Failed to load stock items:", e);
       }
-      
+
       let targetId = selectSessionId;
       if (!targetId && data.conversations && data.conversations.length > 0) {
         targetId = data.conversations[0].id;
       }
-      
+
       if (targetId) {
         setActiveConvId(targetId);
         await selectSession(targetId);
@@ -584,7 +584,7 @@ export const TextToEntry = () => {
       setDraftJson(session.draft_json);
       setChatState(session.state || 'idle');
       setMetadata(session.metadata || {});
-      
+
       // Fetch party details if a party is mapped in the draft
       if (activeDraft && activeDraft.party) {
         fetchPartyDetails(activeDraft.party);
@@ -654,7 +654,7 @@ export const TextToEntry = () => {
     try {
       setLoadingChat(true);
       await aiApi.resetSession(newSessionId);
-      
+
       const data = await aiApi.getPageLoadData();
       setPageData(data);
       setConversations(data.conversations || []);
@@ -669,7 +669,7 @@ export const TextToEntry = () => {
       setMetadata({});
       setActivePartyDetails(null);
       setIsReviewMode(false);
-      
+
       toast.success("Started a new chat session.");
     } catch (err) {
       console.error(err);
@@ -699,7 +699,7 @@ export const TextToEntry = () => {
 
     try {
       const res = await aiApi.sendMessage(activeConvId, userText);
-      
+
       setMessages(res.history || []);
       setChatState(res.state);
       setMetadata(res.metadata || {});
@@ -738,7 +738,7 @@ export const TextToEntry = () => {
     if (!activeConvId) return;
     try {
       await aiApi.resetSession(activeConvId);
-      
+
       const data = await aiApi.getPageLoadData();
       setPageData(data);
 
@@ -751,7 +751,7 @@ export const TextToEntry = () => {
       setMetadata({});
       setActivePartyDetails(null);
       setIsReviewMode(false);
-      
+
       toast.success("Session reset successful.");
     } catch (err) {
       console.error(err);
@@ -764,7 +764,7 @@ export const TextToEntry = () => {
     try {
       const res = await aiApi.saveDraft(activeConvId);
       toast.success(res.reply || "Voucher Draft saved successfully!");
-      
+
       await selectSession(activeConvId);
       const data = await aiApi.getPageLoadData();
       setPageData(data);
@@ -834,7 +834,7 @@ export const TextToEntry = () => {
     try {
       const details = await aiApi.getLedgerDetails(partyName);
       setActivePartyDetails(details);
-      
+
       const recalculated = recalculateDraft(
         updatedDraft,
         details,
@@ -842,7 +842,7 @@ export const TextToEntry = () => {
         stockItemDetails
       );
       setDraft(recalculated);
-      
+
       const res = await aiApi.updateDraft(activeConvId, recalculated);
       setDraft(res.draft);
       setDraftJson(res.draft_json);
@@ -1039,13 +1039,13 @@ export const TextToEntry = () => {
 
     return (
       <div className="flex h-full w-full overflow-hidden bg-[var(--app-content-bg)] text-[var(--app-heading)] font-sans">
-        
+
         {/* Sidebar: Voucher Chats */}
         <aside className="w-72 border-r flex flex-col shrink-0 bg-[var(--app-panel-bg)] border-[var(--app-border)]">
           <div className="p-4 border-b border-[var(--app-border)] flex flex-col gap-3 shrink-0">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-extrabold uppercase tracking-wider text-[var(--app-muted)]">Voucher Chats</span>
-              <button 
+              <button
                 onClick={handleNewChat}
                 className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-[11px] font-bold hover:bg-indigo-700 transition-all shadow-xs"
               >
@@ -1054,20 +1054,20 @@ export const TextToEntry = () => {
               </button>
             </div>
             <div className="flex bg-[var(--app-control-bg)] p-0.5 rounded-lg text-[10.5px] font-bold border border-[var(--app-border)] shrink-0">
-              <button 
-                onClick={() => setStatusFilter('All')} 
+              <button
+                onClick={() => setStatusFilter('All')}
                 className={`flex-1 py-1 rounded text-center transition-all ${statusFilter === 'All' ? 'bg-[var(--app-panel-bg)] text-indigo-600 shadow-xs' : 'text-[var(--app-muted)] hover:text-[var(--app-heading)]'}`}
               >
                 All
               </button>
-              <button 
-                onClick={() => setStatusFilter('Draft')} 
+              <button
+                onClick={() => setStatusFilter('Draft')}
                 className={`flex-1 py-1 rounded text-center transition-all ${statusFilter === 'Draft' ? 'bg-[var(--app-panel-bg)] text-indigo-600 shadow-xs' : 'text-[var(--app-muted)] hover:text-[var(--app-heading)]'}`}
               >
                 Draft
               </button>
-              <button 
-                onClick={() => setStatusFilter('Approved')} 
+              <button
+                onClick={() => setStatusFilter('Approved')}
                 className={`flex-1 py-1 rounded text-center transition-all ${statusFilter === 'Approved' ? 'bg-[var(--app-panel-bg)] text-indigo-600 shadow-xs' : 'text-[var(--app-muted)] hover:text-[var(--app-heading)]'}`}
               >
                 Approved
@@ -1082,17 +1082,16 @@ export const TextToEntry = () => {
                 <div
                   key={conv.id}
                   onClick={() => handleSelectConversation(conv.id)}
-                  className={`p-3 rounded-xl border cursor-pointer transition-all flex flex-col gap-1 ${
-                    isActive 
-                      ? 'bg-indigo-50/70 border-indigo-400 shadow-xs' 
+                  className={`p-3 rounded-xl border cursor-pointer transition-all flex flex-col gap-1 ${isActive
+                      ? 'bg-indigo-50/70 border-indigo-400 shadow-xs'
                       : 'bg-[var(--app-panel-bg)] border-[var(--app-border)] hover:bg-[var(--app-control-hover)]'
-                  }`}
+                    }`}
                 >
                   <div className="flex justify-between items-start gap-1">
                     <span className="text-[11.5px] font-extrabold text-[var(--app-heading)] truncate max-w-[140px]">{conv.title}</span>
                     <div className="flex items-center gap-1.5 shrink-0">
                       <span className="text-[9px] text-[var(--app-muted)]">{conv.date}</span>
-                      <button 
+                      <button
                         onClick={(e) => handleDeleteConversation(conv.id, e)}
                         className="text-[var(--app-muted)] hover:text-rose-500 p-0.5 rounded transition-all"
                         title="Delete chat"
@@ -1125,11 +1124,11 @@ export const TextToEntry = () => {
 
         {/* Main Content Area: Exact Manual Voucher Form Embedded */}
         <main className="flex-1 flex flex-col min-w-0 bg-[var(--app-content-bg)] overflow-y-auto themed-scrollbar p-3 space-y-2">
-          
+
           {/* Top Action Bar with Back to Chat */}
           <header className="flex justify-between items-center bg-[var(--app-panel-bg)] px-4 py-2.5 rounded-xl border border-[var(--app-border)] shadow-xs shrink-0">
             <div className="flex items-center gap-3">
-              <button 
+              <button
                 onClick={() => setIsReviewMode(false)}
                 className="h-8 px-3 rounded-lg border border-[var(--app-border)] text-xs font-bold text-[var(--app-heading)] hover:bg-[var(--app-control-hover)] transition-all flex items-center gap-1.5 shrink-0"
               >
@@ -1198,13 +1197,13 @@ export const TextToEntry = () => {
   // ========================================================================
   return (
     <div className="flex h-full w-full overflow-hidden bg-slate-50 text-slate-800 font-sans">
-      
+
       {/* LEFT PANEL: CONVERSATION HISTORY & SIDEBAR */}
       <aside className="w-72 border-r flex flex-col shrink-0 bg-white border-slate-200">
         <div className="p-4 border-b border-slate-200 flex flex-col gap-3 shrink-0">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">Voucher Chats</span>
-            <button 
+            <button
               onClick={handleNewChat}
               className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-[11px] font-bold hover:bg-blue-700 transition-all shadow-sm"
             >
@@ -1212,27 +1211,27 @@ export const TextToEntry = () => {
               <span>New Chat</span>
             </button>
           </div>
-          
-            <div className="flex bg-slate-100 p-0.5 rounded-lg text-[10.5px] font-bold border border-slate-200 shrink-0">
-              <button 
-                onClick={() => setStatusFilter('All')} 
-                className={`flex-1 py-1 rounded text-center transition-all ${statusFilter === 'All' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
-              >
-                All
-              </button>
-              <button 
-                onClick={() => setStatusFilter('Draft')} 
-                className={`flex-1 py-1 rounded text-center transition-all ${statusFilter === 'Draft' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
-              >
-                Draft
-              </button>
-              <button 
-                onClick={() => setStatusFilter('Approved')} 
-                className={`flex-1 py-1 rounded text-center transition-all ${statusFilter === 'Approved' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
-              >
-                Approved
-              </button>
-            </div>
+
+          <div className="flex bg-slate-100 p-0.5 rounded-lg text-[10.5px] font-bold border border-slate-200 shrink-0">
+            <button
+              onClick={() => setStatusFilter('All')}
+              className={`flex-1 py-1 rounded text-center transition-all ${statusFilter === 'All' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+            >
+              All
+            </button>
+            <button
+              onClick={() => setStatusFilter('Draft')}
+              className={`flex-1 py-1 rounded text-center transition-all ${statusFilter === 'Draft' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+            >
+              Draft
+            </button>
+            <button
+              onClick={() => setStatusFilter('Approved')}
+              className={`flex-1 py-1 rounded text-center transition-all ${statusFilter === 'Approved' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+            >
+              Approved
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-2 space-y-1.5 themed-scrollbar">
@@ -1247,17 +1246,16 @@ export const TextToEntry = () => {
                 <div
                   key={conv.id}
                   onClick={() => handleSelectConversation(conv.id)}
-                  className={`p-3 rounded-lg border cursor-pointer transition-all flex flex-col gap-1 ${
-                    isActive 
-                      ? 'bg-blue-50/70 border-blue-400 shadow-sm' 
+                  className={`p-3 rounded-lg border cursor-pointer transition-all flex flex-col gap-1 ${isActive
+                      ? 'bg-blue-50/70 border-blue-400 shadow-sm'
                       : 'bg-white border-slate-200 hover:bg-slate-50/60'
-                  }`}
+                    }`}
                 >
                   <div className="flex justify-between items-start gap-1">
                     <span className="text-[11.5px] font-extrabold text-slate-700 truncate max-w-[140px]">{conv.title}</span>
                     <div className="flex items-center gap-1.5 shrink-0">
                       <span className="text-[9px] text-slate-400">{conv.date}</span>
-                      <button 
+                      <button
                         onClick={(e) => handleDeleteConversation(conv.id, e)}
                         className="text-slate-400 hover:text-rose-500 p-0.5 rounded transition-all"
                         title="Delete chat"
@@ -1266,18 +1264,16 @@ export const TextToEntry = () => {
                       </button>
                     </div>
                   </div>
-                  
+
                   <div className="text-[10px] text-slate-400 truncate font-medium">{conv.preview}</div>
 
                   <div className="flex gap-1.5 mt-1 items-center">
-                    <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${
-                      conv.voucherType?.includes('Sales') ? 'bg-blue-50 text-blue-600' : 'bg-orange-50 text-orange-600'
-                    }`}>
+                    <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${conv.voucherType?.includes('Sales') ? 'bg-blue-50 text-blue-600' : 'bg-orange-50 text-orange-600'
+                      }`}>
                       {conv.voucherType || 'Voucher'}
                     </span>
-                    <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${
-                      conv.status === 'Draft' ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'
-                    }`}>
+                    <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${conv.status === 'Draft' ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'
+                      }`}>
                       {conv.status || 'Draft'}
                     </span>
                   </div>
@@ -1305,7 +1301,7 @@ export const TextToEntry = () => {
         )}
 
         <div className="p-3 border-t border-slate-200 shrink-0">
-          <button 
+          <button
             onClick={handleResetSession}
             className="w-full py-1.5 rounded-lg border border-slate-200 text-[11px] font-bold text-slate-500 hover:bg-slate-50 transition-colors flex items-center justify-center gap-1.5"
           >
@@ -1318,7 +1314,7 @@ export const TextToEntry = () => {
       {/* CENTER PANEL: CHAT WORKSPACE */}
       {activeConvId ? (
         <section className="flex-1 flex flex-col min-w-0 bg-slate-50 relative">
-          
+
           <header className="px-4 py-3 bg-white border-b border-slate-200 flex justify-between items-center shrink-0 shadow-sm">
             <div>
               <div className="flex items-center gap-2">
@@ -1330,7 +1326,7 @@ export const TextToEntry = () => {
                 {pageData?.companyName || 'Friends Grafix Pvt Ltd'} • {pageData?.financialYear || 'FY 2024-25'}
               </p>
             </div>
-            
+
             {/* Show worksheet button if a draft is available */}
             {draft && (
               <button
@@ -1429,15 +1425,15 @@ export const TextToEntry = () => {
                 placeholder="Describe transaction (e.g. Sales invoice for ABC 5 laptops)..."
                 className="flex-1 h-8 outline-none border-none bg-transparent px-3 text-[11px] font-medium text-slate-800 placeholder-slate-400"
               />
-              <button 
-                type="button" 
-                onClick={() => toast.info("Voice Input activated (UI only)")} 
+              <button
+                type="button"
+                onClick={() => toast.info("Voice Input activated (UI only)")}
                 className="p-2 text-slate-400 hover:text-blue-600"
               >
                 <Mic size={14} />
               </button>
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 disabled={!inputText.trim() || isThinking}
                 className="h-8 px-4 rounded-lg bg-blue-600 text-white text-[11px] font-bold hover:bg-blue-700 disabled:opacity-40 transition-colors flex items-center gap-1.5"
               >
@@ -1457,7 +1453,7 @@ export const TextToEntry = () => {
       {/* RIGHT PANEL: EDITABLE MANUAL ENTRY VOUCHER FORM SIDEBAR */}
       {draft ? (
         <aside className="w-80 border-l flex flex-col shrink-0 bg-white border-slate-200 relative h-full overflow-hidden">
-          
+
           <div className="p-4 border-b border-slate-200 flex items-center justify-between shrink-0">
             <span className="font-extrabold text-[12px] uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
               <FileText size={14} className="text-blue-600" />
@@ -1469,11 +1465,11 @@ export const TextToEntry = () => {
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 space-y-4 themed-scrollbar pb-28 text-[11px]">
-            
+
             {/* Header Details */}
             <div className="space-y-3 pb-3 border-b border-slate-100">
               <div className="text-[9px] uppercase font-extrabold tracking-wider text-slate-400">Header details</div>
-              
+
               <div>
                 <label className="text-slate-400 block text-[9.5px] mb-1 font-semibold">Voucher Type</label>
                 <select
@@ -1656,7 +1652,7 @@ export const TextToEntry = () => {
                 {/* Payment/Receipt/Contra Account details */}
                 <div className="space-y-3 pb-3 border-b border-slate-100">
                   <div className="text-[9px] uppercase font-extrabold tracking-wider text-slate-400">Payment Accounts</div>
-                  
+
                   <div>
                     <label className="text-slate-400 block text-[9.5px] mb-1 font-semibold">Payment Mode</label>
                     <select
@@ -1665,7 +1661,7 @@ export const TextToEntry = () => {
                           ? (draft.credit && draft.credit.toLowerCase().includes('cash') ? 'Cash' : 'Bank')
                           : (draft.debit && draft.debit.toLowerCase().includes('cash') ? 'Cash' : 'Bank')
                       }
-                      onChange={() => {}}
+                      onChange={() => { }}
                       className="w-full h-8 px-2 rounded-lg border border-slate-200 bg-slate-50 outline-none font-semibold text-slate-500 cursor-not-allowed text-[10.5px]"
                       disabled
                     >
@@ -1713,8 +1709,8 @@ export const TextToEntry = () => {
                       {(() => {
                         const key = draft.voucher_type?.toLowerCase() === 'payment' ? draft.credit : draft.debit;
                         const balData = pendingBillsMap[key];
-                        return balData 
-                          ? `₹ ${parseFloat(balData.outstandingBalance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })} ${balData.outstandingType || ''}` 
+                        return balData
+                          ? `₹ ${parseFloat(balData.outstandingBalance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })} ${balData.outstandingType || ''}`
                           : '₹ 0.00';
                       })()}
                     </div>
@@ -1738,8 +1734,8 @@ export const TextToEntry = () => {
                     {draft.items && draft.items.length > 0 ? (
                       draft.items.map((item, idx) => {
                         const billsData = pendingBillsMap[item.item_name];
-                        const outstandingText = billsData 
-                          ? `₹ ${Math.abs(billsData.outstandingBalance).toLocaleString('en-IN')} ${billsData.outstandingBalance >= 0 ? 'Dr' : 'Cr'}` 
+                        const outstandingText = billsData
+                          ? `₹ ${Math.abs(billsData.outstandingBalance).toLocaleString('en-IN')} ${billsData.outstandingBalance >= 0 ? 'Dr' : 'Cr'}`
                           : '₹ 0.00';
                         return (
                           <div key={idx} className="bg-slate-50 p-2 rounded border border-slate-200 space-y-2 relative font-sans">
@@ -1804,7 +1800,7 @@ export const TextToEntry = () => {
                 {/* Party Selection */}
                 <div className="space-y-3 pb-3 border-b border-slate-100">
                   <div className="text-[9px] uppercase font-extrabold tracking-wider text-slate-400">Party Account</div>
-                  
+
                   <div>
                     <label className="text-slate-400 block text-[9.5px] mb-1 font-semibold">Select Customer/Supplier</label>
                     <select
@@ -1823,10 +1819,10 @@ export const TextToEntry = () => {
                     <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200/60 grid grid-cols-2 gap-y-1.5 text-[10.5px]">
                       <span className="text-slate-400 font-medium">GSTIN:</span>
                       <span className="font-bold text-slate-700 text-right">{activePartyDetails?.partyDetails?.gstin || 'N/A'}</span>
-                      
+
                       <span className="text-slate-400 font-medium">Supply State:</span>
                       <span className="font-bold text-slate-700 text-right">{activePartyDetails?.partyDetails?.gstState || 'N/A'}</span>
-                      
+
                       <span className="text-slate-400 font-medium">Outstanding:</span>
                       <span className="font-extrabold text-rose-500 text-right">
                         {activePartyDetails?.openingBalance ? `₹ ${parseFloat(activePartyDetails.openingBalance).toLocaleString('en-IN')}` : '₹ 0.00'}
@@ -1898,7 +1894,7 @@ export const TextToEntry = () => {
                             </div>
                             <div>
                               <label className="text-slate-400 block text-[7.5px] mb-0.5 font-semibold">GST%</label>
-                               <select
+                              <select
                                 value={item.gst_rate || 0}
                                 onChange={(e) => handleItemChange(idx, 'gst_rate', parseFloat(e.target.value) || 0)}
                                 className="w-full h-6 px-1 rounded border border-slate-200 bg-white outline-none font-bold"
@@ -2018,7 +2014,7 @@ export const TextToEntry = () => {
                   </div>
                 )}
               </div>
-              
+
               <div className="pt-2 flex justify-between items-center border-t border-dashed border-slate-200">
                 <span className="font-extrabold uppercase text-slate-700 text-[10.5px]">Grand Total</span>
                 <span className="text-[16px] font-extrabold text-blue-600">
@@ -2032,8 +2028,8 @@ export const TextToEntry = () => {
               <div className="space-y-1.5 pt-1">
                 <div className="flex flex-wrap gap-1">
                   {badges.map((badge, idx) => (
-                    <span 
-                      key={idx} 
+                    <span
+                      key={idx}
                       className="px-2 py-0.5 rounded text-[8.5px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200"
                     >
                       ✓ {badge}
@@ -2048,14 +2044,14 @@ export const TextToEntry = () => {
           {/* Sticky Actions */}
           <div className="absolute bottom-0 left-0 right-0 p-3 bg-white border-t border-slate-200 flex flex-col gap-1.5 shadow-[0_-3px_8px_rgba(0,0,0,0.03)] shrink-0">
             <div className="flex gap-2">
-              <button 
+              <button
                 onClick={handleSaveDraft}
                 className="flex-1 h-7.5 rounded-lg border border-emerald-300 text-emerald-600 text-[10.5px] font-bold hover:bg-emerald-50 transition-colors flex items-center justify-center gap-1"
               >
                 <Save size={11} />
                 Save Draft
               </button>
-              <button 
+              <button
                 onClick={handleApprove}
                 className="flex-1 h-7.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-[10.5px] font-bold transition-all shadow-sm flex items-center justify-center gap-1"
               >
@@ -2063,7 +2059,7 @@ export const TextToEntry = () => {
                 Approve
               </button>
             </div>
-            <button 
+            <button
               onClick={handlePostTally}
               className="w-full h-7.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[10.5px] font-extrabold transition-all"
             >

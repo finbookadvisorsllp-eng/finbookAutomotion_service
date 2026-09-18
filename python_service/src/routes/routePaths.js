@@ -15,6 +15,12 @@ export const LABEL_TO_PATH = {
   'Manage Business User': '/users/business',
   'Allocate Accountant': '/users/accountants',
 
+  // Primary Modules
+  'Sales': '/sales',
+  'Purchase': '/purchase',
+  'Fund Flow': '/fund-flow',
+  'Bank': '/bank',
+
   // Sales
   'Sales Inbox': '/sales/inbox',
   'Sales Review': '/sales/review',

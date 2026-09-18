@@ -56,6 +56,7 @@ class OrgData(BaseModel):
     name: str
     displayName: str
     status: str
+    dbName: Optional[str] = None
 
 
 class LoginResponseData(BaseModel):

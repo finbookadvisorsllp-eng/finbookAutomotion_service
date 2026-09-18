@@ -1077,7 +1077,8 @@ checkpoint_manager = CheckpointManager()
 
 class ContextLoaderNode:
     def load_context(self, state_dict: Dict[str, Any]) -> Dict[str, Any]:
-        company_id = state_dict.get("company_id", "default")
+        from app.db import _get_active_iam_org_db
+        company_id = state_dict.get("company_id") or _get_active_iam_org_db()
         execution_date = state_dict.get("execution_date")
         execution_id = state_dict.get("execution_id", "unknown")
         agent_logger.info(f"ContextLoaderNode loading ERP context for '{company_id}', date '{execution_date}'", execution_id=execution_id)

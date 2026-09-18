@@ -412,3 +412,216 @@ class FundFlowService:
         success = self.repo.update_transaction_custom(tx_id, update_op)
         if not success:
             raise TransactionNotFoundException()
+
+    def get_bank_statement(
+        self,
+        bank_ledger: str,
+        company_id: Optional[str] = None,
+        voucher_type: Optional[str] = None,
+        source: Optional[str] = None,
+        search: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Fetch all vouchers connected to a specific bank ledger across all collections:
+        - Tally synced vouchers ('vouchers')
+        - Manual / Fund Flow vouchers ('fund_flow_transactions' / 'fundflow')
+        - Sales & Purchase vouchers ('sales_vouchers', 'purchase_vouchers')
+        """
+        db = self.repo.db
+        if not bank_ledger:
+            return {
+                "success": True,
+                "data": {
+                    "vouchers": [],
+                    "kpis": {"totalReceipts": 0.0, "totalPayments": 0.0, "netAmount": 0.0, "totalCount": 0}
+                }
+            }
+
+        seen_ids = set()
+        seen_keys = set()
+        all_vouchers = []
+
+        regex_bank = {"$regex": f"^{regex_escape(bank_ledger)}$", "$options": "i"} if bank_ledger else None
+
+        # 1. Search in 'vouchers' collection (Tally Synced + Bulk Excel saved)
+        v_query = {
+            "$or": [
+                {"bankLedger": regex_bank},
+                {"partyLedgerName": regex_bank},
+                {"ledgerEntries.ledgerName": regex_bank},
+                {"ledgerRows.ledgerName": regex_bank},
+                {"againstLedger": regex_bank}
+            ]
+        }
+        v_docs = list(db["vouchers"].find(v_query).sort("createdAt", -1).limit(500))
+
+        for doc in v_docs:
+            doc_id = str(doc["_id"])
+            if doc_id in seen_ids:
+                continue
+
+            v_type_raw = (doc.get("voucherTypeName") or doc.get("voucherType") or "").lower()
+            v_type = "Payment"
+            if "receipt" in v_type_raw or v_type_raw == "bank_payment":
+                v_type = "Receipt"
+            elif "contra" in v_type_raw:
+                v_type = "Contra"
+
+            # Determine opposite party name
+            party_name = doc.get("partyLedgerName") or doc.get("partyName") or ""
+            if not party_name or party_name.lower() == bank_ledger.lower():
+                # Extract from ledgerEntries / ledgerRows
+                entries = doc.get("ledgerEntries") or doc.get("ledgerRows") or []
+                for e in entries:
+                    e_name = e.get("ledgerName") or e.get("name") or ""
+                    if e_name and e_name.lower() != bank_ledger.lower():
+                        party_name = e_name
+                        break
+
+            # Determine source
+            created_via = (doc.get("createdVia") or doc.get("source") or doc.get("entryMode") or "").lower()
+            if "excel" in created_via:
+                src = "excel_upload"
+            elif "manual" in created_via:
+                src = "manual_entry"
+            else:
+                src = "tally_sync"
+
+            amt = 0.0
+            totals_obj = doc.get("totals") or {}
+            amt = float(totals_obj.get("grandTotal") or totals_obj.get("totalAmount") or doc.get("total_amount") or doc.get("amount") or 0.0)
+            if amt == 0.0:
+                entries = doc.get("ledgerEntries") or doc.get("ledgerRows") or []
+                for e in entries:
+                    if (e.get("ledgerName") or "").lower() == bank_ledger.lower():
+                        amt = abs(float(e.get("amount") or 0.0))
+                        break
+
+            dates_dict = doc.get("dates") if isinstance(doc.get("dates"), dict) else {}
+            v_date = (
+                dates_dict.get("date") or
+                dates_dict.get("effectiveDate") or
+                dates_dict.get("voucherDate") or
+                doc.get("voucherDate") or
+                doc.get("date") or
+                doc.get("createdAt")
+            )
+            v_num = doc.get("voucherNumber") or doc.get("voucherNumbering") or (doc.get("reference") if isinstance(doc.get("reference"), str) else "") or "—"
+
+
+            key = (str(v_num), str(amt), str(v_date)[:10])
+            if key in seen_keys:
+                continue
+
+            seen_ids.add(doc_id)
+            seen_keys.add(key)
+            all_vouchers.append({
+                "id": doc_id,
+                "voucherNumber": v_num,
+                "voucherDate": v_date,
+                "voucherType": v_type,
+                "partyName": party_name or "—",
+                "amount": round(amt, 2),
+                "source": src,
+                "status": doc.get("status") or "approved",
+                "narration": doc.get("narration") or ""
+            })
+
+        # 2. Search in 'fund_flow_transactions' / 'fundflow' collection
+        ff_query = {
+            "$or": [
+                {"bankLedger": regex_bank},
+                {"againstLedger": regex_bank},
+                {"partyLedger": regex_bank},
+                {"ledgerRows.ledgerName": regex_bank}
+            ]
+        }
+        ff_docs = list(db["fund_flow_transactions"].find(ff_query).sort("createdAt", -1).limit(500))
+        if not ff_docs:
+            ff_docs = list(db["fundflow"].find(ff_query).sort("createdAt", -1).limit(500))
+
+        for doc in ff_docs:
+            doc_id = str(doc["_id"])
+            if doc_id in seen_ids:
+                continue
+
+            raw_type = (doc.get("voucherType") or "").lower()
+            v_type = "Payment"
+            if raw_type in ["bank_payment", "receipt"]:
+                v_type = "Receipt"
+            elif raw_type in ["cash_payment", "payment"]:
+                v_type = "Payment"
+            elif raw_type == "contra":
+                v_type = "Contra"
+
+            party_name = doc.get("partyLedger") or ""
+            if not party_name or party_name.lower() == bank_ledger.lower():
+                rows = doc.get("ledgerRows") or []
+                for r in rows:
+                    r_name = r.get("ledgerName") or ""
+                    if r_name and r_name.lower() != bank_ledger.lower():
+                        party_name = r_name
+                        break
+
+            created_via = (doc.get("createdVia") or doc.get("entryMode") or "").lower()
+            if "excel" in created_via:
+                src = "excel_upload"
+            else:
+                src = "manual_entry"
+
+            amt = float(doc.get("amount") or doc.get("transferAmount") or 0.0)
+            v_date = doc.get("voucherDate") or doc.get("createdAt")
+            v_num = doc.get("voucherNumber") or "—"
+
+            key = (str(v_num), str(amt), str(v_date)[:10])
+            if key in seen_keys:
+                continue
+
+            seen_ids.add(doc_id)
+            seen_keys.add(key)
+            all_vouchers.append({
+                "id": doc_id,
+                "voucherNumber": v_num,
+                "voucherDate": v_date,
+                "voucherType": v_type,
+                "partyName": party_name or "—",
+                "amount": round(amt, 2),
+                "source": src,
+                "status": doc.get("status") or "draft",
+                "narration": doc.get("narration") or ""
+            })
+
+        # Apply Filters if requested
+        if voucher_type:
+            all_vouchers = [v for v in all_vouchers if v["voucherType"].lower() == voucher_type.lower()]
+        if source:
+            all_vouchers = [v for v in all_vouchers if v["source"].lower() == source.lower()]
+        if search:
+            q = search.lower()
+            all_vouchers = [
+                v for v in all_vouchers if
+                q in v["partyName"].lower() or
+                q in str(v["voucherNumber"]).lower() or
+                q in v["narration"].lower()
+            ]
+
+        # Calculate KPIs
+        total_receipts = sum(v["amount"] for v in all_vouchers if v["voucherType"] == "Receipt")
+        total_payments = sum(v["amount"] for v in all_vouchers if v["voucherType"] == "Payment")
+        net_amount = total_receipts - total_payments
+
+        return {
+            "vouchers": all_vouchers,
+            "kpis": {
+                "totalReceipts": round(total_receipts, 2),
+                "totalPayments": round(total_payments, 2),
+                "netAmount": round(net_amount, 2),
+                "totalCount": len(all_vouchers)
+            }
+        }
+
+
+def regex_escape(string: str) -> str:
+    import re
+    return re.escape(string)
+

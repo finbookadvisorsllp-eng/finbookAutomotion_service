@@ -100,6 +100,54 @@ class OcrService:
             logger.warning(f"Contrast enhancement failed: {e}")
         return image
 
+    def image_to_base64(self, img_bgr: np.ndarray, quality: int = 90) -> str:
+        """Converts BGR numpy image to base64 JPEG string for Vision LLM API."""
+        try:
+            import base64
+            encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), quality]
+            _, buffer = cv2.imencode('.jpg', img_bgr, encode_param)
+            base64_str = base64.b64encode(buffer).decode('utf-8')
+            return f"data:image/jpeg;base64,{base64_str}"
+        except Exception as e:
+            logger.error(f"Failed to convert image to base64: {e}")
+            return ""
+
+    def get_document_images_base64(self, file_path: str, file_type: str, max_pages: int = 5) -> list:
+        """Returns base64 encoded data URIs of document pages for Vision LLM input."""
+        base64_images = []
+        try:
+            if file_type == 'pdf':
+                doc = fitz.open(file_path)
+                num_pages = min(len(doc), max_pages)
+                for page_num in range(num_pages):
+                    page = doc.load_page(page_num)
+                    zoom = 200 / 72
+                    mat = fitz.Matrix(zoom, zoom)
+                    pix = page.get_pixmap(matrix=mat)
+                    img_data = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.height, pix.width, pix.n)
+                    if pix.n == 4:
+                        img_data = cv2.cvtColor(img_data, cv2.COLOR_BGRA2BGR)
+                    elif pix.n == 1:
+                        img_data = cv2.cvtColor(img_data, cv2.COLOR_GRAY2BGR)
+                    else:
+                        img_data = cv2.cvtColor(img_data, cv2.COLOR_RGB2BGR)
+                    
+                    preprocessed = self.preprocess_image(img_data)
+                    b64 = self.image_to_base64(preprocessed)
+                    if b64:
+                        base64_images.append(b64)
+                doc.close()
+            else:
+                img_bgr = cv2.imread(file_path)
+                if img_bgr is not None:
+                    preprocessed = self.preprocess_image(img_bgr)
+                    b64 = self.image_to_base64(preprocessed)
+                    if b64:
+                        base64_images.append(b64)
+        except Exception as e:
+            logger.error(f"Error fetching base64 images from document: {e}")
+        return base64_images
+
     def preprocess_image(self, img_bgr: np.ndarray) -> np.ndarray:
         """
         Full preprocessing pipeline for invoice/receipt photos:
