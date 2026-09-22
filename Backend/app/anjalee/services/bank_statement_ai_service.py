@@ -13,6 +13,13 @@ import csv
 from app.anjalee.services.ocr_service import OcrService
 from app.anjalee.services.llm_service import llm_service
 from app.anjalee.utils.serialization import serialize_doc
+from app.anjalee.services.bank_pattern_engine import (
+    NarrationNormalizationService,
+    RulesBasedMatchingService,
+    PartyLedgerResolutionService,
+    AIPatternDiscoveryService,
+    PatternFeedbackService,
+)
 
 logger = logging.getLogger("bank_statement_ai_service")
 
@@ -478,39 +485,458 @@ CRITICAL RULES:
 
         return master_ledgers
 
+    def extract_transaction_type(self, narration: str, tx: Optional[Dict[str, Any]] = None) -> str:
+        """Extract clean transaction type code (UPI, NEFT, RTGS, IMPS, CLG, INFT, CHEQUE, CASH)."""
+        if not narration:
+            return "Bank Transfer"
+        n = narration.upper()
+        if n.startswith("UPI/") or "/UPI/" in n or "@" in n:
+            return "UPI"
+        if n.startswith("CLG/") or "/CLG/" in n:
+            return "CLG"
+        if "NEFT" in n:
+            return "NEFT"
+        if "RTGS" in n:
+            return "RTGS"
+        if "IMPS" in n:
+            return "IMPS"
+        if "INF/" in n or "INFT" in n:
+            return "INFT"
+        if "CHQ" in n or "CHEQUE" in n:
+            return "CHEQUE"
+        if "CASH" in n or "WDL" in n or "ATM" in n:
+            return "CASH"
+        if "CHG" in n or "CHARGE" in n or "FEE" in n:
+            return "CHARGES"
+        if "INT" in n or "INTEREST" in n:
+            return "INTEREST"
+        return "Bank Transfer"
+
     def extract_party_candidate(self, narration: str) -> Optional[str]:
         if not narration:
             return None
-        # 1. UPI with @ symbol e.g. ashokgupta1924@
-        m = re.search(r'UPI/[A-Z0-9]+/UPI/([^/@]+)@', narration, re.I)
-        if not m:
-            m = re.search(r'([^/@\s]+)@[a-zA-Z]+', narration, re.I)
-        if m and len(m.group(1).strip()) >= 3:
-            return m.group(1).strip()
-        # 2. CLG format e.g. CLG/AMRAPUR MEDICAL AGENCIES-0001869/...
-        m = re.search(r'CLG/([A-Za-z0-9\s&.-]{3,40}?)(?:-\d|/\d|/[A-Z]{3,4}/|$)', narration, re.I)
-        if m and len(m.group(1).strip()) >= 3:
-            return m.group(1).strip()
-        # 3. NEFT / RTGS / IMPS format e.g. NEFT-HDFCH01163185685-SHRI RAM MEDICAL AGENCIES-...
-        m = re.search(r'(?:NEFT|RTGS|IMPS|IFT|INFT)[-/\s]+[A-Z0-9]+[-/\s]+([A-Za-z0-9\s&.-]{3,40}?)(?:[-/\s]+\d|[-/\s]+[A-Z]{4}\d|$)', narration, re.I)
-        if m and len(m.group(1).strip()) >= 3:
-            return m.group(1).strip()
-        # 4. INF / INFT payment format
-        m = re.search(r'INF/INFT/[0-9]+/PAYMENT\s+[A-Z\s]+/([A-Za-z0-9\s&.-]{3,30})', narration, re.I)
-        if m and len(m.group(1).strip()) >= 3:
-            return m.group(1).strip()
+        from app.anjalee.services.bank_pattern_engine import RegexPositionalExtractor
+        cand, _ = RegexPositionalExtractor.extract_party(narration)
+        return cand
+
+    @staticmethod
+    def resolve_tally_bank_trans_type(channel_or_mode: str, payment_mode: Optional[str] = None) -> str:
+        """
+        Maps payment mode / channel code to verified Tally TRANSACTIONTYPE:
+        - 'Inter Bank Transfer' (NEFT, RTGS, IMPS, UPI, INFT, online transfers)
+        - 'Cheque/DD' (Cheque, DD, Clearing, CLG)
+        - 'Same Bank Transfer' (Internal contra or transfer within same bank)
+        - 'Others' (Cash deposit, ATM, Card, Charges, etc.)
+        """
+        combined = f"{channel_or_mode or ''} {payment_mode or ''}".upper().strip()
+        if any(k in combined for k in ["UPI", "NEFT", "RTGS", "IMPS", "INFT", "INF", "E-TRANSFER", "NETBANKING", "IB"]):
+            return "Inter Bank Transfer"
+        if any(k in combined for k in ["CHQ", "CHEQUE", "DD", "CLG", "CLEARING"]):
+            return "Cheque/DD"
+        if any(k in combined for k in ["SAME BANK", "INTERNAL", "CONTRA"]):
+            return "Same Bank Transfer"
+        if any(k in combined for k in ["CASH", "ATM", "WDL", "CHG", "FEE", "CHARGE"]):
+            return "Others"
+        return "Inter Bank Transfer"
+
+    @staticmethod
+    def extract_clean_reference(narration: str, ref_no: Optional[str] = None) -> Optional[str]:
+        """
+        Extracts clean UTR, Cheque Number, or transaction reference from bank narration or existing ref_no.
+        Avoids taking the full narration as the reference.
+        """
+        if ref_no:
+            ref_clean = str(ref_no).strip()
+            if 3 <= len(ref_clean) <= 30 and ' ' not in ref_clean:
+                return ref_clean
+
+        if not narration:
+            return str(ref_no).strip() if ref_no else None
+
+        text = str(narration).strip()
+        utr_m = re.search(r'\bUTR[:/\-\s]*([A-Za-z0-9]{8,22})\b', text, re.I)
+        if utr_m:
+            return utr_m.group(1).strip()
+
+        ref_m = re.search(r'\b(?:NEFT|RTGS|IMPS|CMS|INFT|IFT)[/:\-\s]+([A-Za-z0-9]{8,22})\b', text, re.I)
+        if ref_m:
+            return ref_m.group(1).strip()
+
+        upi_m = re.search(r'\b(?:UPI|RRN)[/:\-\s]*(\d{12})\b', text, re.I)
+        if upi_m:
+            return upi_m.group(1).strip()
+
+        chq_m = re.search(r'\b(?:CHQ|CHEQUE|CLG)[/:\-\s]*(\d{6,8})\b', text, re.I)
+        if chq_m:
+            return chq_m.group(1).strip()
+
+        gen_m = re.search(r'\b([A-Z]{4}\d{8,16})\b', text)
+        if gen_m:
+            return gen_m.group(1).strip()
+
+        if ref_no:
+            return str(ref_no).strip()
+
         return None
+
+    @staticmethod
+    def classify_voucher_type(
+        direction: str,
+        counterpart_group: str,
+        counterpart_name: str = "",
+        narration: str = ""
+    ) -> Tuple[str, bool, str]:
+        """
+        Determines 'Receipt', 'Payment', or 'Contra' based on accounting rules:
+        1. Internal transfer between company's own Bank/Cash accounts -> Contra
+        2. Sundry Debtors (customer) with deposit -> Receipt
+        3. Sundry Creditors (supplier) with withdrawal -> Payment
+        4. Expense accounts -> Payment
+        5. Income accounts -> Receipt
+        Returns (voucher_type, is_ambiguous, reason).
+        """
+        grp = (counterpart_group or "").lower()
+        c_name = (counterpart_name or "").lower()
+        is_deposit = (direction.lower() == "credit")
+
+        # 1. Internal Bank/Cash Accounts -> Contra
+        is_bank_or_cash = any(k in grp for k in ["bank accounts", "bank account", "bank occ", "bank od", "cash-in-hand", "cash in hand"]) or \
+                          any(k in c_name for k in ["cash account", "petty cash"])
+        if is_bank_or_cash:
+            return "Contra", False, "Transfer between company's own Bank / Cash accounts (Contra)."
+
+        # 2. Sundry Debtors (Customers)
+        if "sundry debtors" in grp or "debtor" in grp:
+            if is_deposit:
+                return "Receipt", False, "Customer payment received into bank (Receipt)."
+            else:
+                return "Payment", True, "Debit transaction against customer ledger (Payment / Refund - Review Recommended)."
+
+        # 3. Sundry Creditors (Vendors/Suppliers)
+        if "sundry creditors" in grp or "creditor" in grp:
+            if not is_deposit:
+                return "Payment", False, "Supplier payment made from bank (Payment)."
+            else:
+                return "Receipt", True, "Credit transaction from supplier ledger (Receipt / Refund - Review Recommended)."
+
+        # 4. Expense Accounts -> Payment
+        if any(k in grp for k in ["expense", "charges", "expenditure", "loss"]):
+            return "Payment", False, f"Bank expense allocated to '{counterpart_name}' (Payment)."
+
+        # 5. Income Accounts -> Receipt
+        if any(k in grp for k in ["income", "revenue", "interest", "gain"]):
+            return "Receipt", False, f"Bank income allocated to '{counterpart_name}' (Receipt)."
+
+        # Default fallback strictly by bank direction
+        if is_deposit:
+            return "Receipt", False, "Deposit into bank account (Receipt)."
+        else:
+            return "Payment", False, "Withdrawal from bank account (Payment)."
+
+    def get_party_outstanding_bills(
+        self,
+        party_ledger: str,
+        voucher_type: str,
+        company_id: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieves real outstanding bills for a party from:
+        - sales_vouchers (for Receipt / Customers)
+        - purchase_vouchers (for Payment / Suppliers)
+        - vouchers (Tally synced Sales/Purchase records)
+        """
+        if not party_ledger:
+            return []
+
+        pending_bills = []
+        seen_bills = set()
+        v_type_lower = (voucher_type or "").lower()
+
+        def calc_paid_amount(bill_ref: str) -> float:
+            total_paid = 0.0
+            try:
+                v_cursor = self.db["vouchers"].find({
+                    "status": {"$ne": "CANCELLED"},
+                    "ledgerEntries.billAllocations.name": bill_ref
+                })
+                for vch in v_cursor:
+                    for entry in vch.get("ledgerEntries") or []:
+                        for b in entry.get("billAllocations") or []:
+                            if b.get("name") == bill_ref:
+                                total_paid += abs(float(b.get("amount") or 0.0))
+            except Exception:
+                pass
+            return total_paid
+
+        p_regex = {"$regex": f"^{re.escape(party_ledger)}$", "$options": "i"}
+
+        if "receipt" in v_type_lower:
+            try:
+                cursor = self.db["sales_vouchers"].find({
+                    "$or": [{"partyLedgerName": p_regex}, {"partyName": p_regex}, {"partyLedger": p_regex}],
+                    "isDeleted": {"$ne": True}
+                }).sort("createdAt", 1).limit(50)
+
+                for sv in cursor:
+                    bill_no = sv.get("voucherNumber") or sv.get("invoiceNumber") or ""
+                    if not bill_no or bill_no in seen_bills:
+                        continue
+                    totals = sv.get("totals") or {}
+                    bill_amt = float(totals.get("grandTotal") or totals.get("totalAmount") or sv.get("grandTotal") or sv.get("total_amount") or 0.0)
+                    if bill_amt <= 0:
+                        continue
+                    paid_amt = sv.get("paid_amount") or sv.get("paidAmount")
+                    if paid_amt is None:
+                        paid_amt = calc_paid_amount(bill_no)
+                    else:
+                        paid_amt = float(paid_amt)
+
+                    outstanding = round(bill_amt - paid_amt, 2)
+                    if outstanding > 0.01:
+                        seen_bills.add(bill_no)
+                        pending_bills.append({
+                            "name": bill_no,
+                            "billNo": bill_no,
+                            "date": sv.get("voucherDate") or str(sv.get("createdAt"))[:10],
+                            "billAmount": bill_amt,
+                            "paidAmount": paid_amt,
+                            "pendingAmount": outstanding,
+                            "billType": "Agst Ref",
+                            "source": "sales_vouchers"
+                        })
+            except Exception as e:
+                logger.warning(f"Error querying sales_vouchers for outstanding bills: {e}")
+
+            try:
+                tally_sales = self.db["vouchers"].find({
+                    "$or": [{"partyLedgerName": p_regex}, {"partyName": p_regex}],
+                    "voucherTypeName": {"$regex": "sale", "$options": "i"},
+                    "isDeleted": {"$ne": True}
+                }).sort("dates.date", 1).limit(50)
+
+                for tv in tally_sales:
+                    bill_no = tv.get("voucherNumber") or ""
+                    if not bill_no or bill_no in seen_bills:
+                        continue
+                    totals = tv.get("totals") or {}
+                    bill_amt = float(totals.get("grandTotal") or totals.get("totalAmount") or tv.get("amount") or 0.0)
+                    if bill_amt <= 0:
+                        continue
+                    paid_amt = calc_paid_amount(bill_no)
+                    outstanding = round(bill_amt - paid_amt, 2)
+                    if outstanding > 0.01:
+                        seen_bills.add(bill_no)
+                        pending_bills.append({
+                            "name": bill_no,
+                            "billNo": bill_no,
+                            "date": tv.get("dates", {}).get("voucherDate") if isinstance(tv.get("dates"), dict) else "",
+                            "billAmount": bill_amt,
+                            "paidAmount": paid_amt,
+                            "pendingAmount": outstanding,
+                            "billType": "Agst Ref",
+                            "source": "vouchers"
+                        })
+            except Exception as e:
+                logger.warning(f"Error querying vouchers for sales bills: {e}")
+        else:
+            try:
+                cursor = self.db["purchase_vouchers"].find({
+                    "$or": [{"partyLedger": p_regex}, {"partyLedgerName": p_regex}, {"partyName": p_regex}],
+                    "isDeleted": {"$ne": True}
+                }).sort("createdAt", 1).limit(50)
+
+                for pv in cursor:
+                    bill_no = pv.get("voucherNumber") or pv.get("invoiceNumber") or ""
+                    if not bill_no or bill_no in seen_bills:
+                        continue
+                    totals = pv.get("totals") or {}
+                    bill_amt = float(totals.get("grandTotal") or totals.get("totalAmount") or pv.get("grandTotal") or pv.get("total_amount") or 0.0)
+                    if bill_amt <= 0:
+                        continue
+                    paid_amt = pv.get("paid_amount") or pv.get("paidAmount")
+                    if paid_amt is None:
+                        paid_amt = calc_paid_amount(bill_no)
+                    else:
+                        paid_amt = float(paid_amt)
+
+                    outstanding = round(bill_amt - paid_amt, 2)
+                    if outstanding > 0.01:
+                        seen_bills.add(bill_no)
+                        pending_bills.append({
+                            "name": bill_no,
+                            "billNo": bill_no,
+                            "date": pv.get("voucherDate") or str(pv.get("createdAt"))[:10],
+                            "billAmount": bill_amt,
+                            "paidAmount": paid_amt,
+                            "pendingAmount": outstanding,
+                            "billType": "Agst Ref",
+                            "source": "purchase_vouchers"
+                        })
+            except Exception as e:
+                logger.warning(f"Error querying purchase_vouchers for outstanding bills: {e}")
+
+            try:
+                tally_pur = self.db["vouchers"].find({
+                    "$or": [{"partyLedgerName": p_regex}, {"partyName": p_regex}],
+                    "voucherTypeName": {"$regex": "purchase", "$options": "i"},
+                    "isDeleted": {"$ne": True}
+                }).sort("dates.date", 1).limit(50)
+
+                for tv in tally_pur:
+                    bill_no = tv.get("voucherNumber") or ""
+                    if not bill_no or bill_no in seen_bills:
+                        continue
+                    totals = tv.get("totals") or {}
+                    bill_amt = float(totals.get("grandTotal") or totals.get("totalAmount") or tv.get("amount") or 0.0)
+                    if bill_amt <= 0:
+                        continue
+                    paid_amt = calc_paid_amount(bill_no)
+                    outstanding = round(bill_amt - paid_amt, 2)
+                    if outstanding > 0.01:
+                        seen_bills.add(bill_no)
+                        pending_bills.append({
+                            "name": bill_no,
+                            "billNo": bill_no,
+                            "date": tv.get("dates", {}).get("voucherDate") if isinstance(tv.get("dates"), dict) else "",
+                            "billAmount": bill_amt,
+                            "paidAmount": paid_amt,
+                            "pendingAmount": outstanding,
+                            "billType": "Agst Ref",
+                            "source": "vouchers"
+                        })
+            except Exception as e:
+                logger.warning(f"Error querying vouchers for purchase bills: {e}")
+
+        return pending_bills
+
+    def match_bills_for_transaction(
+        self,
+        party_ledger: str,
+        voucher_type: str,
+        amount: float,
+        narration: str = "",
+        ref_no: Optional[str] = None,
+        company_id: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Matches bank payment/receipt against party's outstanding bills.
+        1. Reference Match (narration or ref_no mentions bill number)
+        2. Exact Amount Match (single bill has exact matching pending amount)
+        3. FIFO / Oldest First Allocation (partial / multi-bill settlement)
+        4. On Account Fallback (if no bill found, avoids fake invoice numbers)
+        """
+        if not party_ledger or amount <= 0:
+            return []
+
+        if voucher_type.lower() == "contra":
+            return []
+
+        pending_bills = self.get_party_outstanding_bills(party_ledger, voucher_type, company_id=company_id)
+        if not pending_bills:
+            return [{
+                "name": "On Account",
+                "billType": "On Account",
+                "amount": round(amount, 2)
+            }]
+
+        remaining_to_allocate = round(amount, 2)
+        allocations = []
+
+        # Strategy 1: Check if narration or ref_no directly mentions a bill number
+        search_text = f"{narration} {ref_no or ''}".upper()
+        for bill in pending_bills:
+            b_name = bill["name"].upper()
+            if b_name and len(b_name) >= 3 and b_name in search_text:
+                alloc_amt = min(remaining_to_allocate, bill["pendingAmount"])
+                allocations.append({
+                    "name": bill["name"],
+                    "billType": "Agst Ref",
+                    "amount": round(alloc_amt, 2),
+                    "pendingAmount": bill["pendingAmount"]
+                })
+                remaining_to_allocate = round(remaining_to_allocate - alloc_amt, 2)
+                if remaining_to_allocate <= 0:
+                    return allocations
+
+        # Strategy 2: Exact Amount Match
+        if not allocations:
+            for bill in pending_bills:
+                if abs(bill["pendingAmount"] - amount) < 0.01:
+                    return [{
+                        "name": bill["name"],
+                        "billType": "Agst Ref",
+                        "amount": round(amount, 2),
+                        "pendingAmount": bill["pendingAmount"]
+                    }]
+
+        # Strategy 3: FIFO / Oldest First Allocation
+        for bill in pending_bills:
+            if any(a["name"] == bill["name"] for a in allocations):
+                continue
+            if remaining_to_allocate <= 0:
+                break
+            alloc_amt = min(remaining_to_allocate, bill["pendingAmount"])
+            allocations.append({
+                "name": bill["name"],
+                "billType": "Agst Ref",
+                "amount": round(alloc_amt, 2),
+                "pendingAmount": bill["pendingAmount"]
+            })
+            remaining_to_allocate = round(remaining_to_allocate - alloc_amt, 2)
+
+        # If any remaining amount after allocating all pending bills, put remaining On Account
+        if remaining_to_allocate > 0.01:
+            allocations.append({
+                "name": "On Account",
+                "billType": "On Account",
+                "amount": round(remaining_to_allocate, 2)
+            })
+
+        return allocations
+
+    def get_company_name(self, company_id: Optional[str] = None) -> str:
+        """Resolves active Tally company name from MongoDB 'companies' collection."""
+        try:
+            if company_id and company_id != "default":
+                comp_q = {
+                    "$or": [
+                        {"_id": ObjectId(company_id)} if ObjectId.is_valid(str(company_id)) else {"companyId": company_id},
+                        {"companyId": company_id},
+                        {"id": company_id}
+                    ]
+                }
+                doc = self.db["companies"].find_one(comp_q)
+                if doc:
+                    return doc.get("companyName") or doc.get("name") or doc.get("basicCompantFormalName") or doc.get("formalName") or "Your Company Name"
+            doc = self.db["companies"].find_one()
+            if doc:
+                return doc.get("companyName") or doc.get("name") or doc.get("basicCompantFormalName") or doc.get("formalName") or "Your Company Name"
+        except Exception:
+            pass
+        return "Your Company Name"
+
+    def generate_preview_xml(self, voucher_data: Dict[str, Any], company_name: str) -> str:
+        """Generates real Tally XML preview for draft item using central VoucherMapper and TallyXmlGenerator."""
+        try:
+            from app.anjalee.services.tally.voucher_mapper import VoucherMapper
+            from app.anjalee.services.tally.xml_generator import TallyXmlGenerator
+            tally_vch = VoucherMapper.map_to_tally_voucher(voucher_data, company_name)
+            return TallyXmlGenerator.generate_xml(tally_vch)
+        except Exception as e:
+            logger.warning(f"Could not pre-generate XML preview: {e}")
+            return ""
 
     def match_ledger_and_categorize(
         self,
         transaction: Dict[str, Any],
         bank_ledger: str,
         company_masters: List[Dict[str, Any]],
-        match_cache: Optional[Dict[str, Any]] = None
+        match_cache: Optional[Dict[str, Any]] = None,
+        company_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        Uses AI + fuzzy matching against actual company master ledgers to determine:
-        1. voucherType ("Payment" vs "Receipt")
+        Uses RulesBasedMatchingService (Engine A) and PartyLedgerResolutionService to categorize:
+        1. voucherType ("Receipt", "Payment", "Contra") based on direction & counterpart group
         2. selectedLedger (counterpart party/ledger from masters)
         3. confidence (0-100)
         4. reviewRequired (boolean)
@@ -523,132 +949,95 @@ CRITICAL RULES:
         narration = str(transaction.get("narration") or "").strip()
         ref_no = transaction.get("referenceNumber")
 
-        # Determine Voucher Type
-        # Credit (money in) -> Receipt Voucher
-        # Debit (money out) -> Payment Voucher
-        if credit_val > 0 or tx_type == "credit" or "received" in narration.lower():
-            voucher_type = "Receipt"
-        else:
-            voucher_type = "Payment"
+        is_credit = credit_val > 0 or tx_type == "credit" or "received" in narration.lower()
+        direction = "credit" if is_credit else "debit"
+        initial_v_type = "Receipt" if is_credit else "Payment"
 
-        cache_key = f"{voucher_type}|{narration.lower()}"
+        cache_key = f"{direction}|{narration.lower()}"
         if match_cache is not None and cache_key in match_cache:
             return match_cache[cache_key]
 
-        if not company_masters:
-            res_obj = {
-                "voucher_type": voucher_type,
-                "selected_ledger": None,
-                "confidence": 30,
-                "review_required": True,
-                "review_reason": "No company master ledgers found in database. Please select ledger manually.",
-                "user_reasoning": "Master ledgers unavailable."
-            }
-            if match_cache is not None:
-                match_cache[cache_key] = res_obj
-            return res_obj
+        # ── Step 1: Check Deterministic Bank Mapping Rules First via Engine A ──
+        try:
+            rules_svc = RulesBasedMatchingService(self.db)
+            applicable_rules = rules_svc.get_applicable_rules(bank_ledger, company_id)
+            rule_match = rules_svc.match_transaction(narration, amt, is_credit, applicable_rules)
 
-        # Step A1: Extract party candidate from narration and check in masters
-        party_cand = self.extract_party_candidate(narration)
-        if party_cand:
-            p_lower = party_cand.lower()
-            for master in company_masters:
-                m_name = master.get("name") or master.get("ledgerName") or ""
-                if not m_name:
-                    continue
-                m_lower = m_name.lower()
-                if p_lower == m_lower or (len(p_lower) >= 4 and p_lower in m_lower) or (len(m_lower) >= 4 and m_lower in p_lower):
-                    res_obj = {
-                        "voucher_type": voucher_type,
-                        "selected_ledger": master["name"],
-                        "confidence": 95,
-                        "review_required": False,
-                        "review_reason": f"High confidence match for extracted party '{party_cand}'.",
-                        "user_reasoning": f"Extracted party '{party_cand}' matched to company master '{master['name']}'."
-                    }
-                    if match_cache is not None:
-                        match_cache[cache_key] = res_obj
-                    return res_obj
+            if rule_match:
+                sel_ledger = rule_match.get("partyLedger")
+                counterpart_grp = ""
+                for m in company_masters:
+                    if (m.get("ledgerName") or m.get("name") or "").lower() == (sel_ledger or "").lower():
+                        counterpart_grp = m.get("group") or ""
+                        break
 
-        # Step A2: Check exact or normalized text match in company master ledgers
-        narration_lower = narration.lower()
-        best_exact_match = None
-        for master in company_masters:
-            m_name = master.get("name") or master.get("ledgerName") or ""
-            if not m_name:
-                continue
-            m_lower = m_name.lower()
-            if len(m_lower) >= 3 and (m_lower in narration_lower or (len(narration_lower) >= 4 and narration_lower in m_lower)):
-                best_exact_match = master
-                break
+                rule_v_type = rule_match.get("voucherType")
+                if not rule_v_type or rule_v_type.lower() == "auto":
+                    classified_v_type, is_amb, class_reason = self.classify_voucher_type(direction, counterpart_grp, sel_ledger, narration)
+                else:
+                    classified_v_type = rule_v_type
+                    is_amb = False
+                    class_reason = f"Explicitly configured as {rule_v_type} in Bank Rule."
 
-        if best_exact_match:
-            res_obj = {
-                "voucher_type": voucher_type,
-                "selected_ledger": best_exact_match["name"],
-                "confidence": 92,
-                "review_required": False,
-                "review_reason": "High confidence match based on master ledger name.",
-                "user_reasoning": f"Matched to '{best_exact_match['name']}' based on transaction narration '{narration}'."
-            }
-            if match_cache is not None:
-                match_cache[cache_key] = res_obj
-            return res_obj
-
-        # Step A3: Token/Word overlap matching against company master ledgers
-        words = set(re.findall(r'\b[A-Za-z]{3,}\b', narration_lower))
-        stop_words = {"bank", "neft", "rtgs", "upi", "imps", "clg", "chq", "transfer", "payment", "received", "trf", "inft", "inf", "paid"}
-        clean_words = words - stop_words
-        
-        if clean_words:
-            for master in company_masters:
-                m_name = master.get("name") or master.get("ledgerName") or ""
-                if not m_name:
-                    continue
-                m_words = set(re.findall(r'\b[A-Za-z]{3,}\b', m_name.lower())) - stop_words
-                if m_words and len(clean_words.intersection(m_words)) >= min(2, len(m_words)):
-                    res_obj = {
-                        "voucher_type": voucher_type,
-                        "selected_ledger": master["name"],
-                        "confidence": 88,
-                        "review_required": False,
-                        "review_reason": f"Matched based on keywords in '{master['name']}'.",
-                        "user_reasoning": f"Matched to '{master['name']}' based on transaction particulars."
-                    }
-                    if match_cache is not None:
-                        match_cache[cache_key] = res_obj
-                    return res_obj
-
-        # Step A4: Standard Accounting Heuristics
-        heuristics = [
-            (r'\b(chg|charge|charges|fee|proc\s+fee|sms\s+chg|min\s+bal|service\s+tax|gst)\b', "Bank Charges"),
-            (r'\b(int|interest|int\.pd|int\.rec)\b', "Interest Account"),
-            (r'\b(atm|cash|wdl|withdrawal)\b', "Cash"),
-            (r'\b(sal|salary|wages)\b', "Salary & Wages"),
-        ]
-        for pattern, default_ledger in heuristics:
-            if re.search(pattern, narration_lower):
-                matched_master = next((m["name"] for m in company_masters if default_ledger.lower() in m["name"].lower()), None)
+                has_conflict = rule_match.get("hasConflict", False) or is_amb
                 res_obj = {
-                    "voucher_type": voucher_type,
-                    "selected_ledger": matched_master or default_ledger,
-                    "confidence": 80 if matched_master else 65,
-                    "review_required": not bool(matched_master),
-                    "review_reason": f"Auto-categorized via keyword heuristic for {default_ledger}.",
-                    "user_reasoning": f"Transaction description matches accounting heuristic pattern for {default_ledger}."
+                    "voucher_type": classified_v_type,
+                    "selected_ledger": sel_ledger,
+                    "confidence": rule_match.get("confidence", 100),
+                    "review_required": has_conflict,
+                    "review_reason": f"Conflicting rules: {', '.join(rule_match.get('conflictingLedgers', []))}" if rule_match.get("hasConflict") else class_reason,
+                    "user_reasoning": rule_match.get("reasoning") or f"Rule match: '{rule_match.get('matchedPattern')}' -> '{sel_ledger}' ({classified_v_type})."
                 }
                 if match_cache is not None:
                     match_cache[cache_key] = res_obj
                 return res_obj
+        except Exception as e:
+            logger.warning(f"Error checking bank rules via RulesBasedMatchingService: {e}")
 
-        # Fallback (Instant, 0ms latency): Unmatched item requiring user review in UI grid
+        # ── Step 2: Party Extraction & Ledger Resolution ──
+        party_cand, extract_conf = NarrationNormalizationService.extract_party_candidate(narration)
+        channel, channel_conf = NarrationNormalizationService.detect_channel(narration)
+
+        resolution_svc = PartyLedgerResolutionService(self.db)
+        resolved = resolution_svc.resolve_party_ledger(party_cand, narration, company_id, company_masters, ref_number=ref_no)
+
+        if resolved.get("resolvedLedger"):
+            sel_ledger = resolved["resolvedLedger"]
+            counterpart_grp = ""
+            for m in company_masters:
+                if (m.get("ledgerName") or m.get("name") or "").lower() == (sel_ledger or "").lower():
+                    counterpart_grp = m.get("group") or ""
+                    break
+
+            classified_v_type, is_amb, class_reason = self.classify_voucher_type(direction, counterpart_grp, sel_ledger, narration)
+            is_ambiguous = resolved.get("isAmbiguous", False) or is_amb
+
+            review_reason = "Ambiguous matches: " + ", ".join(resolved.get("candidates", [])) if resolved.get("isAmbiguous") else class_reason
+
+            res_obj = {
+                "voucher_type": classified_v_type,
+                "selected_ledger": sel_ledger,
+                "confidence": resolved.get("confidence", 85.0),
+                "review_required": is_ambiguous,
+                "review_reason": review_reason,
+                "user_reasoning": f"Extracted party '{party_cand or narration[:20]}' mapped to '{sel_ledger}' as {classified_v_type}. {class_reason}"
+            }
+            if match_cache is not None:
+                match_cache[cache_key] = res_obj
+            return res_obj
+
+        # Fallback: Unmapped item requiring user review
+        unmapped_reason = resolved.get("unmappedReason") or (
+            f"Extracted party '{party_cand}' not found in Tally ledger master. Please select counterpart ledger."
+            if party_cand else "No party entity could be identified from bank narration. Please select counterpart ledger."
+        )
         res_obj = {
-            "voucher_type": voucher_type,
+            "voucher_type": initial_v_type,
             "selected_ledger": None,
-            "confidence": 50,
+            "confidence": 45.0,
             "review_required": True,
-            "review_reason": "Ledger requires accountant review. Please select counterpart ledger.",
-            "user_reasoning": "No exact match found in company master ledgers. Manual selection required."
+            "review_reason": unmapped_reason,
+            "user_reasoning": f"Channel '{channel}', extracted party '{party_cand or 'None'}'. {unmapped_reason}"
         }
         if match_cache is not None:
             match_cache[cache_key] = res_obj
@@ -730,9 +1119,12 @@ CRITICAL RULES:
             amt = float(tx.get("amount") or tx.get("credit") or tx.get("debit") or 0.0)
             ref_no = tx.get("referenceNumber")
             balance = tx.get("balance")
+            party_cand = self.extract_party_candidate(narration)
+            if not party_cand:
+                party_cand, _ = NarrationNormalizationService.extract_party_candidate(narration)
 
             # Match ledger and determine voucher type with cache
-            match_res = self.match_ledger_and_categorize(tx, bank_ledger, company_masters, match_cache)
+            match_res = self.match_ledger_and_categorize(tx, bank_ledger, company_masters, match_cache, company_id=company_id)
             v_type = match_res["voucher_type"]
             sel_ledger = match_res["selected_ledger"]
             conf = match_res["confidence"]
@@ -751,12 +1143,61 @@ CRITICAL RULES:
                 rev_req = True
                 rev_reason = "Transaction already processed into an existing voucher."
                 dup_cnt += 1
-            elif rev_req:
+            elif rev_req or conf < 90 or not sel_ledger:
                 status = "review_required"
+                rev_req = True
+                if not sel_ledger:
+                    rev_reason = rev_reason or "Counterpart ledger not mapped; manual review required."
                 review_cnt += 1
             else:
                 status = "ready"
                 ready_cnt += 1
+
+            # Clean reference & instrument details
+            clean_ref = self.extract_clean_reference(narration, ref_no)
+            inst_date_str = tx_date.replace("-", "") if tx_date else datetime.now().strftime("%Y%m%d")
+            tally_trans_type = self.resolve_tally_bank_trans_type(narration)
+
+            # Bank Allocation
+            bank_alloc_amount = -amt if v_type == "Receipt" else amt
+            bank_allocations = [{
+                "date": inst_date_str,
+                "instrumentDate": inst_date_str,
+                "transactionType": tally_trans_type,
+                "instrumentNumber": clean_ref or "",
+                "amount": round(bank_alloc_amount, 2)
+            }]
+
+            # Bill Allocations
+            bill_allocations = []
+            if sel_ledger and v_type in ["Receipt", "Payment"]:
+                bill_allocations = self.match_bills_for_transaction(
+                    party_ledger=sel_ledger,
+                    voucher_type=v_type,
+                    amount=amt,
+                    narration=narration,
+                    ref_no=clean_ref or ref_no,
+                    company_id=company_id
+                )
+
+            # Pre-generate XML preview
+            comp_name = self.get_company_name(company_id)
+            preview_vch_data = {
+                "voucherType": v_type,
+                "voucherTypeName": v_type,
+                "voucherDate": tx_date,
+                "voucherNumber": f"BS-{datetime.now().year}-{str(idx+1).zfill(4)}",
+                "narration": narration,
+                "bankLedger": bank_ledger,
+                "partyLedger": sel_ledger or "Unassigned",
+                "amount": round(amt, 2),
+                "instNumber": clean_ref or "",
+                "referenceNumber": clean_ref or "",
+                "transType": tally_trans_type,
+                "bankAllocations": bank_allocations,
+                "billAllocations": bill_allocations
+            }
+            preview_xml = self.generate_preview_xml(preview_vch_data, comp_name)
 
             # Format item matching manual voucher entry schema fields
             item_doc = {
@@ -773,10 +1214,12 @@ CRITICAL RULES:
                 "balance": balance,
                 "paymentMode": "NEFT" if "neft" in narration.lower() else "RTGS" if "rtgs" in narration.lower() else "UPI" if "upi" in narration.lower() else "Cheque" if "chq" in narration.lower() or "cheque" in narration.lower() else "Bank Transfer",
                 "instType": "NEFT" if "neft" in narration.lower() else "UPI" if "upi" in narration.lower() else "Cheque",
-                "instNumber": ref_no or "",
-                "referenceNumber": ref_no or "",
+                "instNumber": clean_ref or ref_no or "",
+                "referenceNumber": clean_ref or ref_no or "",
                 "instDate": tx_date,
                 "narration": narration,
+                "transactionType": tally_trans_type,
+                "extractedParty": party_cand or self.extract_party_candidate(narration) or "",
                 "confidence": conf,
                 "status": status,
                 "review_required": rev_req,
@@ -784,7 +1227,12 @@ CRITICAL RULES:
                 "user_reasoning": user_reasoning,
                 "fingerprint": fingerprint,
                 "source_document": file_name,
-                "source": "bank_statement"
+                "source": "bank_upload",
+                "entryMode": "bank_upload",
+                "bankAllocations": bank_allocations,
+                "billAllocations": bill_allocations,
+                "tallyXml": preview_xml,
+                "tally_xml": preview_xml
             }
             processed_items.append(item_doc)
 
@@ -805,16 +1253,69 @@ CRITICAL RULES:
                 "already_processed_count": dup_cnt,
                 "saved_count": 0
             },
-            "items": processed_items
+            "items": processed_items,
+            "ledger_mappings": self.build_ledger_mapping_rows(processed_items, db=self.db, company_id=company_id)
         }
 
         self.db["bank_statement_drafts"].insert_one(batch_doc)
+
+        # Automatic pattern recognition & discovery pipeline on statement upload
+        try:
+            from app.anjalee.services.bank_pattern_engine import PatternDiscoveryEngine
+            discovery_svc = PatternDiscoveryEngine(self.db)
+            discovered_patterns = discovery_svc.discover_patterns_from_transactions(
+                batch_items=processed_items,
+                bank_ledger=bank_ledger,
+                company_id=company_id
+            )
+            for pat in discovered_patterns:
+                pat_copy = dict(pat)
+                if "created_at" in pat_copy and hasattr(pat_copy["created_at"], "isoformat"):
+                    pat_copy["created_at"] = pat_copy["created_at"].isoformat()
+                self.db["bank_pattern_suggestions"].update_one(
+                    {"pattern": pat["pattern"], "bankLedger": bank_ledger},
+                    {"$set": pat_copy},
+                    upsert=True
+                )
+        except Exception as de:
+            logger.warning(f"Automatic pattern discovery on statement upload notice: {de}")
+
         return serialize_doc(batch_doc)
 
     def get_batch_draft(self, batch_id: str) -> Optional[Dict[str, Any]]:
-        doc = self.db["bank_statement_drafts"].find_one({"_id": ObjectId(batch_id)})
+        query = {"_id": ObjectId(batch_id)} if len(str(batch_id)) == 24 else {"batch_id": batch_id}
+        doc = self.db["bank_statement_drafts"].find_one(query)
         if not doc:
             return None
+        items = doc.get("items") or []
+        changed = False
+        for it in items:
+            if it.get("status") == "ready":
+                c = float(it.get("confidence") or 0.0)
+                pl = it.get("partyLedger")
+                if c < 90 or not pl or not str(pl).strip():
+                    it["status"] = "review_required"
+                    it["review_required"] = True
+                    changed = True
+        if changed:
+            ready_cnt = sum(1 for i in items if i.get("status") in ["ready", "user_edited"])
+            rev_cnt = sum(1 for i in items if i.get("status") == "review_required")
+            already_cnt = sum(1 for i in items if i.get("status") == "already_processed")
+            saved_cnt = sum(1 for i in items if i.get("status") == "saved")
+            doc["summary"] = {
+                "total_count": len(items),
+                "ready_count": ready_cnt,
+                "review_required_count": rev_cnt,
+                "already_processed_count": already_cnt,
+                "saved_count": saved_cnt
+            }
+            try:
+                self.db["bank_statement_drafts"].update_one(
+                    query,
+                    {"$set": {"items": items, "summary": doc["summary"]}}
+                )
+            except Exception:
+                pass
         return serialize_doc(doc)
 
     def get_all_batches(self, company_id: Optional[str] = None) -> List[Dict[str, Any]]:
@@ -854,13 +1355,14 @@ CRITICAL RULES:
             logger.error(f"Error deleting bank statement draft batch {batch_id}: {e}", exc_info=True)
             return False
 
-    def update_draft_item(self, batch_id: str, item_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def update_draft_item(self, batch_id: str, item_id: str, updates: Dict[str, Any], propagate: bool = True) -> Optional[Dict[str, Any]]:
         doc = self.db["bank_statement_drafts"].find_one({"_id": ObjectId(batch_id)})
         if not doc:
             return None
 
         items = doc.get("items") or []
         updated_item = None
+        target_party_key = None
 
         for item in items:
             if item.get("item_id") == item_id:
@@ -883,11 +1385,111 @@ CRITICAL RULES:
                 # Update status to user_edited / ready
                 item["status"] = "user_edited"
                 item["review_required"] = False
-                item["review_reason"] = "Manually verified & updated by accountant."
+                item["confidence"] = 100.0
+                item["review_reason"] = "Manually verified & resolved by accountant."
                 updated_item = item
+                target_party_key = (item.get("extractedParty") or "").strip()
                 break
 
         if updated_item:
+            comp_id = doc.get("company_id") or doc.get("companyId")
+            company_name = self.get_company_name(comp_id)
+
+            def refresh_item_allocations(it: Dict[str, Any]):
+                p_ledger = it.get("partyLedger") or ""
+                v_type = it.get("voucherType") or "Receipt"
+                a_val = float(it.get("amount") or 0.0)
+                n_val = it.get("narration") or ""
+                r_val = it.get("referenceNumber") or it.get("instNumber") or ""
+                b_led = it.get("bankLedger") or doc.get("bank_ledger") or "Bank Account"
+                c_ref = self.extract_clean_reference(n_val, r_val)
+                t_type = self.resolve_tally_bank_trans_type(n_val, it.get("paymentMode"))
+                i_date = (it.get("instDate") or it.get("voucherDate") or "").replace("-", "")
+
+                b_amt = -a_val if v_type == "Receipt" else a_val
+                it["bankAllocations"] = [{
+                    "date": i_date or datetime.now().strftime("%Y%m%d"),
+                    "instrumentDate": i_date or datetime.now().strftime("%Y%m%d"),
+                    "transactionType": t_type,
+                    "instrumentNumber": c_ref or "",
+                    "amount": round(b_amt, 2)
+                }]
+
+                if p_ledger and v_type in ["Receipt", "Payment"]:
+                    it["billAllocations"] = self.match_bills_for_transaction(
+                        party_ledger=p_ledger,
+                        voucher_type=v_type,
+                        amount=a_val,
+                        narration=n_val,
+                        ref_no=c_ref or r_val,
+                        company_id=comp_id
+                    )
+                else:
+                    it["billAllocations"] = []
+
+                pv_data = {
+                    "voucherType": v_type,
+                    "voucherTypeName": v_type,
+                    "voucherDate": it.get("voucherDate"),
+                    "voucherNumber": it.get("voucherNumber") or "AUTO",
+                    "narration": n_val,
+                    "bankLedger": b_led,
+                    "partyLedger": p_ledger or "Unassigned",
+                    "amount": round(a_val, 2),
+                    "instNumber": c_ref or "",
+                    "referenceNumber": c_ref or "",
+                    "transType": t_type,
+                    "bankAllocations": it["bankAllocations"],
+                    "billAllocations": it["billAllocations"]
+                }
+                it["tallyXml"] = self.generate_preview_xml(pv_data, company_name)
+                it["tally_xml"] = it["tallyXml"]
+
+            refresh_item_allocations(updated_item)
+
+            new_party_ledger = updates.get("partyLedger")
+            affected_count = 1
+
+            # Propagate mapping to all matching transactions in this draft without re-upload
+            if propagate and new_party_ledger and str(new_party_ledger).strip() and target_party_key:
+                for it in items:
+                    if it.get("item_id") == item_id:
+                        continue
+                    if it.get("status") in ["saved", "already_processed"]:
+                        continue
+
+                    it_party = (it.get("extractedParty") or "").strip()
+                    it_narr = (it.get("narration") or "").lower()
+                    if (it_party and it_party.lower() == target_party_key.lower()) or (len(target_party_key) >= 4 and target_party_key.lower() in it_narr):
+                        it["partyLedger"] = new_party_ledger
+                        it["againstLedger"] = new_party_ledger
+                        it["status"] = "user_edited"
+                        it["review_required"] = False
+                        it["confidence"] = 100.0
+                        it["review_reason"] = f"Auto-resolved via mapping for party '{target_party_key}'."
+                        refresh_item_allocations(it)
+                        affected_count += 1
+
+                # Learn alias permanently in bank_party_aliases for this company/tenant
+                try:
+                    alias_key = target_party_key.lower()
+                    self.db["bank_party_aliases"].update_one(
+                        {"companyId": comp_id, "alias": alias_key},
+                        {
+                            "$set": {
+                                "companyId": comp_id,
+                                "alias": alias_key,
+                                "partyCandidate": target_party_key,
+                                "ledgerName": new_party_ledger,
+                                "updated_at": datetime.utcnow()
+                            },
+                            "$inc": {"verificationCount": 1}
+                        },
+                        upsert=True
+                    )
+                except Exception as ex:
+                    logger.warning(f"Error saving alias in update_draft_item: {ex}")
+
             # Recalculate summary stats
             ready_cnt = sum(1 for i in items if i.get("status") in ["ready", "user_edited"])
             rev_cnt = sum(1 for i in items if i.get("status") == "review_required")
@@ -902,12 +1504,211 @@ CRITICAL RULES:
                 "saved_count": saved_cnt
             }
 
+            # Also keep ledger_mappings in sync
+            ledger_maps = doc.get("ledger_mappings") or []
+            if new_party_ledger:
+                for lm in ledger_maps:
+                    lm_party = (lm.get("extractedParty") or lm.get("partyText") or "").strip().lower()
+                    if lm.get("item_id") == item_id or (target_party_key and lm_party == target_party_key.lower()):
+                        lm["suggestedLedger"] = new_party_ledger
+                        lm["confidence"] = 100.0
+                        lm["mappingMethod"] = "User Confirmed"
+
             self.db["bank_statement_drafts"].update_one(
                 {"_id": ObjectId(batch_id)},
-                {"$set": {"items": items, "summary": summary}}
+                {"$set": {"items": items, "summary": summary, "ledger_mappings": ledger_maps, "updated_at": datetime.utcnow()}}
             )
 
+            updated_item["affectedCount"] = affected_count
+
         return updated_item
+
+    def reprocess_drafts_with_rule(self, rule_doc: Dict[str, Any], company_id: Optional[str] = None, target_batch_id: Optional[str] = None) -> int:
+        """
+        Idempotently re-evaluates all unmapped draft transactions across active drafts
+        matching this newly approved rule, without requiring statement re-upload.
+        Supports multi-party mappings from AI pattern discovery.
+        """
+        import re
+        from datetime import datetime
+        from app.anjalee.services.bank_pattern_engine import RulesBasedMatchingService, NarrationNormalizationService
+        rules_svc = RulesBasedMatchingService(self.db)
+        bank_ledger = rule_doc.get("bankLedger")
+        b_id = target_batch_id or rule_doc.get("batch_id")
+
+        # Build lookup from partyLedgerMappings and bank_party_aliases
+        party_to_ledger = {}
+        for pm in (rule_doc.get("partyLedgerMappings") or []):
+            p = (pm.get("party") or "").strip().upper()
+            ml = (pm.get("mappedLedger") or "").strip()
+            if p and ml and ml != "Unmapped":
+                party_to_ledger[p] = ml
+
+        alias_filter = {}
+        if company_id and company_id != "default":
+            alias_filter["$or"] = [{"company_id": company_id}, {"companyId": company_id}]
+        try:
+            for al in self.db["bank_party_aliases"].find(alias_filter):
+                p_name = (al.get("partyName") or "").strip().upper()
+                r_led = (al.get("resolvedLedger") or "").strip()
+                if p_name and r_led and r_led != "Unmapped" and p_name not in party_to_ledger:
+                    party_to_ledger[p_name] = r_led
+        except Exception:
+            pass
+
+        query: Dict[str, Any] = {"status": {"$ne": "completed"}}
+        if company_id and company_id != "default":
+            query["$or"] = [{"company_id": company_id}, {"companyId": company_id}]
+        if bank_ledger:
+            query["bank_ledger"] = bank_ledger
+
+        total_reprocessed = 0
+        batches = list(self.db["bank_statement_drafts"].find(query))
+
+        if b_id:
+            try:
+                from bson import ObjectId
+                b_query = {"_id": ObjectId(b_id)} if len(str(b_id)) == 24 else {"batch_id": str(b_id)}
+                target_b = self.db["bank_statement_drafts"].find_one(b_query)
+                if target_b and not any(b["_id"] == target_b["_id"] for b in batches):
+                    batches.append(target_b)
+            except Exception:
+                pass
+
+        party_pos = rule_doc.get("partyPosition")
+        rule_channel = (rule_doc.get("transactionType") or "").upper()
+        single_party = rule_doc.get("partyLedger") if rule_doc.get("partyLedger") != "Unmapped" else None
+
+        for b in batches:
+            items = b.get("items") or []
+            batch_changed = False
+            for it in items:
+                if it.get("status") in ["saved", "already_processed"]:
+                    continue
+                # If unmapped or requiring review
+                if not it.get("partyLedger") or it.get("status") == "review_required":
+                    narr = it.get("narration") or ""
+                    amt = float(it.get("amount") or it.get("credit") or it.get("debit") or 0.0)
+                    is_cred = float(it.get("credit") or 0.0) > 0 or it.get("voucherType") == "Receipt"
+
+                    resolved_party = None
+                    matched_reason = ""
+
+                    # 1. Check direct pattern rule match if single party ledger
+                    if single_party:
+                        matched = rules_svc.match_transaction(narr, amt, is_cred, [rule_doc])
+                        if matched and matched.get("partyLedger"):
+                            resolved_party = matched["partyLedger"]
+                            matched_reason = f"Auto-resolved via approved pattern rule: '{rule_doc.get('pattern')}'."
+
+                    # 2. Check multi-party pattern extraction
+                    if not resolved_party and party_to_ledger:
+                        # Check extractedParty field first
+                        cand = (it.get("extractedParty") or "").strip().upper()
+                        if cand and cand in party_to_ledger:
+                            resolved_party = party_to_ledger[cand]
+                            matched_reason = f"Auto-resolved via pattern mapping: '{cand}' -> '{resolved_party}'."
+
+                        # If not matched, extract candidate from narration using partyPosition or standard separators
+                        if not resolved_party and narr:
+                            norm_narr = NarrationNormalizationService.normalize_text(narr)
+                            # Try common delimiters: '/', '-', ' '
+                            for sep in ['/', '-', ' ']:
+                                parts = [t.strip() for t in (norm_narr.split(sep) if sep != ' ' else re.split(r'\s+', norm_narr)) if t.strip()]
+                                if party_pos is not None and 0 <= party_pos < len(parts):
+                                    tok = parts[party_pos].upper()
+                                    if tok in party_to_ledger:
+                                        resolved_party = party_to_ledger[tok]
+                                        it["extractedParty"] = parts[party_pos]
+                                        matched_reason = f"Auto-resolved via pattern token [{party_pos}]: '{tok}'."
+                                        break
+                                # Also check if any known party key exists as a token
+                                for tok in parts:
+                                    if tok.upper() in party_to_ledger:
+                                        resolved_party = party_to_ledger[tok.upper()]
+                                        it["extractedParty"] = tok
+                                        matched_reason = f"Auto-resolved via matched alias: '{tok}'."
+                                        break
+                                if resolved_party:
+                                    break
+
+                        # Fallback: substring search of party keys in narration
+                        if not resolved_party and narr:
+                            upper_narr = narr.upper()
+                            for p_key, p_led in party_to_ledger.items():
+                                if len(p_key) >= 4 and p_key in upper_narr:
+                                    resolved_party = p_led
+                                    it["extractedParty"] = p_key
+                                    matched_reason = f"Auto-resolved via narration text: '{p_key}'."
+                                    break
+
+                    if resolved_party:
+                        it["partyLedger"] = resolved_party
+                        it["againstLedger"] = resolved_party
+                        it["status"] = "ready"
+                        it["review_required"] = False
+                        it["confidence"] = 98.0
+                        it["review_reason"] = matched_reason
+                        it["mappingMethod"] = "AI Pattern Applied"
+                        total_reprocessed += 1
+                        batch_changed = True
+
+            if batch_changed:
+                ready_cnt = sum(1 for i in items if i.get("status") in ["ready", "user_edited"])
+                rev_cnt = sum(1 for i in items if i.get("status") == "review_required")
+                already_cnt = sum(1 for i in items if i.get("status") == "already_processed")
+                saved_cnt = sum(1 for i in items if i.get("status") == "saved")
+                summary = {
+                    "total_count": len(items),
+                    "ready_count": ready_cnt,
+                    "review_required_count": rev_cnt,
+                    "already_processed_count": already_cnt,
+                    "saved_count": saved_cnt
+                }
+                ledger_maps = self.build_ledger_mapping_rows(items)
+                self.db["bank_statement_drafts"].update_one(
+                    {"_id": b["_id"]},
+                    {"$set": {"items": items, "summary": summary, "ledger_mappings": ledger_maps, "updated_at": datetime.utcnow()}}
+                )
+
+        return total_reprocessed
+
+    def validate_voucher_for_import(self, item: Dict[str, Any]) -> Tuple[bool, List[str]]:
+        """
+        Pre-import validation checks:
+        1. Balanced totals (Dr == Cr)
+        2. Bank allocation sum matches bank amount
+        3. Bill allocation sum matches party amount (if billAllocations present)
+        4. Valid non-empty ledger names
+        """
+        errors = []
+        amt = round(float(item.get("amount") or 0.0), 2)
+        if amt <= 0:
+            errors.append(f"Voucher amount must be greater than zero (found: {amt})")
+
+        bank_ledger = (item.get("bankLedger") or "").strip()
+        party_ledger = (item.get("partyLedger") or item.get("againstLedger") or "").strip()
+
+        if not bank_ledger:
+            errors.append("Bank ledger name cannot be empty")
+        if not party_ledger:
+            errors.append("Party/Counterpart ledger name cannot be empty")
+
+        # Bank Allocation validation
+        bank_allocs = item.get("bankAllocations") or []
+        if bank_allocs:
+            sum_bank_alloc = round(sum(abs(float(b.get("amount") or 0.0)) for b in bank_allocs), 2)
+            if abs(sum_bank_alloc - amt) > 0.02:
+                errors.append(f"Bank allocation sum ({sum_bank_alloc}) does not match transaction amount ({amt})")
+
+        # Bill Allocation validation
+        bill_allocs = item.get("billAllocations") or []
+        if bill_allocs:
+            sum_bill_alloc = round(sum(abs(float(b.get("amount") or 0.0)) for b in bill_allocs), 2)
+            if abs(sum_bill_alloc - amt) > 0.02:
+                errors.append(f"Bill allocation sum ({sum_bill_alloc}) does not match transaction amount ({amt})")
+
+        return (len(errors) == 0), errors
 
     def convert_and_save_vouchers(
         self,
@@ -919,85 +1720,225 @@ CRITICAL RULES:
         Converts selected draft items into actual accounting vouchers in 'fund_flow_transactions' / 'vouchers' collection
         with full source traceability ('source': 'bank_statement').
         """
-        doc = self.db["bank_statement_drafts"].find_one({"_id": ObjectId(batch_id)})
+        batch_id_str = str(batch_id) if batch_id else ""
+        query = {"$or": [{"_id": ObjectId(batch_id_str)}, {"batch_id": batch_id_str}]} if (batch_id_str and ObjectId.is_valid(batch_id_str)) else {"batch_id": batch_id_str}
+        doc = self.db["bank_statement_drafts"].find_one(query)
         if not doc:
             return {"success": False, "error": "Batch draft not found"}
 
         items = doc.get("items") or []
         saved_vouchers = []
+        validation_failed_items = []
+        from app.anjalee.repositories.fundflow_repo import FundFlowRepository
+        from app.anjalee.services.fundflow_service import FundFlowService
+        from app.anjalee.schemas.fundflow_schemas import FundFlowTransactionCreate
+
+        repo = FundFlowRepository(self.db)
+        ff_service = FundFlowService(repo)
 
         for item in items:
             if item.get("item_id") in item_ids and item.get("status") != "saved":
-                # Create actual accounting voucher matching fund_flow_transactions schema
-                v_type = "bank_payment" if item.get("voucherType") == "Receipt" else "cash_payment" # internal enum mapping
-                
-                voucher_doc = {
-                    "voucherType": v_type,
-                    "voucherNumber": item.get("voucherNumber"),
-                    "voucherDate": item.get("voucherDate"),
-                    "bankLedger": item.get("bankLedger"),
-                    "partyLedger": item.get("partyLedger"),
-                    "againstLedger": item.get("partyLedger"),
-                    "amount": float(item.get("amount") or 0.0),
-                    "narration": item.get("narration"),
-                    "paymentMode": item.get("paymentMode") or "NEFT",
-                    "instType": item.get("instType") or "NEFT",
-                    "instTypeOther": None,
-                    "instNumber": item.get("instNumber") or item.get("referenceNumber") or "",
-                    "instDate": item.get("instDate") or item.get("voucherDate"),
-                    "referenceNumber": item.get("referenceNumber") or "",
-                    "status": "approved", # Created and ready
-                    "source": "bank_statement",
-                    "createdVia": "bank_statement_ai",
-                    "entryMode": "bank_statement",
-                    "fingerprint": item.get("fingerprint"),
-                    "source_document": item.get("source_document"),
-                    "batch_id": batch_id,
-                    "item_id": item.get("item_id"),
-                    "ledgerRows": [
+                # Pre-import validation: balanced totals, allocations agreement, valid ledgers
+                is_valid, val_errors = self.validate_voucher_for_import(item)
+                if not is_valid:
+                    item["status"] = "review_required"
+                    item["review_required"] = True
+                    item["review_reason"] = f"Validation failed: {'; '.join(val_errors)}"
+                    validation_failed_items.append({"item_id": item.get("item_id"), "errors": val_errors})
+                    continue
+
+                raw_v_type = item.get("voucherType") or ("Payment" if (item.get("debit", 0) > 0 and not item.get("credit")) else "Receipt")
+                is_payment = (raw_v_type == "Payment")
+
+                amt = float(item.get("amount") or item.get("debit") or item.get("credit") or 0.0)
+                bank_ledger = item.get("bankLedger") or "Bank Account"
+                party_ledger = item.get("partyLedger") or item.get("againstLedger") or "Unassigned"
+
+                company_id_val = ObjectId(company_id) if (company_id and ObjectId.is_valid(company_id)) else company_id
+                v_guid = f"{uuid.uuid4()}-{str(uuid.uuid4())[:8]}"
+
+                try:
+                    parsed_dt = datetime.strptime(item.get("voucherDate"), "%Y-%m-%d")
+                except Exception:
+                    parsed_dt = datetime.now()
+
+                dates_obj = {
+                    "date": parsed_dt,
+                    "voucherDate": item.get("voucherDate") or parsed_dt.strftime("%Y-%m-%d"),
+                    "effectiveDate": parsed_dt
+                }
+
+                is_contra = (raw_v_type.lower() == "contra")
+                party_bill_allocs = item.get("billAllocations") or []
+                bank_allocs = item.get("bankAllocations") or []
+
+                if is_contra:
+                    is_bank_cr = (float(item.get("debit") or 0) > 0)
+                    if is_bank_cr:
+                        ledger_entries = [
+                            {
+                                "ledgerName": party_ledger,
+                                "amount": -amt,
+                                "isDeemedPositive": "Yes",
+                                "drCrType": "Dr",
+                                "bankAllocations": bank_allocs
+                            },
+                            {
+                                "ledgerName": bank_ledger,
+                                "amount": amt,
+                                "isDeemedPositive": "No",
+                                "drCrType": "Cr",
+                                "bankAllocations": bank_allocs
+                            }
+                        ]
+                    else:
+                        ledger_entries = [
+                            {
+                                "ledgerName": bank_ledger,
+                                "amount": -amt,
+                                "isDeemedPositive": "Yes",
+                                "drCrType": "Dr",
+                                "bankAllocations": bank_allocs
+                            },
+                            {
+                                "ledgerName": party_ledger,
+                                "amount": amt,
+                                "isDeemedPositive": "No",
+                                "drCrType": "Cr",
+                                "bankAllocations": bank_allocs
+                            }
+                        ]
+                elif is_payment:
+                    ledger_entries = [
                         {
-                            "ledgerName": item.get("partyLedger"),
-                            "amount": float(item.get("amount") or 0.0),
-                            "drCr": "Dr" if item.get("voucherType") == "Payment" else "Cr"
+                            "ledgerName": party_ledger,
+                            "amount": -amt,
+                            "isDeemedPositive": "Yes",
+                            "drCrType": "Dr",
+                            "billAllocations": party_bill_allocs
+                        },
+                        {
+                            "ledgerName": bank_ledger,
+                            "amount": amt,
+                            "isDeemedPositive": "No",
+                            "drCrType": "Cr",
+                            "bankAllocations": bank_allocs
                         }
-                    ],
-                    "billRows": [],
-                    "createdAt": datetime.now(),
-                    "updatedAt": datetime.now()
-                }
+                    ]
+                else:
+                    ledger_entries = [
+                        {
+                            "ledgerName": bank_ledger,
+                            "amount": -amt,
+                            "isDeemedPositive": "Yes",
+                            "drCrType": "Dr",
+                            "bankAllocations": bank_allocs
+                        },
+                        {
+                            "ledgerName": party_ledger,
+                            "amount": amt,
+                            "isDeemedPositive": "No",
+                            "drCrType": "Cr",
+                            "billAllocations": party_bill_allocs
+                        }
+                    ]
 
-                ins_res = self.db["fund_flow_transactions"].insert_one(voucher_doc)
-                voucher_doc["_id"] = str(ins_res.inserted_id)
+                ff_payload = FundFlowTransactionCreate(
+                    companyId=company_id_val,
+                    voucherGuid=v_guid,
+                    remoteId=v_guid,
+                    voucherKey=str(int(datetime.now().timestamp() * 1000000000) % 1000000000000000),
+                    voucherNumberSeries="Default",
+                    numberingStyle="Auto Retain",
+                    reference={
+                        "reference": item.get("referenceNumber") or "",
+                        "referenceDate": item.get("voucherDate") or parsed_dt.strftime("%Y-%m-%d")
+                    },
+                    voucherTypeName=raw_v_type,
+                    voucherTypeOrigName=raw_v_type,
+                    voucherCategory=raw_v_type,
+                    voucherClass="ACCOUNTING",
+                    objectView="Accounting Voucher View",
+                    persistedView="Accounting Voucher View",
+                    dates=dates_obj,
+                    partyName=None,
+                    partyLedgerName=party_ledger,
+                    partyMailingName=None,
+                    basicBuyerName=None,
+                    basicBasePartyName=None,
+                    partyPincode=None,
+                    address="",
+                    gstDetails={},
+                    flags={
+                        "isCancelled": False,
+                        "isOptional": False,
+                        "isDeleted": False
+                    },
+                    ledgerEntries=ledger_entries,
+                    inventoryEntries=[],
+                    invoiceOrderList=[],
+                    ewayBillDetails=[],
+                    dispatchDetails={},
+                    totals={
+                        "grandTotal": amt,
+                        "totalAmount": amt
+                    },
+                    narration=item.get("narration") or "",
+                    status="ACTIVE",
+                    source="bank_upload",
+                    entryMode="bank_upload",
+                    createdVia="bank_upload",
+                    fingerprint=item.get("fingerprint"),
+                    source_document=item.get("source_document"),
+                    batch_id=batch_id,
+                    item_id=item.get("item_id"),
+                    company=str(company_id) if company_id else None,
+                    auditInfo={
+                        "createdAt": datetime.now(),
+                        "updatedAt": datetime.now(),
+                        "source": "bank_upload",
+                        "entryMode": "bank_upload"
+                    },
+                    bankAllocations=bank_allocs,
+                    billAllocations=party_bill_allocs,
+                    # FundFlow UI compatibility fields
+                    voucherType=raw_v_type,
+                    voucherDate=item.get("voucherDate"),
+                    referenceNumber=item.get("referenceNumber") or "",
+                    partyLedger=party_ledger,
+                    againstLedger=party_ledger,
+                    amount=amt,
+                    drCrType="Dr" if is_payment else "Cr",
+                    bankLedger=bank_ledger,
+                    paymentMode=item.get("paymentMode") or "NEFT",
+                    instType=item.get("instType") or item.get("paymentMode") or "NEFT",
+                    instNumber=item.get("instNumber") or item.get("referenceNumber") or "",
+                    instDate=item.get("instDate") or item.get("voucherDate"),
+                    remarks=item.get("narration") or ""
+                )
 
-                # Also insert into 'vouchers' collection for Tally synchronization
-                v_guid = str(uuid.uuid4())
-                tally_voucher_doc = {
-                    "voucherGuid": v_guid,
-                    "companyId": company_id or "default",
-                    "voucherTypeName": "Payment" if item.get("voucherType") == "Payment" else "Receipt",
-                    "voucherNumber": item.get("voucherNumber"),
-                    "dates": {"voucherDate": item.get("voucherDate"), "date": item.get("voucherDate")},
-                    "bankLedger": item.get("bankLedger"),
-                    "partyLedgerName": item.get("partyLedger"),
-                    "partyName": item.get("partyLedger"),
-                    "ledgerEntries": [
-                        {"ledgerName": item.get("bankLedger"), "amount": float(item.get("amount") or 0.0) if item.get("voucherType") == "Receipt" else -float(item.get("amount") or 0.0)},
-                        {"ledgerName": item.get("partyLedger"), "amount": -float(item.get("amount") or 0.0) if item.get("voucherType") == "Receipt" else float(item.get("amount") or 0.0)}
-                    ],
-                    "totals": {"grandTotal": float(item.get("amount") or 0.0), "totalAmount": float(item.get("amount") or 0.0)},
-                    "narration": item.get("narration"),
-                    "status": "approved",
-                    "source": "bank_statement",
-                    "entryMode": "bank_statement",
-                    "fingerprint": item.get("fingerprint"),
-                    "createdAt": datetime.now()
-                }
-                self.db["vouchers"].insert_one(tally_voucher_doc)
-
+                # Centralized voucher creation and sequential numbering via FundFlowService
+                saved_tx = ff_service.create_transaction(ff_payload, company_id=company_id)
+                vch_no = saved_tx.get("voucherNumber")
 
                 item["status"] = "saved"
-                item["saved_voucher_id"] = str(ins_res.inserted_id)
-                saved_vouchers.append(voucher_doc)
+                item["voucherNumber"] = vch_no
+                item["saved_voucher_id"] = str(saved_tx.get("_id"))
+                item["tallyXml"] = saved_tx.get("tallyXml")
+                item["tally_xml"] = saved_tx.get("tally_xml")
+                saved_vouchers.append(saved_tx)
+
+        try:
+            self.db["fund_flow_transactions"].update_many(
+                {"batch_id": batch_id},
+                {"$set": {"entryMode": "bank_upload", "source": "bank_upload", "createdVia": "bank_upload"}}
+            )
+            self.db["fund_flow_vouchers"].update_many(
+                {"batch_id": batch_id},
+                {"$set": {"entryMode": "bank_upload", "source": "bank_upload", "createdVia": "bank_upload"}}
+            )
+        except Exception:
+            pass
 
         # Update batch summary
         ready_cnt = sum(1 for i in items if i.get("status") in ["ready", "user_edited"])
@@ -1014,12 +1955,452 @@ CRITICAL RULES:
         }
 
         self.db["bank_statement_drafts"].update_one(
-            {"_id": ObjectId(batch_id)},
+            {"_id": doc["_id"]},
             {"$set": {"items": items, "summary": summary, "status": "completed" if saved_cnt == len(items) else "partially_saved"}}
         )
 
         return {
             "success": True,
             "saved_count": len(saved_vouchers),
-            "saved_vouchers": [serialize_doc(v) for v in saved_vouchers]
+            "saved_vouchers": [serialize_doc(v) for v in saved_vouchers],
+            "validation_errors": validation_failed_items
         }
+
+    def apply_rules_to_batch(self, batch_id: str, bank_ledger: str, company_id: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Applies saved bank mapping rules (Engine A) to the draft items of a batch.
+        Evaluates rule priority, constraints, and conflict detection.
+        Discovers new pattern candidates (Engine B) for remaining unmatched items.
+        Returns transaction-level results and processing summary.
+        """
+        try:
+            batch = self.db["bank_statement_drafts"].find_one({"_id": ObjectId(batch_id)})
+            if not batch:
+                return {"success": False, "error": "Batch draft not found", "matched_count": 0}
+
+            eff_company_id = company_id or batch.get("company_id") or batch.get("companyId")
+
+            rules_svc = RulesBasedMatchingService(self.db)
+            rules = rules_svc.get_applicable_rules(bank_ledger, eff_company_id)
+
+            items = batch.get("items", [])
+            total_eligible = 0
+            matched_count = 0
+            conflicts_count = 0
+            details = []
+
+            for item in items:
+                # Do not overwrite already saved vouchers
+                if item.get("status") in ["saved", "already_processed"]:
+                    continue
+
+                total_eligible += 1
+                narration = (item.get("narration") or "").strip()
+                amt = float(item.get("amount") or item.get("credit") or item.get("debit") or 0.0)
+                is_credit = float(item.get("credit") or 0.0) > 0 or item.get("voucherType") == "Receipt"
+
+                rule_match = rules_svc.match_transaction(narration, amt, is_credit, rules)
+
+                if rule_match:
+                    matched_count += 1
+                    target_p = rule_match.get("partyLedger")
+                    has_conflict = rule_match.get("hasConflict", False)
+                    if has_conflict:
+                        conflicts_count += 1
+
+                    item["partyLedger"] = target_p
+                    item["againstLedger"] = target_p
+                    item["confidence"] = rule_match.get("confidence", 100)
+                    item["status"] = "review_required" if has_conflict else "ready"
+                    item["review_required"] = has_conflict
+                    item["review_reason"] = f"Conflicting rules: {', '.join(rule_match.get('conflictingLedgers', []))}" if has_conflict else f"Auto-mapped via Bank Rule '{rule_match.get('matchedPattern')}'"
+                    item["user_reasoning"] = rule_match.get("reasoning")
+                    
+                    v_override = rule_match.get("voucherType")
+                    if v_override in ["Payment", "Receipt"]:
+                        item["voucherType"] = v_override
+
+                    details.append({
+                        "item_id": item.get("item_id"),
+                        "narration": narration,
+                        "matched": True,
+                        "rule_name": rule_match.get("ruleName"),
+                        "scope": rule_match.get("scope"),
+                        "party_ledger": target_p,
+                        "voucher_type": item.get("voucherType"),
+                        "has_conflict": has_conflict
+                    })
+                else:
+                    details.append({
+                        "item_id": item.get("item_id"),
+                        "narration": narration,
+                        "matched": False,
+                        "party_ledger": item.get("partyLedger"),
+                        "voucher_type": item.get("voucherType"),
+                        "has_conflict": False
+                    })
+
+            # Auto-run Engine B: Discover recurring patterns for remaining unmatched transactions
+            discovery_svc = AIPatternDiscoveryService(self.db)
+            discovered_suggestions = discovery_svc.cluster_and_discover(items, bank_ledger, eff_company_id)
+
+            # Recalculate summary stats
+            ready_cnt = sum(1 for i in items if i.get("status") in ["ready", "user_edited"])
+            rev_cnt = sum(1 for i in items if i.get("status") == "review_required")
+            already_cnt = sum(1 for i in items if i.get("status") == "already_processed")
+            saved_cnt = sum(1 for i in items if i.get("status") == "saved")
+            mapped_cnt = sum(1 for i in items if i.get("partyLedger"))
+
+            summary = {
+                "total_count": len(items),
+                "total_eligible": total_eligible,
+                "matched_count": matched_count,
+                "ledger_mapped_count": mapped_cnt,
+                "ready_count": ready_cnt,
+                "review_required_count": rev_cnt,
+                "already_processed_count": already_cnt,
+                "saved_count": saved_cnt,
+                "conflicts_count": conflicts_count,
+                "discovered_patterns_count": len(discovered_suggestions)
+            }
+
+            self.db["bank_statement_drafts"].update_one(
+                {"_id": ObjectId(batch_id)},
+                {"$set": {"items": items, "summary": summary, "updated_at": datetime.now()}}
+            )
+
+            updated_batch = self.db["bank_statement_drafts"].find_one({"_id": ObjectId(batch_id)})
+            return {
+                "success": True,
+                "matched_count": matched_count,
+                "conflicts_count": conflicts_count,
+                "discovered_count": len(discovered_suggestions),
+                "summary": summary,
+                "details": details[:50],  # Sample item details
+                "message": f"Applied rules successfully! {matched_count} transaction(s) auto-mapped, {len(discovered_suggestions)} new pattern candidate(s) discovered.",
+                "data": serialize_doc(updated_batch)
+            }
+        except Exception as e:
+            logger.error(f"Error applying bank rules to batch {batch_id}: {e}", exc_info=True)
+            return {"success": False, "error": str(e), "matched_count": 0}
+
+
+    @classmethod
+    def build_ledger_mapping_rows(
+        cls,
+        items: List[Dict[str, Any]],
+        db: Optional[Any] = None,
+        company_id: Optional[str] = None,
+        company_masters: Optional[List[Dict[str, Any]]] = None
+    ) -> List[Dict[str, Any]]:
+        from app.anjalee.services.bank_pattern_engine import (
+            RegexPositionalExtractor,
+            PartyLedgerResolutionService
+        )
+
+        resolution_svc = None
+        if db is not None:
+            try:
+                resolution_svc = PartyLedgerResolutionService(db)
+                if company_masters is None:
+                    company_masters = resolution_svc.get_company_master_ledgers(company_id)
+            except Exception as e:
+                logger.warning(f"Error initializing PartyLedgerResolutionService in build_ledger_mapping_rows: {e}")
+
+        result_rows = []
+        for it in items:
+            narration = it.get("narration") or ""
+            cur_party = (it.get("extractedParty") or "").strip()
+            
+            # Check if current extractedParty is invalid, a channel code, or empty
+            is_bad_party = (
+                not cur_party or
+                cur_party.upper() in RegexPositionalExtractor.STOP_SEGMENTS or
+                cur_party.isdigit() or
+                len(cur_party) < 3
+            )
+            if is_bad_party and narration:
+                party_ext, _ = RegexPositionalExtractor.extract_party(narration)
+                clean_cand = party_ext or (it.get("partyLedger") or narration[:35] if narration else "TRANSACTION")
+            else:
+                clean_cand = cur_party or narration[:35]
+
+            suggested = (it.get("partyLedger") or it.get("againstLedger") or "").strip()
+            item_id = str(it.get("item_id") or uuid.uuid4())
+            it_status = it.get("status")
+
+            # If unmapped or user hasn't confirmed, try resolving against company master ledgers
+            resolved_info = None
+            if resolution_svc and company_masters and it_status not in ["user_edited", "saved"]:
+                resolved_info = resolution_svc.resolve_party_ledger(
+                    clean_cand, narration, company_id=company_id, company_masters=company_masters
+                )
+                if resolved_info.get("resolvedLedger"):
+                    suggested = resolved_info["resolvedLedger"]
+
+            is_exact = False
+            if suggested and clean_cand:
+                if clean_cand.strip().upper() == suggested.strip().upper():
+                    is_exact = True
+                elif re.sub(r'[^A-Za-z0-9]', '', clean_cand.lower()) == re.sub(r'[^A-Za-z0-9]', '', suggested.lower()):
+                    is_exact = True
+
+            if is_exact:
+                conf = 100.0
+                method = "System • Exact Match"
+            elif it_status in ["user_edited", "saved"]:
+                conf = 100.0
+                method = "User Confirmed"
+            elif resolved_info and resolved_info.get("resolvedLedger"):
+                conf = float(resolved_info.get("confidence") or 90.0)
+                m_method = resolved_info.get("matchMethod", "fuzzy")
+                method = "System • Exact Match" if m_method in ["exact", "alnum_exact"] else f"AI Resolved ({m_method})"
+            elif suggested:
+                conf = float(it.get("confidence") or 85.0)
+                method = it.get("mappingMethod") or "AI Suggested"
+            else:
+                conf = 50.0
+                method = "Unmapped"
+
+            item_row = {
+                "patternId": item_id,
+                "item_id": item_id,
+                "batch_id": str(it.get("batch_id") or ""),
+                "date": it.get("voucherDate") or "",
+                "amount": float(it.get("amount") or 0.0),
+                "voucherType": it.get("voucherType") or "Payment",
+                "narration": narration,
+                "referenceNumber": it.get("referenceNumber") or it.get("instNumber") or "—",
+                "extractedParty": clean_cand,
+                "partyText": clean_cand,
+                "extractedPattern": clean_cand,
+                "channel": it.get("paymentMode") or "",
+                "sampleNarration": narration,
+                "suggestedLedger": suggested,
+                "confidence": conf,
+                "mappingMethod": method,
+                "transactionCount": 1,
+                "transactions": [it]
+            }
+            result_rows.append(item_row)
+
+        result_rows.sort(key=lambda r: (1 if r["suggestedLedger"] else 0, r.get("date") or ""))
+        return result_rows
+
+    def get_ledger_mappings(
+        self,
+        bank_ledger: str,
+        company_id: Optional[str] = None,
+        batch_id: Optional[str] = None,
+        search: Optional[str] = None,
+        filter_type: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Returns the pre-prepared ledger mappings list directly for instant display on click.
+        """
+        # 1. Query batches for this bank ledger
+        batches = []
+        if batch_id:
+            query = {"_id": ObjectId(batch_id)} if len(str(batch_id)) == 24 else {"batch_id": batch_id}
+            batches = list(self.db["bank_statement_drafts"].find(query).sort("created_at", -1))
+
+        if not batches and bank_ledger:
+            clean_bl = bank_ledger.strip()
+            batches = list(self.db["bank_statement_drafts"].find({
+                "bank_ledger": re.compile(f"^{re.escape(clean_bl)}$", re.I)
+            }).sort("created_at", -1))
+
+            if not batches:
+                batches = list(self.db["bank_statement_drafts"].find({
+                    "bank_ledger": re.compile(f"{re.escape(clean_bl)}", re.I)
+                }).sort("created_at", -1))
+
+        if not batches:
+            batches = list(self.db["bank_statement_drafts"].find({}).sort("created_at", -1).limit(1))
+        else:
+            batches = batches[:1]
+        
+        # Collect all items from the latest active batch
+        raw_items = []
+        for b in batches:
+            b_id = str(b.get("_id") or b.get("batch_id"))
+            for it in (b.get("items") or []):
+                it_copy = dict(it)
+                it_copy["batch_id"] = b_id
+                raw_items.append(it_copy)
+
+        if not raw_items:
+            return []
+
+        company_masters = self.get_company_master_ledgers(company_id)
+        all_rows = self.build_ledger_mapping_rows(
+            raw_items,
+            db=self.db,
+            company_id=company_id,
+            company_masters=company_masters
+        )
+        if len(batches) == 1:
+            try:
+                self.db["bank_statement_drafts"].update_one(
+                    {"_id": batches[0]["_id"]},
+                    {"$set": {"ledger_mappings": all_rows}}
+                )
+            except Exception:
+                pass
+
+        if not search and (not filter_type or filter_type == "all"):
+            return all_rows
+
+        result_rows = []
+        for item_row in all_rows:
+            clean_cand = item_row.get("extractedParty", "")
+            suggested = item_row.get("suggestedLedger", "")
+            narration = item_row.get("narration", "")
+            method = item_row.get("mappingMethod", "")
+            is_exact = "Exact" in method
+
+            # Filter search
+            if search:
+                s_lower = search.lower().strip()
+                cand_match = s_lower in clean_cand.lower()
+                led_match = s_lower in suggested.lower()
+                narr_match = s_lower in narration.lower()
+                ref_match = s_lower in str(item_row.get("referenceNumber", "")).lower()
+                if not (cand_match or led_match or narr_match or ref_match):
+                    continue
+
+            # Filter type
+            if filter_type and filter_type != "all":
+                if filter_type == "mapped" and not suggested:
+                    continue
+                if filter_type == "unmapped" and suggested:
+                    continue
+                if filter_type == "confirmed" and "User" not in method and not is_exact:
+                    continue
+
+            result_rows.append(item_row)
+
+        return result_rows
+
+    def confirm_ledger_mapping(
+        self,
+        bank_ledger: str,
+        pattern: str,
+        selected_ledger: str,
+        transaction_ids: Optional[List[str]] = None,
+        company_id: Optional[str] = None,
+        create_rule: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Confirms or changes party ledger mapping for an extracted pattern:
+        1. Updates all matching draft items across statements to selected_ledger with 'User Confirmed'.
+        2. Learns customer party alias in 'bank_party_aliases'.
+        3. Creates/updates customer-specific rule in 'bank_mapping_rules' if requested.
+        4. Logs audit trail in 'bank_pattern_feedback'.
+        """
+        from app.anjalee.services.bank_pattern_engine import PatternFeedbackService
+
+        updated_count = 0
+
+        # Update draft transactions in MongoDB
+        query: Dict[str, Any] = {}
+        if company_id and company_id != "default":
+            query["$or"] = [{"company_id": company_id}, {"companyId": company_id}]
+        if bank_ledger:
+            query["bank_ledger"] = bank_ledger
+
+        batches = list(self.db["bank_statement_drafts"].find(query))
+        clean_pat = pattern.split(" / ")[-1].strip() if " / " in pattern else pattern.strip()
+
+        for b in batches:
+            b_id = b["_id"]
+            items = b.get("items") or []
+            changed = False
+            for it in items:
+                # Match by explicit ID or pattern match
+                it_id = it.get("item_id")
+                is_target = False
+                if transaction_ids:
+                    is_target = it_id in transaction_ids
+                elif clean_pat:
+                    is_target = clean_pat.lower() in (it.get("narration") or "").lower() or clean_pat.lower() in (it.get("extractedParty") or "").lower()
+
+                if is_target:
+                    it["partyLedger"] = selected_ledger
+                    it["againstLedger"] = selected_ledger
+                    it["status"] = "ready"
+                    it["review_required"] = False
+                    it["confidence"] = 100.0
+                    it["mappingMethod"] = "User Confirmed"
+                    it["user_reasoning"] = f"Confirmed mapping: '{pattern}' -> '{selected_ledger}'"
+                    updated_count += 1
+                    changed = True
+
+            if changed:
+                ready_cnt = sum(1 for i in items if i.get("status") in ["ready", "user_edited"])
+                rev_cnt = sum(1 for i in items if i.get("status") == "review_required")
+                already_cnt = sum(1 for i in items if i.get("status") == "already_processed")
+                saved_cnt = sum(1 for i in items if i.get("status") == "saved")
+                summary = {
+                    "total_count": len(items),
+                    "ready_count": ready_cnt,
+                    "review_required_count": rev_cnt,
+                    "already_processed_count": already_cnt,
+                    "saved_count": saved_cnt
+                }
+                ledger_maps = b.get("ledger_mappings") or []
+                for lm in ledger_maps:
+                    target_ids = transaction_ids or []
+                    if lm.get("item_id") in target_ids or lm.get("patternId") in target_ids:
+                        lm["suggestedLedger"] = selected_ledger
+                        lm["confidence"] = 100.0
+                        lm["mappingMethod"] = "User Confirmed"
+
+                self.db["bank_statement_drafts"].update_one(
+                    {"_id": b_id},
+                    {"$set": {"items": items, "summary": summary, "ledger_mappings": ledger_maps}}
+                )
+
+        # 2. Learn customer party alias
+        feedback_svc = PatternFeedbackService(self.db)
+        feedback_svc.record_feedback(
+            transaction_id=transaction_ids[0] if transaction_ids else "group_confirm",
+            narration=pattern,
+            bank_ledger=bank_ledger,
+            corrected_ledger=selected_ledger,
+            company_id=company_id
+        )
+
+        # 3. Create or update rule if requested
+        if create_rule:
+            rule_pattern = clean_pat if len(clean_pat) >= 3 else pattern
+            rule_doc = {
+                "name": f"Rule: {rule_pattern} -> {selected_ledger}",
+                "scope": "customer_specific",
+                "bankLedger": bank_ledger,
+                "company_id": company_id,
+                "companyId": company_id,
+                "pattern": rule_pattern,
+                "matchType": "contains",
+                "partyLedger": selected_ledger,
+                "voucherType": "Auto",
+                "direction": "any",
+                "status": "active",
+                "confidenceThreshold": 100.0,
+                "source": "customer_custom",
+                "updatedAt": datetime.utcnow()
+            }
+            self.db["bank_mapping_rules"].update_one(
+                {"company_id": company_id, "bankLedger": bank_ledger, "pattern": rule_pattern},
+                {"$set": rule_doc, "$setOnInsert": {"createdAt": datetime.utcnow()}},
+                upsert=True
+            )
+
+        return {
+            "success": True,
+            "updated_count": updated_count,
+            "pattern": pattern,
+            "selected_ledger": selected_ledger,
+            "message": f"Successfully mapped '{pattern}' to '{selected_ledger}' across {updated_count} transaction(s)."
+        }
+

@@ -1,11 +1,14 @@
+import uuid
 from datetime import datetime
 from typing import List, Optional, Dict, Any
+from xml.sax.saxutils import escape as xml_escape
 from bson import ObjectId
 from app.anjalee.repositories.fundflow_repo import FundFlowRepository
 from app.anjalee.schemas.fundflow_schemas import FundFlowTransactionCreate, StatusUpdate, CommentRequest
 from app.anjalee.utils.serialization import serialize_doc
 from app.anjalee.constants.business_constants import FUNDFLOW_PREFIXES
 from app.anjalee.exceptions.custom_exceptions import TransactionNotFoundException
+from app.anjalee.services.voucher_number_service import VoucherNumberService
 
 class FundFlowService:
     def __init__(self, repo: FundFlowRepository):
@@ -48,15 +51,30 @@ class FundFlowService:
     ) -> Dict[str, Any]:
         query = {}
         if voucher_type:
-            query["voucherType"] = voucher_type
+            vt_lower = voucher_type.lower()
+            if "receipt" in vt_lower or vt_lower == "bank_payment":
+                query["$or"] = [{"voucherTypeName": "Receipt"}, {"voucherType": {"$in": ["bank_payment", "receipt", "Receipt"]}}]
+            elif "contra" in vt_lower:
+                query["$or"] = [{"voucherTypeName": "Contra"}, {"voucherType": {"$in": ["contra", "Contra"]}}]
+            else:
+                query["$or"] = [{"voucherTypeName": "Payment"}, {"voucherType": {"$in": ["cash_payment", "payment", "Payment"]}}]
+        else:
+            query["$or"] = [
+                {"voucherTypeName": {"$in": ["Receipt", "Payment", "Contra"]}},
+                {"voucherType": {"$in": ["bank_payment", "cash_payment", "contra", "receipt", "payment"]}}
+            ]
         if status:
             query["status"] = status
         if search:
-            query["$or"] = [
-                {"partyLedger": {"$regex": search, "$options": "i"}},
-                {"voucherNumber": {"$regex": search, "$options": "i"}},
-                {"referenceNumber": {"$regex": search, "$options": "i"}}
-            ]
+            query["$and"] = query.get("$and", [])
+            query["$and"].append({
+                "$or": [
+                    {"partyLedgerName": {"$regex": search, "$options": "i"}},
+                    {"partyLedger": {"$regex": search, "$options": "i"}},
+                    {"voucherNumber": {"$regex": search, "$options": "i"}},
+                    {"referenceNumber": {"$regex": search, "$options": "i"}}
+                ]
+            })
             
         total = self.repo.count_transactions(query)
         cursor = self.repo.find_transactions(query, skip=(page - 1) * limit, limit=limit)
@@ -68,27 +86,267 @@ class FundFlowService:
             "total": total
         }
 
-    def create_transaction(self, payload: FundFlowTransactionCreate) -> Dict[str, Any]:
+    def create_transaction(self, payload: FundFlowTransactionCreate, company_id: Optional[Any] = None) -> Dict[str, Any]:
         doc_data = payload.model_dump()
-        doc_data["createdAt"] = datetime.now()
-        doc_data["updatedAt"] = datetime.now()
+        now_dt = datetime.now()
+        doc_data["createdAt"] = doc_data.get("createdAt") or now_dt
+        doc_data["updatedAt"] = now_dt
+
+        comp_id = company_id or doc_data.get("companyId") or doc_data.get("company_id") or doc_data.get("company")
+        company_id_val = ObjectId(comp_id) if (comp_id and ObjectId.is_valid(str(comp_id))) else comp_id
         
+        # Normalize voucher type
+        raw_type = (doc_data.get("voucherTypeName") or doc_data.get("voucherType") or "").strip()
+        raw_type_lower = raw_type.lower()
+        if raw_type_lower in ["bank_payment", "receipt"]:
+            standard_v_type = "Receipt"
+            ff_v_type = "bank_payment"
+            is_receipt = True
+            is_payment = False
+        elif raw_type_lower in ["contra"]:
+            standard_v_type = "Contra"
+            ff_v_type = "contra"
+            is_receipt = False
+            is_payment = False
+        else:  # cash_payment, payment, or default
+            standard_v_type = "Payment"
+            ff_v_type = "cash_payment"
+            is_receipt = False
+            is_payment = True
+
+        # Generate sequential voucher number if not already present
         if not doc_data.get("voucherNumber"):
-            voucher_type = doc_data["voucherType"]
-            prefix = FUNDFLOW_PREFIXES.get(voucher_type, "PV")
-                
-            seq = self.repo.get_next_sequence_value(prefix)
-            year = datetime.now().year
-            doc_data["voucherNumber"] = f"{prefix}-{year}-{str(seq).zfill(4)}"
-            
-        inserted_id = self.repo.insert_transaction(doc_data)
-        doc_data["_id"] = inserted_id
-        
+            vch_no = VoucherNumberService.get_next_voucher_number_sync(
+                db=self.repo.db,
+                company_id=comp_id,
+                voucher_type=standard_v_type,
+                series_id="MAIN"
+            )
+            voucher_num_str = str(vch_no)
+        else:
+            voucher_num_str = str(doc_data["voucherNumber"])
+
+        # Lookup voucherTypeId if available
+        try:
+            vt_doc = self.repo.db["voucherTypes"].find_one({
+                "$or": [
+                    {"voucherTypeName": standard_v_type},
+                    {"name": standard_v_type}
+                ]
+            })
+            vt_id = vt_doc["_id"] if vt_doc else None
+        except Exception:
+            vt_id = None
+
+        v_guid = doc_data.get("voucherGuid") or f"{uuid.uuid4()}-{str(uuid.uuid4())[:8]}"
+        r_id = doc_data.get("remoteId") or v_guid
+        v_key = doc_data.get("voucherKey") or str(int(now_dt.timestamp() * 1000000000) % 1000000000000000)
+
+        # Dates object
+        if doc_data.get("dates") and isinstance(doc_data.get("dates"), dict):
+            dates_obj = doc_data["dates"]
+        else:
+            v_date_str = doc_data.get("voucherDate")
+            try:
+                parsed_dt = datetime.strptime(v_date_str, "%Y-%m-%d") if v_date_str else now_dt
+            except Exception:
+                parsed_dt = now_dt
+            dates_obj = {
+                "date": parsed_dt,
+                "voucherDate": v_date_str or parsed_dt.strftime("%Y-%m-%d"),
+                "effectiveDate": parsed_dt
+            }
+
+        # Reference object
+        if doc_data.get("reference") and isinstance(doc_data.get("reference"), dict):
+            ref_obj = doc_data["reference"]
+        else:
+            ref_str = doc_data.get("referenceNumber") or (doc_data.get("reference") if isinstance(doc_data.get("reference"), str) else "") or ""
+            ref_obj = {
+                "reference": ref_str,
+                "referenceDate": dates_obj.get("voucherDate") if isinstance(dates_obj, dict) else ""
+            }
+
+        # Totals and amounts
+        if doc_data.get("totals") and isinstance(doc_data.get("totals"), dict):
+            totals_obj = doc_data["totals"]
+            amt = float(totals_obj.get("grandTotal") or totals_obj.get("totalAmount") or doc_data.get("amount") or 0.0)
+        else:
+            amt = float(doc_data.get("amount") or 0.0)
+            totals_obj = {
+                "grandTotal": amt,
+                "totalAmount": amt
+            }
+
+        party_ledger = doc_data.get("partyLedgerName") or doc_data.get("partyLedger") or doc_data.get("againstLedger") or "Unassigned"
+        bank_ledger = doc_data.get("bankLedger") or doc_data.get("cashLedger") or "Bank Account"
+
+        # Build ledgerEntries
+        if doc_data.get("ledgerEntries") and len(doc_data["ledgerEntries"]) > 0:
+            ledger_entries = doc_data["ledgerEntries"]
+        elif doc_data.get("ledgerRows") and len(doc_data["ledgerRows"]) > 0:
+            ledger_entries = []
+            for row in doc_data["ledgerRows"]:
+                row_amt = float(row.get("amount") or 0.0)
+                row_dr_cr = row.get("drCr") or ("Dr" if row_amt < 0 else "Cr")
+                is_dr = (row_dr_cr == "Dr")
+                ledger_entries.append({
+                    "ledgerName": row.get("ledgerName") or "General Ledger",
+                    "amount": -abs(row_amt) if is_dr else abs(row_amt),
+                    "isDeemedPositive": "Yes" if is_dr else "No",
+                    "drCrType": "Dr" if is_dr else "Cr"
+                })
+        else:
+            if is_receipt:
+                ledger_entries = [
+                    {
+                        "ledgerName": bank_ledger,
+                        "amount": -amt,
+                        "isDeemedPositive": "Yes",
+                        "drCrType": "Dr"
+                    },
+                    {
+                        "ledgerName": party_ledger,
+                        "amount": amt,
+                        "isDeemedPositive": "No",
+                        "drCrType": "Cr"
+                    }
+                ]
+            else:
+                ledger_entries = [
+                    {
+                        "ledgerName": party_ledger,
+                        "amount": -amt,
+                        "isDeemedPositive": "Yes",
+                        "drCrType": "Dr"
+                    },
+                    {
+                        "ledgerName": bank_ledger,
+                        "amount": amt,
+                        "isDeemedPositive": "No",
+                        "drCrType": "Cr"
+                    }
+                ]
+
+        entry_mode = doc_data.get("entryMode") or "manual"
+        source_val = doc_data.get("source") or entry_mode
+        created_via = doc_data.get("createdVia") or entry_mode
+
+        audit_info = doc_data.get("auditInfo") or {
+            "createdAt": now_dt,
+            "updatedAt": now_dt,
+            "source": source_val,
+            "entryMode": entry_mode
+        }
+
+        # Exact document schema matching MongoDB 'vouchers' collection
+        voucher_full_doc = {
+            "companyId": company_id_val,
+            "voucherGuid": v_guid,
+            "remoteId": r_id,
+            "voucherKey": v_key,
+            "voucherNumber": voucher_num_str,
+            "voucherNumberSeries": doc_data.get("voucherNumberSeries") or "Default",
+            "numberingStyle": doc_data.get("numberingStyle") or "Auto Retain",
+            "reference": ref_obj,
+            "voucherTypeName": standard_v_type,
+            "voucherTypeOrigName": standard_v_type,
+            "voucherTypeId": vt_id,
+            "voucherCategory": standard_v_type,
+            "voucherClass": doc_data.get("voucherClass") or "ACCOUNTING",
+            "objectView": doc_data.get("objectView") or "Accounting Voucher View",
+            "persistedView": doc_data.get("persistedView") or "Accounting Voucher View",
+            "dates": dates_obj,
+            "partyName": doc_data.get("partyName"),
+            "partyLedgerName": party_ledger,
+            "partyMailingName": doc_data.get("partyMailingName"),
+            "basicBuyerName": doc_data.get("basicBuyerName"),
+            "basicBasePartyName": doc_data.get("basicBasePartyName"),
+            "partyPincode": doc_data.get("partyPincode"),
+            "address": doc_data.get("address") or "",
+            "gstDetails": doc_data.get("gstDetails") or {},
+            "flags": doc_data.get("flags") or {
+                "isCancelled": False,
+                "isOptional": False,
+                "isDeleted": False
+            },
+            "ledgerEntries": ledger_entries,
+            "inventoryEntries": doc_data.get("inventoryEntries") or [],
+            "invoiceOrderList": doc_data.get("invoiceOrderList") or [],
+            "ewayBillDetails": doc_data.get("ewayBillDetails") or [],
+            "dispatchDetails": doc_data.get("dispatchDetails") or {},
+            "totals": totals_obj,
+            "narration": doc_data.get("narration") or "",
+            "status": doc_data.get("status") or "ACTIVE",
+            "source": source_val,
+            "entryMode": entry_mode,
+            "createdVia": created_via,
+            "createdAt": doc_data.get("createdAt") or now_dt,
+            "updatedAt": doc_data.get("updatedAt") or now_dt,
+            "fingerprint": doc_data.get("fingerprint"),
+            "batch_id": doc_data.get("batch_id"),
+            "item_id": doc_data.get("item_id"),
+            "bankAllocations": doc_data.get("bankAllocations") or [],
+            "billAllocations": doc_data.get("billAllocations") or [],
+            "auditInfo": audit_info
+        }
+
+        # Lookup company name for SVCURRENTCOMPANY in Tally XML
+        company_name = None
+        if comp_id:
+            try:
+                comp_doc = self.repo.db["companies"].find_one({"$or": [{"_id": company_id_val}, {"companyId": comp_id}, {"id": comp_id}]})
+                if comp_doc:
+                    company_name = comp_doc.get("companyName") or comp_doc.get("name") or comp_doc.get("company_name") or (comp_doc.get("erpConnection") or {}).get("companyName")
+            except Exception:
+                pass
+
+        if not company_name:
+            try:
+                comp_doc = self.repo.db["companies"].find_one({"companyName": {"$exists": True, "$ne": ""}}) or self.repo.db["companies"].find_one({"name": {"$exists": True, "$ne": ""}}) or self.repo.db["companies"].find_one({})
+                if comp_doc:
+                    company_name = comp_doc.get("companyName") or comp_doc.get("name") or comp_doc.get("company_name") or (comp_doc.get("erpConnection") or {}).get("companyName")
+            except Exception:
+                pass
+
+        if not company_name and doc_data.get("company"):
+            c_cand = str(doc_data["company"]).strip()
+            if not c_cand.startswith("sf_tenant_") and not c_cand.startswith("finbook_") and not c_cand.startswith("tenant_"):
+                company_name = c_cand
+
+        if not company_name:
+            company_name = "Your Company Name"
+
+        # Generate Tally XML matching user template
+        generated_xml = self.generate_tally_xml(voucher_full_doc, company_name=company_name)
+        voucher_full_doc["tallyXml"] = generated_xml
+
+        # Also populate compatibility fields for UI consumption
+        voucher_full_doc["voucherType"] = ff_v_type
+        voucher_full_doc["partyLedger"] = party_ledger
+        voucher_full_doc["bankLedger"] = bank_ledger
+        voucher_full_doc["amount"] = amt
+        voucher_full_doc["voucherDate"] = dates_obj.get("voucherDate")
+
+        # Insert into 'fund_flow_vouchers' collection
+        vch_id = self.repo.insert_transaction(voucher_full_doc)
+        voucher_full_doc["_id"] = ObjectId(vch_id) if ObjectId.is_valid(vch_id) else vch_id
+        voucher_full_doc["saved_voucher_id"] = str(vch_id)
+
         # Update invoice balances
         bill_rows = doc_data.get("billRows") or []
         self._update_invoice_balances(bill_rows)
-        
-        return serialize_doc(doc_data)
+
+        return serialize_doc(voucher_full_doc)
+
+    def generate_tally_xml(self, doc_data: Dict[str, Any], company_name: str = "Your Company Name") -> str:
+        """
+        Generates standard Tally XML according to user template using unified Tally services & template.
+        """
+        from app.anjalee.services.tally.voucher_mapper import VoucherMapper
+        from app.anjalee.services.tally.xml_generator import TallyXmlGenerator
+        tally_vch = VoucherMapper.map_to_tally_voucher(doc_data, company_name)
+        return TallyXmlGenerator.generate_xml(tally_vch)
 
     def get_transaction(self, tx_id: str) -> Dict[str, Any]:
         # 1. Search manual entries

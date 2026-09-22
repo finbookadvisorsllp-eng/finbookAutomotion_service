@@ -2356,10 +2356,10 @@ class TallyXmlGenerator:
         ledger_blocks = []
         index = 1
         for entry in voucher.ledgerEntries:
-            ledger_blocks.append(cls._build_single_ledger_entry(entry, index))
+            ledger_blocks.append(cls._build_single_ledger_entry(entry, index, vch_type=voucher.voucherType))
             index += 1
         for entry in voucher.taxEntries:
-            ledger_blocks.append(cls._build_single_ledger_entry(entry, index))
+            ledger_blocks.append(cls._build_single_ledger_entry(entry, index, vch_type=voucher.voucherType))
             index += 1
         ledger_entries_xml = "".join(ledger_blocks)
 
@@ -2392,19 +2392,35 @@ class TallyXmlGenerator:
         return xml_str
 
     @classmethod
-    def _build_single_ledger_entry(cls, entry: TallyLedgerEntry, index: int) -> str:
+    def _build_single_ledger_entry(cls, entry: TallyLedgerEntry, index: int, vch_type: str = "") -> str:
         escaped_ledger_name = escape_xml(entry.ledgerName)
         is_dr = (entry.isDeemedPositive == "Yes")
         amount_val = -abs(entry.amount) if is_dr else abs(entry.amount)
 
+        v_type_lower = (vch_type or "").lower()
+        is_accounting = any(x in v_type_lower for x in ["receipt", "payment", "contra"])
+
         # Build optional bill allocations
         bill_xml = ""
         if entry.billAllocations:
-            for bill in entry.billAllocations:
-                escaped_bill_name = escape_xml(bill.refNo)
-                escaped_bill_type = escape_xml(bill.billType)
-                bill_amt = -abs(bill.amount) if is_dr else abs(bill.amount)
-                bill_xml += f"""
+            if is_accounting:
+                bill_xml = "\n              <!-- Optional: Bill Allocation Details -->"
+                for bill in entry.billAllocations:
+                    escaped_bill_name = escape_xml(bill.refNo)
+                    escaped_bill_type = escape_xml(bill.billType)
+                    bill_amt = -abs(bill.amount) if is_dr else abs(bill.amount)
+                    bill_xml += f"""
+              <BILLALLOCATIONS.LIST>
+                <NAME>{escaped_bill_name}</NAME>
+                <BILLTYPE>{escaped_bill_type}</BILLTYPE>
+                <AMOUNT>{bill_amt:.2f}</AMOUNT>
+              </BILLALLOCATIONS.LIST>"""
+            else:
+                for bill in entry.billAllocations:
+                    escaped_bill_name = escape_xml(bill.refNo)
+                    escaped_bill_type = escape_xml(bill.billType)
+                    bill_amt = -abs(bill.amount) if is_dr else abs(bill.amount)
+                    bill_xml += f"""
                                     <BILLALLOCATIONS.LIST>
                                         <NAME>{escaped_bill_name}</NAME>
                                         <BILLTYPE>{escaped_bill_type}</BILLTYPE>
@@ -2414,11 +2430,27 @@ class TallyXmlGenerator:
         # Build optional bank allocations
         bank_xml = ""
         if entry.bankAllocations:
-            for bank in entry.bankAllocations:
-                escaped_trans_type = escape_xml(bank.transType or "Inter Bank Transfer")
-                escaped_inst_no = escape_xml(bank.instNumber)
-                bank_amt = -abs(bank.amount) if is_dr else abs(bank.amount)
-                bank_xml += f"""
+            if is_accounting:
+                bank_xml = "\n              <!-- Optional: Bank Allocation Details -->"
+                for bank in entry.bankAllocations:
+                    escaped_trans_type = escape_xml(bank.transType or "Inter Bank Transfer")
+                    escaped_inst_no = escape_xml(bank.instNumber)
+                    bank_amt = -abs(bank.amount) if is_dr else abs(bank.amount)
+                    inst_date_val = bank.date or ""
+                    bank_xml += f"""
+              <BANKALLOCATIONS.LIST>
+                <DATE>{inst_date_val}</DATE>
+                <INSTRUMENTDATE>{inst_date_val}</INSTRUMENTDATE>
+                <TRANSACTIONTYPE>{escaped_trans_type}</TRANSACTIONTYPE>
+                <INSTRUMENTNUMBER>{escaped_inst_no}</INSTRUMENTNUMBER>
+                <AMOUNT>{bank_amt:.2f}</AMOUNT>
+              </BANKALLOCATIONS.LIST>"""
+            else:
+                for bank in entry.bankAllocations:
+                    escaped_trans_type = escape_xml(bank.transType or "Inter Bank Transfer")
+                    escaped_inst_no = escape_xml(bank.instNumber)
+                    bank_amt = -abs(bank.amount) if is_dr else abs(bank.amount)
+                    bank_xml += f"""
                                     <BANKALLOCATIONS.LIST>
                                         <DATE>{bank.date}</DATE>
                                         <TRANSACTIONTYPE>{escaped_trans_type}</TRANSACTIONTYPE>
@@ -2441,6 +2473,16 @@ class TallyXmlGenerator:
                                             <AMOUNT>{cost_amt:.2f}</AMOUNT>
                                         </COSTCENTREALLOCATIONS.LIST>
                                     </CATEGORYALLOCATIONS.LIST>"""
+
+        if is_accounting:
+            comment = "<!-- Debit Ledger (Bank / Cash) -->" if is_dr else "<!-- Credit Ledger (Customer / Income) -->"
+            return f"""
+            {comment}
+            <ALLLEDGERENTRIES.LIST>
+              <LEDGERNAME>{escaped_ledger_name}</LEDGERNAME>
+              <ISDEEMEDPOSITIVE>{entry.isDeemedPositive}</ISDEEMEDPOSITIVE>
+              <AMOUNT>{amount_val:.2f}</AMOUNT>{bank_xml}{bill_xml}{cost_xml}
+            </ALLLEDGERENTRIES.LIST>"""
 
         return f"""
                         <LEDGERENTRIES.LIST>

@@ -88,7 +88,7 @@ export const useFundFlowStore = create((set, get) => ({
   transactions:  [],
   totalCount:    0,
   currentPage:   1,
-  pageLimit:     20,
+  pageLimit:     50,
   filters: {
     voucherType: 'cash_payment',
     status:      '',
@@ -198,55 +198,56 @@ export const useFundFlowStore = create((set, get) => ({
         console.error("Failed to fetch company master data in fundflow:", e);
       }
 
-      if (res.success) {
-        const data = res.data;
-        if (data && !Array.isArray(data)) {
-          set({
-            masterData: {
-              ledgers: data.ledgers || [],
-              allLedgers: compData.allLedgers || [],
-              partyLedgers: compData.partyLedgers || [],
-              salesPartyLedgers: compData.salesPartyLedgers || [],
-              purchasePartyLedgers: compData.purchasePartyLedgers || [],
-              cashBankLedgers: compData.cashBankLedgers || [],
-              gstLedgers: data.gstLedgers || [],
-              tdsLedgers: data.tdsLedgers || [],
-              costCenters: data.costCenters || [],
-              costCategories: data.costCategories || [],
-              gstRates: data.gstRates || ['5%', '12%', '18%', '28%'],
-              tdsRates: data.tdsRates || ['1%', '2%', '5%', '10%'],
-              voucherTypes: compData.voucherTypes || [],
-              voucherTypesFull: compData.voucherTypesFull || [],
-              loading: false
-            }
-          });
-        } else {
-          set({
-            masterData: {
-              ledgers: data || [],
-              allLedgers: compData.allLedgers || [],
-              partyLedgers: compData.partyLedgers || [],
-              salesPartyLedgers: compData.salesPartyLedgers || [],
-              purchasePartyLedgers: compData.purchasePartyLedgers || [],
-              cashBankLedgers: compData.cashBankLedgers || [],
-              gstLedgers: [],
-              tdsLedgers: [],
-              costCenters: [],
-              costCategories: [],
-              gstRates: ['5%', '12%', '18%', '28%'],
-              tdsRates: ['1%', '2%', '5%', '10%'],
-              voucherTypes: compData.voucherTypes || [],
-              voucherTypesFull: compData.voucherTypesFull || [],
-              loading: false
-            }
-          });
-        }
+      const data = res?.data;
+      if (data && !Array.isArray(data)) {
+        set({
+          masterData: {
+            ledgers: data.ledgers || [],
+            allLedgers: compData.allLedgers || [],
+            partyLedgers: compData.partyLedgers || [],
+            salesPartyLedgers: compData.salesPartyLedgers || [],
+            purchasePartyLedgers: compData.purchasePartyLedgers || [],
+            cashBankLedgers: compData.cashBankLedgers || [],
+            gstLedgers: data.gstLedgers || [],
+            tdsLedgers: data.tdsLedgers || [],
+            costCenters: data.costCenters || [],
+            costCategories: data.costCategories || [],
+            gstRates: data.gstRates || ['5%', '12%', '18%', '28%'],
+            tdsRates: data.tdsRates || ['1%', '2%', '5%', '10%'],
+            voucherTypes: compData.voucherTypes || [],
+            voucherTypesFull: compData.voucherTypesFull || [],
+            loading: false
+          }
+        });
+      } else {
+        set({
+          masterData: {
+            ledgers: Array.isArray(data) ? data : [],
+            allLedgers: compData.allLedgers || [],
+            partyLedgers: compData.partyLedgers || [],
+            salesPartyLedgers: compData.salesPartyLedgers || [],
+            purchasePartyLedgers: compData.purchasePartyLedgers || [],
+            cashBankLedgers: compData.cashBankLedgers || [],
+            gstLedgers: [],
+            tdsLedgers: [],
+            costCenters: [],
+            costCategories: [],
+            gstRates: ['5%', '12%', '18%', '28%'],
+            tdsRates: ['1%', '2%', '5%', '10%'],
+            voucherTypes: compData.voucherTypes || [],
+            voucherTypesFull: compData.voucherTypesFull || [],
+            loading: false
+          }
+        });
       }
     } catch (err) {
       console.error("Failed to fetch fundflow master data:", err);
+    } finally {
+      // Always reset loading — prevents infinite spinner on any failure path
       set((s) => ({ masterData: { ...s.masterData, loading: false } }));
     }
   },
+
 
   fetchTransaction: async (id) => {
     set((s) => ({ loading: { ...s.loading, detail: true }, error: null }));

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Plus,
   Upload,
@@ -22,10 +22,11 @@ import {
   ChevronLeft,
   X,
   FileText,
-  ClipboardList,
+
   Check,
   Landmark,
-  Sparkles
+  Sparkles,
+  SlidersHorizontal
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
@@ -38,6 +39,7 @@ import fundflowApi from '../../services/fundflowApi';
 import bankStatementAiApi from '../../services/bankStatementAiApi';
 import BulkUploadPanel from '../bulk-upload/BulkUploadPanel';
 import BankAiReviewPanel from './BankAiReviewPanel';
+import BankRuleMappingModal from './BankRuleMappingModal';
 
 // All dropdown data is fetched dynamically from the database via useFundFlowStore.
 // No hardcoded arrays — see BankPanel component body for dynamic derivations.
@@ -46,6 +48,7 @@ const TAB_META = {
   'Manage Bank': { title: 'Bank Ledgers & Accounts', subtitle: 'Manage linked bank accounts, Tally ledgers and current balances.' },
   'Inbox': { title: 'Bank Reconciliation (BRS)', subtitle: 'Reconcile bank statement entries with Tally ledgers.' },
   'AI Voucher Review': { title: 'AI Bank Statement Voucher Review', subtitle: 'Review AI categorizations, edit counterpart ledgers, and save approved vouchers.' },
+  'Add Bank Rule': { title: 'Bank Mapping', subtitle: 'Automatically identify bank transaction patterns and map them to the correct party ledgers.' },
   'Review': { title: 'Bank Review', subtitle: 'Verify and approve matched transactions before posting.' },
   'Archive': { title: 'Bank Archive', subtitle: 'Approved transactions posted to Tally.' },
 };
@@ -54,6 +57,7 @@ const BANK_SUB_TABS = [
   { id: 'Inbox', label: 'Bank Reconciliation (BRS)', icon: FileText },
   { id: 'Manage Bank', label: 'Bank Ledgers & Accounts', icon: Landmark },
   { id: 'AI Voucher Review', label: 'AI Voucher Review', icon: Sparkles },
+  { id: 'Add Bank Rule', label: 'Bank Mapping', icon: SlidersHorizontal },
 ];
 
 
@@ -74,9 +78,11 @@ const BankPanel = ({ mode: propMode, isDark }) => {
   const [selectedUploadLedger, setSelectedUploadLedger] = useState('');
   const [aiStatementBankFilter, setAiStatementBankFilter] = useState('');
 
-
-
-  // Modals for Inbox/Review/Archive
+  // AI Statement & Batch Review State
+  const [activeBatchData, setActiveBatchData] = useState(null);
+  const [aiBatches, setAiBatches] = useState([]);
+  const [aiBatchesLoading, setAiBatchesLoading] = useState(false);
+  const [isAiStatementModalOpen, setIsAiStatementModalOpen] = useState(false);
   const [isColumnConfigOpen, setIsColumnConfigOpen] = useState(false);
   const [isInboxFilterOpen, setIsInboxFilterOpen] = useState(false);
 
@@ -157,15 +163,15 @@ const BankPanel = ({ mode: propMode, isDark }) => {
 
   const dbBankAccounts = dbBankLedgers.length > 0
     ? dbBankLedgers.map((l, i) => {
-        const ledgerName = l.ledgerName || l.name || '';
-        return {
-          id: l.id || l._id || String(i + 1),
-          bank: ledgerName,
-          accountName: l.companyName || 'Primary Account',
-          accountNumber: detectAccountNumber(ledgerName) || '—',
-          ledger: ledgerName
-        };
-      })
+      const ledgerName = l.ledgerName || l.name || '';
+      return {
+        id: l.id || l._id || String(i + 1),
+        bank: ledgerName,
+        accountName: l.companyName || 'Primary Account',
+        accountNumber: detectAccountNumber(ledgerName) || '—',
+        ledger: ledgerName
+      };
+    })
     : [];
 
   useEffect(() => {
@@ -204,87 +210,99 @@ const BankPanel = ({ mode: propMode, isDark }) => {
 
   const allTransactions = fundFlowStore.transactions || [];
 
-  const inboxData = allTransactions.length > 0
-    ? allTransactions
-        .filter(tx => tx.status === 'draft' || tx.status === 'failed_tally')
-        .map(tx => {
-          const partyNames = (tx.ledgerRows || []).map(r => r.ledgerName).filter(Boolean).join(', ') || tx.partyLedger || '—';
-          return {
-            id: tx._id,
-            date: tx.voucherDate ? new Date(tx.voucherDate).toLocaleDateString('en-IN') : '—',
-            description: tx.narration || `Manual Entry Voucher ${tx.voucherNumber}`,
-            amount: (parseFloat(tx.amount) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }),
-            type: tx.voucherType === 'cash_payment' ? 'Payment' : 'Receipt',
-            party: partyNames
-          };
-        })
-    : [];
+  const inboxData = useMemo(() => {
+    if (!allTransactions || allTransactions.length === 0) return [];
+    return allTransactions
+      .filter(tx => tx.status === 'draft' || tx.status === 'failed_tally')
+      .map(tx => {
+        const partyNames = (tx.ledgerRows || []).map(r => r.ledgerName).filter(Boolean).join(', ') || tx.partyLedger || tx.partyLedgerName || '—';
+        const typeStr = tx.voucherTypeName || (tx.voucherType === 'bank_payment' ? 'Receipt' : tx.voucherType === 'cash_payment' ? 'Payment' : (tx.voucherType || 'Payment'));
+        const vDate = tx.voucherDate || tx.dates?.voucherDate || (tx.dates?.date ? new Date(tx.dates.date).toLocaleDateString('en-IN') : '—');
+        return {
+          id: tx._id,
+          date: typeof vDate === 'string' ? vDate : new Date(vDate).toLocaleDateString('en-IN'),
+          description: tx.narration || `Manual Entry Voucher ${tx.voucherNumber}`,
+          amount: (parseFloat(tx.amount || tx.totals?.grandTotal || 0) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }),
+          type: typeStr,
+          party: partyNames
+        };
+      });
+  }, [allTransactions]);
 
-  const reviewData = allTransactions.length > 0
-    ? allTransactions
-        .filter(tx => tx.status === 'pending_approval')
-        .map(tx => {
-          const partyNames = (tx.ledgerRows || []).map(r => r.ledgerName).filter(Boolean).join(', ') || tx.partyLedger || '—';
-          return {
-            id: tx._id,
-            date: tx.voucherDate ? new Date(tx.voucherDate).toLocaleDateString('en-IN') : '—',
-            description: tx.narration || `Voucher ${tx.voucherNumber}`,
-            amount: (parseFloat(tx.amount) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }),
-            type: tx.voucherType === 'cash_payment' ? 'Payment' : 'Receipt',
-            party: partyNames,
-            status: 'Pending'
-          };
-        })
-    : [];
+  const reviewData = useMemo(() => {
+    if (!allTransactions || allTransactions.length === 0) return [];
+    return allTransactions
+      .filter(tx => tx.status === 'pending_approval' || tx.status === 'review_required')
+      .map(tx => {
+        const partyNames = (tx.ledgerRows || []).map(r => r.ledgerName).filter(Boolean).join(', ') || tx.partyLedger || tx.partyLedgerName || '—';
+        const typeStr = tx.voucherTypeName || (tx.voucherType === 'bank_payment' ? 'Receipt' : tx.voucherType === 'cash_payment' ? 'Payment' : (tx.voucherType || 'Payment'));
+        const vDate = tx.voucherDate || tx.dates?.voucherDate || (tx.dates?.date ? new Date(tx.dates.date).toLocaleDateString('en-IN') : '—');
+        return {
+          id: tx._id,
+          date: typeof vDate === 'string' ? vDate : new Date(vDate).toLocaleDateString('en-IN'),
+          description: tx.narration || `Voucher ${tx.voucherNumber}`,
+          amount: (parseFloat(tx.amount || tx.totals?.grandTotal || 0) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }),
+          type: typeStr,
+          party: partyNames,
+          status: 'Pending'
+        };
+      });
+  }, [allTransactions]);
 
-  const archiveData = allTransactions.length > 0
-    ? allTransactions
-        .filter(tx => tx.status === 'approved' || tx.status === 'posted_to_tally')
-        .map(tx => {
-          const partyNames = (tx.ledgerRows || []).map(r => r.ledgerName).filter(Boolean).join(', ') || tx.partyLedger || '—';
-          return {
-            id: tx._id,
-            date: tx.voucherDate ? new Date(tx.voucherDate).toLocaleDateString('en-IN') : '—',
-            description: tx.narration || `Posted Voucher ${tx.voucherNumber}`,
-            amount: (parseFloat(tx.amount) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }),
-            type: tx.voucherType === 'cash_payment' ? 'Payment' : 'Receipt',
-            party: partyNames,
-            status: 'Approved'
-          };
-        })
-    : [];
+  const archiveData = useMemo(() => {
+    if (!allTransactions || allTransactions.length === 0) return [];
+    return allTransactions
+      .filter(tx => tx.status === 'approved' || tx.status === 'posted_to_tally' || tx.status === 'ACTIVE' || tx.entryMode === 'bank_upload' || tx.source === 'bank_upload')
+      .map(tx => {
+        const partyNames = (tx.ledgerRows || []).map(r => r.ledgerName).filter(Boolean).join(', ') || tx.partyLedger || tx.partyLedgerName || '—';
+        const typeStr = tx.voucherTypeName || (tx.voucherType === 'bank_payment' ? 'Receipt' : tx.voucherType === 'cash_payment' ? 'Payment' : (tx.voucherType || 'Receipt'));
+        const vDate = tx.voucherDate || tx.dates?.voucherDate || (tx.dates?.date ? new Date(tx.dates.date).toLocaleDateString('en-IN') : '—');
+        return {
+          id: tx._id,
+          date: typeof vDate === 'string' ? vDate : new Date(vDate).toLocaleDateString('en-IN'),
+          description: tx.narration || `Voucher ${tx.voucherNumber}`,
+          amount: (parseFloat(tx.amount || tx.totals?.grandTotal || 0) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }),
+          type: typeStr,
+          party: partyNames,
+          status: tx.status === 'posted_to_tally' ? 'Posted' : 'Approved'
+        };
+      });
+  }, [allTransactions]);
 
-  const fallbackBanks = ['HDFC Bank', 'ICICI Bank', 'State Bank of India', 'Axis Bank', 'Kotak Mahindra Bank', 'Punjab National Bank', 'HSBC', 'Standard Chartered', 'DBS Bank', 'Yes Bank'];
-  const dynamicBanks = Array.from(new Set([...dbBankAccounts.map(a => a.bank), ...fallbackBanks])).filter(Boolean);
-  const fallbackBankLedgers = ['Primary Bank Account', 'HDFC Bank Account', 'ICICI Bank Account', 'SBI Bank Account', 'Axis Bank Account'];
-  const storeBankLedgers = Array.from(verifiedBankLedgerNames);
-  const derivedBankLedgers = dbBankAccounts.map(a => a.ledger).filter(Boolean);
-  const realBankLedgers = Array.from(new Set([...derivedBankLedgers, ...storeBankLedgers])).filter(Boolean);
-  const dynamicBankLedgers = realBankLedgers.length > 0 ? realBankLedgers : fallbackBankLedgers;
+  const allLedgers = useMemo(() => {
+    return Array.from(new Set([
+      ...(fundFlowStore.masterData?.allLedgers || []),
+      ...(fundFlowStore.masterData?.partyLedgers || []),
+      ...((fundFlowStore.masterData?.ledgers || []).map(l => (typeof l === 'string' ? l : (l.ledgerName || l.name || '')))),
+    ])).filter(Boolean).sort((a, b) => a.localeCompare(b));
+  }, [fundFlowStore.masterData]);
 
-  const fallbackLedgerGroups = ['Bank Accounts', 'Bank OD A/c', 'Cash-in-Hand', 'Current Assets', 'Loans (Liability)', 'Indirect Expenses', 'Indirect Incomes', 'Suspense Account'];
+  const dynamicBanks = useMemo(() => Array.from(new Set(dbBankAccounts.map(a => a.bank))).filter(Boolean), [dbBankAccounts]);
+  const storeBankLedgers = useMemo(() => Array.from(verifiedBankLedgerNames), [verifiedBankLedgerNames]);
+  const derivedBankLedgers = useMemo(() => dbBankAccounts.map(a => a.ledger).filter(Boolean), [dbBankAccounts]);
+  const batchBankLedgers = useMemo(() => (aiBatches || []).map(b => b.bank_ledger || b.bankLedger).filter(Boolean), [aiBatches]);
+  const realBankLedgers = useMemo(() => Array.from(new Set([...batchBankLedgers, ...derivedBankLedgers, ...storeBankLedgers])).filter(Boolean), [batchBankLedgers, derivedBankLedgers, storeBankLedgers]);
+  const dynamicBankLedgers = realBankLedgers;
+
   const dynamicLedgerGroups = Array.from(new Set((fundFlowStore.masterData?.ledgers || []).map(l => l.groupName).filter(Boolean)));
-  const finalLedgerGroups = dynamicLedgerGroups.length > 0 ? dynamicLedgerGroups : fallbackLedgerGroups;
+  const finalLedgerGroups = dynamicLedgerGroups;
 
   const dynamicAccountNumbers = dbBankAccounts.map(a => a.accountNumber).filter(num => num && num !== '—');
 
-  const fallbackPaymentModes = ['NEFT', 'RTGS', 'IMPS', 'UPI', 'Cheque', 'Cash', 'Credit Card', 'Debit Card'];
   const dynamicPaymentModes = Array.from(new Set(
     allTransactions.map(tx => tx.instType || tx.paymentMode).filter(Boolean)
   ));
-  const finalPaymentModes = dynamicPaymentModes.length > 0 ? dynamicPaymentModes : fallbackPaymentModes;
+  const finalPaymentModes = dynamicPaymentModes;
 
-  const fallbackTransactionTypes = ['Payment', 'Receipt', 'Contra', 'Transfer'];
   const dynamicTransactionTypes = Array.from(new Set(
     (fundFlowStore.masterData?.voucherTypesFull || []).map(vt => vt.parent || vt.name).filter(Boolean)
   ));
-  const finalTransactionTypes = dynamicTransactionTypes.length > 0 ? dynamicTransactionTypes : fallbackTransactionTypes;
+  const finalTransactionTypes = dynamicTransactionTypes;
 
-  const fallbackReplacedTypes = ['Sales', 'Purchase', 'Expense', 'Salary', 'Rent', 'Tax Payment', 'Insurance'];
   const dynamicReplacedTypesObj = Array.from(new Set(
     (fundFlowStore.masterData?.ledgers || []).map(l => l.groupName).filter(Boolean)
   ));
-  const dynamicReplacedTypes = dynamicReplacedTypesObj.length > 0 ? dynamicReplacedTypesObj : fallbackReplacedTypes;
+  const dynamicReplacedTypes = dynamicReplacedTypesObj;
 
   const dynamicPartyLedgers = Array.from(new Set(
     (fundFlowStore.masterData?.ledgers || [])
@@ -480,11 +498,6 @@ const BankPanel = ({ mode: propMode, isDark }) => {
     }
   };
 
-  const [activeBatchData, setActiveBatchData] = useState(null);
-  const [aiBatches, setAiBatches] = useState([]);
-  const [aiBatchesLoading, setAiBatchesLoading] = useState(false);
-  const [isAiStatementModalOpen, setIsAiStatementModalOpen] = useState(false);
-
   const fetchAiBatches = async () => {
     setAiBatchesLoading(true);
     try {
@@ -500,7 +513,7 @@ const BankPanel = ({ mode: propMode, isDark }) => {
   };
 
   useEffect(() => {
-    if (activeTab === 'AI Voucher Review') {
+    if (activeTab === 'AI Voucher Review' || activeTab === 'Add Bank Rule') {
       fetchAiBatches();
     }
   }, [activeTab]);
@@ -561,7 +574,66 @@ const BankPanel = ({ mode: propMode, isDark }) => {
     }
   };
 
+  const targetBankForRules = selectedBank || dynamicBankLedgers[0] || '';
+  const effectiveBatchForRules = activeBatchData || (aiBatches?.find(b => (b.bank_ledger || '').toLowerCase().includes(targetBankForRules.toLowerCase())) || aiBatches?.[0]);
+
+  const memoizedInitialMappings = useMemo(() => {
+    if (!effectiveBatchForRules) return null;
+    if (effectiveBatchForRules.ledger_mappings && effectiveBatchForRules.ledger_mappings.length > 0) {
+      return effectiveBatchForRules.ledger_mappings;
+    }
+    if (!effectiveBatchForRules.items || effectiveBatchForRules.items.length === 0) return null;
+    const bId = effectiveBatchForRules.batch_id || effectiveBatchForRules._id;
+    return effectiveBatchForRules.items.map(it => ({
+      patternId: it.item_id,
+      item_id: it.item_id,
+      batch_id: bId,
+      date: it.voucherDate || '',
+      amount: Number(it.amount || 0),
+      voucherType: it.voucherType || 'Payment',
+      narration: it.narration || '',
+      referenceNumber: it.referenceNumber || it.instNumber || '—',
+      extractedParty: it.extractedParty || it.partyLedger || '',
+      partyText: it.extractedParty || it.partyLedger || '',
+      extractedPattern: it.extractedParty || it.partyLedger || '',
+      channel: it.paymentMode || '',
+      sampleNarration: it.narration || '',
+      suggestedLedger: it.partyLedger || it.againstLedger || '',
+      confidence: it.confidence || (it.partyLedger ? 100 : 50),
+      mappingMethod: it.mappingMethod || (it.partyLedger ? 'System • Exact Match' : 'Unmapped'),
+      transactionCount: 1,
+      transactions: [it]
+    }));
+  }, [
+    effectiveBatchForRules?._id,
+    effectiveBatchForRules?.batch_id,
+    effectiveBatchForRules?.items?.length,
+    effectiveBatchForRules?.ledger_mappings
+  ]);
+
   const renderActive = () => {
+    if (activeTab === 'Add Bank Rule') {
+      return (
+        <div className="flex-1 h-[calc(100vh-80px)] w-full overflow-hidden">
+          <BankRuleMappingModal
+            isOpen={true}
+            onClose={() => setActiveTab('AI Voucher Review')}
+            currentBankLedger={effectiveBatchForRules?.bank_ledger || targetBankForRules}
+            availableBankLedgers={dynamicBankLedgers}
+            allLedgersList={allLedgers}
+            batchId={effectiveBatchForRules?.batch_id || effectiveBatchForRules?._id}
+            initialMappings={memoizedInitialMappings}
+            onRulesApplied={(updatedBatch) => {
+              if (updatedBatch) {
+                setActiveBatchData(updatedBatch);
+              }
+              fetchAiBatches();
+            }}
+          />
+        </div>
+      );
+    }
+
     if (activeTab === 'AI Voucher Review') {
       if (activeBatchData) {
         return (
@@ -575,6 +647,7 @@ const BankPanel = ({ mode: propMode, isDark }) => {
               fundFlowStore.fetchTransactions();
               fetchAiBatches();
             }}
+            onNavigateToAddRule={() => setActiveTab('Add Bank Rule')}
           />
         );
       }
@@ -891,8 +964,8 @@ const BankPanel = ({ mode: propMode, isDark }) => {
 
 
   if (activeTab === 'Manage Bank' && selectedBankRow) {
-    const bankTransactions = allTransactions.filter(tx => 
-      tx.againstLedger === selectedBankRow.ledger || 
+    const bankTransactions = allTransactions.filter(tx =>
+      tx.againstLedger === selectedBankRow.ledger ||
       tx.bankLedger === selectedBankRow.ledger ||
       (tx.ledgerRows || []).some(r => r.ledgerName === selectedBankRow.ledger)
     );
@@ -935,11 +1008,10 @@ const BankPanel = ({ mode: propMode, isDark }) => {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                isActive
+              className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${isActive
                   ? 'bg-[var(--app-accent)] text-white shadow-xs'
                   : 'text-[var(--app-muted)] hover:text-[var(--app-heading)] hover:bg-[var(--app-control-hover)]'
-              }`}
+                }`}
             >
               <TabIcon size={14} strokeWidth={2.2} />
               <span>{tab.label}</span>
@@ -1002,7 +1074,7 @@ const BankPanel = ({ mode: propMode, isDark }) => {
       </FilterDrawer>}
 
       {/* Clean Header Bar */}
-      {activeTab !== 'AI Voucher Review' && (
+      {activeTab !== 'AI Voucher Review' && activeTab !== 'Add Bank Rule' && (
         <div className="rounded-xl border p-3 shrink-0" style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-panel-bg)' }}>
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-3">
@@ -1388,7 +1460,7 @@ const AddBankModal = ({ onClose, BANKS: propBanks, BANK_LEDGERS: propLedgers }) 
 
   const bankLedgerNames = propLedgers && propLedgers.length > 0
     ? propLedgers
-    : (dbBankLedgers.length > 0 
+    : (dbBankLedgers.length > 0
       ? dbBankLedgers.map(l => l.ledgerName || l.name).filter(Boolean)
       : []);
 
@@ -1700,11 +1772,10 @@ const BankDetailsPage = ({ row, details, loading, balance, transactions: initial
                 <button
                   key={s.id}
                   onClick={() => setSourceFilter(s.id)}
-                  className={`px-2.5 py-1 rounded-md text-[11px] font-extrabold transition-all ${
-                    sourceFilter === s.id
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-extrabold transition-all ${sourceFilter === s.id
                       ? 'bg-[var(--app-accent)] text-white shadow-xs'
                       : 'border text-[var(--app-muted)] hover:text-[var(--app-heading)]'
-                  }`}
+                    }`}
                   style={sourceFilter !== s.id ? { borderColor: 'var(--app-border)' } : {}}
                 >
                   {s.label}
@@ -1724,11 +1795,10 @@ const BankDetailsPage = ({ row, details, loading, balance, transactions: initial
                 <button
                   key={t.id}
                   onClick={() => setTypeFilter(t.id)}
-                  className={`px-2.5 py-1 rounded-md text-[11px] font-extrabold transition-all ${
-                    typeFilter === t.id
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-extrabold transition-all ${typeFilter === t.id
                       ? 'bg-[var(--app-heading)] text-white shadow-xs'
                       : 'border text-[var(--app-muted)] hover:text-[var(--app-heading)]'
-                  }`}
+                    }`}
                   style={typeFilter !== t.id ? { borderColor: 'var(--app-border)' } : {}}
                 >
                   {t.label}
@@ -1821,10 +1891,9 @@ const BankDetailsPage = ({ row, details, loading, balance, transactions: initial
                               <td className="py-2.5 font-bold text-[var(--app-heading)] font-mono">{tx.voucherNumber || '—'}</td>
                               <td className="py-2.5">{getSourceBadge(tx.source)}</td>
                               <td className="py-2.5 font-bold">
-                                <span className={`px-2 py-0.5 rounded text-[9.5px] uppercase font-black tracking-wider ${
-                                  tx.voucherType === 'Receipt' ? 'bg-emerald-500/10 text-emerald-500' :
-                                  tx.voucherType === 'Payment' ? 'bg-rose-500/10 text-rose-500' : 'bg-blue-500/10 text-blue-500'
-                                }`}>
+                                <span className={`px-2 py-0.5 rounded text-[9.5px] uppercase font-black tracking-wider ${tx.voucherType === 'Receipt' ? 'bg-emerald-500/10 text-emerald-500' :
+                                    tx.voucherType === 'Payment' ? 'bg-rose-500/10 text-rose-500' : 'bg-blue-500/10 text-blue-500'
+                                  }`}>
                                   {tx.voucherType}
                                 </span>
                               </td>

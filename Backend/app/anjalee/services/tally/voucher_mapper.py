@@ -61,7 +61,7 @@ class TallyVoucher(BaseModel):
 
 class VoucherMapper:
     @staticmethod
-    def map_to_tally_voucher(doc: Dict[str, Any], company_name: str = "Default Company") -> TallyVoucher:
+    def map_to_tally_voucher(doc: Dict[str, Any], company_name: str = "Your Company Name") -> TallyVoucher:
         """
         Converts MongoDB document to unified TallyVoucher model.
         Supports:
@@ -69,16 +69,19 @@ class VoucherMapper:
         - Purchase vouchers
         - Fund flow vouchers
         """
-        raw_vch_type = doc.get("voucherType") or ""
+        if not company_name or str(company_name).startswith("sf_tenant_") or str(company_name).startswith("finbook_") or str(company_name).startswith("tenant_"):
+            company_name = "Your Company Name"
+
+        raw_vch_type = doc.get("voucherTypeName") or doc.get("voucherType") or ""
         vch_type_lower = raw_vch_type.lower()
         
         # 1. Parse Date (YYYY-MM-DD -> YYYYMMDD)
-        raw_date = doc.get("voucherDate") or datetime.utcnow().strftime("%Y-%m-%d")
-        vch_date = raw_date.replace("-", "").replace("/", "")
+        raw_date = doc.get("voucherDate") or (doc.get("dates", {}).get("voucherDate") if isinstance(doc.get("dates"), dict) else None) or datetime.utcnow().strftime("%Y-%m-%d")
+        vch_date = str(raw_date).replace("-", "").replace("/", "").split("T")[0]
         
         # 2. Get voucher number and reference
-        vch_num = doc.get("voucherNumber") or "AUTO"
-        ref_num = doc.get("referenceNumber") or ""
+        vch_num = str(doc.get("voucherNumber") or "AUTO")
+        ref_num = doc.get("referenceNumber") or (doc.get("reference", {}).get("reference") if isinstance(doc.get("reference"), dict) else "") or ""
         narr = doc.get("narration") or doc.get("remarks") or ""
         
         # 3. Derive masterId and alterId from MongoDB _id
@@ -472,9 +475,106 @@ class VoucherMapper:
         amount = float(doc.get("amount") or doc.get("transferAmount") or doc.get("amountReceived") or 0.0)
         ledger_entries = []
 
+        # Check if doc already has structured ledgerEntries (exact vouchers schema)
+        if doc.get("ledgerEntries") and len(doc["ledgerEntries"]) > 0:
+            for le in doc["ledgerEntries"]:
+                l_name = le.get("ledgerName") or "General Ledger"
+                is_pos = le.get("isDeemedPositive") or ("Yes" if (le.get("drCrType") == "Dr" or float(le.get("amount") or 0) < 0) else "No")
+                l_amt = float(le.get("amount") or 0.0)
+                is_dr = (is_pos == "Yes")
+                mapped_amt = -abs(l_amt) if is_dr else abs(l_amt)
+
+                # Attach bank allocations if bank ledger or explicitly present on entry
+                bank_allocs = []
+                if le.get("bankAllocations"):
+                    for ba in le["bankAllocations"]:
+                        bank_allocs.append(TallyBankAllocation(
+                            date=ba.get("instrumentDate") or ba.get("date") or vch_date,
+                            instNumber=ba.get("instrumentNumber") or ba.get("instNumber") or "",
+                            transType=ba.get("transactionType") or ba.get("transType") or ba.get("paymentMode") or "Inter Bank Transfer",
+                            amount=float(ba.get("amount") or mapped_amt)
+                        ))
+                else:
+                    is_bank_l = (
+                        "bank" in l_name.lower() or 
+                        "cash" in l_name.lower() or 
+                        le.get("isBank") or
+                        (doc.get("bankLedger") and l_name.lower() == str(doc.get("bankLedger")).lower()) or
+                        (category == "receipt" and is_dr) or 
+                        (category == "payment" and not is_dr)
+                    )
+
+                    if is_bank_l:
+                        if doc.get("bankAllocations"):
+                            for ba in doc["bankAllocations"]:
+                                bank_allocs.append(TallyBankAllocation(
+                                    date=ba.get("instrumentDate") or ba.get("date") or vch_date,
+                                    instNumber=ba.get("instrumentNumber") or ba.get("instNumber") or "",
+                                    transType=ba.get("transactionType") or ba.get("transType") or ba.get("paymentMode") or "Inter Bank Transfer",
+                                    amount=float(ba.get("amount") or mapped_amt)
+                                ))
+                        else:
+                            b_inst = (
+                                doc.get("instNumber") or 
+                                doc.get("referenceNumber") or 
+                                (doc.get("reference", {}).get("reference") if isinstance(doc.get("reference"), dict) else "") or 
+                                ""
+                            )
+                            raw_mode = doc.get("transType") or doc.get("paymentMode") or doc.get("channel") or "Inter Bank Transfer"
+                            mode_upper = str(raw_mode).upper()
+                            if any(x in mode_upper for x in ["NEFT", "RTGS", "IMPS", "UPI", "TRANSFER", "IBT"]):
+                                b_trans = "Inter Bank Transfer"
+                            elif "CHEQUE" in mode_upper or "CHQ" in mode_upper:
+                                b_trans = "Cheque"
+                            else:
+                                b_trans = "Inter Bank Transfer"
+
+                            bank_allocs.append(TallyBankAllocation(
+                                date=vch_date,
+                                instNumber=b_inst,
+                                transType=b_trans,
+                                amount=mapped_amt
+                            ))
+
+                # Attach bill allocations if present on entry or counterparty ledger
+                bill_allocs = []
+                if le.get("billAllocations"):
+                    for b in le["billAllocations"]:
+                        bill_allocs.append(TallyBillAllocation(
+                            refNo=b.get("name") or b.get("billNo") or b.get("refNo") or vch_num,
+                            billType=b.get("billType") or "Agst Ref",
+                            amount=float(b.get("amount") or abs(l_amt))
+                        ))
+                else:
+                    is_bank_l = "bank" in l_name.lower() or "cash" in l_name.lower() or le.get("isBank")
+                    if not is_bank_l:
+                        if doc.get("billAllocations"):
+                            for b in doc["billAllocations"]:
+                                bill_allocs.append(TallyBillAllocation(
+                                    refNo=b.get("name") or b.get("billNo") or b.get("refNo") or vch_num,
+                                    billType=b.get("billType") or "Agst Ref",
+                                    amount=float(b.get("amount") or abs(l_amt))
+                                ))
+                        elif doc.get("billRows"):
+                            for bill in doc.get("billRows") or []:
+                                b_amt = float(bill.get("allocationAmount") or bill.get("amount") or abs(l_amt))
+                                b_ref = bill.get("billNo") or bill.get("name") or bill.get("bill_name") or vch_num
+                                b_type = bill.get("billType") or "Agst Ref"
+                                bill_allocs.append(TallyBillAllocation(
+                                    refNo=b_ref,
+                                    billType=b_type,
+                                    amount=b_amt
+                                ))
+
+                ledger_entries.append(TallyLedgerEntry(
+                    ledgerName=l_name,
+                    amount=mapped_amt,
+                    isDeemedPositive=is_pos,
+                    billAllocations=bill_allocs,
+                    bankAllocations=bank_allocs
+                ))
         # Check if there are complex ledger rows
-        ledger_rows = doc.get("ledgerRows") or []
-        if ledger_rows:
+        elif ledger_rows := doc.get("ledgerRows"):
             header_dr_cr = doc.get("drCrType") or ""
             default_dr_cr = "Cr" if "cr" in header_dr_cr.lower() else "Dr"
             
@@ -576,15 +676,24 @@ class VoucherMapper:
 
             # Bill allocations mapping
             bill_allocs = []
-            for bill in doc.get("billRows") or []:
-                bill_amt = float(bill.get("allocationAmount") or bill.get("amount") or amount)
-                bill_ref = bill.get("refNo") or bill.get("invoiceRefNo") or vch_num
-                bill_type = bill.get("billType") or "Against Ref"
-                bill_allocs.append(TallyBillAllocation(
-                    refNo=bill_ref,
-                    billType=bill_type,
-                    amount=-bill_amt if category == "payment" else bill_amt
-                ))
+            if doc.get("billAllocations"):
+                for b in doc["billAllocations"]:
+                    bill_amt = float(b.get("amount") or amount)
+                    bill_allocs.append(TallyBillAllocation(
+                        refNo=b.get("name") or b.get("billNo") or b.get("refNo") or vch_num,
+                        billType=b.get("billType") or "Agst Ref",
+                        amount=-bill_amt if category == "payment" else bill_amt
+                    ))
+            elif doc.get("billRows"):
+                for bill in doc.get("billRows") or []:
+                    bill_amt = float(bill.get("allocationAmount") or bill.get("amount") or amount)
+                    bill_ref = bill.get("refNo") or bill.get("invoiceRefNo") or vch_num
+                    bill_type = bill.get("billType") or "Against Ref"
+                    bill_allocs.append(TallyBillAllocation(
+                        refNo=bill_ref,
+                        billType=bill_type,
+                        amount=-bill_amt if category == "payment" else bill_amt
+                    ))
                 
             if not bill_allocs and category == "payment":
                 bill_allocs.append(TallyBillAllocation(
@@ -595,7 +704,15 @@ class VoucherMapper:
 
             # Bank allocations mapping
             bank_allocs = []
-            if doc.get("bankLedger") and (doc.get("instNumber") or doc.get("transType")):
+            if doc.get("bankAllocations"):
+                for ba in doc["bankAllocations"]:
+                    bank_allocs.append(TallyBankAllocation(
+                        date=ba.get("instrumentDate") or ba.get("date") or vch_date,
+                        instNumber=ba.get("instrumentNumber") or ba.get("instNumber") or "",
+                        transType=ba.get("transactionType") or ba.get("transType") or ba.get("paymentMode") or "Inter Bank Transfer",
+                        amount=float(ba.get("amount") or (-amount if category == "receipt" else amount))
+                    ))
+            elif doc.get("bankLedger") and (doc.get("instNumber") or doc.get("transType")):
                 bank_allocs.append(TallyBankAllocation(
                     date=vch_date,
                     instNumber=doc.get("instNumber") or "",

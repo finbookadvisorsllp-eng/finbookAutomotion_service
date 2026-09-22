@@ -48,6 +48,13 @@ class TallyPushService:
         # 1. Load voucher from MongoDB
         voucher_doc = await db_find_one(db, collection_name, {"_id": ObjectId(voucher_id)})
         if not voucher_doc:
+            for fallback_coll in ["vouchers", "fund_flow_vouchers", "fund_flow_transactions", "sales_vouchers", "purchase_vouchers"]:
+                if fallback_coll != collection_name:
+                    voucher_doc = await db_find_one(db, fallback_coll, {"_id": ObjectId(voucher_id)})
+                    if voucher_doc:
+                        collection_name = fallback_coll
+                        break
+        if not voucher_doc:
             raise ValueError(f"Voucher not found in collection '{collection_name}' with ID '{voucher_id}'")
 
         # Resolve companyName from companies collection
@@ -143,6 +150,18 @@ class TallyPushService:
             }
             await db_insert_one(db, "tally_payloads", payload_doc)
 
+        # Also sync tallyXml to the voucher document across possible collections
+        for coll in set([collection_name, "fund_flow_transactions", "fund_flow_vouchers", "vouchers"]):
+            try:
+                await db_update_one(db, coll, {"_id": ObjectId(voucher_id)}, {
+                    "$set": {
+                        "tallyXml": xml_payload,
+                        "tally_xml": xml_payload
+                    }
+                })
+            except Exception:
+                pass
+
         return xml_payload
 
     @staticmethod
@@ -156,6 +175,13 @@ class TallyPushService:
             return  # Already pushed, do not regenerate
 
         voucher_doc = await db_find_one(db, collection_name, {"_id": ObjectId(voucher_id)})
+        if not voucher_doc:
+            for fallback_coll in ["vouchers", "fund_flow_vouchers", "fund_flow_transactions", "sales_vouchers", "purchase_vouchers"]:
+                if fallback_coll != collection_name:
+                    voucher_doc = await db_find_one(db, fallback_coll, {"_id": ObjectId(voucher_id)})
+                    if voucher_doc:
+                        collection_name = fallback_coll
+                        break
         if not voucher_doc:
             return
 
@@ -231,6 +257,18 @@ class TallyPushService:
                 "status": "Ready To Push"
             }
         })
+
+        # Also sync tallyXml to the voucher document across possible collections
+        for coll in set([collection_name, "fund_flow_transactions", "fund_flow_vouchers", "vouchers"]):
+            try:
+                await db_update_one(db, coll, {"_id": ObjectId(voucher_id)}, {
+                    "$set": {
+                        "tallyXml": xml_payload,
+                        "tally_xml": xml_payload
+                    }
+                })
+            except Exception:
+                pass
 
     @staticmethod
     def handle_voucher_update_sync(db, voucher_id: str, collection_name: str) -> None:
@@ -355,7 +393,11 @@ class TallyPushService:
                 }
             }
         }
-        await db_update_one(db, collection_name, {"_id": ObjectId(voucher_id)}, update_op)
+        for coll in set([collection_name, "fund_flow_transactions", "fund_flow_vouchers", "vouchers"]):
+            try:
+                await db_update_one(db, coll, {"_id": ObjectId(voucher_id)}, update_op)
+            except Exception:
+                pass
 
         return {
             "success": response_status == "Success",

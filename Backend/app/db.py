@@ -226,9 +226,24 @@ def resolve_db_name(company_ref: str) -> str:
     if company_ref in _tenant_cache:
         return _tenant_cache[company_ref]
 
-    # 3. Scan all existing tenant databases for a matching companyName, basicCompantFormalName, or _id
+    # 3. Check if existing tenant database with prefix exists and has data
     try:
         all_dbs = client.list_database_names()
+        for prefix in ["sf_tenant_", "finbook_tenant_", "tenant_"]:
+            cand_db = f"{prefix}{company_ref}"
+            if cand_db in all_dbs:
+                try:
+                    if client[cand_db]["ledgers"].count_documents({}) > 0 or client[cand_db]["vouchers"].count_documents({}) > 0:
+                        _tenant_cache[company_ref] = cand_db
+                        return cand_db
+                except Exception:
+                    pass
+        for prefix in ["sf_tenant_", "finbook_tenant_", "tenant_"]:
+            cand_db = f"{prefix}{company_ref}"
+            if cand_db in all_dbs:
+                _tenant_cache[company_ref] = cand_db
+                return cand_db
+
         for db_name in all_dbs:
             if db_name.startswith("sf_tenant") or db_name.startswith("finbook") or db_name.startswith("tenant_"):
                 query_comp = [{"companyName": company_ref}, {"basicCompantFormalName": company_ref}]
