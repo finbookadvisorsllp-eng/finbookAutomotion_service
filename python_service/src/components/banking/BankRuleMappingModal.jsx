@@ -1917,9 +1917,9 @@ export default function BankRuleMappingModal({
               </button>
             </div>
 
-            {/* Main Content Split Area: Left Table & Right Drawer */}
+            {/* Main Content: Single Full-Width Pattern Table with Accordion */}
             <div className="flex-1 flex min-h-0 overflow-hidden bg-slate-50/20">
-              {/* Left Column: Pattern Table */}
+              {/* Full-Width Pattern Table */}
               <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
                 <div className="flex-1 overflow-y-auto min-h-0">
                   <table className="w-full text-left border-collapse">
@@ -1957,10 +1957,10 @@ export default function BankRuleMappingModal({
                             (pat.transactions && pat.transactions[0]?.narration) || pat.pattern || '';
 
                           return (
-                            <tr
-                              key={pat.id}
-                              className={`hover:bg-blue-50/20 transition-colors ${isSelected ? 'bg-blue-50/40' : ''}`}
-                            >
+                            <React.Fragment key={pat.id}>
+                             <tr
+                               className={`hover:bg-blue-50/20 transition-colors ${isSelected ? 'bg-blue-50/60' : ''}`}
+                             >
                               {/* 1. Pattern / Transaction Type */}
                               <td className="py-1.5 px-3">
                                 <div className="flex items-center gap-2">
@@ -2066,6 +2066,343 @@ export default function BankRuleMappingModal({
                                 )}
                               </td>
                             </tr>
+
+                            {/* ─── Inline Accordion Expansion ─── */}
+                            {isSelected && (() => {
+                              const eff = getEffectivePatternData(pat);
+                              const isAppl = appliedPatternIds.has(pat.id) || appliedPatternIds.has(pat.txnType) || appliedPatternIds.has(pat.channel);
+                              const distList = eff.distinctParties || [];
+                              const sampNarr = (pat.raw?.sampleNarrations && pat.raw.sampleNarrations[0]) || (pat.transactions && pat.transactions[0]?.narration) || pat.pattern || '';
+                              const sampNarrList = ((pat.sampleNarrations && pat.sampleNarrations.length > 0) ? pat.sampleNarrations : (pat.transactions && pat.transactions.length > 0) ? pat.transactions.map(t => t.narration) : [sampNarr]).filter(Boolean).slice(0, 3);
+                              const tokList = pat.tokens && pat.tokens.length > 0 ? pat.tokens : (pat.raw?.tokens || []);
+                              const sep2 = (pat.separator && pat.separator.includes(',')) ? pat.separator.split(',')[0].trim() : (pat.separator || '/');
+                              const realPts = sampNarr ? (sep2 === ' ' ? sampNarr.trim().split(/\s+/) : sampNarr.split(sep2).map(s => s.trim())) : [];
+                              let maxToks = realPts.length;
+                              (pat.transactions || []).forEach(tx => { const n = tx.narration || tx.sampleNarration || ''; if (n) { const p = sep2 === ' ' ? n.trim().split(/\s+/) : n.split(sep2); if (p.length > maxToks) maxToks = p.length; } });
+                              const dynCnt = Math.max(maxToks, 1);
+                              const badgeCfg2 = getTypeBadgeConfig(pat.txnType);
+                              return (
+                                <tr key={`${pat.id}-acc`} className="bg-slate-50/70">
+                                  <td colSpan={6} className="p-3">
+                                    <div className="rounded-2xl border-2 border-blue-200/90 bg-white shadow-md overflow-hidden transition-all">
+                                      {/* Header Bar */}
+                                      <div className="bg-gradient-to-r from-blue-50/90 via-indigo-50/40 to-slate-50 px-4 py-3 border-b border-blue-100 flex items-center justify-between gap-3">
+                                        <div className="flex items-center gap-3 min-w-0">
+                                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs shrink-0 shadow-xs ${badgeCfg2.bg} ${badgeCfg2.text}`}>{badgeCfg2.letter}</div>
+                                          <div className="min-w-0">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                              <span className="text-xs font-black text-slate-900 uppercase tracking-wide">{pat.txnType} Pattern</span>
+                                              <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-100/70 text-blue-700 border border-blue-200">{pat.matchingCount || 0} transactions</span>
+                                              {isAppl ? (
+                                                <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+                                                  <Check size={11} strokeWidth={3} /> Applied
+                                                </span>
+                                              ) : (
+                                                <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1">
+                                                  <AlertCircle size={11} /> Unapplied
+                                                </span>
+                                              )}
+                                            </div>
+                                            <div className="mt-1 flex items-center gap-1.5 text-[11px] text-slate-500">
+                                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 shrink-0">Sample Narration:</span>
+                                              <span className="font-mono text-slate-700 bg-slate-100/90 px-2 py-0.5 rounded text-[10.5px] border border-slate-200/70 truncate max-w-xl select-all" title={sampNarr}>
+                                                {sampNarr || 'No sample narration'}
+                                              </span>
+                                            </div>
+                                          </div>
+                                        </div>
+                                        <button
+                                          type="button"
+                                          onClick={(e) => { e.stopPropagation(); setSelectedPatternId(null); }}
+                                          className="p-1.5 rounded-xl hover:bg-slate-200/80 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer shrink-0"
+                                          title="Close Details"
+                                        >
+                                          <X size={16} />
+                                        </button>
+                                      </div>
+
+                                      {/* Grid: Left (Tokens + Rule) | Right (Scrollable Extracted Values Box) */}
+                                      <div className="grid grid-cols-1 xl:grid-cols-2 divide-y xl:divide-y-0 xl:divide-x divide-slate-100">
+                                        {/* LEFT COLUMN: Tokens & Rule */}
+                                        <div className="p-4 space-y-4">
+                                          {/* 1. Detected Pattern Tokens */}
+                                          <div>
+                                            <div className="flex items-center justify-between mb-2">
+                                              <div className="flex items-center gap-2">
+                                                <span className="w-5 h-5 rounded-md bg-blue-100 text-blue-700 flex items-center justify-center text-[10.5px] font-black">1</span>
+                                                <span className="text-xs font-black text-slate-800 uppercase tracking-wider">Detected Pattern Tokens</span>
+                                              </div>
+                                              <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">Click token → set Party</span>
+                                            </div>
+
+                                            {/* Token Chips */}
+                                            <div className="flex flex-wrap gap-2">
+                                              {Array.from({ length: dynCnt }).map((_, idx) => {
+                                                const isParty2 = idx === eff.partyPosition;
+                                                const tokVal = (realPts[idx] !== undefined && realPts[idx] !== '') ? realPts[idx] : (tokList[idx]?.sampleValue || '');
+                                                if (!tokVal) return null;
+                                                const mMatch = tokVal && /[a-z]/i.test(tokVal) && !isStopPhrase(tokVal) ? findBestLedgerMatch(tokVal, normalizedAllLedgers) : null;
+                                                const isMM = mMatch && mMatch.score >= 70;
+                                                const lbl = idx === 0 && pat.txnType ? pat.txnType : tokVal;
+                                                return (
+                                                  <button
+                                                    key={idx}
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      handleUpdatePatternIndex(pat.id, 'partyPosition', idx);
+                                                    }}
+                                                    className={`group inline-flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-medium cursor-pointer transition-all duration-150 text-left shadow-2xs ${
+                                                      isParty2
+                                                        ? 'bg-blue-50/90 border-2 border-blue-600 text-blue-950 shadow-sm ring-2 ring-blue-100'
+                                                        : isMM
+                                                          ? 'bg-emerald-50/70 border-emerald-300 text-emerald-950 hover:bg-emerald-100/80 hover:border-emerald-400'
+                                                          : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300'
+                                                    }`}
+                                                    title={`Index [${idx}]: "${tokVal}"${isMM ? ` (Master Match: ${mMatch.ledger} ${mMatch.score}%)` : ''}`}
+                                                  >
+                                                    <span
+                                                      className={`w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-black shrink-0 ${
+                                                        isParty2
+                                                          ? 'bg-blue-600 text-white'
+                                                          : isMM
+                                                            ? 'bg-emerald-600 text-white'
+                                                            : 'bg-slate-100 text-slate-600 group-hover:bg-slate-200'
+                                                      }`}
+                                                    >
+                                                      {idx}
+                                                    </span>
+                                                    <span className="font-mono text-[11px] font-bold max-w-[200px] truncate" title={lbl}>
+                                                      {lbl}
+                                                    </span>
+                                                    {isParty2 && (
+                                                      <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-blue-600 text-white uppercase tracking-wider shrink-0">
+                                                        Party
+                                                      </span>
+                                                    )}
+                                                    {!isParty2 && isMM && (
+                                                      <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-emerald-600 text-white uppercase tracking-wider shrink-0">
+                                                        Match
+                                                      </span>
+                                                    )}
+                                                  </button>
+                                                );
+                                              })}
+                                            </div>
+
+                                            {/* Active Party Helper Callout */}
+                                            {eff.partyPosition >= 0 && (
+                                              <div className="mt-2.5 flex items-center gap-2 px-3 py-2 rounded-xl bg-blue-50/70 border border-blue-200 text-[11px] text-blue-900">
+                                                <CheckCircle2 size={13} className="text-blue-600 shrink-0" />
+                                                <span className="truncate">
+                                                  Selected Party Source: <strong className="font-black text-blue-700">Index #{eff.partyPosition}</strong>
+                                                  {realPts[eff.partyPosition] ? ` — "${realPts[eff.partyPosition]}"` : ''}
+                                                </span>
+                                              </div>
+                                            )}
+                                          </div>
+
+                                          {/* 2. Extraction Rule */}
+                                          <div className="space-y-2">
+                                            <div className="flex items-center gap-2">
+                                              <span className="w-5 h-5 rounded-md bg-blue-100 text-blue-700 flex items-center justify-center text-[10.5px] font-black">2</span>
+                                              <span className="text-xs font-black text-slate-800 uppercase tracking-wider">Extraction Rule</span>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-3 p-3 bg-slate-50/80 rounded-xl border border-slate-200">
+                                              <div>
+                                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Party Name Index</label>
+                                                <select
+                                                  value={eff.partyPosition}
+                                                  onClick={e => e.stopPropagation()}
+                                                  onChange={(e) => handleUpdatePatternIndex(pat.id, 'partyPosition', e.target.value)}
+                                                  className="w-full h-8 px-2.5 rounded-lg border text-xs font-semibold bg-white text-slate-800 outline-none focus:border-blue-600 cursor-pointer shadow-2xs"
+                                                  style={{ borderColor: 'var(--app-border)' }}
+                                                >
+                                                  <option value={-1}>None</option>
+                                                  {Array.from({ length: dynCnt }).map((_, idx) => {
+                                                    const sv = realPts[idx] || (tokList[idx]?.sampleValue) || '';
+                                                    if (!sv) return null;
+                                                    const m = sv && /[a-z]/i.test(sv) && !isStopPhrase(sv) ? findBestLedgerMatch(sv, normalizedAllLedgers) : null;
+                                                    const sfx = m && m.score >= 70 ? ` ★ ${m.ledger} (${m.score}%)` : '';
+                                                    return <option key={idx} value={idx}>Position {idx} — "{sv.length > 18 ? sv.slice(0, 16) + '...' : sv}"{sfx}</option>;
+                                                  })}
+                                                </select>
+                                              </div>
+                                              <div>
+                                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Txn ID Index</label>
+                                                <select
+                                                  value={eff.txnIdPosition}
+                                                  onClick={e => e.stopPropagation()}
+                                                  onChange={(e) => handleUpdatePatternIndex(pat.id, 'txnIdPosition', e.target.value)}
+                                                  className="w-full h-8 px-2.5 rounded-lg border text-xs font-semibold bg-white text-slate-800 outline-none focus:border-blue-600 cursor-pointer shadow-2xs"
+                                                  style={{ borderColor: 'var(--app-border)' }}
+                                                >
+                                                  <option value={-1}>None</option>
+                                                  {Array.from({ length: dynCnt }).map((_, idx) => {
+                                                    const sv = realPts[idx] || (tokList[idx]?.sampleValue) || '';
+                                                    if (!sv) return null;
+                                                    return <option key={idx} value={idx}>Position {idx} — "{sv.length > 18 ? sv.slice(0, 16) + '...' : sv}"</option>;
+                                                  })}
+                                                </select>
+                                              </div>
+                                              <div className="col-span-2 flex items-center justify-between pt-1 border-t border-slate-200/70 text-[11px]">
+                                                <div className="flex items-center gap-2">
+                                                  <span className="font-semibold text-slate-500">Separator:</span>
+                                                  <span className="px-2 py-0.5 rounded-md border bg-white text-slate-800 font-mono font-bold border-slate-200">
+                                                    {pat.separator === '/' ? '/ (Forward Slash)' : (pat.separator || '/ (Forward Slash)')}
+                                                  </span>
+                                                </div>
+                                                <span className="text-[10px] text-slate-400 flex items-center gap-1 font-medium">
+                                                  <AlertCircle size={12} className="text-blue-600" /> Delimiter + fuzzy
+                                                </span>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </div>
+
+                                        {/* RIGHT COLUMN: Extracted Values (Scrollable Box) */}
+                                        <div className="p-4 space-y-3 flex flex-col justify-between">
+                                          <div>
+                                            <div className="flex items-center justify-between mb-2">
+                                              <div className="flex items-center gap-2">
+                                                <span className="w-5 h-5 rounded-md bg-blue-100 text-blue-700 flex items-center justify-center text-[10.5px] font-black">3</span>
+                                                <span className="text-xs font-black text-slate-800 uppercase tracking-wider">Extracted Values</span>
+                                              </div>
+                                              <div className="flex items-center gap-1.5">
+                                                <span className="px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                                                  {distList.length} Unique Parties
+                                                </span>
+                                                <span className="px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                                                  {pat.matchingCount || 0} Total Txns
+                                                </span>
+                                              </div>
+                                            </div>
+
+                                            {/* Scrollable Box Container */}
+                                            <div className="rounded-xl border border-slate-200 bg-white shadow-2xs overflow-hidden">
+                                              <div className="max-h-[300px] overflow-y-auto divide-y divide-slate-100">
+                                                <table className="w-full text-left text-xs border-collapse">
+                                                  <thead className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur-xs border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                                                    <tr>
+                                                      <th className="py-2 px-3">Extracted Party</th>
+                                                      <th className="py-2 px-2 text-center w-14">Txns</th>
+                                                      <th className="py-2 px-3">Master Ledger Mapping</th>
+                                                      <th className="py-2 px-2 text-center w-16">Conf.</th>
+                                                    </tr>
+                                                  </thead>
+                                                  <tbody className="divide-y divide-slate-100 bg-white">
+                                                    {distList.length > 0 ? (
+                                                      distList.map((dp, i) => {
+                                                        const pNarrs = (() => {
+                                                          if (dp.sampleTransactions && dp.sampleTransactions.length > 0) { const l = dp.sampleTransactions.map(t => t.narration || t.sampleNarration || t.raw_narration).filter(Boolean); if (l.length > 0) return l; }
+                                                          if (pat?.transactions && pat.transactions.length > 0) { const pu = (dp.party || '').toUpperCase(); const ml = pat.transactions.filter(t => (t.narration || '').toUpperCase().includes(pu)).map(t => t.narration).filter(Boolean); if (ml.length > 0) return ml; }
+                                                          return sampNarrList.length > 0 ? sampNarrList : [sampNarr].filter(Boolean);
+                                                        })();
+                                                        const isExp = expandedPartyNarrations === dp.party;
+                                                        return (
+                                                          <React.Fragment key={i}>
+                                                            <tr className={`hover:bg-blue-50/30 transition-colors ${isExp ? 'bg-blue-50/60' : ''}`}>
+                                                              <td className="py-2 px-3 font-bold text-slate-800 text-[11px] align-middle">
+                                                                <div className="break-words whitespace-normal leading-snug">{dp.party}</div>
+                                                              </td>
+                                                              <td className="py-2 px-2 text-center align-middle">
+                                                                <div className="inline-flex items-center gap-1 justify-center">
+                                                                  <span className="font-bold font-mono text-[11px] text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">
+                                                                    {dp.count}
+                                                                  </span>
+                                                                  <button
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                      e.stopPropagation();
+                                                                      setExpandedPartyNarrations(prev => prev === dp.party ? null : dp.party);
+                                                                    }}
+                                                                    className={`p-1 rounded-md cursor-pointer transition-colors ${
+                                                                      isExp ? 'bg-blue-100 text-blue-700' : 'text-slate-400 hover:text-blue-600 hover:bg-slate-100'
+                                                                    }`}
+                                                                    title="View sample narrations"
+                                                                  >
+                                                                    <Eye size={12} />
+                                                                  </button>
+                                                                </div>
+                                                              </td>
+                                                              <td className="py-1.5 px-3 align-middle" onClick={e => e.stopPropagation()}>
+                                                                <SmartLedgerDropdown
+                                                                  value={dp.mappedLedger === 'Unmapped' ? '' : (dp.mappedLedger || '')}
+                                                                  onChange={(newLedger) => handlePartyLedgerOverride(pat.id, dp.party, newLedger)}
+                                                                  options={normalizedAllLedgers}
+                                                                  extractedParty={dp.party}
+                                                                  narration={pNarrs[0] || sampNarr}
+                                                                  confidence={dp.mappedLedger && dp.mappedLedger !== 'Unmapped' ? (dp.confidence || 0) : 0}
+                                                                />
+                                                              </td>
+                                                              <td className="py-2 px-2 text-center align-middle">
+                                                                <span className="px-1.5 py-0.5 rounded-md text-[10px] font-mono font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                                  {dp.confidence || 95}%
+                                                                </span>
+                                                              </td>
+                                                            </tr>
+                                                            {isExp && (
+                                                              <tr className="bg-blue-50/50 border-y border-blue-200">
+                                                                <td colSpan={4} className="p-3">
+                                                                  <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-blue-200/60">
+                                                                    <span className="text-[11px] font-bold text-blue-700 flex items-center gap-1.5">
+                                                                      <Eye size={12} /> Narrations matching "{dp.party}" ({pNarrs.length}):
+                                                                    </span>
+                                                                    <button
+                                                                      type="button"
+                                                                      onClick={(e) => { e.stopPropagation(); setExpandedPartyNarrations(null); }}
+                                                                      className="text-[10px] font-bold text-slate-500 hover:text-slate-800 px-1.5 py-0.5 rounded hover:bg-blue-100 cursor-pointer"
+                                                                    >
+                                                                      ✕ Close
+                                                                    </button>
+                                                                  </div>
+                                                                  <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                                                                    {pNarrs.map((narr, nIdx) => (
+                                                                      <div key={nIdx} className="p-2 rounded-lg bg-white border border-blue-100 font-mono text-[10.5px] text-slate-800 break-words leading-relaxed select-all shadow-2xs">
+                                                                        {narr}
+                                                                      </div>
+                                                                    ))}
+                                                                  </div>
+                                                                </td>
+                                                              </tr>
+                                                            )}
+                                                          </React.Fragment>
+                                                        );
+                                                      })
+                                                    ) : (
+                                                      <tr>
+                                                        <td colSpan={4} className="py-8 text-center text-slate-400 italic text-xs">
+                                                          No parties extracted. Check party index selection.
+                                                        </td>
+                                                      </tr>
+                                                    )}
+                                                  </tbody>
+                                                </table>
+                                              </div>
+                                            </div>
+                                          </div>
+
+                                          {/* Apply Pattern Mapping Button */}
+                                          <button
+                                            type="button"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleApplyPatternIndexing(pat);
+                                              setAppliedPatternIds(prev => new Set([...prev, pat.id, pat.txnType]));
+                                            }}
+                                            className="w-full py-2.5 px-4 rounded-xl text-xs font-bold bg-[#2563EB] hover:bg-blue-700 active:bg-blue-800 text-white shadow-sm hover:shadow transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                                          >
+                                            <Check size={14} strokeWidth={2.5} />
+                                            <span>Apply Pattern Mapping ({pat.matchingCount || 0} Transactions)</span>
+                                          </button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })()}
+                          </React.Fragment>
                           );
                         })
                       )}
@@ -2100,380 +2437,9 @@ export default function BankRuleMappingModal({
                     </div>
                   )}
                 </div>
-              </div>
-
-              {/* Right Column: Drawer Panel matching image layout */}
-              {selectedPattern && (() => {
-                const effective = getEffectivePatternData(selectedPattern);
-                const badgeCfg = getTypeBadgeConfig(selectedPattern.txnType);
-                const isApplied = appliedPatternIds.has(selectedPattern.id) || appliedPatternIds.has(selectedPattern.txnType) || appliedPatternIds.has(selectedPattern.channel);
-                const distinctList = effective.distinctParties || [];
-                const sampleNarr = (selectedPattern.raw?.sampleNarrations && selectedPattern.raw.sampleNarrations[0]) ||
-                  (selectedPattern.transactions && selectedPattern.transactions[0]?.narration) || selectedPattern.pattern || '';
-                const sampleNarrList = ((selectedPattern.sampleNarrations && selectedPattern.sampleNarrations.length > 0)
-                  ? selectedPattern.sampleNarrations
-                  : (selectedPattern.transactions && selectedPattern.transactions.length > 0)
-                    ? selectedPattern.transactions.map(t => t.narration)
-                    : [sampleNarr]).filter(Boolean).slice(0, 3);
-                const tokensList = selectedPattern.tokens && selectedPattern.tokens.length > 0 ? selectedPattern.tokens : (selectedPattern.raw?.tokens || []);
-
-                const sep = (selectedPattern.separator && selectedPattern.separator.includes(','))
-                  ? selectedPattern.separator.split(',')[0].trim()
-                  : (selectedPattern.separator || '/');
-                const realParts = sampleNarr ? (sep === ' ' ? sampleNarr.trim().split(/\s+/) : sampleNarr.split(sep).map(s => s.trim())) : [];
-                
-                // Dynamically determine exact tokens present in this narration (strictly no empty phantom tokens like 6, 7)
-                let maxTokens = realParts.length;
-                (selectedPattern.transactions || []).forEach(tx => {
-                  const n = tx.narration || tx.sampleNarration || '';
-                  if (n) {
-                    const p = sep === ' ' ? n.trim().split(/\s+/) : n.split(sep);
-                    if (p.length > maxTokens) maxTokens = p.length;
-                  }
-                });
-                const dynamicTokenCount = Math.max(maxTokens, 1);
-
-                return (
-                  <div className="w-[440px] lg:w-[480px] xl:w-[500px] shrink-0 bg-white border-l flex flex-col h-full overflow-hidden shadow-md" style={{ borderColor: 'var(--app-border)' }}>
-                    {/* Drawer Header matching screenshot */}
-                    <div className="px-3.5 py-2 border-b shrink-0 flex items-start justify-between bg-slate-50/50" style={{ borderColor: 'var(--app-border)' }}>
-                      <div className="flex items-center gap-2.5">
-                        <div className={`w-7 h-7 rounded-full flex items-center justify-center font-black text-xs shrink-0 shadow-2xs ${badgeCfg.bg} ${badgeCfg.text}`}>
-                          {badgeCfg.letter}
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h3 className="text-xs font-black text-slate-900 uppercase">{selectedPattern.txnType}</h3>
-                            {/* Eye icon: on hover show full description */}
-                            <div className="relative group/eyeDrawer inline-flex items-center">
-                              <button
-                                type="button"
-                                className="p-0.5 rounded text-slate-400 hover:text-[#2563EB] hover:bg-blue-50 transition-colors cursor-pointer"
-                                title={sampleNarr || selectedPattern.pattern || 'Full Narration'}
-                              >
-                                <Eye size={12} />
-                              </button>
-                              <div className="absolute left-0 top-full mt-1 hidden group-hover/eyeDrawer:flex flex-col z-50 w-80 p-2.5 bg-slate-900/95 text-white rounded-xl shadow-2xl backdrop-blur-xs text-[11px] pointer-events-none border border-slate-700">
-                                <span className="text-[9.5px] font-black uppercase tracking-wider text-blue-400 mb-1">
-                                  Full Description / Narration
-                                </span>
-                                <span className="font-mono text-slate-100 break-words leading-relaxed select-all">
-                                  {sampleNarr || selectedPattern.pattern || 'No narration available'}
-                                </span>
-                              </div>
-                            </div>
-                            <span className="px-2 py-0.5 rounded-full text-[10.5px] font-semibold bg-blue-50 text-blue-600 border border-blue-100">
-                              {selectedPattern.matchingCount || 0} transactions
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1.5 text-[10.5px] mt-0.5">
-                            {isApplied ? (
-                              <>
-                                <span className="text-emerald-600 font-bold flex items-center gap-0.5">
-                                  <Check size={11} strokeWidth={3} /> Applied
-                                </span>
-                                <span className="text-slate-400">• Applied on 22 Sep 2026, 11:42 AM</span>
-                              </>
-                            ) : (
-                              <span className="text-slate-500 font-medium flex items-center gap-1">
-                                <AlertCircle size={11} /> Not Applied
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedPatternId(null)}
-                        className="p-1 rounded-lg hover:bg-slate-200 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
-                        title="Close detail panel"
-                      >
-                        <X size={15} />
-                      </button>
-                    </div>
-
-                    {/* Drawer Scrollable Body */}
-                    <div className="flex-1 overflow-y-auto p-3 space-y-3.5 text-xs">
-                      {/* 1. Detected Pattern */}
-                      <div>
-                        <div className="flex items-center justify-between mb-2">
-                          <h4 className="text-xs font-bold text-slate-900">1. Detected Pattern Tokens</h4>
-                          <span className="text-[10px] font-semibold text-slate-400">Click any token to set as Party</span>
-                        </div>
-                        <div className="mb-2">
-                          <span className="px-2.5 py-0.5 rounded-md text-[11px] font-black uppercase bg-blue-50 text-blue-600 border border-blue-200">
-                            {selectedPattern.txnType}
-                          </span>
-                        </div>
-                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-1.5">
-                          {Array.from({ length: dynamicTokenCount }).map((_, idx) => {
-                            const isParty = idx === effective.partyPosition;
-                            const isTxnId = idx === effective.txnIdPosition;
-                            const tokenVal = (realParts[idx] !== undefined && realParts[idx] !== '')
-                              ? realParts[idx]
-                              : (tokensList[idx]?.sampleValue || '');
-                            
-                            // Strictly do not render empty indices that don't exist in the narration
-                            if (!tokenVal) return null;
-
-                            // Check if this token matches a master party ledger
-                            const masterMatch = tokenVal && /[a-z]/i.test(tokenVal) && !isStopPhrase(tokenVal)
-                              ? findBestLedgerMatch(tokenVal, normalizedAllLedgers)
-                              : null;
-                            const isMasterMatch = masterMatch && masterMatch.score >= 70;
-
-                            let subLabel = tokenVal;
-                            if (idx === 0 && (selectedPattern.txnType || '')) subLabel = selectedPattern.txnType;
-
-                            return (
-                              <button
-                                key={idx}
-                                type="button"
-                                onClick={() => handleUpdatePatternIndex(selectedPattern.id, 'partyPosition', idx)}
-                                className={`p-2 rounded-lg border text-center transition-all cursor-pointer relative group/tokBtn ${
-                                  isParty
-                                    ? 'bg-blue-50 border-2 border-[#2563EB] text-[#2563EB] shadow-xs font-bold ring-1 ring-blue-400'
-                                    : isMasterMatch
-                                      ? 'bg-emerald-50/80 border-emerald-300 text-emerald-800 hover:bg-emerald-100 font-semibold'
-                                      : 'bg-slate-50/80 border-slate-200 text-slate-700 hover:bg-slate-100'
-                                }`}
-                                title={`Index [${idx}]: "${tokenVal}" ${isMasterMatch ? `(Matches Master: ${masterMatch.ledger} ${masterMatch.score}%)` : ''}`}
-                              >
-                                <div className="flex items-center justify-between gap-1">
-                                  <span className={`text-[10px] font-black ${isParty ? 'text-blue-600' : isMasterMatch ? 'text-emerald-700' : 'text-slate-400'}`}>
-                                    {idx}
-                                  </span>
-                                  {isParty ? (
-                                    <span className="text-[8px] font-black uppercase tracking-wider text-blue-700 bg-blue-100 px-1 rounded">
-                                      Party
-                                    </span>
-                                  ) : isMasterMatch ? (
-                                    <span className="text-[8px] font-black uppercase tracking-wider text-emerald-700 bg-emerald-100 px-1 rounded">
-                                      Match
-                                    </span>
-                                  ) : null}
-                                </div>
-                                <div className="text-[10.5px] font-bold truncate mt-0.5" title={subLabel}>
-                                  {subLabel}
-                                </div>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      {/* 2. Extraction Rule */}
-                      <div>
-                        <h4 className="text-xs font-bold text-slate-900 mb-2">2. Extraction Rule</h4>
-                        <div className="grid grid-cols-2 gap-3 mb-2.5">
-                          <div>
-                            <label className="text-[11px] font-semibold text-slate-600 block mb-1">Party Index</label>
-                            <select
-                              value={effective.partyPosition}
-                              onChange={(e) => handleUpdatePatternIndex(selectedPattern.id, 'partyPosition', e.target.value)}
-                              className="w-full h-8 px-2.5 rounded-lg border text-xs font-semibold bg-white text-slate-800 outline-none focus:border-[#2563EB] cursor-pointer"
-                              style={{ borderColor: 'var(--app-border)' }}
-                            >
-                              <option value={-1}>None</option>
-                              {Array.from({ length: dynamicTokenCount }).map((_, idx) => {
-                                const sVal = realParts[idx] || (tokensList[idx]?.sampleValue) || '';
-                                if (!sVal) return null;
-                                const match = sVal && /[a-z]/i.test(sVal) && !isStopPhrase(sVal) ? findBestLedgerMatch(sVal, normalizedAllLedgers) : null;
-                                const matchSuffix = match && match.score >= 70 ? ` ★ Master: ${match.ledger} (${match.score}%)` : '';
-                                return (
-                                  <option key={idx} value={idx}>
-                                    Position {idx}{sVal ? ` — "${sVal.length > 20 ? sVal.slice(0, 18) + '...' : sVal}"` : ''}{matchSuffix}
-                                  </option>
-                                );
-                              })}
-                            </select>
-                          </div>
-                          <div>
-                            <label className="text-[11px] font-semibold text-slate-600 block mb-1">Transaction ID Index</label>
-                            <select
-                              value={effective.txnIdPosition}
-                              onChange={(e) => handleUpdatePatternIndex(selectedPattern.id, 'txnIdPosition', e.target.value)}
-                              className="w-full h-8 px-2.5 rounded-lg border text-xs font-semibold bg-white text-slate-800 outline-none focus:border-[#2563EB] cursor-pointer"
-                              style={{ borderColor: 'var(--app-border)' }}
-                            >
-                              <option value={-1}>None</option>
-                              {Array.from({ length: dynamicTokenCount }).map((_, idx) => {
-                                const sVal = realParts[idx] || (tokensList[idx]?.sampleValue) || '';
-                                if (!sVal) return null;
-                                return (
-                                  <option key={idx} value={idx}>
-                                    Position {idx}{sVal ? ` — "${sVal.length > 20 ? sVal.slice(0, 18) + '...' : sVal}"` : ''}
-                                  </option>
-                                );
-                              })}
-                            </select>
-                          </div>
-                        </div>
-
-                        <div className="mb-2">
-                          <label className="text-[11px] font-semibold text-slate-600 block mb-1">Separator / Delimiter</label>
-                          <div className="h-8 px-3 rounded-lg border bg-slate-50 text-slate-700 text-xs font-medium flex items-center" style={{ borderColor: 'var(--app-border)' }}>
-                            {selectedPattern.separator === '/' ? '/ (Forward Slash)' : (selectedPattern.separator || '/ (Forward Slash)')}
-                          </div>
-                        </div>
-
-                        <p className="text-[11px] text-slate-500 flex items-center gap-1.5 mt-1.5">
-                          <AlertCircle size={13} className="text-[#2563EB] shrink-0" />
-                          <span>Pattern detected using delimiter, token position and fuzzy matching.</span>
-                        </p>
-                      </div>
-
-                      {/* 3. Extracted Values */}
-                      <div>
-                        <h4 className="text-xs font-bold text-slate-900 mb-2">3. Extracted Values</h4>
-                        <div className="rounded-lg border overflow-hidden" style={{ borderColor: 'var(--app-border)' }}>
-                          <table className="w-full text-left text-xs">
-                            <thead className="bg-slate-50 border-b text-[10.5px] font-semibold text-slate-500" style={{ borderColor: 'var(--app-border)' }}>
-                              <tr>
-                                <th className="py-2 px-2.5 w-[30%]">Extracted Party</th>
-                                <th className="py-2 px-1 w-[16%] text-center">Transactions</th>
-                                <th className="py-2 px-2.5 w-[38%]">Master Ledger</th>
-                                <th className="py-2 px-2 w-[16%] text-center">Confidence</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                              {distinctList.length > 0 ? (
-                                distinctList.map((dp, i) => {
-                                  const partyNarrs = (() => {
-                                    if (dp.sampleTransactions && dp.sampleTransactions.length > 0) {
-                                      const l = dp.sampleTransactions.map(t => t.narration || t.sampleNarration || t.raw_narration).filter(Boolean);
-                                      if (l.length > 0) return l;
-                                    }
-                                    if (selectedPattern?.transactions && selectedPattern.transactions.length > 0) {
-                                      const pUpper = (dp.party || '').toUpperCase();
-                                      const matched = selectedPattern.transactions
-                                        .filter(t => (t.narration || '').toUpperCase().includes(pUpper))
-                                        .map(t => t.narration)
-                                        .filter(Boolean);
-                                      if (matched.length > 0) return matched;
-                                    }
-                                    return sampleNarrList.length > 0 ? sampleNarrList : [sampleNarr].filter(Boolean);
-                                  })();
-
-                                  const isExpanded = expandedPartyNarrations === dp.party;
-
-                                  return (
-                                    <React.Fragment key={i}>
-                                      <tr className={`hover:bg-slate-50/50 ${isExpanded ? 'bg-blue-50/40' : ''}`}>
-                                        <td className="py-2 px-2.5 font-bold text-slate-800 text-[11px] truncate max-w-[120px]" title={dp.party}>
-                                          {dp.party}
-                                        </td>
-                                        <td className="py-2 px-1 text-center">
-                                          <div className="inline-flex items-center justify-center gap-1 font-mono text-[11px] text-slate-700">
-                                            <span className="font-bold">{dp.count}</span>
-                                            {/* Eye icon: Click or hover to view narrations row-wise without clipping */}
-                                            <button
-                                              type="button"
-                                              onClick={() => setExpandedPartyNarrations(prev => prev === dp.party ? null : dp.party)}
-                                              onMouseEnter={(e) => {
-                                                const rect = e.currentTarget.getBoundingClientRect();
-                                                setHoveredPartyNarrations({
-                                                  party: dp.party,
-                                                  count: dp.count,
-                                                  narrations: partyNarrs,
-                                                  rect
-                                                });
-                                              }}
-                                              onMouseLeave={() => setHoveredPartyNarrations(null)}
-                                              className={`p-1 rounded transition-colors cursor-pointer ${
-                                                isExpanded
-                                                  ? 'bg-blue-100 text-[#2563EB]'
-                                                  : 'text-slate-400 hover:text-[#2563EB] hover:bg-blue-50'
-                                              }`}
-                                              title="Click to expand or hover to preview descriptions"
-                                            >
-                                              <Eye size={13} />
-                                            </button>
-                                          </div>
-                                        </td>
-                                        <td className="py-1.5 px-2">
-                                          <div className="max-w-[155px]">
-                                            <SmartLedgerDropdown
-                                              value={dp.mappedLedger === 'Unmapped' ? '' : (dp.mappedLedger || '')}
-                                              onChange={(newLedger) => handlePartyLedgerOverride(selectedPattern.id, dp.party, newLedger)}
-                                              options={normalizedAllLedgers}
-                                              extractedParty={dp.party}
-                                              narration={partyNarrs[0] || sampleNarr}
-                                              confidence={dp.mappedLedger && dp.mappedLedger !== 'Unmapped' ? (dp.confidence || 0) : 0}
-                                            />
-                                          </div>
-                                        </td>
-                                        <td className="py-2 px-2 text-center">
-                                          <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                            {dp.confidence || 95}%
-                                          </span>
-                                        </td>
-                                      </tr>
-
-                                      {/* Inline Row-wise Expanded Narrations View */}
-                                      {isExpanded && (
-                                        <tr className="bg-blue-50/50 border-y border-blue-200">
-                                          <td colSpan={4} className="p-2.5">
-                                            <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-blue-200/70">
-                                              <div className="flex items-center gap-1.5 text-blue-700 font-bold text-[10.5px]">
-                                                <Eye size={12} className="text-[#2563EB]" />
-                                                <span>Original Descriptions ({partyNarrs.length} txn{partyNarrs.length > 1 ? 's' : ''}):</span>
-                                              </div>
-                                              <button
-                                                type="button"
-                                                onClick={() => setExpandedPartyNarrations(null)}
-                                                className="text-[10px] font-bold text-slate-500 hover:text-slate-800 px-1.5 py-0.5 rounded hover:bg-blue-100 cursor-pointer"
-                                              >
-                                                ✕ Close
-                                              </button>
-                                            </div>
-                                            <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                                              {partyNarrs.map((narr, nIdx) => (
-                                                <div
-                                                  key={nIdx}
-                                                  className="p-2 rounded-lg bg-white border border-blue-100 font-mono text-[10.5px] text-slate-800 break-words leading-relaxed select-all shadow-2xs"
-                                                >
-                                                  {narr}
-                                                </div>
-                                              ))}
-                                            </div>
-                                          </td>
-                                        </tr>
-                                      )}
-                                    </React.Fragment>
-                                  );
-                                })
-                              ) : (
-                                <tr>
-                                  <td colSpan={4} className="py-4 text-center text-slate-400 italic text-[11px]">
-                                    No parties extracted for this index.
-                                  </td>
-                                </tr>
-                              )}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Drawer Sticky Bottom Apply Button */}
-                    <div className="px-3 py-2 border-t shrink-0 bg-white" style={{ borderColor: 'var(--app-border)' }}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          handleApplyPatternIndexing(selectedPattern);
-                          setAppliedPatternIds(prev => new Set([...prev, selectedPattern.id, selectedPattern.txnType]));
-                        }}
-                        className="w-full py-2 rounded-lg text-xs font-bold bg-[#2563EB] hover:bg-blue-700 text-white shadow-xs transition-all cursor-pointer"
-                      >
-                        Apply Pattern Mapping
-                      </button>
-                    </div>
-                  </div>
-                );
-              })()}
             </div>
           </div>
+        </div>
         )}
       </div>
 

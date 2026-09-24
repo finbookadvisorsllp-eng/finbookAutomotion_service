@@ -2355,11 +2355,36 @@ class TallyXmlGenerator:
         # 5. Build dynamic ledger entries XML list
         ledger_blocks = []
         index = 1
-        for entry in voucher.ledgerEntries:
-            ledger_blocks.append(cls._build_single_ledger_entry(entry, index, vch_type=voucher.voucherType))
+
+        # For Receipt vouchers:
+        # Credit Ledger (Party) MUST be the FIRST <ALLLEDGERENTRIES.LIST>
+        # Debit Ledger (Bank) MUST be the SECOND <ALLLEDGERENTRIES.LIST>
+        entries_to_process = list(voucher.ledgerEntries)
+        if "receipt" in vch_type_lower:
+            credit_entries = [e for e in entries_to_process if e.isDeemedPositive == "No"]
+            debit_entries = [e for e in entries_to_process if e.isDeemedPositive == "Yes"]
+            other_entries = [e for e in entries_to_process if e.isDeemedPositive not in ["Yes", "No"]]
+            entries_to_process = credit_entries + debit_entries + other_entries
+
+        for entry in entries_to_process:
+            ledger_blocks.append(cls._build_single_ledger_entry(
+                entry,
+                index,
+                vch_type=voucher.voucherType,
+                vch_date=voucher.voucherDate,
+                vch_narr=voucher.narration,
+                vch_ref=voucher.referenceNumber
+            ))
             index += 1
         for entry in voucher.taxEntries:
-            ledger_blocks.append(cls._build_single_ledger_entry(entry, index, vch_type=voucher.voucherType))
+            ledger_blocks.append(cls._build_single_ledger_entry(
+                entry,
+                index,
+                vch_type=voucher.voucherType,
+                vch_date=voucher.voucherDate,
+                vch_narr=voucher.narration,
+                vch_ref=voucher.referenceNumber
+            ))
             index += 1
         ledger_entries_xml = "".join(ledger_blocks)
 
@@ -2386,13 +2411,26 @@ class TallyXmlGenerator:
         xml_str = xml_str.replace("{{ledgerEntries}}", ledger_entries_xml)
         xml_str = xml_str.replace("{{inventoryEntries}}", inventory_entries_xml)
 
+        # For Receipt vouchers, completely remove any VOUCHERNUMBER tag
+        # Tally must automatically generate the Receipt voucher number
+        if "receipt" in vch_type_lower:
+            xml_str = re.sub(r'[ \t]*<VOUCHERNUMBER>.*?</VOUCHERNUMBER>\s*\n?', '', xml_str)
+
         # 8. Final syntax validation check
         cls.validate_xml_syntax(xml_str)
 
         return xml_str
 
     @classmethod
-    def _build_single_ledger_entry(cls, entry: TallyLedgerEntry, index: int, vch_type: str = "") -> str:
+    def _build_single_ledger_entry(
+        cls,
+        entry: TallyLedgerEntry,
+        index: int,
+        vch_type: str = "",
+        vch_date: str = "",
+        vch_narr: str = "",
+        vch_ref: str = ""
+    ) -> str:
         escaped_ledger_name = escape_xml(entry.ledgerName)
         is_dr = (entry.isDeemedPositive == "Yes")
         amount_val = -abs(entry.amount) if is_dr else abs(entry.amount)
@@ -2400,44 +2438,55 @@ class TallyXmlGenerator:
         v_type_lower = (vch_type or "").lower()
         is_accounting = any(x in v_type_lower for x in ["receipt", "payment", "contra"])
 
-        # Build optional bill allocations
+        # Build optional bill allocations:
+        # Do NOT put BILLALLOCATIONS.LIST inside the Bank Ledger entry (is_dr is True).
+        # Bill allocation belongs ONLY to the Party/Customer ledger entry (is_dr is False).
         bill_xml = ""
-        if entry.billAllocations:
-            if is_accounting:
-                bill_xml = "\n              <!-- Optional: Bill Allocation Details -->"
-                for bill in entry.billAllocations:
-                    escaped_bill_name = escape_xml(bill.refNo)
-                    escaped_bill_type = escape_xml(bill.billType)
-                    bill_amt = -abs(bill.amount) if is_dr else abs(bill.amount)
+        if entry.billAllocations and not is_dr:
+            for bill in entry.billAllocations:
+                escaped_bill_name = escape_xml(bill.refNo)
+                escaped_bill_type = escape_xml(bill.billType or "Agst Ref")
+                bill_amt = -abs(bill.amount) if is_dr else abs(bill.amount)
+
+                is_on_account = (
+                    escaped_bill_type.lower() in ["on account", "on_account"] or
+                    escaped_bill_name.lower() in ["on account", "on_account", "none", "null", ""]
+                )
+                if is_on_account:
+                    bill_xml += f"""
+              <BILLALLOCATIONS.LIST>
+                <BILLTYPE>On Account</BILLTYPE>
+                <AMOUNT>{bill_amt:.2f}</AMOUNT>
+              </BILLALLOCATIONS.LIST>"""
+                elif (
+                    escaped_bill_name and
+                    not escaped_bill_name.startswith("REC-") and
+                    not escaped_bill_name.startswith("BS-")
+                ):
                     bill_xml += f"""
               <BILLALLOCATIONS.LIST>
                 <NAME>{escaped_bill_name}</NAME>
                 <BILLTYPE>{escaped_bill_type}</BILLTYPE>
                 <AMOUNT>{bill_amt:.2f}</AMOUNT>
               </BILLALLOCATIONS.LIST>"""
-            else:
-                for bill in entry.billAllocations:
-                    escaped_bill_name = escape_xml(bill.refNo)
-                    escaped_bill_type = escape_xml(bill.billType)
-                    bill_amt = -abs(bill.amount) if is_dr else abs(bill.amount)
-                    bill_xml += f"""
-                                    <BILLALLOCATIONS.LIST>
-                                        <NAME>{escaped_bill_name}</NAME>
-                                        <BILLTYPE>{escaped_bill_type}</BILLTYPE>
-                                        <AMOUNT>{bill_amt:.2f}</AMOUNT>
-                                    </BILLALLOCATIONS.LIST>"""
 
-        # Build optional bank allocations
+        # Build optional bank allocations:
+        # Only belongs to Bank/Debit Ledger entry (is_dr is True)
         bank_xml = ""
-        if entry.bankAllocations:
-            if is_accounting:
-                bank_xml = "\n              <!-- Optional: Bank Allocation Details -->"
-                for bank in entry.bankAllocations:
-                    escaped_trans_type = escape_xml(bank.transType or "Inter Bank Transfer")
-                    escaped_inst_no = escape_xml(bank.instNumber)
-                    bank_amt = -abs(bank.amount) if is_dr else abs(bank.amount)
-                    inst_date_val = bank.date or ""
-                    bank_xml += f"""
+        if entry.bankAllocations and is_dr:
+            for bank in entry.bankAllocations:
+                escaped_trans_type = escape_xml(bank.transType or "Inter Bank Transfer")
+                raw_inst = (bank.instNumber or "").strip()
+                if not raw_inst or raw_inst.startswith("REC-") or raw_inst.startswith("BS-"):
+                    from app.anjalee.services.bank_statement_ai_service import BankStatementAiService
+                    extracted = BankStatementAiService.extract_clean_reference(vch_narr, vch_ref)
+                    raw_inst = extracted or raw_inst
+                escaped_inst_no = escape_xml(raw_inst)
+                bank_amt = -abs(bank.amount) if is_dr else abs(bank.amount)
+                raw_date = bank.date or vch_date or ""
+                inst_date_val = str(raw_date).replace("-", "").replace("/", "").split("T")[0]
+
+                bank_xml += f"""
               <BANKALLOCATIONS.LIST>
                 <DATE>{inst_date_val}</DATE>
                 <INSTRUMENTDATE>{inst_date_val}</INSTRUMENTDATE>
@@ -2445,20 +2494,8 @@ class TallyXmlGenerator:
                 <INSTRUMENTNUMBER>{escaped_inst_no}</INSTRUMENTNUMBER>
                 <AMOUNT>{bank_amt:.2f}</AMOUNT>
               </BANKALLOCATIONS.LIST>"""
-            else:
-                for bank in entry.bankAllocations:
-                    escaped_trans_type = escape_xml(bank.transType or "Inter Bank Transfer")
-                    escaped_inst_no = escape_xml(bank.instNumber)
-                    bank_amt = -abs(bank.amount) if is_dr else abs(bank.amount)
-                    bank_xml += f"""
-                                    <BANKALLOCATIONS.LIST>
-                                        <DATE>{bank.date}</DATE>
-                                        <TRANSACTIONTYPE>{escaped_trans_type}</TRANSACTIONTYPE>
-                                        <INSTRUMENTNUMBER>{escaped_inst_no}</INSTRUMENTNUMBER>
-                                        <AMOUNT>{bank_amt:.2f}</AMOUNT>
-                                    </BANKALLOCATIONS.LIST>"""
 
-        # Build optional cost allocations (CATEGORYALLOCATIONS.LIST only if cost category/centre exists)
+        # Build optional cost allocations
         cost_xml = ""
         if entry.costAllocations:
             for cost in entry.costAllocations:
@@ -2466,22 +2503,22 @@ class TallyXmlGenerator:
                 escaped_cost_name = escape_xml(cost.name)
                 cost_amt = -abs(cost.amount) if is_dr else abs(cost.amount)
                 cost_xml += f"""
-                                    <CATEGORYALLOCATIONS.LIST>
-                                        <CATEGORY>{escaped_category}</CATEGORY>
-                                        <COSTCENTREALLOCATIONS.LIST>
-                                            <NAME>{escaped_cost_name}</NAME>
-                                            <AMOUNT>{cost_amt:.2f}</AMOUNT>
-                                        </COSTCENTREALLOCATIONS.LIST>
-                                    </CATEGORYALLOCATIONS.LIST>"""
+              <CATEGORYALLOCATIONS.LIST>
+                <CATEGORY>{escaped_category}</CATEGORY>
+                <COSTCENTREALLOCATIONS.LIST>
+                  <NAME>{escaped_cost_name}</NAME>
+                  <AMOUNT>{cost_amt:.2f}</AMOUNT>
+                </COSTCENTREALLOCATIONS.LIST>
+              </CATEGORYALLOCATIONS.LIST>"""
 
         if is_accounting:
-            comment = "<!-- Debit Ledger (Bank / Cash) -->" if is_dr else "<!-- Credit Ledger (Customer / Income) -->"
+            comment = "<!-- Debit Ledger / Bank -->" if is_dr else "<!-- Credit Ledger / Party -->"
             return f"""
             {comment}
             <ALLLEDGERENTRIES.LIST>
               <LEDGERNAME>{escaped_ledger_name}</LEDGERNAME>
               <ISDEEMEDPOSITIVE>{entry.isDeemedPositive}</ISDEEMEDPOSITIVE>
-              <AMOUNT>{amount_val:.2f}</AMOUNT>{bank_xml}{bill_xml}{cost_xml}
+              <AMOUNT>{amount_val:.2f}</AMOUNT>{bill_xml}{bank_xml}{cost_xml}
             </ALLLEDGERENTRIES.LIST>"""
 
         return f"""

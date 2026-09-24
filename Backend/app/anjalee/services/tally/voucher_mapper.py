@@ -127,6 +127,8 @@ class VoucherMapper:
         vch.masterId = master_id
         vch.alterId = alter_id
         vch.isUpdate = is_update
+        if category == "receipt":
+            vch.voucherNumber = ""
         return vch
 
 
@@ -507,19 +509,26 @@ class VoucherMapper:
                     if is_bank_l:
                         if doc.get("bankAllocations"):
                             for ba in doc["bankAllocations"]:
+                                ba_inst = str(ba.get("instrumentNumber") or ba.get("instNumber") or "").strip()
+                                if not ba_inst or ba_inst.startswith("REC-") or ba_inst.startswith("BS-"):
+                                    from app.anjalee.services.bank_statement_ai_service import BankStatementAiService
+                                    ba_inst = BankStatementAiService.extract_clean_reference(narr, ref_num) or ba_inst
                                 bank_allocs.append(TallyBankAllocation(
-                                    date=ba.get("instrumentDate") or ba.get("date") or vch_date,
-                                    instNumber=ba.get("instrumentNumber") or ba.get("instNumber") or "",
+                                    date=str(ba.get("instrumentDate") or ba.get("date") or vch_date).replace("-", "").replace("/", "").split("T")[0],
+                                    instNumber=ba_inst,
                                     transType=ba.get("transactionType") or ba.get("transType") or ba.get("paymentMode") or "Inter Bank Transfer",
                                     amount=float(ba.get("amount") or mapped_amt)
                                 ))
                         else:
-                            b_inst = (
+                            b_inst = str(
                                 doc.get("instNumber") or 
                                 doc.get("referenceNumber") or 
                                 (doc.get("reference", {}).get("reference") if isinstance(doc.get("reference"), dict) else "") or 
                                 ""
-                            )
+                            ).strip()
+                            if not b_inst or b_inst.startswith("REC-") or b_inst.startswith("BS-"):
+                                from app.anjalee.services.bank_statement_ai_service import BankStatementAiService
+                                b_inst = BankStatementAiService.extract_clean_reference(narr, ref_num) or b_inst
                             raw_mode = doc.get("transType") or doc.get("paymentMode") or doc.get("channel") or "Inter Bank Transfer"
                             mode_upper = str(raw_mode).upper()
                             if any(x in mode_upper for x in ["NEFT", "RTGS", "IMPS", "UPI", "TRANSFER", "IBT"]):
@@ -536,32 +545,36 @@ class VoucherMapper:
                                 amount=mapped_amt
                             ))
 
-                # Attach bill allocations if present on entry or counterparty ledger
+                # Attach bill allocations only if present and an actual reference exists (no fake vch_num)
                 bill_allocs = []
-                if le.get("billAllocations"):
-                    for b in le["billAllocations"]:
-                        bill_allocs.append(TallyBillAllocation(
-                            refNo=b.get("name") or b.get("billNo") or b.get("refNo") or vch_num,
-                            billType=b.get("billType") or "Agst Ref",
-                            amount=float(b.get("amount") or abs(l_amt))
-                        ))
-                else:
-                    is_bank_l = "bank" in l_name.lower() or "cash" in l_name.lower() or le.get("isBank")
-                    if not is_bank_l:
-                        if doc.get("billAllocations"):
-                            for b in doc["billAllocations"]:
+                is_bank_l = "bank" in l_name.lower() or "cash" in l_name.lower() or le.get("isBank")
+                if not is_bank_l:
+                    if le.get("billAllocations"):
+                        for b in le["billAllocations"]:
+                            ref_b = str(b.get("name") or b.get("billNo") or b.get("refNo") or "").strip()
+                            if ref_b and not ref_b.startswith("REC-") and not ref_b.startswith("BS-"):
                                 bill_allocs.append(TallyBillAllocation(
-                                    refNo=b.get("name") or b.get("billNo") or b.get("refNo") or vch_num,
+                                    refNo=ref_b,
                                     billType=b.get("billType") or "Agst Ref",
                                     amount=float(b.get("amount") or abs(l_amt))
                                 ))
-                        elif doc.get("billRows"):
-                            for bill in doc.get("billRows") or []:
+                    elif doc.get("billAllocations"):
+                        for b in doc["billAllocations"]:
+                            ref_b = str(b.get("name") or b.get("billNo") or b.get("refNo") or "").strip()
+                            if ref_b and not ref_b.startswith("REC-") and not ref_b.startswith("BS-"):
+                                bill_allocs.append(TallyBillAllocation(
+                                    refNo=ref_b,
+                                    billType=b.get("billType") or "Agst Ref",
+                                    amount=float(b.get("amount") or abs(l_amt))
+                                ))
+                    elif doc.get("billRows"):
+                        for bill in doc.get("billRows") or []:
+                            ref_b = str(bill.get("billNo") or bill.get("name") or bill.get("bill_name") or "").strip()
+                            if ref_b and not ref_b.startswith("REC-") and not ref_b.startswith("BS-"):
                                 b_amt = float(bill.get("allocationAmount") or bill.get("amount") or abs(l_amt))
-                                b_ref = bill.get("billNo") or bill.get("name") or bill.get("bill_name") or vch_num
                                 b_type = bill.get("billType") or "Agst Ref"
                                 bill_allocs.append(TallyBillAllocation(
-                                    refNo=b_ref,
+                                    refNo=ref_b,
                                     billType=b_type,
                                     amount=b_amt
                                 ))
@@ -573,6 +586,11 @@ class VoucherMapper:
                     billAllocations=bill_allocs,
                     bankAllocations=bank_allocs
                 ))
+
+            # Ensure Party/Credit is FIRST and Bank/Debit is SECOND for Receipt vouchers
+            if category == "receipt" and len(ledger_entries) == 2:
+                if ledger_entries[0].isDeemedPositive == "Yes" and ledger_entries[1].isDeemedPositive == "No":
+                    ledger_entries = [ledger_entries[1], ledger_entries[0]]
         # Check if there are complex ledger rows
         elif ledger_rows := doc.get("ledgerRows"):
             header_dr_cr = doc.get("drCrType") or ""
@@ -674,26 +692,29 @@ class VoucherMapper:
                         amount=-cc_amt if category == "payment" else cc_amt
                     ))
 
-            # Bill allocations mapping
+            # Bill allocations mapping: only add if actual bill reference is present
             bill_allocs = []
             if doc.get("billAllocations"):
                 for b in doc["billAllocations"]:
-                    bill_amt = float(b.get("amount") or amount)
-                    bill_allocs.append(TallyBillAllocation(
-                        refNo=b.get("name") or b.get("billNo") or b.get("refNo") or vch_num,
-                        billType=b.get("billType") or "Agst Ref",
-                        amount=-bill_amt if category == "payment" else bill_amt
-                    ))
+                    ref_b = str(b.get("name") or b.get("billNo") or b.get("refNo") or "").strip()
+                    if ref_b and not ref_b.startswith("REC-") and not ref_b.startswith("BS-"):
+                        bill_amt = float(b.get("amount") or amount)
+                        bill_allocs.append(TallyBillAllocation(
+                            refNo=ref_b,
+                            billType=b.get("billType") or "Agst Ref",
+                            amount=-bill_amt if category == "payment" else bill_amt
+                        ))
             elif doc.get("billRows"):
                 for bill in doc.get("billRows") or []:
-                    bill_amt = float(bill.get("allocationAmount") or bill.get("amount") or amount)
-                    bill_ref = bill.get("refNo") or bill.get("invoiceRefNo") or vch_num
-                    bill_type = bill.get("billType") or "Against Ref"
-                    bill_allocs.append(TallyBillAllocation(
-                        refNo=bill_ref,
-                        billType=bill_type,
-                        amount=-bill_amt if category == "payment" else bill_amt
-                    ))
+                    ref_b = str(bill.get("refNo") or bill.get("invoiceRefNo") or bill.get("billNo") or bill.get("name") or "").strip()
+                    if ref_b and not ref_b.startswith("REC-") and not ref_b.startswith("BS-"):
+                        bill_amt = float(bill.get("allocationAmount") or bill.get("amount") or amount)
+                        bill_type = bill.get("billType") or "Agst Ref"
+                        bill_allocs.append(TallyBillAllocation(
+                            refNo=ref_b,
+                            billType=bill_type,
+                            amount=-bill_amt if category == "payment" else bill_amt
+                        ))
                 
             if not bill_allocs and category == "payment":
                 bill_allocs.append(TallyBillAllocation(
@@ -706,17 +727,25 @@ class VoucherMapper:
             bank_allocs = []
             if doc.get("bankAllocations"):
                 for ba in doc["bankAllocations"]:
+                    ba_inst = str(ba.get("instrumentNumber") or ba.get("instNumber") or "").strip()
+                    if not ba_inst or ba_inst.startswith("REC-") or ba_inst.startswith("BS-"):
+                        from app.anjalee.services.bank_statement_ai_service import BankStatementAiService
+                        ba_inst = BankStatementAiService.extract_clean_reference(narr, ref_num) or ba_inst
                     bank_allocs.append(TallyBankAllocation(
-                        date=ba.get("instrumentDate") or ba.get("date") or vch_date,
-                        instNumber=ba.get("instrumentNumber") or ba.get("instNumber") or "",
+                        date=str(ba.get("instrumentDate") or ba.get("date") or vch_date).replace("-", "").replace("/", "").split("T")[0],
+                        instNumber=ba_inst,
                         transType=ba.get("transactionType") or ba.get("transType") or ba.get("paymentMode") or "Inter Bank Transfer",
                         amount=float(ba.get("amount") or (-amount if category == "receipt" else amount))
                     ))
-            elif doc.get("bankLedger") and (doc.get("instNumber") or doc.get("transType")):
+            elif doc.get("bankLedger") or doc.get("instNumber") or doc.get("transType") or category == "receipt":
+                b_inst = str(doc.get("instNumber") or doc.get("referenceNumber") or "").strip()
+                if not b_inst or b_inst.startswith("REC-") or b_inst.startswith("BS-"):
+                    from app.anjalee.services.bank_statement_ai_service import BankStatementAiService
+                    b_inst = BankStatementAiService.extract_clean_reference(narr, ref_num) or b_inst
                 bank_allocs.append(TallyBankAllocation(
                     date=vch_date,
-                    instNumber=doc.get("instNumber") or "",
-                    transType=doc.get("transType") or "NEFT",
+                    instNumber=b_inst,
+                    transType=doc.get("transType") or "Inter Bank Transfer",
                     amount=-amount if category == "receipt" else amount
                 ))
 
@@ -736,19 +765,20 @@ class VoucherMapper:
                     bankAllocations=bank_allocs
                 ))
             elif category == "receipt":
-                # Cash/Bank is debited (negative), Party is credited (positive)
-                ledger_entries.append(TallyLedgerEntry(
-                    ledgerName=cb_ledger,
-                    amount=-amount,
-                    isDeemedPositive="Yes",
-                    bankAllocations=bank_allocs
-                ))
+                # Credit Ledger / Party MUST be the first ledger entry
+                # Debit Ledger / Bank MUST be the second ledger entry
                 ledger_entries.append(TallyLedgerEntry(
                     ledgerName=party_name,
                     amount=amount,
                     isDeemedPositive="No",
                     billAllocations=bill_allocs,
                     costAllocations=cost_allocs
+                ))
+                ledger_entries.append(TallyLedgerEntry(
+                    ledgerName=cb_ledger,
+                    amount=-amount,
+                    isDeemedPositive="Yes",
+                    bankAllocations=bank_allocs
                 ))
             else:
                 # Contra: Destination is debited (negative), Source is credited (positive)

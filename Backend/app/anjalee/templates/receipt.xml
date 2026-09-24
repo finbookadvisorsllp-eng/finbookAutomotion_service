@@ -15,7 +15,6 @@
           <VOUCHER VCHTYPE="Receipt" ACTION="{{action}}" OBJVIEW="Accounting Voucher View">
             <DATE>{{voucherDate}}</DATE>
             <VOUCHERTYPENAME>Receipt</VOUCHERTYPENAME>
-            <VOUCHERNUMBER>{{voucherNumber}}</VOUCHERNUMBER>
             {{narration}}
             
 {{ledgerEntries}}

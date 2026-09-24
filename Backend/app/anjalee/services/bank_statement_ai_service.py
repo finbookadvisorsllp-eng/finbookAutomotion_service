@@ -543,22 +543,24 @@ CRITICAL RULES:
     def extract_clean_reference(narration: str, ref_no: Optional[str] = None) -> Optional[str]:
         """
         Extracts clean UTR, Cheque Number, or transaction reference from bank narration or existing ref_no.
-        Avoids taking the full narration as the reference.
+        Avoids taking the full narration or internal voucher numbers as the reference.
         """
         if ref_no:
             ref_clean = str(ref_no).strip()
-            if 3 <= len(ref_clean) <= 30 and ' ' not in ref_clean:
+            if 3 <= len(ref_clean) <= 30 and ' ' not in ref_clean and not ref_clean.startswith("REC-") and not ref_clean.startswith("BS-"):
                 return ref_clean
 
         if not narration:
-            return str(ref_no).strip() if ref_no else None
+            if ref_no and not str(ref_no).startswith("REC-") and not str(ref_no).startswith("BS-"):
+                return str(ref_no).strip()
+            return None
 
         text = str(narration).strip()
-        utr_m = re.search(r'\bUTR[:/\-\s]*([A-Za-z0-9]{8,22})\b', text, re.I)
+        utr_m = re.search(r'\bUTR[:/\-\s]*([A-Za-z0-9]{8,24})\b', text, re.I)
         if utr_m:
             return utr_m.group(1).strip()
 
-        ref_m = re.search(r'\b(?:NEFT|RTGS|IMPS|CMS|INFT|IFT)[/:\-\s]+([A-Za-z0-9]{8,22})\b', text, re.I)
+        ref_m = re.search(r'\b(?:NEFT|RTGS|IMPS|CMS|INFT|IFT|TRF|IBT|TRANSFER)[/:\-\s]+([A-Za-z0-9]{8,24})\b', text, re.I)
         if ref_m:
             return ref_m.group(1).strip()
 
@@ -570,11 +572,19 @@ CRITICAL RULES:
         if chq_m:
             return chq_m.group(1).strip()
 
-        gen_m = re.search(r'\b([A-Z]{4}\d{8,16})\b', text)
+        # Match bank UTR pattern: 3 to 6 uppercase letters followed by 8 to 18 digits (e.g. ESFBH24402830890)
+        gen_m = re.search(r'\b([A-Z]{3,6}\d{8,18})\b', text)
         if gen_m:
             return gen_m.group(1).strip()
 
-        if ref_no:
+        # Match alphanumeric reference tokens (10-24 chars containing both digits and letters)
+        for token in re.split(r'[/:\-\s]+', text):
+            t = token.strip()
+            if 10 <= len(t) <= 24 and any(c.isdigit() for c in t) and any(c.isalpha() for c in t):
+                if not any(stop in t.upper() for stop in ["ACCOUNT", "LIMITED", "PRIVATE", "TRANSFER", "PAYMENT"]):
+                    return t
+
+        if ref_no and not str(ref_no).startswith("REC-") and not str(ref_no).startswith("BS-"):
             return str(ref_no).strip()
 
         return None
@@ -1976,20 +1986,21 @@ CRITICAL RULES:
                         }
                     ]
                 else:
+                    # Receipt: Party Ledger (Credit) MUST be first, Bank Ledger (Debit) MUST be second
                     ledger_entries = [
-                        {
-                            "ledgerName": bank_ledger,
-                            "amount": -amt,
-                            "isDeemedPositive": "Yes",
-                            "drCrType": "Dr",
-                            "bankAllocations": bank_allocs
-                        },
                         {
                             "ledgerName": party_ledger,
                             "amount": amt,
                             "isDeemedPositive": "No",
                             "drCrType": "Cr",
                             "billAllocations": party_bill_allocs
+                        },
+                        {
+                            "ledgerName": bank_ledger,
+                            "amount": -amt,
+                            "isDeemedPositive": "Yes",
+                            "drCrType": "Dr",
+                            "bankAllocations": bank_allocs
                         }
                     ]
 
@@ -2602,4 +2613,6 @@ CRITICAL RULES:
             "selected_ledger": selected_ledger,
             "message": f"Successfully mapped '{pattern}' to '{selected_ledger}' across {updated_count} transaction(s)."
         }
+
+BankStatementAiService = BankStatementAIService
 
