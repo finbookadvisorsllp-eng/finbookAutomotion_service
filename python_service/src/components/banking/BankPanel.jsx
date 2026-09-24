@@ -80,6 +80,8 @@ const BankPanel = ({ mode: propMode, isDark }) => {
 
   // AI Statement & Batch Review State
   const [activeBatchData, setActiveBatchData] = useState(null);
+  const activeBatchDataRef = useRef(null);
+  activeBatchDataRef.current = activeBatchData;
   const [aiBatches, setAiBatches] = useState([]);
   const [aiBatchesLoading, setAiBatchesLoading] = useState(false);
   const [isAiStatementModalOpen, setIsAiStatementModalOpen] = useState(false);
@@ -498,12 +500,26 @@ const BankPanel = ({ mode: propMode, isDark }) => {
     }
   };
 
-  const fetchAiBatches = async () => {
-    setAiBatchesLoading(true);
+  const fetchAiBatches = async (syncActive = true) => {
+    if (aiBatches.length === 0) {
+      setAiBatchesLoading(true);
+    }
     try {
       const res = await bankStatementAiApi.getBatches();
       if (res.success && res.data) {
         setAiBatches(res.data);
+        if (syncActive && activeBatchDataRef.current) {
+          const currentId = activeBatchDataRef.current.batch_id || activeBatchDataRef.current._id;
+          try {
+            const freshActive = await bankStatementAiApi.getBatchReview(currentId);
+            if (freshActive?.success && freshActive.data && activeBatchDataRef.current) {
+              setActiveBatchData(freshActive.data);
+            }
+          } catch (e) {
+            const found = res.data.find(b => (b.batch_id || b._id) === currentId);
+            if (found && activeBatchDataRef.current) setActiveBatchData(prev => ({ ...prev, ...found }));
+          }
+        }
       }
     } catch (err) {
       console.error('Failed to load AI statement batches:', err);
@@ -514,7 +530,7 @@ const BankPanel = ({ mode: propMode, isDark }) => {
 
   useEffect(() => {
     if (activeTab === 'AI Voucher Review' || activeTab === 'Add Bank Rule') {
-      fetchAiBatches();
+      fetchAiBatches(false);
     }
   }, [activeTab]);
 
@@ -614,7 +630,7 @@ const BankPanel = ({ mode: propMode, isDark }) => {
   const renderActive = () => {
     if (activeTab === 'Add Bank Rule') {
       return (
-        <div className="flex-1 h-[calc(100vh-80px)] w-full overflow-hidden">
+        <div className="flex-1 h-full w-full overflow-hidden flex flex-col min-h-0">
           <BankRuleMappingModal
             isOpen={true}
             onClose={() => setActiveTab('AI Voucher Review')}
@@ -623,9 +639,19 @@ const BankPanel = ({ mode: propMode, isDark }) => {
             allLedgersList={allLedgers}
             batchId={effectiveBatchForRules?.batch_id || effectiveBatchForRules?._id}
             initialMappings={memoizedInitialMappings}
-            onRulesApplied={(updatedBatch) => {
+            onRulesApplied={async (updatedBatch) => {
               if (updatedBatch) {
                 setActiveBatchData(updatedBatch);
+              } else {
+                const bId = effectiveBatchForRules?.batch_id || effectiveBatchForRules?._id;
+                if (bId) {
+                  try {
+                    const fresh = await bankStatementAiApi.getBatchReview(bId);
+                    if (fresh?.success && fresh.data) {
+                      setActiveBatchData(fresh.data);
+                    }
+                  } catch (e) {}
+                }
               }
               fetchAiBatches();
             }}
@@ -640,12 +666,13 @@ const BankPanel = ({ mode: propMode, isDark }) => {
           <BankAiReviewPanel
             batchData={activeBatchData}
             onClose={() => {
+              activeBatchDataRef.current = null;
               setActiveBatchData(null);
-              fetchAiBatches();
+              fetchAiBatches(false);
             }}
             onRefreshList={() => {
               fundFlowStore.fetchTransactions();
-              fetchAiBatches();
+              fetchAiBatches(true);
             }}
             onNavigateToAddRule={() => setActiveTab('Add Bank Rule')}
           />
@@ -1007,7 +1034,14 @@ const BankPanel = ({ mode: propMode, isDark }) => {
           return (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => {
+                if (tab.id === 'AI Voucher Review' && activeBatchData) {
+                  activeBatchDataRef.current = null;
+                  setActiveBatchData(null);
+                  fetchAiBatches(false);
+                }
+                setActiveTab(tab.id);
+              }}
               className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${isActive
                   ? 'bg-[var(--app-accent)] text-white shadow-xs'
                   : 'text-[var(--app-muted)] hover:text-[var(--app-heading)] hover:bg-[var(--app-control-hover)]'
@@ -1158,8 +1192,8 @@ const BankPanel = ({ mode: propMode, isDark }) => {
         </div>
       )}
 
-      <div className="flex-1 overflow-hidden flex gap-3">
-        <div className={`transition-all duration-300 overflow-hidden ${activeTab === 'Manage Bank' && selectedBankRow ? 'flex-[3]' : 'flex-1'}`}>
+      <div className="flex-1 min-h-0 overflow-hidden flex gap-3 h-full">
+        <div className={`transition-all duration-300 overflow-hidden flex flex-col min-h-0 h-full ${activeTab === 'Manage Bank' && selectedBankRow ? 'flex-[3]' : 'flex-1'}`}>
           {renderActive()}
         </div>
         {activeTab === 'Manage Bank' && (

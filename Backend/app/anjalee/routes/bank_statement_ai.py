@@ -669,11 +669,23 @@ async def get_pattern_suggestions(
                     company_id=company_header
                 )
                 for idx, s in enumerate(discovered):
-                    s["_id"] = f"disc_{source_id}_{idx}"
+                    s_id = f"disc_{source_id}_{idx}"
+                    s["_id"] = s_id
+                    s["id"] = s_id
                     if "created_at" in s and hasattr(s["created_at"], "isoformat"):
                         s["created_at"] = s["created_at"].isoformat()
                     s["reviewStatus"] = s.get("reviewStatus") or "needs_review"
                     s["status"] = s.get("status") or "needs_review"
+                    try:
+                        s_copy = dict(s)
+                        s_copy.pop("_id", None)
+                        db["bank_pattern_suggestions"].update_one(
+                            {"pattern": s["pattern"], "bankLedger": bankLedger or "BANK AC"},
+                            {"$set": s_copy},
+                            upsert=True
+                        )
+                    except Exception:
+                        pass
 
                 if discovered:
                     return {"success": True, "count": len(discovered), "isDefaultLibrary": False, "data": discovered}
@@ -786,6 +798,8 @@ async def approve_pattern_suggestion(
             suggestion = db["bank_pattern_suggestions"].find_one({"_id": oid})
         except Exception:
             suggestion = None
+    if not suggestion:
+        suggestion = db["bank_pattern_suggestions"].find_one({"$or": [{"_id": suggestion_id}, {"id": suggestion_id}]})
 
     pattern_val = (payload.candidatePattern or (suggestion.get("candidatePattern") if suggestion else "") or "").strip()
     party_val = (payload.partyLedger or (suggestion.get("suggestedLedger") if suggestion else "") or "").strip()
@@ -904,11 +918,22 @@ async def reject_pattern_suggestion(
     """Reject an AI candidate suggestion."""
     from bson import ObjectId
     from datetime import datetime
+    updated = False
     if len(suggestion_id) == 24:
         try:
             oid = ObjectId(suggestion_id)
-            db["bank_pattern_suggestions"].update_one(
+            res = db["bank_pattern_suggestions"].update_one(
                 {"_id": oid},
+                {"$set": {"reviewStatus": "rejected", "rejectedAt": datetime.utcnow()}}
+            )
+            if res.modified_count > 0:
+                updated = True
+        except Exception:
+            pass
+    if not updated:
+        try:
+            db["bank_pattern_suggestions"].update_one(
+                {"$or": [{"_id": suggestion_id}, {"id": suggestion_id}]},
                 {"$set": {"reviewStatus": "rejected", "rejectedAt": datetime.utcnow()}}
             )
         except Exception:

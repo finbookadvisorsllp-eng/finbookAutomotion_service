@@ -55,23 +55,55 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
 
   // Dynamic extraction helpers using backend AI-extracted values
   const extractTxType = (narration = '', item = {}) => {
-    if (item.transactionType) return item.transactionType;
+    const raw = (item.channel || item.transactionType || item.paymentMode || item.instType || '').toUpperCase();
+    const narr = (narration || item.narration || '').toUpperCase();
+
+    if (raw.includes('UPI') || narr.startsWith('UPI') || narr.includes('/UPI/')) return 'UPI';
+    if (raw.includes('CLG') || raw.includes('CLEARING') || narr.startsWith('CLG') || narr.includes('/CLG/')) return 'CLG';
+    if (raw.includes('NEFT') || narr.startsWith('NEFT') || narr.includes('NEFT-') || narr.includes('/NEFT/')) return 'NEFT';
+    if (raw.includes('INFT') || raw.includes('INF') || narr.includes('INF/INFT') || narr.includes('/INFT/')) return 'INFT';
+    if (raw.includes('RTGS') || narr.startsWith('RTGS') || narr.includes('/RTGS/')) return 'RTGS';
+    if (raw.includes('IMPS') || narr.startsWith('IMPS') || narr.includes('/IMPS/')) return 'IMPS';
+    if (raw.includes('CHEQUE') || raw.includes('CHQ') || narr.includes('CHEQUE') || narr.includes('CHQ')) return 'CLG';
+    if (raw && raw.length <= 6) return raw;
     if (item.channel) return item.channel;
-    if (item.paymentMode && item.paymentMode !== 'Bank Transfer') return item.paymentMode;
-    if (item.instType && item.instType !== 'Bank Transfer') return item.instType;
     return item.voucherType === 'Payment' ? 'DR TRF' : 'CR TRF';
+  };
+
+  const getTxTypeBadgeClass = (txType) => {
+    switch ((txType || '').toUpperCase()) {
+      case 'UPI':
+        return 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800';
+      case 'CLG':
+        return 'bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-900/30 dark:text-teal-300 dark:border-teal-800';
+      case 'NEFT':
+        return 'bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-900/30 dark:text-sky-300 dark:border-sky-800';
+      case 'INFT':
+      case 'INF':
+        return 'bg-cyan-100 text-cyan-700 border-cyan-200 dark:bg-cyan-900/30 dark:text-cyan-300 dark:border-cyan-800';
+      case 'RTGS':
+        return 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800';
+      case 'IMPS':
+        return 'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-300 dark:border-indigo-800';
+      default:
+        return 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700';
+    }
   };
 
   const extractExactValue = (narration = '', item = {}) => {
     // 1. Primary: AI-extracted party from statement processing
-    if (item.extractedParty && String(item.extractedParty).trim()) {
+    if (item.extractedParty && String(item.extractedParty).trim() && item.extractedParty !== 'Unmapped') {
       return String(item.extractedParty).trim();
     }
-    // 2. Secondary: Assigned party ledger
+    // 2. Secondary: Assigned party ledger (master-matched)
     if (item.partyLedger && String(item.partyLedger).trim() && item.partyLedger !== 'Unmapped') {
       return String(item.partyLedger).trim();
     }
-    // 3. Clean narration excerpt
+    // 3. Against ledger from backend
+    if (item.againstLedger && String(item.againstLedger).trim() && item.againstLedger !== 'Unmapped') {
+      return String(item.againstLedger).trim();
+    }
+    // 4. Clean narration excerpt as last resort
     return narration ? narration.trim().slice(0, 32) : '—';
   };
 
@@ -153,20 +185,39 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
   // Helper to extract or auto-resolve party ledger from exact extracted candidate against Tally Masters
   const getEffectiveParty = useCallback((item) => {
     if (!item) return '';
+    // 1. Use backend-set partyLedger if valid
     if (item.partyLedger && String(item.partyLedger).trim() && item.partyLedger !== 'Unmapped') {
       return String(item.partyLedger).trim();
     }
-    const cand = extractExactValue(item.narration, item);
+    // 2. Use backend-set againstLedger as fallback
+    if (item.againstLedger && String(item.againstLedger).trim() && item.againstLedger !== 'Unmapped') {
+      return String(item.againstLedger).trim();
+    }
+    // 3. Live-match extractedParty against loaded master ledgers
+    const cand = item.extractedParty && String(item.extractedParty).trim();
     if (cand && cand !== '—') {
+      // First check if extractedParty IS already a master ledger name (exact or alnum)
+      const candLower = cand.toLowerCase();
+      const directMatch = allLedgersList.find(l => l.toLowerCase() === candLower);
+      if (directMatch) return directMatch;
+      // Then fuzzy match
       const bestMatch = findBestLedgerMatch(cand, allLedgersList);
       if (bestMatch && bestMatch.score >= 70 && bestMatch.ledger) {
+        return bestMatch.ledger;
+      }
+    }
+    // 4. Try matching a narration excerpt if nothing else works
+    const narrationExcerpt = extractExactValue(item.narration, item);
+    if (narrationExcerpt && narrationExcerpt !== '—' && narrationExcerpt.length >= 4) {
+      const bestMatch = findBestLedgerMatch(narrationExcerpt, allLedgersList);
+      if (bestMatch && bestMatch.score >= 80 && bestMatch.ledger) {
         return bestMatch.ledger;
       }
     }
     return '';
   }, [allLedgersList]);
 
-  // Helper to determine effective status based on confidence score & party ledger
+  // Helper to determine effective status based on dynamic confidence score & party ledger
   const getEffectiveStatus = useCallback((item) => {
     if (!item) return 'review_required';
     if (item.status === 'saved' || item.status === 'already_processed' || item.status === 'user_edited') {
@@ -174,11 +225,16 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
     }
     const effParty = getEffectiveParty(item);
     const hasParty = Boolean(effParty);
-    const score = Number(item.confidence) || (hasParty ? 95 : 0);
-    if (score >= 80 && hasParty && item.status !== 'review_required') {
+    const rawScore = Number(item.confidence) || 0;
+    // Cap confidence at 65% when no party is mapped — a rule-only match is incomplete
+    const score = hasParty
+      ? (rawScore > 0 ? rawScore : 85)
+      : Math.min(rawScore > 0 ? rawScore : 45, 65);
+    // Only mark as ready when BOTH party is mapped AND confidence >= 90%
+    if (score >= 90 && hasParty) {
       return 'ready';
     }
-    if (hasParty && (item.status === 'ready' || item.mappingMethod === 'AI Pattern Applied')) {
+    if (hasParty && item.status === 'ready') {
       return 'ready';
     }
     return 'review_required';
@@ -204,7 +260,7 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
       already_processed_count,
       saved_count
     };
-  }, [items]);
+  }, [items, getEffectiveStatus]);
 
   // Filter items using effective status
   const filteredItems = useMemo(() => {
@@ -384,7 +440,11 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
   // Status Badge: Perfectly color-synchronized with Confidence score
   const getStatusBadge = (itemOrStatus, maybeConfidence, maybeParty) => {
     if (!itemOrStatus) return null;
-    const item = typeof itemOrStatus === 'object' && itemOrStatus !== null ? itemOrStatus : {
+    const item = typeof itemOrStatus === 'object' && itemOrStatus !== null ? {
+      ...itemOrStatus,
+      confidence: itemOrStatus.confidence ?? maybeConfidence,
+      partyLedger: itemOrStatus.partyLedger || maybeParty
+    } : {
       status: itemOrStatus,
       confidence: maybeConfidence,
       partyLedger: maybeParty
@@ -392,28 +452,28 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
     const status = item.status;
     if (status === 'saved') {
       return (
-        <span className="px-2 py-0.5 rounded-full text-[9.5px] font-extrabold uppercase bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex items-center justify-center gap-1 shadow-xs">
-          <CheckCircle2 size={11} /> Saved
+        <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800 flex items-center justify-center gap-1">
+          <CheckCircle2 size={10} /> SAVED
         </span>
       );
     }
-    if (status === 'user_edited') {
+    if (status === 'user_edited' || status === 'user_verified') {
       return (
-        <span className="px-2 py-0.5 rounded-full text-[9.5px] font-extrabold uppercase bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30 flex items-center justify-center gap-1 shadow-xs">
-          <Edit3 size={11} /> User Verified
+        <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400 border border-blue-300 dark:border-blue-800 flex items-center justify-center gap-1">
+          <Edit3 size={10} /> USER VERIFIED
         </span>
       );
     }
     if (status === 'already_processed') {
       return (
-        <span className="px-2 py-0.5 rounded-full text-[9.5px] font-extrabold uppercase bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 flex items-center justify-center gap-1 shadow-xs">
-          <Lock size={11} /> Duplicate
+        <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-300 dark:border-rose-800 flex items-center justify-center gap-1">
+          <Lock size={10} /> DUPLICATE
         </span>
       );
     }
 
     const effStatus = getEffectiveStatus(item);
-    const score = Number(item.confidence) || 0;
+    const score = Number(item.confidence) || Number(maybeConfidence) || 0;
     const reasonText = item.review_reason || item.user_reasoning || 'Review required';
 
     // Green: >= 90% and Mapped -> Ready
@@ -421,9 +481,9 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
       return (
         <span
           title={reasonText}
-          className="px-2 py-0.5 rounded-full text-[9.5px] font-extrabold uppercase bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex items-center justify-center gap-1 shadow-xs"
+          className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800 flex items-center justify-center gap-1"
         >
-          <Check size={11} /> Ready
+          <Check size={10} /> READY
         </span>
       );
     }
@@ -433,9 +493,9 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
       return (
         <span
           title={reasonText}
-          className="px-2 py-0.5 rounded-full text-[9.5px] font-extrabold uppercase bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/30 flex items-center justify-center gap-1 shadow-xs cursor-help"
+          className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-300 dark:border-amber-800 flex items-center justify-center gap-1 cursor-help"
         >
-          <AlertCircle size={11} /> Review Required
+          <AlertCircle size={10} /> REVIEW REQUIRED
         </span>
       );
     }
@@ -444,9 +504,9 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
     return (
       <span
         title={reasonText}
-        className="px-2 py-0.5 rounded-full text-[9.5px] font-extrabold uppercase bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 flex items-center justify-center gap-1 shadow-xs cursor-help"
+        className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-300 dark:border-rose-800 flex items-center justify-center gap-1 cursor-help"
       >
-        <AlertCircle size={11} /> Review Required
+        <AlertCircle size={10} /> REVIEW REQUIRED
       </span>
     );
   };
@@ -456,20 +516,20 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
     const score = Number(confidence) || 0;
     if (score >= 90) {
       return (
-        <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full font-mono text-[10.5px] font-black bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 shadow-xs">
+        <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full font-mono text-[10px] font-black bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800">
           {score}%
         </span>
       );
     }
     if (score >= 60) {
       return (
-        <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full font-mono text-[10.5px] font-black bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/30 shadow-xs">
+        <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full font-mono text-[10px] font-black bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-300 dark:border-amber-800">
           {score}%
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full font-mono text-[10.5px] font-black bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 shadow-xs">
+      <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full font-mono text-[10px] font-black bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-300 dark:border-rose-800">
         {score}%
       </span>
     );
@@ -636,18 +696,18 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
         <table className="w-full text-left border-collapse text-[11px] min-w-[1150px]">
           <thead className="sticky top-0 bg-[var(--app-control-bg)] z-10 border-b" style={{ borderColor: 'var(--app-border)' }}>
             <tr>
-              <th className="py-2.5 px-2 w-10 text-center">SR #</th>
-              <th className="py-2.5 px-2.5 font-black text-[var(--app-muted)] uppercase tracking-wider w-26">Voucher Date</th>
-              <th className="py-2.5 px-2.5 font-black text-[var(--app-muted)] uppercase tracking-wider w-28">Voucher Type</th>
-              <th className="py-2.5 px-2 font-black text-[var(--app-muted)] uppercase tracking-wider w-24 text-center">Transaction Type</th>
-              <th className="py-2.5 px-2 font-black text-[var(--app-muted)] uppercase tracking-wider w-44">Exact Extracted Value</th>
-              <th className="py-2.5 px-2.5 font-black text-[var(--app-muted)] uppercase tracking-wider w-56">Party / Ledger Name</th>
-              <th className="py-2.5 px-2.5 font-black text-[var(--app-muted)] uppercase tracking-wider">Description / Narration</th>
-              <th className="py-2.5 px-2.5 font-black text-[var(--app-muted)] uppercase tracking-wider text-right w-36">Amount (₹)</th>
-              <th className="py-2.5 px-2.5 font-black text-[var(--app-muted)] uppercase tracking-wider w-28">Reference No.</th>
-              <th className="py-2.5 px-2.5 font-black text-[var(--app-muted)] uppercase tracking-wider text-center w-20">Confidence</th>
-              <th className="py-2.5 px-2.5 font-black text-[var(--app-muted)] uppercase tracking-wider text-center w-28">Status</th>
-              <th className="py-2.5 px-2.5 font-black text-[var(--app-muted)] uppercase tracking-wider text-center w-28">Action</th>
+              <th className="py-2.5 px-2 w-14 text-center font-black text-[var(--app-muted)] uppercase tracking-wider text-[10px]">SR #</th>
+              <th className="py-2.5 px-2 font-black text-[var(--app-muted)] uppercase tracking-wider w-26 text-[10px]">Voucher Date</th>
+              <th className="py-2.5 px-2 font-black text-[var(--app-muted)] uppercase tracking-wider w-28 text-[10px]">Voucher Type</th>
+              <th className="py-2.5 px-2 font-black text-[var(--app-muted)] uppercase tracking-wider w-20 text-center text-[10px]">Transaction Type</th>
+              <th className="py-2.5 px-2 font-black text-[var(--app-muted)] uppercase tracking-wider w-40 text-[10px]">Exact Extracted Value</th>
+              <th className="py-2.5 px-2 font-black text-[var(--app-muted)] uppercase tracking-wider w-60 text-[10px]">Party / Ledger Name</th>
+              <th className="py-2.5 px-2 font-black text-[var(--app-muted)] uppercase tracking-wider text-[10px]">Description / Narration</th>
+              <th className="py-2.5 px-2 font-black text-[var(--app-muted)] uppercase tracking-wider text-right w-28 text-[10px]">Amount (₹)</th>
+              <th className="py-2.5 px-2 font-black text-[var(--app-muted)] uppercase tracking-wider w-26 text-[10px]">Reference No.</th>
+              <th className="py-2.5 px-2 font-black text-[var(--app-muted)] uppercase tracking-wider text-center w-20 text-[10px]">Confidence</th>
+              <th className="py-2.5 px-2 font-black text-[var(--app-muted)] uppercase tracking-wider text-center w-28 text-[10px]">Status</th>
+              <th className="py-2.5 px-2 font-black text-[var(--app-muted)] uppercase tracking-wider text-center w-20 text-[10px]">Action</th>
             </tr>
           </thead>
           <tbody>
@@ -655,12 +715,24 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
               paginatedItems.map((item, idx) => {
                 const isSelected = selectedItemIds.includes(item.item_id);
                 const canSelect = item.status !== 'already_processed' && item.status !== 'saved';
-                const effParty = item.partyLedger || getEffectiveParty(item);
+                // effParty: prefer backend-mapped partyLedger, then againstLedger, then live-resolve extractedParty against master
+                const rawParty = item.partyLedger || item.againstLedger || '';
+                const hasValidParty = rawParty && rawParty !== 'Unmapped' && rawParty.trim();
+                const effParty = hasValidParty
+                  ? rawParty.trim()
+                  : getEffectiveParty(item);
                 const hasMaster = Boolean(effParty);
-                const effConfidence = item.confidence || (hasMaster ? 98 : 45);
+                // effConfidence: If no party ledger is mapped, cap at 65% max to reflect incomplete matching.
+                // If party is resolved, use the backend confidence (but fall back to 85 if not provided).
+                const rawConf = Number(item.confidence) || 0;
+                const effConfidence = hasMaster
+                  ? (rawConf > 0 ? rawConf : 85)
+                  : Math.min(rawConf > 0 ? rawConf : 45, 65);
                 const isOutflow = item.voucherType === 'Payment' || (item.debit > 0 && !item.credit);
                 const isReceipt = item.voucherType === 'Receipt' || (item.credit > 0 && !item.debit);
                 const rowNumber = pageSize === 'all' ? idx + 1 : (currentPage - 1) * pageSize + idx + 1;
+                const txType = extractTxType(item.narration, item);
+                const vDate = item.voucherDate || item.date || '';
 
                 return (
                   <tr
@@ -670,84 +742,88 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
                     } ${!hasMaster && item.status === 'review_required' ? 'bg-amber-500/5' : ''}`}
                     style={{ borderColor: 'var(--app-border)' }}
                   >
-                    {/* Multi-Select Checkbox */}
-                    <td className="py-2 px-2 text-center">
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        disabled={!canSelect}
-                        onChange={() => toggleSelectItem(item.item_id)}
-                        className="w-3.5 h-3.5 rounded accent-[var(--app-accent)] cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
-                      />
+                    {/* 1. SR # with Checkbox combined */}
+                    <td className="py-2 px-2 text-center whitespace-nowrap">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          disabled={!canSelect}
+                          onChange={() => toggleSelectItem(item.item_id)}
+                          className="w-3.5 h-3.5 rounded accent-[var(--app-accent)] cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                        />
+                        <span className="text-[11px] font-mono text-[var(--app-muted)] font-bold">
+                          {rowNumber}
+                        </span>
+                      </div>
                     </td>
 
-                    {/* Serial Number */}
-                    <td className="py-2 px-2 text-center text-[11px] font-mono text-[var(--app-muted)]">
-                      {rowNumber}
-                    </td>
-
-                    {/* Voucher Date */}
+                    {/* 2. Voucher Date */}
                     <td className="py-2 px-2">
                       <input
-                        type="date"
-                        value={item.date || ''}
-                        onChange={(e) => handleUpdateItemField(item.item_id, 'date', e.target.value)}
-                        className="w-full h-7 px-1.5 border rounded text-[11px] font-mono font-bold bg-[var(--app-panel-bg)] text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)]"
+                        type="text"
+                        value={vDate}
+                        onChange={(e) => {
+                          handleUpdateItemField(item.item_id, 'date', e.target.value);
+                          handleUpdateItemField(item.item_id, 'voucherDate', e.target.value);
+                        }}
+                        className="w-full h-7 px-1.5 border rounded text-[11px] font-mono font-bold bg-[var(--app-panel-bg)] text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)] text-center"
                         style={{ borderColor: 'var(--app-border)' }}
                       />
                     </td>
 
-                    {/* Voucher Type Dropdown with Dr/Cr direction indicators */}
+                    {/* 3. Voucher Type */}
                     <td className="py-2 px-2">
                       <select
                         value={item.voucherType || (item.credit > 0 ? 'Receipt' : 'Payment')}
                         onChange={(e) => handleUpdateItemField(item.item_id, 'voucherType', e.target.value)}
-                        className={`w-full h-7 px-1.5 border rounded text-[11px] font-black outline-none focus:border-[var(--app-accent)] cursor-pointer ${
+                        className={`w-full h-7 px-1.5 border rounded text-[10.5px] font-black outline-none focus:border-[var(--app-accent)] cursor-pointer ${
                           isReceipt
-                            ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30'
-                            : 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/30'
+                            ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800'
+                            : 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border-rose-300 dark:border-rose-800'
                         }`}
                       >
-                        <option value="Payment">Payment (Outflow)</option>
                         <option value="Receipt">Receipt (Inflow)</option>
+                        <option value="Payment">Payment (Outflow)</option>
                         <option value="Contra">Contra (Bank Transfer)</option>
                       </select>
                     </td>
 
-                    {/* Column 1: Transaction Channel / Type */}
+                    {/* 4. Transaction Type */}
                     <td className="py-2 px-2 text-center">
-                      <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300/40">
-                        {extractTxType(item.narration, item)}
+                      <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider border ${getTxTypeBadgeClass(txType)}`}>
+                        {txType}
                       </span>
                     </td>
 
-                    {/* Column 2: Exact Extracted Value */}
+                    {/* 5. Exact Extracted Value */}
                     <td className="py-2 px-2">
-                      <div className="max-w-[170px]" title={extractExactValue(item.narration, item)}>
-                        <span className="font-mono text-[10.5px] font-black text-indigo-600 truncate block bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">
+                      <div className="max-w-[160px]" title={extractExactValue(item.narration, item)}>
+                        <span className="font-mono text-[10.5px] font-bold text-indigo-700 dark:text-indigo-300 truncate block bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 rounded border border-indigo-200 dark:border-indigo-800">
                           {extractExactValue(item.narration, item)}
                         </span>
                       </div>
                     </td>
 
-                    {/* Editable Accounting Master Smart Dropdown with AI Recommendations */}
+                    {/* 6. Party / Ledger Name */}
                     <td className="py-2 px-2">
-                      <div className="min-w-[210px] max-w-[270px]">
+                      <div className="min-w-[210px] max-w-[260px]">
                         <SmartLedgerDropdown
                           value={effParty || ''}
                           onChange={(newVal) => handleUpdateItemField(item.item_id, 'partyLedger', newVal)}
-                          options={getPartyLedgerOptions(item.voucherType, effParty, extractExactValue(item.narration, item))}
-                          extractedParty={extractExactValue(item.narration, item)}
+                          options={getPartyLedgerOptions(item.voucherType, effParty, item.extractedParty || extractExactValue(item.narration, item))}
+                          extractedParty={item.extractedParty || extractExactValue(item.narration, item)}
                           narration={item.narration}
                           voucherType={item.voucherType}
                           confidence={effConfidence}
-                          reviewReason={!hasMaster ? item.review_reason : ''}
+                          reviewReason={!hasMaster ? (item.review_reason || 'No approved rule or unambiguous ledger...') : ''}
                           onAddRule={onNavigateToAddRule}
+                          placeholder="-- Select Master Party Ledger --"
                         />
                       </div>
                     </td>
 
-                    {/* Read-only Narration / Description (Navigable with Arrow Keys, Non-editable) */}
+                    {/* 7. Description / Narration */}
                     <td className="py-2 px-2">
                       <input
                         type="text"
@@ -760,19 +836,19 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
                           }
                           e.preventDefault();
                         }}
-                        className="w-full h-7 px-2 border rounded text-[11px] font-medium bg-[var(--app-panel-bg)] text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)] cursor-text selection:bg-[var(--app-accent)]/20"
+                        className="w-full h-7 px-2 border rounded text-[10.5px] font-medium bg-[var(--app-panel-bg)] text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)] cursor-text truncate"
                         style={{ borderColor: 'var(--app-border)' }}
                         title={item.narration}
                       />
                     </td>
 
-                    {/* Single Amount (₹) Column with Dr/Cr Badge */}
+                    {/* 8. Amount (₹) */}
                     <td className="py-2 px-2 text-right">
-                      <div className="flex items-center gap-1">
-                        <span className={`px-1 py-0.5 rounded text-[9.5px] font-black uppercase shrink-0 ${
+                      <div className="flex items-center gap-1 justify-end">
+                        <span className={`px-1 py-0.5 rounded text-[9px] font-black uppercase shrink-0 border ${
                           isReceipt
-                            ? 'bg-emerald-500/15 text-emerald-600 border border-emerald-500/30'
-                            : 'bg-rose-500/15 text-rose-600 border border-rose-500/30'
+                            ? 'bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800'
+                            : 'bg-rose-100 text-rose-700 border-rose-300 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800'
                         }`}>
                           {isReceipt ? 'CR' : 'DR'}
                         </span>
@@ -786,15 +862,15 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
                             if (isReceipt) handleUpdateItemField(item.item_id, 'credit', val);
                             else handleUpdateItemField(item.item_id, 'debit', val);
                           }}
-                          className={`w-full h-7 px-2 border rounded text-[11.5px] font-mono font-black text-right outline-none focus:border-[var(--app-accent)] ${
-                            isReceipt ? 'text-emerald-600' : 'text-slate-800 dark:text-slate-200'
+                          className={`w-20 h-7 px-1.5 border rounded text-[11px] font-mono font-bold text-right outline-none focus:border-[var(--app-accent)] ${
+                            isReceipt ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-800 dark:text-slate-200'
                           }`}
                           style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-panel-bg)' }}
                         />
                       </div>
                     </td>
 
-                    {/* Editable Reference / Cheque No. */}
+                    {/* 9. Reference No. */}
                     <td className="py-2 px-2">
                       <input
                         type="text"
@@ -809,56 +885,38 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
                       />
                     </td>
 
-                    {/* Confidence */}
+                    {/* 10. Confidence */}
                     <td className="py-2 px-2 text-center">
                       {getConfidenceBadge(effConfidence)}
                     </td>
 
-                    {/* Status Badge */}
+                    {/* 11. Status */}
                     <td className="py-2 px-2 text-center">
                       {getStatusBadge(item, effConfidence, effParty)}
                     </td>
 
-                    {/* Action: Row-level Save button & Eye detail button */}
+                    {/* 12. Actions: Save + Eye Icon buttons */}
                     <td className="py-2 px-2 text-center">
-                      <div className="flex items-center justify-center gap-1.5">
-                        {item.status === 'saved' ? (
-                          <span
-                            className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-black bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 shadow-2xs"
-                            title={`Saved as Voucher #${item.voucherNumber || ''}`}
-                          >
-                            <Check size={11} /> Saved
-                          </span>
-                        ) : (
+                      <div className="flex items-center justify-center gap-1">
+                        {/* Per-row Save button — visible only for non-saved, non-duplicate items */}
+                        {item.status !== 'saved' && item.status !== 'already_processed' && (
                           <button
                             onClick={() => handleSaveSingleVoucher(item.item_id)}
-                            disabled={savingSingleItemId === item.item_id || !hasMaster}
-                            className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-wider bg-[var(--app-accent)] text-white shadow-xs hover:opacity-90 transition-all disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
-                            title={!hasMaster ? 'Select party ledger before saving' : 'Save this voucher to accounting records'}
+                            disabled={savingSingleItemId === item.item_id || !effParty}
+                            title={!effParty ? 'Map a party ledger first to save' : 'Save this voucher to MongoDB'}
+                            className="w-6 h-6 rounded-full flex items-center justify-center border border-emerald-400 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:border-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 transition-colors mx-auto cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                           >
-                            {savingSingleItemId === item.item_id ? (
-                              <RefreshCw className="animate-spin" size={11} />
-                            ) : (
-                              <Save size={11} />
-                            )}
-                            <span>Save</span>
+                            {savingSingleItemId === item.item_id
+                              ? <RefreshCw size={10} className="animate-spin" />
+                              : <Save size={10} />}
                           </button>
                         )}
                         <button
                           onClick={() => setEditingItem(item)}
-                          className="p-1 rounded-md border hover:bg-[var(--app-control-hover)] text-[var(--app-muted)] hover:text-[var(--app-accent)] transition-all cursor-pointer"
-                          style={{ borderColor: 'var(--app-border)' }}
-                          title="View Full Context & Split-Screen Review"
+                          className="w-6 h-6 rounded-full flex items-center justify-center border border-sky-300 bg-sky-50 text-sky-600 hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-400 transition-colors mx-auto cursor-pointer"
+                          title="View Full Context"
                         >
                           <Eye size={12} />
-                        </button>
-                        <button
-                          onClick={() => setXmlPreviewItem(item)}
-                          className="p-1 rounded-md border hover:bg-indigo-500/10 text-[var(--app-muted)] hover:text-indigo-600 transition-all cursor-pointer"
-                          style={{ borderColor: 'var(--app-border)' }}
-                          title="Preview Generated Tally XML"
-                        >
-                          <FileCode size={12} />
                         </button>
                       </div>
                     </td>
@@ -867,7 +925,7 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
               })
             ) : (
               <tr>
-                <td colSpan={10} className="py-12 text-center text-[var(--app-muted)] font-semibold italic">
+                <td colSpan={12} className="py-12 text-center text-[var(--app-muted)] font-semibold italic">
                   No statement items match the selected filter.
                 </td>
               </tr>

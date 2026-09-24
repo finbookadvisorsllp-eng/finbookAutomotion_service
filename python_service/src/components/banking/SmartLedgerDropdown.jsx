@@ -456,58 +456,38 @@ function SmartLedgerDropdown({
         role="button"
         aria-haspopup="listbox"
         aria-expanded={isOpen}
-        className={`group w-full h-7.5 px-2.5 rounded-md text-[11px] font-bold border flex items-center justify-between gap-1.5 transition-all outline-none cursor-pointer ${
+        className={`group w-full h-7 px-2 rounded-md text-[11px] font-bold border flex items-center justify-between gap-1 transition-all outline-none cursor-pointer ${
           disabled
             ? 'opacity-50 cursor-not-allowed bg-slate-100 dark:bg-slate-800'
             : hasSelected
-              ? isHighConfidence
-                ? 'bg-[var(--app-panel-bg)] text-[var(--app-heading)] border-[var(--app-border)] hover:border-[#2563EB] shadow-xs'
-                : 'bg-amber-500/5 text-amber-700 dark:text-amber-300 border-amber-500/40 hover:border-amber-500'
-              : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/40 hover:border-amber-500'
-        } focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB]/20`}
+              ? 'bg-[var(--app-panel-bg)] text-[var(--app-heading)] border-[var(--app-border)] hover:border-[#2563EB]'
+              : 'bg-amber-50/70 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 border-amber-300 dark:border-amber-800 hover:border-amber-400'
+        } focus:border-[#2563EB]`}
       >
-        <div className="flex items-center gap-1.5 min-w-0 flex-1">
+        <div className="flex items-center gap-1 min-w-0 flex-1">
           {hasSelected ? (
-            <>
-              {isHighConfidence && (
-                <Sparkles size={12} className="text-emerald-500 shrink-0" title="AI High Confidence Match" />
-              )}
-              <span className="truncate font-black tracking-tight block">
-                {value}
-              </span>
-            </>
+            <span className="truncate font-black tracking-tight block text-[var(--app-heading)]">
+              {value}
+            </span>
           ) : (
-            <span className="text-[var(--app-muted)] font-medium truncate italic">
-              {placeholder}
+            <span className="text-amber-600 dark:text-amber-400 font-bold truncate block text-[10.5px]">
+              {placeholder || '-- Select Master Party Ledger --'}
             </span>
           )}
         </div>
 
         <div className="flex items-center gap-1 shrink-0">
-          {hasSelected && !disabled && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                if (onChange) onChange('');
-              }}
-              className="p-0.5 rounded text-[var(--app-muted)] hover:text-rose-600 hover:bg-rose-500/10 transition-colors"
-              title="Clear selection"
-            >
-              <X size={12} />
-            </button>
-          )}
           <ChevronDown
             size={13}
-            className={`text-[var(--app-muted)] transition-transform duration-150 ${isOpen ? 'rotate-180 text-[#2563EB]' : ''}`}
+            className={`${hasSelected ? 'text-[var(--app-muted)]' : 'text-amber-500'} transition-transform duration-150 ${isOpen ? 'rotate-180 text-[#2563EB]' : ''}`}
           />
         </div>
       </div>
 
       {/* Warning/Review Reason if Unmapped */}
       {!hasSelected && reviewReason && (
-        <div className="text-[9.5px] text-amber-600 dark:text-amber-400 font-semibold truncate mt-0.5 max-w-[240px] flex items-center gap-1" title={reviewReason}>
-          <AlertCircle size={10} className="shrink-0" />
+        <div className="text-[9px] text-amber-600 dark:text-amber-400 font-medium truncate mt-0.5 max-w-[240px] flex items-center gap-1" title={reviewReason}>
+          <span className="text-[8px] leading-none shrink-0">▲</span>
           <span className="truncate">{reviewReason}</span>
         </div>
       )}

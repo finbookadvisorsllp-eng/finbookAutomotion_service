@@ -13,6 +13,9 @@ import SmartLedgerDropdown, { findBestLedgerMatch } from './SmartLedgerDropdown'
 // Memory cache so returning to Ledger Mapping tab or switching bank accounts is 0ms instant without re-analyzing
 const ledgerMappingsCache = new Map();
 const patternRulesCache = new Map();
+const partyLedgerOverridesCache = new Map();
+const customPatternIndexesCache = new Map();
+const appliedPatternIdsCache = new Map();
 
 export const getBankPrefix = (bankLedger) => {
   if (!bankLedger) return 'BANK';
@@ -302,53 +305,40 @@ const LedgerMappingRow = React.memo(function LedgerMappingRow({
 }) {
   const conf = Number(row.confidence) || 0;
   const partyText = row.extractedParty || row.extractedPattern || '—';
-  const isExactMatch = !!(
-    row.suggestedLedger &&
-    partyText !== '—' &&
-    row.suggestedLedger.trim().toUpperCase() === partyText.trim().toUpperCase()
-  );
 
   const handleLedgerChange = useCallback((newVal) => {
     if (onSelectLedger) onSelectLedger(row, newVal);
   }, [row, onSelectLedger]);
 
+  // Determine whether System Auto vs User Verified (2 bases requested by user)
+  const isUserVerified = row.mappingMethod === 'User Confirmed' || 
+                         row.mappingMethod === 'User Mapped' || 
+                         row.mappingMethod === 'User Verified' ||
+                         row.isUserEdited ||
+                         row.status === 'user_edited' ||
+                         row.status === 'saved';
+
+  const hasLedger = !!(row.suggestedLedger && row.suggestedLedger !== 'Unmapped');
+
   return (
-    <tr className="hover:bg-[var(--app-content-bg)]/40 transition-colors group">
-      {/* Column 1: EXTRACTED PARTY / LEDGER & TRANSACTION DETAILS */}
-      <td className="py-3 px-4">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="text-[12.5px] font-black text-[var(--app-heading)] tracking-tight">
-              {partyText}
-            </span>
-            {isExactMatch && (
-              <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
-                Exact
-              </span>
-            )}
-          </div>
-          <div className="text-[10.5px] font-medium text-[var(--app-muted)] truncate max-w-[440px] mt-0.5 flex items-center gap-1.5 flex-wrap">
-            {row.date && (
-              <span className="font-mono font-bold text-[var(--app-heading)]">{row.date}</span>
-            )}
-            {row.amount !== undefined && (
-              <span className={`font-black font-mono ${row.voucherType === 'Receipt' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                {row.voucherType === 'Receipt' ? '+' : '-'} ₹{Number(row.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-              </span>
-            )}
-            {row.referenceNumber && row.referenceNumber !== '—' && (
-              <span className="font-mono text-[10px]">Ref: {row.referenceNumber}</span>
-            )}
-            {row.narration && (
-              <span className="truncate max-w-[260px]" title={row.narration}>• {row.narration}</span>
-            )}
-          </div>
-        </div>
+    <tr className="hover:bg-blue-50/20 transition-colors">
+      {/* Column 1: EXTRACTED PARTY ONLY (No other information) */}
+      <td className="py-2 px-3 align-middle">
+        <span className="text-xs font-bold text-slate-900 tracking-tight block truncate max-w-[230px]" title={partyText}>
+          {partyText}
+        </span>
       </td>
 
-      {/* Column 2: LEDGER SELECTION (Smart Dropdown) */}
-      <td className="py-3 px-3">
-        <div className="min-w-[200px] max-w-[280px]">
+      {/* Column 2: DESCRIPTION / NARRATION */}
+      <td className="py-2 px-3 align-middle">
+        <span className="font-mono text-[10.5px] text-slate-600 block break-words line-clamp-2 leading-tight" title={row.narration}>
+          {row.narration || row.sampleNarration || '—'}
+        </span>
+      </td>
+
+      {/* Column 3: LEDGER SELECTION (Smart Dropdown) */}
+      <td className="py-2 px-3 align-middle">
+        <div className="min-w-[180px] max-w-[280px]">
           <SmartLedgerDropdown
             value={row.suggestedLedger || ''}
             onChange={handleLedgerChange}
@@ -362,15 +352,15 @@ const LedgerMappingRow = React.memo(function LedgerMappingRow({
         </div>
       </td>
 
-      {/* Column 3: CONFIDENCE SCORE */}
-      <td className="py-3 px-3 text-center">
+      {/* Column 4: CONFIDENCE SCORE */}
+      <td className="py-2 px-3 text-center align-middle">
         <span
-          className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-extrabold font-mono border shadow-xs ${
+          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-bold font-mono border shadow-2xs ${
             conf >= 90
-              ? 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/50'
+              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
               : conf >= 60
-                ? 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800/50'
-                : 'bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800/50'
+                ? 'bg-amber-50 text-amber-700 border-amber-200'
+                : 'bg-rose-50 text-rose-700 border-rose-200'
           }`}
         >
           <span className={`w-1.5 h-1.5 rounded-full ${conf >= 90 ? 'bg-emerald-500' : conf >= 60 ? 'bg-amber-500' : 'bg-rose-500'}`} />
@@ -378,21 +368,23 @@ const LedgerMappingRow = React.memo(function LedgerMappingRow({
         </span>
       </td>
 
-      {/* Column 4: MAPPING METHOD */}
-      <td className="py-3 px-4 text-center">
-        <span
-          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10.5px] font-extrabold border shadow-xs ${
-            isExactMatch || row.mappingMethod === 'System • Exact Match'
-              ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/25'
-              : row.mappingMethod === 'User Confirmed' || row.mappingMethod === 'User Mapped'
-                ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/25'
-                : row.mappingMethod === 'AI Suggested' || row.mappingMethod === 'AI Pattern Applied'
-                  ? 'bg-purple-500/10 text-purple-600 border-purple-500/25'
-                  : 'bg-slate-500/10 text-slate-600 border-slate-500/25'
-          }`}
-        >
-          {isExactMatch ? 'System • Exact Match' : (row.mappingMethod || 'Unmapped')}
-        </span>
+      {/* Column 5: MAPPING METHOD (2 bases: System Auto vs User Verified) */}
+      <td className="py-2 px-3 text-center align-middle">
+        {isUserVerified ? (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10.5px] font-bold bg-blue-50 text-blue-700 border border-blue-200 shadow-2xs">
+            <Check size={11} strokeWidth={2.5} />
+            <span>User Verified</span>
+          </span>
+        ) : hasLedger ? (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10.5px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
+            <Sparkles size={11} />
+            <span>System (Auto)</span>
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10.5px] font-medium bg-slate-100 text-slate-500 border border-slate-200">
+            <span>Unmapped</span>
+          </span>
+        )}
       </td>
     </tr>
   );
@@ -466,35 +458,122 @@ export default function BankRuleMappingModal({
 
   // Hierarchy & Interactive Token Indexing state
   const [selectedTxnType, setSelectedTxnType] = useState('ALL');
-  const [customPatternIndexes, setCustomPatternIndexes] = useState({});
-  const [partyLedgerOverrides, setPartyLedgerOverrides] = useState({});
+  const [customPatternIndexes, setCustomPatternIndexes] = useState(() => {
+    return customPatternIndexesCache.get(currentBankLedger || 'default') || {};
+  });
+  const [partyLedgerOverrides, setPartyLedgerOverrides] = useState(() => {
+    return partyLedgerOverridesCache.get(currentBankLedger || 'default') || {};
+  });
   const [inspectingPartyModal, setInspectingPartyModal] = useState(null);
 
+  // Pattern Mapping UI state matching layout
+  const [selectedPatternId, setSelectedPatternId] = useState(null);
+  const [appliedPatternIds, setAppliedPatternIds] = useState(() => {
+    return appliedPatternIdsCache.get(currentBankLedger || 'default') || new Set(['NEFT', 'CLG']);
+  });
+  const [patternStatusFilter, setPatternStatusFilter] = useState('all'); // all, applied, not_applied
+  const [hoveredPartyNarrations, setHoveredPartyNarrations] = useState(null);
+  const [expandedPartyNarrations, setExpandedPartyNarrations] = useState(null);
+
+  // Sync caches when selectedBankLedger changes
+  useEffect(() => {
+    const key = selectedBankLedger || 'default';
+    if (customPatternIndexesCache.has(key)) {
+      setCustomPatternIndexes(customPatternIndexesCache.get(key));
+    }
+    if (partyLedgerOverridesCache.has(key)) {
+      setPartyLedgerOverrides(partyLedgerOverridesCache.get(key));
+    }
+    if (appliedPatternIdsCache.has(key)) {
+      setAppliedPatternIds(appliedPatternIdsCache.get(key));
+    }
+  }, [selectedBankLedger]);
+
   const handleUpdatePatternIndex = (patId, field, newIndex) => {
-    setCustomPatternIndexes(prev => ({
-      ...prev,
-      [patId]: {
-        ...(prev[patId] || {}),
-        [field]: Number(newIndex)
-      }
-    }));
+    setCustomPatternIndexes(prev => {
+      const next = {
+        ...prev,
+        [patId]: {
+          ...(prev[patId] || {}),
+          [field]: Number(newIndex)
+        }
+      };
+      customPatternIndexesCache.set(selectedBankLedger || 'default', next);
+      return next;
+    });
   };
 
   const handlePartyLedgerOverride = (patId, partyName, ledgerName) => {
-    setPartyLedgerOverrides(prev => ({
-      ...prev,
-      [`${patId}_${partyName}`]: ledgerName
-    }));
+    setPartyLedgerOverrides(prev => {
+      const next = {
+        ...prev,
+        [`${patId}_${partyName}`]: ledgerName
+      };
+      partyLedgerOverridesCache.set(selectedBankLedger || 'default', next);
+      return next;
+    });
   };
 
   const getEffectivePatternData = (pat) => {
     const custom = customPatternIndexes[pat.id];
-    const partyPos = custom?.partyPosition !== undefined ? custom.partyPosition : (pat.partyPosition !== undefined ? pat.partyPosition : -1);
+    let partyPos = custom?.partyPosition !== undefined ? custom.partyPosition : (pat.partyPosition !== undefined ? pat.partyPosition : -1);
     const txnIdPos = custom?.txnIdPosition !== undefined ? custom.txnIdPosition : (pat.txnIdPosition !== undefined ? pat.txnIdPosition : -1);
     const vpaPos = custom?.vpaPosition !== undefined ? custom.vpaPosition : (pat.vpaPosition !== undefined ? pat.vpaPosition : -1);
 
     const txns = pat.transactions || [];
-    const sep = pat.separator || '/';
+    const sep = (pat.separator && pat.separator.includes(',')) ? pat.separator.split(',')[0].trim() : (pat.separator || '/');
+
+    // Auto Reverse-Index Matching: If user hasn't explicitly set party position,
+    // evaluate each token index against master ledgers and pick the index that matches most frequently
+    if (custom?.partyPosition === undefined && txns.length > 0 && normalizedAllLedgers.length > 0) {
+      const posScores = {};
+      const sampleTxns = txns.slice(0, 25);
+      sampleTxns.forEach(tx => {
+        const narr = tx.narration || tx.sampleNarration || tx.raw_narration || '';
+        if (!narr) return;
+        const txAnalysis = getCachedNarrationAnalysis(narr);
+        const txSep = txAnalysis.sep || sep;
+        const parts = txSep === ' ' ? narr.trim().split(/\s+/) : narr.split(txSep);
+        parts.forEach((p, idx) => {
+          const pTrim = p.trim();
+          if (pTrim.length >= 3 && !isStopPhrase(pTrim) && /[a-z]/i.test(pTrim)) {
+            const m = findBestLedgerMatch(pTrim, normalizedAllLedgers);
+            if (m && m.score >= 70) {
+              posScores[idx] = (posScores[idx] || 0) + (m.score >= 90 ? 10 : 5);
+            }
+          }
+        });
+      });
+      const sortedPos = Object.entries(posScores).sort((a, b) => b[1] - a[1]);
+      if (sortedPos.length > 0 && sortedPos[0][1] >= 10) {
+        partyPos = Number(sortedPos[0][0]);
+      }
+    }
+
+    // Calculate sample narration tokens to safely clamp partyPos within existing bounds
+    const sampleNarrForClamp = (pat.raw?.sampleNarrations && pat.raw.sampleNarrations[0]) ||
+      (txns && txns[0]?.narration) || pat.pattern || '';
+    const actualParts = sampleNarrForClamp ? (sep === ' ' ? sampleNarrForClamp.trim().split(/\s+/) : sampleNarrForClamp.split(sep).map(s => s.trim())) : [];
+    const actualTokenCount = actualParts.length;
+
+    // Safety clamp: partyPos must NEVER exceed the actual token count of the narration
+    if (actualTokenCount > 0 && (partyPos >= actualTokenCount || partyPos < 0)) {
+      let bestPos = -1;
+      let bestScore = -1;
+      actualParts.forEach((p, idx) => {
+        const pTrim = p.trim();
+        if (pTrim.length >= 3 && !isStopPhrase(pTrim) && /[a-z]/i.test(pTrim)) {
+          const m = findBestLedgerMatch(pTrim, normalizedAllLedgers);
+          const score = m ? m.score : 0;
+          if (score > bestScore) {
+            bestScore = score;
+            bestPos = idx;
+          }
+        }
+      });
+      partyPos = bestPos >= 0 ? bestPos : (actualTokenCount > 3 ? 3 : 0);
+    }
+
     let sampleParty = pat.extractedParty || '';
     let partiesList = pat.distinctParties || [];
 
@@ -638,7 +717,7 @@ export default function BankRuleMappingModal({
         try {
           const fresh = await bankStatementAiApi.getBatchReview(batchId);
           if (fresh?.data) updatedBatch = fresh.data;
-        } catch (e) {}
+        } catch (e) { }
       }
 
       if (onRulesApplied) onRulesApplied(updatedBatch);
@@ -657,23 +736,43 @@ export default function BankRuleMappingModal({
           }
         });
 
-        setLedgerMappings(prev => prev.map(m => {
-          if (pat.transactions.some(t => (t.item_id && t.item_id === m.item_id) || (t.id && t.id === m.id))) {
-            const narr = m.narration || m.sampleNarration || '';
-            const parts = sep === ' ' ? narr.trim().split(/\s+/) : narr.split(sep);
-            const extracted = (pPos >= 0 && pPos < parts.length) ? parts[pPos].trim() : m.extractedParty;
-            const mappedInfo = extracted ? partyLedgerLookup[extracted.toLowerCase().trim()] : null;
-            return {
-              ...m,
-              extractedParty: extracted || m.extractedParty,
-              partyPosition: pPos,
-              suggestedLedger: mappedInfo?.ledger || m.suggestedLedger,
-              confidence: mappedInfo ? mappedInfo.confidence : m.confidence,
-              mappingMethod: mappedInfo ? 'AI Pattern Applied' : m.mappingMethod
-            };
+        setLedgerMappings(prev => {
+          const updated = prev.map(m => {
+            if (pat.transactions.some(t => (t.item_id && t.item_id === m.item_id) || (t.id && t.id === m.id))) {
+              const narr = m.narration || m.sampleNarration || '';
+              const parts = sep === ' ' ? narr.trim().split(/\s+/) : narr.split(sep);
+              const extracted = (pPos >= 0 && pPos < parts.length) ? parts[pPos].trim() : m.extractedParty;
+              const mappedInfo = extracted ? partyLedgerLookup[extracted.toLowerCase().trim()] : null;
+              return {
+                ...m,
+                extractedParty: extracted || m.extractedParty,
+                partyPosition: pPos,
+                suggestedLedger: mappedInfo?.ledger || m.suggestedLedger,
+                confidence: mappedInfo ? mappedInfo.confidence : m.confidence,
+                mappingMethod: mappedInfo ? 'User Verified' : m.mappingMethod,
+                isUserEdited: !!mappedInfo
+              };
+            }
+            return m;
+          });
+          ledgerMappingsCache.set(selectedBankLedger, updated);
+          return updated;
+        });
+
+        // Save pattern overrides permanently so returning to Pattern Mapping preserves applied ledgers
+        const updatedOverrides = { ...partyLedgerOverrides };
+        (effective.distinctParties || []).forEach(dp => {
+          if (dp.mappedLedger && dp.mappedLedger !== 'Unmapped') {
+            updatedOverrides[`${pat.id}_${dp.party}`] = dp.mappedLedger;
           }
-          return m;
-        }));
+        });
+        setPartyLedgerOverrides(updatedOverrides);
+        partyLedgerOverridesCache.set(selectedBankLedger || 'default', updatedOverrides);
+        setAppliedPatternIds(prev => {
+          const next = new Set([...prev, pat.id, pat.txnType, pat.channel]);
+          appliedPatternIdsCache.set(selectedBankLedger || 'default', next);
+          return next;
+        });
       }
     } catch (err) {
       toast.success(`Applied Party Index [${effective.partyPosition}] for ${pat.txnType || pat.patternName}!`);
@@ -752,7 +851,7 @@ export default function BankRuleMappingModal({
   const fetchPatterns = async (silent = false) => {
     if (!selectedBankLedger) return;
     const cached = patternRulesCache.get(selectedBankLedger);
-    if (!silent && (!cached || (!cached.rules?.length && !cached.suggestions?.length))) {
+    if (!silent && combinedPatterns.length === 0 && (!cached || (!cached.rules?.length && !cached.suggestions?.length))) {
       setLoadingPatterns(true);
     }
     try {
@@ -806,11 +905,8 @@ export default function BankRuleMappingModal({
         setRules(cached.rules);
         setSuggestions(cached.suggestions);
         setLoadingPatterns(false);
-      } else if (ledgerMappings && ledgerMappings.length > 0) {
-        // Synthesizes patterns instantly from already loaded statement transactions
-        setLoadingPatterns(false);
       } else {
-        fetchPatterns(false);
+        fetchPatterns(true);
       }
     }
   }, [selectedBankLedger, activeTab, mappingFilter, batchId]);
@@ -850,18 +946,23 @@ export default function BankRuleMappingModal({
       });
       if (res?.success) {
         toast.success(`Mapped to "${newLedger}"`);
-        // Update local state instantly
-        setLedgerMappings(prev => prev.map(m => {
-          if (m.patternId === mappingItem.patternId) {
-            return {
-              ...m,
-              suggestedLedger: newLedger,
-              confidence: 100,
-              mappingMethod: isExact ? 'System • Exact Match' : 'User Mapped'
-            };
-          }
-          return m;
-        }));
+        // Update local state and memory cache instantly
+        setLedgerMappings(prev => {
+          const updated = prev.map(m => {
+            if (m.patternId === mappingItem.patternId) {
+              return {
+                ...m,
+                suggestedLedger: newLedger,
+                confidence: 100,
+                mappingMethod: 'User Verified',
+                isUserEdited: true
+              };
+            }
+            return m;
+          });
+          ledgerMappingsCache.set(selectedBankLedger || 'default', updated);
+          return updated;
+        });
         if (onRulesApplied) onRulesApplied();
       }
     } catch (err) {
@@ -1117,8 +1218,44 @@ export default function BankRuleMappingModal({
 
     const hasStatementTxns = ledgerMappings && ledgerMappings.length > 0;
 
-    // 1. Group loaded statement transactions (Tab 1) into Transaction Types & Distinct Structural Patterns
-    if (hasStatementTxns) {
+    // 1. Group transactions into Transaction Types & Distinct Structural Patterns
+    // Prioritize backend AI pattern discovery suggestions (derived with Master-First Reverse Index matching)
+    if (suggestions && suggestions.length > 0) {
+      suggestions.forEach(s => {
+        let type = (s.transactionType || s.txnType || s.channel || 'OTHER').toUpperCase();
+        if (type === 'INTERNAL_TRANSFER' || type === 'OTHER_TRANSFER') type = 'TRANSFER';
+        if (type === 'BANK_CHARGES') type = 'CHARGES';
+        if (type === 'CHEQUE') type = 'CHQ';
+        if (type === 'MANDATE') type = 'NACH';
+        if (type === 'CARD') type = 'POS';
+
+        if (!typePatternGroups.has(type)) {
+          typePatternGroups.set(type, new Map());
+        }
+        const structMap = typePatternGroups.get(type);
+        const sig = s.candidatePattern || s.pattern || `sig_${s.id}`;
+        if (!structMap.has(sig) && (s.matchingCount > 0 || s.frequency > 0)) {
+          structMap.set(sig, {
+            id: s._id || s.id,
+            txnType: type,
+            separator: s.separator || '/',
+            skeleton: s.pattern || s.candidatePattern,
+            partyPosition: s.partyPosition !== undefined ? s.partyPosition : -1,
+            txnIdPosition: s.txnIdPosition !== undefined ? s.txnIdPosition : -1,
+            matchingCount: s.matchingCount || s.frequency || 0,
+            transactions: s.transactions || [],
+            sampleNarrations: s.sampleNarrations || [],
+            tokens: s.tokens || [],
+            raw: s,
+            distinctPartiesMap: (s.distinctParties || []).reduce((acc, dp) => {
+              acc[dp.party] = dp;
+              return acc;
+            }, {})
+          });
+        }
+      });
+    } else if (hasStatementTxns) {
+      // Fallback to client-side grouping only when suggestions haven't loaded yet
       ledgerMappings.forEach((m) => {
         const narr = m.narration || m.sampleNarration || '';
         const analysis = getCachedNarrationAnalysis(narr);
@@ -1200,34 +1337,6 @@ export default function BankRuleMappingModal({
           }
         }
       });
-    } else if (suggestions && suggestions.length > 0) {
-      // ONLY fallback to backend AI suggestions if no statement transactions are in memory
-      suggestions.forEach(s => {
-        const type = (s.transactionType || s.txnType || s.channel || 'OTHER').toUpperCase();
-        if (!typePatternGroups.has(type)) {
-          typePatternGroups.set(type, new Map());
-        }
-        const structMap = typePatternGroups.get(type);
-        const sig = s.candidatePattern || s.pattern || `sig_${s.id}`;
-        if (!structMap.has(sig) && (s.matchingCount > 0 || s.frequency > 0)) {
-          structMap.set(sig, {
-            id: s._id || s.id,
-            txnType: type,
-            separator: s.separator || '/',
-            skeleton: s.pattern || s.candidatePattern,
-            partyPosition: s.partyPosition !== undefined ? s.partyPosition : -1,
-            txnIdPosition: s.txnIdPosition !== undefined ? s.txnIdPosition : -1,
-            matchingCount: s.matchingCount || s.frequency || 0,
-            transactions: s.transactions || [],
-            sampleNarrations: s.sampleNarrations || [],
-            tokens: s.tokens || [],
-            distinctPartiesMap: (s.distinctParties || []).reduce((acc, dp) => {
-              acc[dp.party] = dp;
-              return acc;
-            }, {})
-          });
-        }
-      });
     }
 
     // 2. Add all default transaction types from DEFAULT_TRANSACTION_TYPES
@@ -1301,6 +1410,43 @@ export default function BankRuleMappingModal({
       }
     });
 
+    // Also include any non-default transaction types discovered dynamically
+    typePatternGroups.forEach((structMap, typeKey) => {
+      const alreadyIncluded = DEFAULT_TRANSACTION_TYPES.some(d => d.type === typeKey);
+      if (!alreadyIncluded && structMap && structMap.size > 0) {
+        const sortedGroups = Array.from(structMap.values()).sort((a, b) => b.matchingCount - a.matchingCount);
+        sortedGroups.forEach((g, gIdx) => {
+          const patLetter = String.fromCharCode(65 + gIdx);
+          const patId = `PAT-${bankCode}-${typeKey}-${patLetter}`;
+          const dList = Object.values(g.distinctPartiesMap).sort((a, b) => b.count - a.count);
+          list.push({
+            id: g.id || `pat_live_${typeKey.toLowerCase()}_${patLetter.toLowerCase()}`,
+            patternId: patId,
+            patternName: `${typeKey} • Pattern ${patLetter} (AI Detected)`,
+            txnType: typeKey,
+            typeLabel: typeKey,
+            typeDesc: `${typeKey} Transactions`,
+            separator: g.separators ? Array.from(g.separators).join(', ') : (g.separator || '/'),
+            pattern: g.skeleton || `${typeKey} Pattern ${patLetter}`,
+            partyPosition: g.partyPosition,
+            txnIdPosition: g.txnIdPosition,
+            matchingCount: g.matchingCount,
+            distinctPartiesCount: dList.length,
+            distinctParties: dList,
+            extractedParty: dList.length > 0 ? dList[0].party : '',
+            mappedLedger: dList.length === 1 ? dList[0].mappedLedger : (dList.length > 1 ? `${dList.length} Ledgers` : 'Unmapped'),
+            tokens: g.tokens || [],
+            transactions: g.transactions || [],
+            sampleNarrations: g.sampleNarrations || [],
+            isAi: true,
+            isPatternA: (gIdx === 0),
+            isDefaultLibrary: false,
+            status: 'active'
+          });
+        });
+      }
+    });
+
     // Sort list: active patterns with transactions first (descending count), then 0-count default types
     return list.sort((a, b) => b.matchingCount - a.matchingCount);
   }, [ledgerMappings, suggestions, rules, selectedBankLedger, normalizedAllLedgers]);
@@ -1363,6 +1509,13 @@ export default function BankRuleMappingModal({
       }
     }
 
+    // Apply Status Filter
+    if (patternStatusFilter === 'applied') {
+      list = list.filter(p => appliedPatternIds.has(p.id) || appliedPatternIds.has(p.txnType) || appliedPatternIds.has(p.channel));
+    } else if (patternStatusFilter === 'not_applied') {
+      list = list.filter(p => !appliedPatternIds.has(p.id) && !appliedPatternIds.has(p.txnType) && !appliedPatternIds.has(p.channel));
+    }
+
     // Apply Search — if searching, include 0-count defaults too so user can find them
     if (patternSearch.trim()) {
       const q = patternSearch.toLowerCase();
@@ -1379,7 +1532,7 @@ export default function BankRuleMappingModal({
     }
 
     return list || [];
-  }, [allCombinedPatterns, selectedTxnType, patternFilter, patternSearch]);
+  }, [allCombinedPatterns, selectedTxnType, patternFilter, patternSearch, patternStatusFilter, appliedPatternIds]);
 
   const paginatedPatterns = useMemo(() => {
     const safeList = combinedPatterns || [];
@@ -1389,179 +1542,184 @@ export default function BankRuleMappingModal({
     return safeList.slice(start, start + size);
   }, [combinedPatterns, patternPage, patternPageSize]);
 
+  // Selected pattern for Right Detail Drawer (only shown when selectedPatternId is active)
+  const selectedPattern = useMemo(() => {
+    if (!combinedPatterns || combinedPatterns.length === 0 || !selectedPatternId) return null;
+    return combinedPatterns.find(p => p.id === selectedPatternId) || null;
+  }, [combinedPatterns, selectedPatternId]);
+
   const totalPatternPages = useMemo(() => {
     if (patternPageSize === 'all') return 1;
     const size = Number(patternPageSize) || 25;
     return Math.max(1, Math.ceil((combinedPatterns?.length || 0) / size));
   }, [combinedPatterns?.length, patternPageSize]);
 
+  // Helper for transaction type avatar color & letter matching screenshot
+  const getTypeBadgeConfig = useCallback((txnType) => {
+    const t = (txnType || 'OTHER').toUpperCase();
+    if (t.includes('NEFT')) return { letter: 'N', bg: 'bg-[#2563EB]', text: 'text-white' };
+    if (t.includes('CLG')) return { letter: 'C', bg: 'bg-[#6366F1]', text: 'text-white' };
+    if (t.includes('UPI')) return { letter: 'U', bg: 'bg-[#06B6D4]', text: 'text-white' };
+    if (t.includes('TRANSFER') || t.includes('TRF')) return { letter: 'T', bg: 'bg-[#F59E0B]', text: 'text-white' };
+    if (t.includes('IMPS')) return { letter: 'I', bg: 'bg-[#EC4899]', text: 'text-white' };
+    if (t.includes('RTGS')) return { letter: 'R', bg: 'bg-[#10B981]', text: 'text-white' };
+    if (t.includes('CHQ') || t.includes('CTS')) return { letter: 'C', bg: 'bg-[#8B5CF6]', text: 'text-white' };
+    return { letter: t.charAt(0) || 'O', bg: 'bg-[#64748B]', text: 'text-white' };
+  }, []);
+
   if (!isOpen) return null;
 
+  // Back button handler: if on pattern_mapping goes back to ledger_mapping, else closes modal
+  const handleBack = () => {
+    if (activeTab === 'pattern_mapping') {
+      setActiveTab('ledger_mapping');
+    } else {
+      onClose?.();
+    }
+  };
+
   return (
-    <div className="flex flex-col gap-3 h-full w-full overflow-hidden bg-[var(--app-content-bg)] text-[var(--app-heading)]">
-      
-      {/* ── TOP HEADER (Bank Mapping & Shared Bank Context) ── */}
-      <div className="flex flex-col gap-3 shrink-0">
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          <div>
-            <h1 className="text-[20px] font-black tracking-tight text-[var(--app-heading)]">
-              Bank Mapping
-            </h1>
-            <p className="text-[12.5px] font-medium text-[var(--app-muted)] mt-0.5">
-              Automatically identify bank transaction patterns and map them to the correct party ledgers.
-            </p>
-          </div>
+    <div className="flex flex-col gap-1.5 h-full w-full overflow-hidden bg-[var(--app-content-bg)] text-[var(--app-heading)]">
 
-          {/* Bank Account Shared Context & Back Button */}
-          <div className="flex items-center gap-2.5">
-            {/* Bank Account Selector Card matching screenshot */}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setIsBankSelectorOpen(!isBankSelectorOpen)}
-                className="flex items-center gap-3 px-3.5 py-1.5 rounded-xl border bg-[var(--app-panel-bg)] hover:border-[var(--app-accent)] transition-all cursor-pointer shadow-xs min-w-[280px]"
-                style={{ borderColor: 'var(--app-border)' }}
-              >
-                <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0">
-                  <Landmark size={17} />
-                </div>
-                <div className="text-left flex-1 min-w-0">
-                  <span className="text-[10px] font-bold text-[var(--app-muted)] uppercase tracking-wider block">Bank Account</span>
-                  <span className="text-[12.5px] font-black text-[var(--app-heading)] block truncate">
-                    {selectedBankLedger}
-                  </span>
-                </div>
-                <ChevronDown size={15} className="text-[var(--app-muted)] shrink-0" />
-              </button>
+      {/* ── TOP HEADER (Compact, Zero wasted space: Back Button, Tab Switcher & Bank Context) ── */}
+      <div className="flex items-center justify-between gap-3 shrink-0 px-2.5 py-1.5 border-b bg-white rounded-xl shadow-2xs" style={{ borderColor: 'var(--app-border)' }}>
+        <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={handleBack}
+            className="flex items-center gap-1 px-2.5 py-1 rounded-lg border text-xs font-bold text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition-all cursor-pointer shadow-2xs border-slate-200 shrink-0"
+            title={activeTab === 'pattern_mapping' ? 'Back to Ledger Mapping' : 'Back to Review'}
+          >
+            <ArrowLeft size={13} />
+            <span>Back</span>
+          </button>
 
-              {/* Dropdown Menu */}
-              {isBankSelectorOpen && (
-                <>
-                  <div className="fixed inset-0 z-20" onClick={() => setIsBankSelectorOpen(false)} />
-                  <div
-                    className="absolute left-0 mt-1.5 w-full bg-[var(--app-panel-bg)] border rounded-xl shadow-xl z-30 py-1 max-h-60 overflow-y-auto"
-                    style={{ borderColor: 'var(--app-border)' }}
-                  >
-                    {availableBankLedgers.length > 0 ? (
-                      availableBankLedgers.map(bl => (
-                        <button
-                          key={bl}
-                          onClick={() => {
-                            setSelectedBankLedger(bl);
-                            setIsBankSelectorOpen(false);
-                          }}
-                          className={`w-full text-left px-3.5 py-2 text-xs font-bold hover:bg-[var(--app-control-hover)] flex items-center justify-between transition-colors ${
-                            selectedBankLedger === bl ? 'text-[var(--app-accent)] bg-blue-500/5' : 'text-[var(--app-heading)]'
-                          }`}
-                        >
-                          <span className="truncate">{bl}</span>
-                          {selectedBankLedger === bl && <Check size={14} />}
-                        </button>
-                      ))
-                    ) : (
-                      <div className="px-3 py-2 text-xs text-[var(--app-muted)]">No bank ledgers available</div>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
+          {/* Inline Segmented Tab Switcher */}
+          <div className="flex items-center p-0.5 bg-slate-100 rounded-lg border border-slate-200">
+            <button
+              type="button"
+              onClick={() => setActiveTab('ledger_mapping')}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                activeTab === 'ledger_mapping'
+                  ? 'bg-white text-[#2563EB] shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Layers size={13} />
+              <span>Ledger Mapping</span>
+              <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full font-bold ${
+                activeTab === 'ledger_mapping' ? 'bg-blue-50 text-blue-600' : 'bg-slate-200 text-slate-600'
+              }`}>
+                {ledgerMappings.length}
+              </span>
+            </button>
 
-            {/* Back Button */}
-            {onClose && (
-              <button
-                onClick={onClose}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-bold text-[var(--app-muted)] hover:text-[var(--app-heading)] hover:bg-[var(--app-control-hover)] transition-all cursor-pointer shadow-xs"
-                style={{ borderColor: 'var(--app-border)' }}
-                title="Return to Review"
-              >
-                <ArrowLeft size={14} />
-                <span>Back</span>
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => setActiveTab('pattern_mapping')}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                activeTab === 'pattern_mapping'
+                  ? 'bg-white text-[#2563EB] shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <GitBranch size={13} />
+              <span>Pattern Mapping</span>
+              <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full font-bold ${
+                activeTab === 'pattern_mapping' ? 'bg-blue-50 text-blue-600' : 'bg-slate-200 text-slate-600'
+              }`}>
+                {combinedPatterns.length}
+              </span>
+            </button>
           </div>
         </div>
 
-        {/* ── MAIN NAVIGATION (Only 2 Tabs matching screenshot) ── */}
-        <div className="flex items-center gap-1 shrink-0 border-b pb-0.5" style={{ borderColor: 'var(--app-border)' }}>
-          <button
-            onClick={() => setActiveTab('ledger_mapping')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-t-xl text-xs font-bold transition-all cursor-pointer ${
-              activeTab === 'ledger_mapping'
-                ? 'bg-[#2563EB] text-white shadow-sm font-black'
-                : 'text-[var(--app-muted)] hover:text-[var(--app-heading)] hover:bg-[var(--app-panel-bg)]'
-            }`}
-          >
-            <Layers size={14} />
-            <span>Ledger Mapping</span>
-          </button>
+        {/* Bank Account Shared Context */}
+        <div className="flex items-center gap-2">
+          {/* Bank Account Selector Card */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setIsBankSelectorOpen(!isBankSelectorOpen)}
+              className="flex items-center gap-2 px-2.5 py-1 rounded-lg border bg-white hover:bg-slate-50 transition-all cursor-pointer shadow-2xs border-slate-200"
+            >
+              <Landmark size={14} className="text-slate-500 shrink-0" />
+              <span className="text-[10px] font-semibold text-slate-400 uppercase">Bank:</span>
+              <span className="text-xs font-black text-slate-800 truncate max-w-[180px]">
+                {selectedBankLedger}
+              </span>
+              <ChevronDown size={13} className="text-slate-400 ml-0.5 shrink-0" />
+            </button>
 
-          <button
-            onClick={() => setActiveTab('pattern_mapping')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-t-xl text-xs font-bold transition-all cursor-pointer ${
-              activeTab === 'pattern_mapping'
-                ? 'bg-[#2563EB] text-white shadow-sm font-black'
-                : 'text-[var(--app-muted)] hover:text-[var(--app-heading)] hover:bg-[var(--app-panel-bg)]'
-            }`}
-          >
-            <GitBranch size={14} />
-            <span>Pattern Mapping</span>
-          </button>
+            {/* Dropdown Menu */}
+            {isBankSelectorOpen && (
+              <>
+                <div className="fixed inset-0 z-20" onClick={() => setIsBankSelectorOpen(false)} />
+                <div
+                  className="absolute right-0 mt-1 w-64 bg-white border rounded-xl shadow-xl z-30 py-1 max-h-60 overflow-y-auto"
+                  style={{ borderColor: 'var(--app-border)' }}
+                >
+                  {availableBankLedgers.length > 0 ? (
+                    availableBankLedgers.map(bl => (
+                      <button
+                        key={bl}
+                        onClick={() => {
+                          setSelectedBankLedger(bl);
+                          setIsBankSelectorOpen(false);
+                        }}
+                        className={`w-full text-left px-3.5 py-1.5 text-xs font-bold hover:bg-slate-50 flex items-center justify-between transition-colors ${selectedBankLedger === bl ? 'text-[#2563EB] bg-blue-50' : 'text-slate-800'
+                          }`}
+                      >
+                        <span className="truncate">{bl}</span>
+                        {selectedBankLedger === bl && <Check size={13} />}
+                      </button>
+                    ))
+                  ) : (
+                    <div className="px-3 py-2 text-xs text-slate-400">No bank ledgers available</div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
       {/* ── TAB CONTENT CARD CONTAINER ── */}
-      <div className="flex-1 flex flex-col min-h-0 bg-[var(--app-panel-bg)] rounded-2xl border shadow-sm overflow-hidden" style={{ borderColor: 'var(--app-border)' }}>
-        
+      <div className="flex-1 flex flex-col min-h-0 bg-white rounded-2xl border shadow-sm overflow-hidden" style={{ borderColor: 'var(--app-border)' }}>
+
         {/* ═════════════════════════════════════════════════════════════════════════════════ */}
         {/* TAB 1: LEDGER MAPPING                                                             */}
         {/* ═════════════════════════════════════════════════════════════════════════════════ */}
         {activeTab === 'ledger_mapping' && (
-          <div className="flex-1 flex flex-col min-h-0 h-full overflow-hidden">
-            {/* Card Header with Title, Search & Filter */}
-            <div className="flex items-center justify-between gap-3 p-4 border-b shrink-0 flex-wrap" style={{ borderColor: 'var(--app-border)' }}>
-              <div>
-                <div className="flex items-center gap-2.5">
-                  <h2 className="text-[15px] font-black text-[var(--app-heading)] tracking-tight">Ledger Mapping</h2>
-                  <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 border border-blue-500/20">
-                    {ledgerMappings.length} Total Transactions
-                  </span>
-                  {enrichedLedgerMappings.filter(m => m.suggestedLedger && m.suggestedLedger !== 'Unmapped').length > 0 && (
-                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
-                      {enrichedLedgerMappings.filter(m => m.suggestedLedger && m.suggestedLedger !== 'Unmapped').length} Auto-Mapped
-                    </span>
-                  )}
-                </div>
-                <p className="text-[11.5px] font-medium text-[var(--app-muted)] mt-0.5">
-                  Review and assign party ledgers for transactions extracted from your bank statement.
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2.5 flex-wrap">
+          <div className="flex-1 flex flex-col min-h-0 h-full overflow-hidden bg-white">
+            {/* Filter Bar: strictly row-wise, ultra-compact, zero wasted vertical space */}
+            <div className="flex items-center justify-between gap-2.5 px-3 py-1.5 border-b shrink-0 bg-white" style={{ borderColor: 'var(--app-border)' }}>
+              <div className="flex items-center gap-2.5 flex-1 min-w-0">
                 {/* Search Box */}
-                <div className="relative min-w-[240px]">
-                  <Search className="absolute left-2.5 top-2.5 text-[var(--app-muted)]" size={13} />
+                <div className="relative flex-1 min-w-[200px] max-w-sm">
+                  <Search className="absolute left-2.5 top-2 text-slate-400" size={13} />
                   <input
                     type="text"
                     value={mappingSearch}
                     onChange={(e) => setMappingSearch(e.target.value)}
                     placeholder="Search pattern, party or ledger..."
-                    className="w-full h-8 pl-8 pr-3 border rounded-lg text-[11.5px] font-medium outline-none bg-[var(--app-control-bg)] text-[var(--app-heading)] focus:border-[#2563EB] transition-colors"
+                    className="w-full h-7.5 pl-8 pr-2.5 border rounded-lg text-xs font-medium outline-none bg-slate-50 text-slate-800 focus:bg-white focus:border-[#2563EB] transition-colors"
                     style={{ borderColor: 'var(--app-border)' }}
                   />
                 </div>
 
                 {/* Filter Dropdown */}
-                <div className="relative">
+                <div className="flex items-center gap-1.5 h-7.5 px-2.5 border rounded-lg bg-slate-50 text-slate-700 shrink-0" style={{ borderColor: 'var(--app-border)' }}>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0">Filter:</span>
                   <select
                     value={mappingFilter}
                     onChange={(e) => setMappingFilter(e.target.value)}
-                    className="h-8 pl-2.5 pr-7 border rounded-lg text-[11.5px] font-bold bg-[var(--app-control-bg)] text-[var(--app-heading)] outline-none cursor-pointer focus:border-[#2563EB]"
-                    style={{ borderColor: 'var(--app-border)' }}
+                    className="bg-transparent text-xs font-bold text-slate-700 outline-none cursor-pointer pr-1"
                   >
-                    <option value="all">All Mappings</option>
+                    <option value="all">All ({ledgerMappings.length})</option>
                     <option value="mapped">Mapped Ledgers</option>
                     <option value="unmapped">Unmapped / Review</option>
-                    <option value="confirmed">User Confirmed</option>
+                    <option value="confirmed">User Verified</option>
                   </select>
                 </div>
 
@@ -1569,30 +1727,40 @@ export default function BankRuleMappingModal({
                 <button
                   onClick={fetchLedgerMappings}
                   disabled={loadingLedgerMappings}
-                  className="p-2 border rounded-lg text-[var(--app-muted)] hover:text-[var(--app-heading)] hover:bg-[var(--app-control-hover)] transition-all cursor-pointer"
+                  className="w-7.5 h-7.5 flex items-center justify-center border rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-all cursor-pointer shrink-0"
                   style={{ borderColor: 'var(--app-border)' }}
                   title="Refresh Mappings"
                 >
-                  <RefreshCw size={13} className={loadingLedgerMappings ? 'animate-spin' : ''} />
+                  <RefreshCw size={13} className={loadingLedgerMappings ? 'animate-spin text-[#2563EB]' : ''} />
                 </button>
+              </div>
+
+              {/* Status Counters */}
+              <div className="flex items-center gap-2 shrink-0">
+                {enrichedLedgerMappings.filter(m => m.suggestedLedger && m.suggestedLedger !== 'Unmapped').length > 0 && (
+                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    {enrichedLedgerMappings.filter(m => m.suggestedLedger && m.suggestedLedger !== 'Unmapped').length} Auto-Mapped
+                  </span>
+                )}
               </div>
             </div>
 
-            {/* ── Table with EXACT 4 Primary Columns matching screenshot ── */}
-            <div className="flex-1 overflow-auto">
+            {/* ── Table with 5 Columns: Extracted Party alone, Description/Narration separate column ── */}
+            <div className="flex-1 overflow-auto min-h-0">
               <table className="w-full text-left border-collapse">
-                <thead className="sticky top-0 bg-[var(--app-control-bg)] border-b z-10" style={{ borderColor: 'var(--app-border)' }}>
-                  <tr className="text-[10px] font-black text-[var(--app-muted)] uppercase tracking-wider">
-                    <th className="py-2.5 px-4 w-[38%]">EXTRACTED PARTY / LEDGER</th>
-                    <th className="py-2.5 px-3 w-[28%]">LEDGER SELECTION</th>
-                    <th className="py-2.5 px-3 w-[15%] text-center">CONFIDENCE SCORE</th>
-                    <th className="py-2.5 px-4 w-[19%] text-center">MAPPING METHOD</th>
+                <thead className="sticky top-0 bg-slate-50 border-b z-10" style={{ borderColor: 'var(--app-border)' }}>
+                  <tr className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                    <th className="py-2 px-3 w-[24%]">EXTRACTED PARTY</th>
+                    <th className="py-2 px-3 w-[32%]">DESCRIPTION / NARRATION</th>
+                    <th className="py-2 px-3 w-[24%]">LEDGER SELECTION</th>
+                    <th className="py-2 px-3 w-[10%] text-center">CONFIDENCE SCORE</th>
+                    <th className="py-2 px-3 w-[10%] text-center">MAPPING METHOD</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y" style={{ borderColor: 'var(--app-border)' }}>
+                <tbody className="divide-y divide-slate-100" style={{ borderColor: 'var(--app-border)' }}>
                   {loadingLedgerMappings && ledgerMappings.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="py-16 text-center text-xs font-semibold text-[var(--app-muted)]">
+                      <td colSpan={5} className="py-16 text-center text-xs font-semibold text-slate-500">
                         <div className="flex items-center justify-center gap-2">
                           <RefreshCw className="animate-spin text-[#2563EB]" size={16} />
                           <span>Loading statement transactions...</span>
@@ -1601,7 +1769,7 @@ export default function BankRuleMappingModal({
                     </tr>
                   ) : paginatedMappings.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="py-16 text-center text-xs font-medium text-[var(--app-muted)]">
+                      <td colSpan={5} className="py-16 text-center text-xs font-medium text-slate-500">
                         No transactions found for {selectedBankLedger}. Upload a statement to automatically identify patterns.
                       </td>
                     </tr>
@@ -1621,19 +1789,19 @@ export default function BankRuleMappingModal({
             </div>
 
             {/* Card Footer with Pagination & View Options */}
-            <div className="flex items-center justify-between p-3.5 border-t shrink-0 text-xs text-[var(--app-muted)] flex-wrap gap-2" style={{ borderColor: 'var(--app-border)' }}>
+            <div className="flex items-center justify-between px-3 py-1.5 border-t shrink-0 text-xs text-slate-500 flex-wrap gap-2 bg-white" style={{ borderColor: 'var(--app-border)' }}>
               <div className="flex items-center gap-3">
                 <div>
                   {mappingPageSize === 'all' ? (
                     <span>
-                      Showing all <span className="font-bold text-[var(--app-heading)]">{filteredMappings.length}</span> transactions
+                      Showing all <span className="font-bold text-slate-800">{filteredMappings.length}</span> transactions
                       {filteredMappings.length !== ledgerMappings.length && (
-                        <span className="ml-1 text-[var(--app-muted)]">(filtered from {ledgerMappings.length})</span>
+                        <span className="ml-1 text-slate-400">(filtered from {ledgerMappings.length})</span>
                       )}
                     </span>
                   ) : (
                     <span>
-                      Showing <span className="font-bold text-[var(--app-heading)]">{paginatedMappings.length}</span> of <span className="font-bold text-[var(--app-heading)]">{filteredMappings.length}</span> transactions • Page {mappingPage} of {totalMappingPages}
+                      Showing <span className="font-bold text-slate-800">{paginatedMappings.length}</span> of <span className="font-bold text-slate-800">{filteredMappings.length}</span> transactions • Page {mappingPage} of {totalMappingPages}
                     </span>
                   )}
                 </div>
@@ -1646,7 +1814,7 @@ export default function BankRuleMappingModal({
                       setMappingPageSize(e.target.value === 'all' ? 'all' : Number(e.target.value));
                       setMappingPage(1);
                     }}
-                    className="h-6 px-2 rounded border bg-[var(--app-control-bg)] text-[var(--app-heading)] font-semibold text-[11px] outline-none cursor-pointer"
+                    className="h-6 px-1.5 rounded border bg-slate-50 text-slate-700 font-semibold text-[11px] outline-none cursor-pointer"
                     style={{ borderColor: 'var(--app-border)' }}
                   >
                     <option value="all">All ({filteredMappings.length})</option>
@@ -1662,18 +1830,18 @@ export default function BankRuleMappingModal({
                   <button
                     onClick={() => setMappingPage(p => Math.max(1, p - 1))}
                     disabled={mappingPage === 1}
-                    className="w-7 h-7 flex items-center justify-center border rounded-lg hover:bg-[var(--app-control-hover)] disabled:opacity-40 cursor-pointer font-bold"
+                    className="w-6 h-6 flex items-center justify-center border rounded hover:bg-slate-100 disabled:opacity-40 cursor-pointer font-bold text-xs"
                     style={{ borderColor: 'var(--app-border)' }}
                   >
                     ‹
                   </button>
-                  <span className="w-7 h-7 flex items-center justify-center bg-[#2563EB] text-white rounded-lg font-black text-xs">
+                  <span className="w-6 h-6 flex items-center justify-center bg-[#2563EB] text-white rounded font-black text-xs">
                     {mappingPage}
                   </span>
                   <button
                     onClick={() => setMappingPage(p => Math.min(totalMappingPages, p + 1))}
                     disabled={mappingPage >= totalMappingPages}
-                    className="w-7 h-7 flex items-center justify-center border rounded-lg hover:bg-[var(--app-control-hover)] disabled:opacity-40 cursor-pointer font-bold"
+                    className="w-6 h-6 flex items-center justify-center border rounded hover:bg-slate-100 disabled:opacity-40 cursor-pointer font-bold text-xs"
                     style={{ borderColor: 'var(--app-border)' }}
                   >
                     ›
@@ -1688,563 +1856,663 @@ export default function BankRuleMappingModal({
         {/* TAB 2: PATTERN MAPPING                                                            */}
         {/* ═════════════════════════════════════════════════════════════════════════════════ */}
         {activeTab === 'pattern_mapping' && (
-          <div className="flex-1 flex flex-col min-h-0 h-full overflow-hidden">
-            {/* Card Header with Title, Search & Add Custom Pattern Button */}
-            <div className="flex items-center justify-between gap-3 p-4 border-b shrink-0 flex-wrap" style={{ borderColor: 'var(--app-border)' }}>
-              <div>
-                <h2 className="text-[15px] font-black text-[var(--app-heading)] tracking-tight">Pattern Mapping</h2>
-                <p className="text-[11.5px] font-medium text-[var(--app-muted)]">
-                  Transaction taxonomy library, narration pattern indexing & live party extraction for {selectedBankLedger}.
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2.5 flex-wrap">
-                {/* Search */}
-                <div className="relative min-w-[220px]">
-                  <Search className="absolute left-2.5 top-2.5 text-[var(--app-muted)]" size={13} />
+          <div className="flex-1 flex flex-col min-h-0 h-full overflow-hidden bg-white">
+            {/* Filter Bar: strictly row-wise, ultra-compact, zero wasted vertical space */}
+            <div className="flex items-center justify-between gap-2.5 px-3 py-1.5 border-b shrink-0 bg-white" style={{ borderColor: 'var(--app-border)' }}>
+              <div className="flex items-center gap-2.5 flex-1 min-w-0 flex-wrap sm:flex-nowrap">
+                {/* Search Box */}
+                <div className="relative flex-1 min-w-[200px] max-w-sm">
+                  <Search className="absolute left-2.5 top-2 text-slate-400" size={13} />
                   <input
                     type="text"
                     value={patternSearch}
                     onChange={(e) => setPatternSearch(e.target.value)}
-                    placeholder="Search pattern, keyword or ledger..."
-                    className="w-full h-8 pl-8 pr-3 border rounded-lg text-[11.5px] font-medium outline-none bg-[var(--app-control-bg)] text-[var(--app-heading)] focus:border-[#2563EB] transition-colors"
+                    placeholder="Search patterns or transaction type..."
+                    className="w-full h-7.5 pl-8 pr-2.5 border rounded-lg text-xs font-medium outline-none bg-slate-50 text-slate-800 focus:bg-white focus:border-[#2563EB] transition-colors"
                     style={{ borderColor: 'var(--app-border)' }}
                   />
                 </div>
 
-                {/* Scope & Status Filter Dropdown */}
-                <select
-                  value={patternFilter}
-                  onChange={(e) => {
-                    setPatternFilter(e.target.value);
-                    setPatternPage(1);
-                  }}
-                  className="h-8 pl-2.5 pr-7 border rounded-lg text-[11.5px] font-bold bg-[var(--app-control-bg)] text-[var(--app-heading)] outline-none cursor-pointer focus:border-[#2563EB]"
-                  style={{ borderColor: 'var(--app-border)' }}
-                >
-                  <option value="all">All Filters ({allCombinedPatterns.length})</option>
-                  <option value="ai_discovered">AI Discovered ({suggestions.length})</option>
-                  <option value="unmapped">Unmapped Parties</option>
-                  <option value="customer_custom">Customer Custom</option>
-                  <option value="bank_specific">Bank-specific</option>
-                  <option value="system">System Library</option>
-                </select>
-
-                {/* Add Custom Pattern Button */}
-                <button
-                  onClick={() => {
-                    setIsAddPatternOpen(true);
-                    setPatternTestResult(null);
-                  }}
-                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider bg-[#2563EB] text-white shadow-xs hover:opacity-90 transition-all cursor-pointer shrink-0"
-                >
-                  <Plus size={14} strokeWidth={3} />
-                  <span>Add Custom Pattern</span>
-                </button>
-              </div>
-            </div>
-
-            {/* ═════════════════════════════════════════════════════════════════════════════════ */}
-            {/* LEVEL 1: TRANSACTION TYPES HORIZONTAL RAIL (from bank.json taxonomy)            */}
-            {/* ═════════════════════════════════════════════════════════════════════════════════ */}
-            <div className="px-4 py-2 border-b bg-[var(--app-control-bg)]/60 flex items-center gap-2 overflow-x-auto shrink-0 scrollbar-thin" style={{ borderColor: 'var(--app-border)' }}>
-              <span className="text-[10px] font-black uppercase tracking-wider text-[var(--app-muted)] shrink-0 mr-1 flex items-center gap-1">
-                <Layers size={12} className="text-[#2563EB]" />
-                Txn Types:
-              </span>
-
-              {/* All Types Button */}
-              <button
-                type="button"
-                onClick={() => { setSelectedTxnType('ALL'); setPatternPage(1); }}
-                className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center gap-1.5 ${
-                  selectedTxnType === 'ALL'
-                    ? 'bg-[#2563EB] text-white shadow-xs font-black'
-                    : 'bg-[var(--app-panel-bg)] text-[var(--app-muted)] hover:text-[var(--app-heading)] border border-[var(--app-border)]'
-                }`}
-              >
-                <span>All Types</span>
-                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${selectedTxnType === 'ALL' ? 'bg-white/20 text-white' : 'bg-slate-500/10 text-[var(--app-heading)]'}`}>
-                  {allCombinedPatterns.reduce((acc, p) => acc + (p.matchingCount || 0), 0)}
-                </span>
-              </button>
-
-              {/* ACTIVE Type Pills — only types with actual transactions (count > 0) */}
-              {transactionTypeSummaries.filter(s => s.count > 0).map((summary) => {
-                const isSelected = selectedTxnType.toUpperCase() === summary.type.toUpperCase();
-                return (
-                  <button
-                    key={summary.type}
-                    type="button"
-                    onClick={() => { setSelectedTxnType(summary.type); setPatternPage(1); }}
-                    className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center gap-1.5 ${
-                      isSelected
-                        ? 'bg-[#2563EB] text-white shadow-xs font-black'
-                        : 'bg-[var(--app-panel-bg)] text-[var(--app-muted)] hover:text-[var(--app-heading)] border border-[var(--app-border)]'
-                    }`}
-                  >
-                    <span>{summary.type}</span>
-                    <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-black ${isSelected ? 'bg-white/20 text-white' : 'bg-blue-500/10 text-blue-600'}`}>
-                      {summary.count} txns
-                    </span>
-                  </button>
-                );
-              })}
-
-              {/* DEFAULT / 0-count types — available in dropdown only */}
-              {transactionTypeSummaries.filter(s => s.count === 0).length > 0 && (
-                <div className="relative shrink-0 ml-1">
+                {/* Transaction Type Filter Dropdown - Row-wise inline */}
+                <div className="flex items-center gap-1.5 h-7.5 px-2.5 border rounded-lg bg-slate-50 text-slate-700 shrink-0" style={{ borderColor: 'var(--app-border)' }}>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0">Type:</span>
                   <select
-                    value={transactionTypeSummaries.filter(s => s.count === 0).some(s => s.type === selectedTxnType) ? selectedTxnType : ''}
-                    onChange={(e) => { if (e.target.value) { setSelectedTxnType(e.target.value); setPatternPage(1); } }}
-                    className={`h-7 pl-2.5 pr-6 rounded-full text-[11px] font-bold border cursor-pointer outline-none appearance-none transition-all ${
-                      transactionTypeSummaries.filter(s => s.count === 0).some(s => s.type === selectedTxnType)
-                        ? 'bg-[#2563EB] text-white border-[#2563EB]'
-                        : 'bg-[var(--app-panel-bg)] text-[var(--app-muted)] border-[var(--app-border)] hover:border-[#2563EB]'
-                    }`}
-                    title="Default library types (0 transactions in current statement)"
+                    value={selectedTxnType}
+                    onChange={(e) => { setSelectedTxnType(e.target.value); setPatternPage(1); }}
+                    className="bg-transparent text-xs font-bold text-slate-700 outline-none cursor-pointer pr-1"
                   >
-                    <option value="">
-                      + {transactionTypeSummaries.filter(s => s.count === 0).length} Default Types ▾
-                    </option>
-                    {transactionTypeSummaries.filter(s => s.count === 0).map(s => (
-                      <option key={s.type} value={s.type}>{s.type} — Default Library</option>
+                    <option value="ALL">All ({combinedPatterns.length})</option>
+                    {transactionTypeSummaries.map(s => (
+                      <option key={s.type} value={s.type}>{s.type} ({s.count})</option>
                     ))}
                   </select>
                 </div>
-              )}
-            </div>
 
-            {/* Pattern Table */}
-            <div className="flex-1 overflow-y-auto min-h-0">
-              <table className="w-full text-left border-collapse">
-                <thead className="sticky top-0 bg-[var(--app-control-bg)] border-b z-10" style={{ borderColor: 'var(--app-border)' }}>
-                  <tr className="text-[10px] font-black text-[var(--app-muted)] uppercase tracking-wider">
-                    <th className="py-3 px-3.5 w-[28%]">TRANSACTION TYPE / PATTERN</th>
-                    <th className="py-3 px-2.5 w-[14%] text-center">MATCHING TXNS</th>
-                    <th className="py-3 px-3 w-[24%]">PARTY LEDGER INDEX (EDITABLE)</th>
-                    <th className="py-3 px-3 w-[22%]">AI EXTRACTED VALUE / MASTER LEDGER</th>
-                    <th className="py-3 px-3 w-[12%] text-center">ACTION</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y" style={{ borderColor: 'var(--app-border)' }}>
-                  {loadingPatterns ? (
-                    <tr>
-                      <td colSpan={5} className="py-16 text-center text-xs font-semibold text-[var(--app-muted)]">
-                        <RefreshCw className="animate-spin text-[#2563EB] inline-block mr-2" size={14} />
-                        Loading transaction types & pattern library...
-                      </td>
-                    </tr>
-                  ) : paginatedPatterns.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="py-16 text-center text-xs font-medium text-[var(--app-muted)]">
-                        No transaction types found for the selected filter.
-                      </td>
-                    </tr>
-                  ) : (
-                    paginatedPatterns.map((pat) => {
-                      const isExpanded = !!expandedRows[pat.id];
-                      const effective = getEffectivePatternData(pat);
-                      const distinctList = effective.distinctParties || [];
-                      const sampleNarr = (pat.raw?.sampleNarrations && pat.raw.sampleNarrations[0]) || (pat.transactions && pat.transactions[0]?.narration) || pat.pattern;
-                      const tokensList = pat.tokens && pat.tokens.length > 0 ? pat.tokens : (pat.raw?.tokens || []);
-
-                      return (
-                        <React.Fragment key={pat.id}>
-                          <tr className={`hover:bg-[var(--app-content-bg)]/40 transition-colors ${isExpanded ? 'bg-[var(--app-content-bg)]/30' : ''}`}>
-                            {/* 1. TRANSACTION TYPE / PATTERN */}
-                            <td className="py-3 px-3.5">
-                              <div className="flex items-center gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => toggleRowExpansion(pat.id)}
-                                  className="p-1 rounded-md hover:bg-[var(--app-control-hover)] text-[var(--app-muted)] hover:text-[var(--app-heading)] transition-colors cursor-pointer shrink-0"
-                                  title={isExpanded ? "Collapse Details" : "Expand Token Breakdown & Master Ledgers"}
-                                >
-                                  {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                                </button>
-                                <div>
-                                  <div className="flex items-center gap-1.5 flex-wrap">
-                                    <span className="px-2 py-0.5 rounded text-[11px] font-black uppercase bg-[#2563EB]/10 text-[#2563EB] border border-[#2563EB]/25">
-                                      {pat.txnType}
-                                    </span>
-                                    {pat.matchingCount > 0 ? (
-                                      <span className="px-1.5 py-0.5 rounded text-[9.5px] font-extrabold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 flex items-center gap-1">
-                                        <Sparkles size={9} /> Pattern A (AI Detected)
-                                      </span>
-                                    ) : (
-                                      <span className="px-1.5 py-0.5 rounded text-[9.5px] font-medium bg-slate-500/10 text-[var(--app-muted)] border border-slate-500/20">
-                                        Default Library
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div className="text-[10px] text-[var(--app-muted)] font-medium mt-0.5">
-                                    {pat.typeDesc || pat.patternName || 'Indian Banking Taxonomy'}
-                                  </div>
-                                </div>
-                              </div>
-                            </td>
-
-                            {/* 2. MATCHING TRANSACTIONS COUNT */}
-                            <td className="py-3 px-2.5 text-center">
-                              <span className={`px-2.5 py-1 rounded-full text-xs font-mono font-bold border ${
-                                pat.matchingCount > 0
-                                  ? 'bg-blue-500/10 text-blue-600 border-blue-500/30 font-black'
-                                  : 'bg-slate-500/5 text-[var(--app-muted)] border-slate-500/15'
-                              }`}>
-                                {pat.matchingCount} txns
-                              </span>
-                            </td>
-
-                            {/* 3. PARTY LEDGER INDEX (EDITABLE MODE) */}
-                            <td className="py-3 px-3">
-                              {(() => {
-                                const sampleNarr = (pat.transactions && pat.transactions[0]?.narration) || (pat.sampleNarrations && pat.sampleNarrations[0]) || pat.pattern || '';
-                                const sep = pat.separator || '/';
-                                const sampleParts = sampleNarr ? (sep === ' ' ? sampleNarr.trim().split(/\s+/) : sampleNarr.split(sep).map(s => s.trim())) : [];
-                                const maxIdx = Math.max(sampleParts.length, 6);
-
-                                return pat.matchingCount > 0 ? (
-                                  <div className="flex items-center gap-1.5 flex-wrap">
-                                    <select
-                                      value={effective.partyPosition}
-                                      onChange={(e) => handleUpdatePatternIndex(pat.id, 'partyPosition', e.target.value)}
-                                      className="h-8 px-2.5 rounded-lg border text-xs font-mono font-bold bg-[var(--app-control-bg)] text-[var(--app-heading)] outline-none focus:border-[#2563EB] cursor-pointer shadow-2xs max-w-[210px] truncate"
-                                      style={{ borderColor: 'var(--app-border)' }}
-                                      title={`Select token position for ${pat.txnType} party ledger`}
-                                    >
-                                      <option value={-1}>None (-1)</option>
-                                      {Array.from({ length: maxIdx }).map((_, idx) => {
-                                        const val = sampleParts[idx];
-                                        const preview = val ? (val.length > 14 ? val.slice(0, 14) + '...' : val) : '';
-                                        return (
-                                          <option key={idx} value={idx}>
-                                            Position [{idx}]{preview ? ` : "${preview}"` : ''}
-                                          </option>
-                                        );
-                                      })}
-                                    </select>
-                                    <span className="text-[10px] font-bold text-emerald-600 font-mono uppercase bg-emerald-500/10 px-1.5 py-0.5 rounded">
-                                      Party
-                                    </span>
-                                  </div>
-                                ) : (
-                                  <span className="text-[var(--app-muted)] text-xs italic">
-                                    Awaiting statement
-                                  </span>
-                                );
-                              })()}
-                            </td>
-
-                            {/* 4. AI EXTRACTED VALUE / MASTER LEDGER */}
-                            <td className="py-3 px-3">
-                              <div className="flex flex-col">
-                                {pat.matchingCount > 0 ? (
-                                  <>
-                                    <span
-                                      className="font-mono text-xs font-bold text-[var(--app-heading)] truncate max-w-[230px]"
-                                      title={effective.sampleParty}
-                                    >
-                                      {effective.sampleParty || '—'}
-                                    </span>
-                                    <div className="flex items-center gap-2 mt-0.5">
-                                      <span className="text-[10px] text-blue-600 font-semibold">
-                                        {distinctList.length} {distinctList.length === 1 ? 'party candidate' : 'distinct parties'}
-                                      </span>
-                                      {distinctList.length > 0 && (
-                                        <button
-                                          type="button"
-                                          onClick={() => toggleRowExpansion(pat.id)}
-                                          className="text-[10px] text-[#2563EB] hover:underline font-bold cursor-pointer"
-                                        >
-                                          {isExpanded ? 'Hide Ledgers' : 'Map to Master →'}
-                                        </button>
-                                      )}
-                                    </div>
-                                  </>
-                                ) : (
-                                  <span className="text-[var(--app-muted)] text-xs italic">
-                                    Awaiting statement upload
-                                  </span>
-                                )}
-                              </div>
-                            </td>
-
-                            {/* 5. ACTION: APPLY BUTTON */}
-                            <td className="py-3 px-3 text-center">
-                              <button
-                                type="button"
-                                onClick={() => handleApplyPatternIndexing(pat)}
-                                disabled={pat.matchingCount === 0}
-                                className="px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider bg-[#2563EB] hover:bg-blue-700 text-white shadow-xs transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 mx-auto"
-                                title={pat.matchingCount > 0 ? `Apply Party Index [${effective.partyPosition}] for ${pat.txnType} and map to Tally Master` : "Awaiting statement transactions to apply"}
-                              >
-                                <Check size={12} strokeWidth={3} />
-                                <span>Apply</span>
-                              </button>
-                            </td>
-                          </tr>
-
-                          {/* ── EXPANDABLE DETAIL PANEL ── */}
-                          {isExpanded && (
-                            <tr className="bg-[var(--app-control-bg)]/40 border-b border-t border-[var(--app-border)]">
-                              <td colSpan={5} className="p-4">
-                                <div className="flex flex-col gap-3.5 max-w-5xl text-[11.5px]">
-
-                                  {/* Observed Token Breakdown & Position Controls */}
-                                  <div>
-                                    <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
-                                      <span className="text-[10.5px] font-black uppercase tracking-wider text-[var(--app-muted)]">
-                                        Observed Token Breakdown (Position → Value)
-                                      </span>
-                                      <div className="flex items-center gap-3 flex-wrap">
-                                        <div className="flex items-center gap-1.5">
-                                          <span className="text-[10px] font-bold text-emerald-600 font-mono uppercase bg-emerald-500/10 px-1.5 py-0.5 rounded">Party Index:</span>
-                                          <select
-                                            value={effective.partyPosition}
-                                            onChange={(e) => handleUpdatePatternIndex(pat.id, 'partyPosition', e.target.value)}
-                                            className="h-6 px-1.5 rounded border text-[10.5px] font-mono font-bold bg-[var(--app-control-bg)] text-[var(--app-heading)] outline-none cursor-pointer"
-                                            style={{ borderColor: 'var(--app-border)' }}
-                                          >
-                                            <option value={-1}>None (-1)</option>
-                                            {Array.from({ length: Math.max(tokensList.length, 6) }).map((_, idx) => (
-                                              <option key={idx} value={idx}>Pos [{idx}]</option>
-                                            ))}
-                                          </select>
-                                        </div>
-                                        <div className="flex items-center gap-1.5">
-                                          <span className="text-[10px] font-bold text-purple-600 font-mono uppercase bg-purple-500/10 px-1.5 py-0.5 rounded">Txn ID Index:</span>
-                                          <select
-                                            value={effective.txnIdPosition}
-                                            onChange={(e) => handleUpdatePatternIndex(pat.id, 'txnIdPosition', e.target.value)}
-                                            className="h-6 px-1.5 rounded border text-[10.5px] font-mono font-bold bg-[var(--app-control-bg)] text-[var(--app-heading)] outline-none cursor-pointer"
-                                            style={{ borderColor: 'var(--app-border)' }}
-                                          >
-                                            <option value={-1}>None (-1)</option>
-                                            {Array.from({ length: Math.max(tokensList.length, 6) }).map((_, idx) => (
-                                              <option key={idx} value={idx}>Pos [{idx}]</option>
-                                            ))}
-                                          </select>
-                                        </div>
-                                        <span className="text-[10.5px] font-bold text-[var(--app-muted)]">
-                                          Separator: <strong className="text-[var(--app-heading)] font-mono bg-slate-500/10 px-1.5 py-0.5 rounded">"{pat.separator || '/'}"</strong>
-                                        </span>
-                                      </div>
-                                    </div>
-                                    <div className="flex items-center gap-1.5 flex-wrap">
-                                      {(() => {
-                                        const activeSep = (pat.separator && pat.separator.includes(',')) ? pat.separator.split(',')[0].trim() : (pat.separator || '/');
-                                        const realParts = sampleNarr ? (activeSep === ' ' ? sampleNarr.trim().split(/\s+/) : sampleNarr.split(activeSep).map(s => s.trim())) : [];
-                                        const count = Math.max(tokensList.length, realParts.length);
-                                        if (count === 0) {
-                                          return (
-                                            <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 font-mono text-[10.5px] font-bold">
-                                              Token [Party: {effective.partyPosition}]
-                                            </span>
-                                          );
-                                        }
-                                        return Array.from({ length: count }).map((_, idx) => {
-                                          const tokMeta = tokensList[idx];
-                                          const actualVal = realParts[idx] || tokMeta?.sampleValue || '';
-                                          const isParty = idx === effective.partyPosition;
-                                          const isTxnId = idx === effective.txnIdPosition;
-                                          const roleLabel = isParty
-                                            ? 'PARTY'
-                                            : isTxnId
-                                              ? 'TXN ID'
-                                              : (tokMeta?.type === 'CHANNEL' || idx === 0 ? 'CHANNEL' : tokMeta?.type === 'IFSC' ? 'IFSC' : tokMeta?.type === 'VPA' ? 'VPA' : 'TOKEN');
-
-                                          return (
-                                            <span
-                                              key={idx}
-                                              className={`px-2 py-0.5 rounded-md font-mono text-[10.5px] font-bold border transition-all ${
-                                                isParty
-                                                  ? 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30 ring-1 ring-emerald-500/20'
-                                                  : isTxnId
-                                                    ? 'bg-purple-500/10 text-purple-600 border-purple-500/20'
-                                                    : 'bg-slate-500/10 text-slate-600 border-slate-500/20'
-                                              }`}
-                                            >
-                                              [Index {idx}: {roleLabel} → {actualVal ? `"${actualVal}"` : `{Pos ${idx}}`}]
-                                            </span>
-                                          );
-                                        });
-                                      })()}
-                                    </div>
-                                  </div>
-
-                                  {/* Extracted Parties & Master Ledger Resolution Table */}
-                                  <div className="p-3 rounded-lg border bg-[var(--app-panel-bg)]" style={{ borderColor: 'var(--app-border)' }}>
-                                    <div className="flex items-center justify-between mb-2">
-                                      <span className="text-[10.5px] font-black uppercase tracking-wider text-[var(--app-muted)]">
-                                        Extracted Parties from Index [{effective.partyPosition}] ({distinctList.length} Distinct Parties)
-                                      </span>
-                                      <span className="text-[10px] font-bold text-blue-600">
-                                        Auto-Mapped to Tally Master Ledgers
-                                      </span>
-                                    </div>
-
-                                    {distinctList.length > 0 ? (
-                                      <div className="max-h-56 overflow-auto rounded border" style={{ borderColor: 'var(--app-border)' }}>
-                                        <table className="w-full text-left text-[11px]">
-                                          <thead className="bg-[var(--app-control-bg)] border-b sticky top-0" style={{ borderColor: 'var(--app-border)' }}>
-                                            <tr className="text-[9.5px] font-bold text-[var(--app-muted)] uppercase">
-                                              <th className="py-2 px-2.5 w-[30%]">EXTRACTED PARTY CANDIDATE</th>
-                                              <th className="py-2 px-2.5 w-[15%] text-center">TRANSACTIONS</th>
-                                              <th className="py-2 px-2.5 w-[40%]">RESOLVED TALLY MASTER LEDGER</th>
-                                              <th className="py-2 px-2.5 w-[15%] text-center">CONFIDENCE</th>
-                                            </tr>
-                                          </thead>
-                                          <tbody className="divide-y" style={{ borderColor: 'var(--app-border)' }}>
-                                            {distinctList.map((dp, dpIdx) => {
-                                              const txnsForParty = dp.sampleTransactions || (pat.transactions || []).filter(t => (t.narration || '').includes(dp.party));
-                                              return (
-                                                <tr key={dpIdx} className="hover:bg-[var(--app-content-bg)]/40">
-                                                  <td className="py-2 px-2.5 font-bold text-[var(--app-heading)]">
-                                                    {dp.party}
-                                                  </td>
-                                                  <td className="py-2 px-2.5 text-center">
-                                                    <button
-                                                      type="button"
-                                                      onClick={() => setInspectingPartyModal({
-                                                        party: dp.party,
-                                                        patternName: pat.patternName || pat.txnType,
-                                                        transactions: txnsForParty
-                                                      })}
-                                                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-mono font-bold bg-blue-500/10 text-blue-600 hover:bg-blue-500 hover:text-white transition-all cursor-pointer"
-                                                      title="Inspect contributing transactions"
-                                                    >
-                                                      <Eye size={11} />
-                                                      <span>{dp.count} txns</span>
-                                                    </button>
-                                                  </td>
-                                                  <td className="py-1.5 px-2.5">
-                                                    <div className="max-w-[280px]">
-                                                      <SmartLedgerDropdown
-                                                        value={dp.mappedLedger === 'Unmapped' ? '' : (dp.mappedLedger || '')}
-                                                        onChange={(newLedger) => handlePartyLedgerOverride(pat.id, dp.party, newLedger)}
-                                                        options={normalizedAllLedgers}
-                                                        extractedParty={dp.party}
-                                                        narration={sampleNarr}
-                                                        confidence={dp.mappedLedger && dp.mappedLedger !== 'Unmapped' ? (dp.confidence || 0) : 0}
-                                                      />
-                                                    </div>
-                                                  </td>
-                                                  <td className="py-2 px-2.5 text-center">
-                                                    {dp.mappedLedger && dp.mappedLedger !== 'Unmapped' && Number(dp.confidence) > 0 ? (
-                                                      <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
-                                                        {dp.confidence}%
-                                                      </span>
-                                                    ) : (
-                                                      <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-slate-500/10 text-[var(--app-muted)] border border-slate-500/20">
-                                                        Unmapped (0%)
-                                                      </span>
-                                                    )}
-                                                  </td>
-                                                </tr>
-                                              );
-                                            })}
-                                          </tbody>
-                                        </table>
-                                      </div>
-                                    ) : (
-                                      <p className="text-[11px] text-[var(--app-muted)] italic">
-                                        {pat.matchingCount > 0
-                                          ? 'No parties extracted for this index. Change Party Ledger Index above.'
-                                          : 'Awaiting statement upload for this transaction type.'}
-                                      </p>
-                                    )}
-                                  </div>
-
-                                  {/* Sample Original Bank Narrations */}
-                                  {sampleNarr && (
-                                    <div className="p-2.5 rounded-lg border bg-[var(--app-panel-bg)]" style={{ borderColor: 'var(--app-border)' }}>
-                                      <span className="text-[10px] font-black uppercase tracking-wider text-[var(--app-muted)] block mb-1">
-                                        Sample Original Bank Narration
-                                      </span>
-                                      <div className="space-y-1">
-                                        {((pat.sampleNarrations && pat.sampleNarrations.length > 0)
-                                          ? pat.sampleNarrations
-                                          : (pat.transactions && pat.transactions.length > 0)
-                                            ? pat.transactions.map(t => t.narration)
-                                            : [sampleNarr]
-                                        ).slice(0, 3).map((sn, sIdx) => (
-                                          <div key={sIdx} className="font-mono text-[10.5px] text-[var(--app-muted)] bg-[var(--app-control-bg)]/80 px-2 py-1 rounded border border-[var(--app-border)] truncate" title={sn}>
-                                            • {sn}
-                                          </div>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  )}
-
-                                </div>
-                              </td>
-                            </tr>
-                          )}
-                        </React.Fragment>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Pattern Card Footer */}
-            <div className="flex items-center justify-between p-3.5 border-t shrink-0 text-xs text-[var(--app-muted)] flex-wrap gap-2" style={{ borderColor: 'var(--app-border)' }}>
-              <div className="flex items-center gap-3">
-                <div>
-                  Showing <span className="font-bold text-[var(--app-heading)]">{paginatedPatterns.length}</span> of <span className="font-bold text-[var(--app-heading)]">{combinedPatterns.length}</span> patterns
-                  {patternPageSize !== 'all' && (
-                    <span> • Page {patternPage} of {totalPatternPages}</span>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-1.5 border-l pl-3" style={{ borderColor: 'var(--app-border)' }}>
-                  <span>Rows:</span>
+                {/* Status Filter Dropdown - Row-wise inline */}
+                <div className="flex items-center gap-1.5 h-7.5 px-2.5 border rounded-lg bg-slate-50 text-slate-700 shrink-0" style={{ borderColor: 'var(--app-border)' }}>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0">Status:</span>
                   <select
-                    value={patternPageSize}
-                    onChange={(e) => {
-                      setPatternPageSize(e.target.value === 'all' ? 'all' : Number(e.target.value));
-                      setPatternPage(1);
-                    }}
-                    className="border rounded-md px-2 py-0.5 font-bold text-xs bg-[var(--app-control-bg)] text-[var(--app-heading)] cursor-pointer outline-none"
-                    style={{ borderColor: 'var(--app-border)' }}
+                    value={patternStatusFilter}
+                    onChange={(e) => setPatternStatusFilter(e.target.value)}
+                    className="bg-transparent text-xs font-bold text-slate-700 outline-none cursor-pointer pr-1"
                   >
-                    <option value="all">All ({combinedPatterns.length})</option>
-                    <option value={10}>10 per page</option>
-                    <option value={25}>25 per page</option>
-                    <option value={50}>50 per page</option>
+                    <option value="all">All</option>
+                    <option value="applied">Applied</option>
+                    <option value="not_applied">Not Applied</option>
                   </select>
                 </div>
               </div>
 
-              {patternPageSize !== 'all' && totalPatternPages > 1 && (
-                <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={() => setPatternPage(p => Math.max(1, p - 1))}
-                    disabled={patternPage === 1}
-                    className="w-7 h-7 flex items-center justify-center border rounded-lg hover:bg-[var(--app-control-hover)] disabled:opacity-40 cursor-pointer font-bold"
-                    style={{ borderColor: 'var(--app-border)' }}
-                  >
-                    ‹
-                  </button>
-                  <span className="w-7 h-7 flex items-center justify-center bg-[#2563EB] text-white rounded-lg font-black text-xs">
-                    {patternPage}
-                  </span>
-                  <button
-                    onClick={() => setPatternPage(p => Math.min(totalPatternPages, p + 1))}
-                    disabled={patternPage >= totalPatternPages}
-                    className="w-7 h-7 flex items-center justify-center border rounded-lg hover:bg-[var(--app-control-hover)] disabled:opacity-40 cursor-pointer font-bold"
-                    style={{ borderColor: 'var(--app-border)' }}
-                  >
-                    ›
-                  </button>
+              {/* + Add Custom Pattern Button */}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsAddPatternOpen(true);
+                  setPatternTestResult(null);
+                }}
+                className="flex items-center gap-1.5 px-3 h-7.5 rounded-lg text-xs font-bold bg-[#2563EB] hover:bg-blue-700 text-white shadow-xs transition-all cursor-pointer shrink-0"
+              >
+                <Plus size={13} strokeWidth={2.5} />
+                <span>Add Custom Pattern</span>
+              </button>
+            </div>
+
+            {/* Main Content Split Area: Left Table & Right Drawer */}
+            <div className="flex-1 flex min-h-0 overflow-hidden bg-slate-50/20">
+              {/* Left Column: Pattern Table */}
+              <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+                <div className="flex-1 overflow-y-auto min-h-0">
+                  <table className="w-full text-left border-collapse">
+                    <thead className="sticky top-0 bg-white border-b z-10" style={{ borderColor: 'var(--app-border)' }}>
+                      <tr className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                        <th className="py-2 px-3">Pattern / Transaction Type</th>
+                        <th className="py-2 px-2.5">Transactions</th>
+                        <th className="py-2 px-2.5">Party Index</th>
+                        <th className="py-2 px-2.5">Status</th>
+                        <th className="py-2 px-2.5">Details</th>
+                        <th className="py-2 px-3 text-center">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 bg-white">
+                      {loadingPatterns && combinedPatterns.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="py-12 text-center text-xs font-medium text-slate-400">
+                            <RefreshCw className="animate-spin text-[#2563EB] inline-block mr-2" size={15} />
+                            Loading transaction patterns...
+                          </td>
+                        </tr>
+                      ) : paginatedPatterns.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="py-12 text-center text-xs font-medium text-slate-400">
+                            No patterns found for current filters.
+                          </td>
+                        </tr>
+                      ) : (
+                        paginatedPatterns.map((pat) => {
+                          const effective = getEffectivePatternData(pat);
+                          const badgeCfg = getTypeBadgeConfig(pat.txnType);
+                          const isApplied = appliedPatternIds.has(pat.id) || appliedPatternIds.has(pat.txnType) || appliedPatternIds.has(pat.channel);
+                          const isSelected = selectedPattern?.id === pat.id;
+                          const sampleNarr = (pat.raw?.sampleNarrations && pat.raw.sampleNarrations[0]) ||
+                            (pat.transactions && pat.transactions[0]?.narration) || pat.pattern || '';
+
+                          return (
+                            <tr
+                              key={pat.id}
+                              className={`hover:bg-blue-50/20 transition-colors ${isSelected ? 'bg-blue-50/40' : ''}`}
+                            >
+                              {/* 1. Pattern / Transaction Type */}
+                              <td className="py-1.5 px-3">
+                                <div className="flex items-center gap-2">
+                                  <div className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-[11px] shrink-0 shadow-2xs ${badgeCfg.bg} ${badgeCfg.text}`}>
+                                    {badgeCfg.letter}
+                                  </div>
+                                  <span className="font-bold text-xs text-slate-800 tracking-wide uppercase">
+                                    {pat.txnType}
+                                  </span>
+
+                                  {/* Eye icon: on hover show full description */}
+                                  <div className="relative group/eye inline-flex items-center" onClick={(e) => e.stopPropagation()}>
+                                    <button
+                                      type="button"
+                                      className="p-0.5 rounded text-slate-400 hover:text-[#2563EB] hover:bg-blue-50 transition-colors cursor-pointer"
+                                      title={sampleNarr || pat.pattern || 'No narration description'}
+                                    >
+                                      <Eye size={12} />
+                                    </button>
+                                    <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 hidden group-hover/eye:flex flex-col z-50 w-72 p-2 bg-slate-900/95 text-white rounded-xl shadow-2xl backdrop-blur-xs text-[11px] pointer-events-none border border-slate-700">
+                                      <span className="text-[9px] font-black uppercase tracking-wider text-blue-400 mb-0.5">
+                                        Full Description / Narration
+                                      </span>
+                                      <span className="font-mono text-slate-100 break-words leading-relaxed select-all">
+                                        {sampleNarr || pat.pattern || 'No narration description'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+
+                              {/* 2. Transactions */}
+                              <td className="py-1.5 px-2.5">
+                                <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-600 border border-blue-100">
+                                  {pat.matchingCount || 0} txns
+                                </span>
+                              </td>
+
+                              {/* 3. Party Index */}
+                              <td className="py-1.5 px-2.5">
+                                <span className="text-xs font-medium text-slate-600">
+                                  {effective.partyPosition >= 0 ? `Position ${effective.partyPosition}` : '—'}
+                                </span>
+                              </td>
+
+                              {/* 4. Status */}
+                              <td className="py-1.5 px-2.5">
+                                {isApplied ? (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                    <Check size={11} strokeWidth={3} />
+                                    <span>Applied</span>
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                                    <AlertCircle size={11} />
+                                    <span>Not Applied</span>
+                                  </span>
+                                )}
+                              </td>
+
+                              {/* 5. Details: Click opens details drawer */}
+                              <td className="py-1.5 px-2.5">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedPatternId(prev => prev === pat.id ? null : pat.id);
+                                  }}
+                                  className={`text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors px-2 py-0.5 rounded-md ${
+                                    isSelected
+                                      ? 'bg-blue-100/70 text-blue-700 font-black'
+                                      : 'text-[#2563EB] hover:bg-blue-50 hover:text-blue-800'
+                                  }`}
+                                >
+                                  <span>{isSelected ? 'Hide Details' : 'View Details'}</span>
+                                  <ChevronRight size={12} className={`transition-transform duration-150 ${isSelected ? 'rotate-90' : ''}`} />
+                                </button>
+                              </td>
+
+                              {/* 6. Action */}
+                              <td className="py-1.5 px-3 text-center" onClick={(e) => e.stopPropagation()}>
+                                {isApplied ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleApplyPatternIndexing(pat)}
+                                    className="inline-flex items-center justify-center gap-1 px-2.5 py-0.5 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-all cursor-pointer"
+                                  >
+                                    <Check size={11} strokeWidth={3} />
+                                    <span>Applied</span>
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      handleApplyPatternIndexing(pat);
+                                      setAppliedPatternIds(prev => new Set([...prev, pat.id, pat.txnType]));
+                                    }}
+                                    disabled={pat.matchingCount === 0}
+                                    className="px-3.5 py-0.5 rounded-lg text-xs font-bold bg-[#2563EB] hover:bg-blue-700 text-white shadow-xs transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                  >
+                                    Apply
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
                 </div>
-              )}
+
+                {/* Left Table Pagination Footer */}
+                <div className="flex items-center justify-between px-3 py-1.5 border-t shrink-0 text-xs text-slate-500 bg-white" style={{ borderColor: 'var(--app-border)' }}>
+                  <div>
+                    Showing <span className="font-bold text-slate-800">{paginatedPatterns.length}</span> of <span className="font-bold text-slate-800">{combinedPatterns.length}</span> patterns
+                  </div>
+                  {totalPatternPages > 1 && (
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => setPatternPage(p => Math.max(1, p - 1))}
+                        disabled={patternPage === 1}
+                        className="w-6 h-6 flex items-center justify-center border rounded hover:bg-slate-50 disabled:opacity-40 cursor-pointer font-bold text-xs"
+                        style={{ borderColor: 'var(--app-border)' }}
+                      >
+                        ‹
+                      </button>
+                      <span className="px-1 text-[11px] font-semibold">Page {patternPage} of {totalPatternPages}</span>
+                      <button
+                        onClick={() => setPatternPage(p => Math.min(totalPatternPages, p + 1))}
+                        disabled={patternPage >= totalPatternPages}
+                        className="w-6 h-6 flex items-center justify-center border rounded hover:bg-slate-50 disabled:opacity-40 cursor-pointer font-bold text-xs"
+                        style={{ borderColor: 'var(--app-border)' }}
+                      >
+                        ›
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Right Column: Drawer Panel matching image layout */}
+              {selectedPattern && (() => {
+                const effective = getEffectivePatternData(selectedPattern);
+                const badgeCfg = getTypeBadgeConfig(selectedPattern.txnType);
+                const isApplied = appliedPatternIds.has(selectedPattern.id) || appliedPatternIds.has(selectedPattern.txnType) || appliedPatternIds.has(selectedPattern.channel);
+                const distinctList = effective.distinctParties || [];
+                const sampleNarr = (selectedPattern.raw?.sampleNarrations && selectedPattern.raw.sampleNarrations[0]) ||
+                  (selectedPattern.transactions && selectedPattern.transactions[0]?.narration) || selectedPattern.pattern || '';
+                const sampleNarrList = ((selectedPattern.sampleNarrations && selectedPattern.sampleNarrations.length > 0)
+                  ? selectedPattern.sampleNarrations
+                  : (selectedPattern.transactions && selectedPattern.transactions.length > 0)
+                    ? selectedPattern.transactions.map(t => t.narration)
+                    : [sampleNarr]).filter(Boolean).slice(0, 3);
+                const tokensList = selectedPattern.tokens && selectedPattern.tokens.length > 0 ? selectedPattern.tokens : (selectedPattern.raw?.tokens || []);
+
+                const sep = (selectedPattern.separator && selectedPattern.separator.includes(','))
+                  ? selectedPattern.separator.split(',')[0].trim()
+                  : (selectedPattern.separator || '/');
+                const realParts = sampleNarr ? (sep === ' ' ? sampleNarr.trim().split(/\s+/) : sampleNarr.split(sep).map(s => s.trim())) : [];
+                
+                // Dynamically determine exact tokens present in this narration (strictly no empty phantom tokens like 6, 7)
+                let maxTokens = realParts.length;
+                (selectedPattern.transactions || []).forEach(tx => {
+                  const n = tx.narration || tx.sampleNarration || '';
+                  if (n) {
+                    const p = sep === ' ' ? n.trim().split(/\s+/) : n.split(sep);
+                    if (p.length > maxTokens) maxTokens = p.length;
+                  }
+                });
+                const dynamicTokenCount = Math.max(maxTokens, 1);
+
+                return (
+                  <div className="w-[440px] lg:w-[480px] xl:w-[500px] shrink-0 bg-white border-l flex flex-col h-full overflow-hidden shadow-md" style={{ borderColor: 'var(--app-border)' }}>
+                    {/* Drawer Header matching screenshot */}
+                    <div className="px-3.5 py-2 border-b shrink-0 flex items-start justify-between bg-slate-50/50" style={{ borderColor: 'var(--app-border)' }}>
+                      <div className="flex items-center gap-2.5">
+                        <div className={`w-7 h-7 rounded-full flex items-center justify-center font-black text-xs shrink-0 shadow-2xs ${badgeCfg.bg} ${badgeCfg.text}`}>
+                          {badgeCfg.letter}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-xs font-black text-slate-900 uppercase">{selectedPattern.txnType}</h3>
+                            {/* Eye icon: on hover show full description */}
+                            <div className="relative group/eyeDrawer inline-flex items-center">
+                              <button
+                                type="button"
+                                className="p-0.5 rounded text-slate-400 hover:text-[#2563EB] hover:bg-blue-50 transition-colors cursor-pointer"
+                                title={sampleNarr || selectedPattern.pattern || 'Full Narration'}
+                              >
+                                <Eye size={12} />
+                              </button>
+                              <div className="absolute left-0 top-full mt-1 hidden group-hover/eyeDrawer:flex flex-col z-50 w-80 p-2.5 bg-slate-900/95 text-white rounded-xl shadow-2xl backdrop-blur-xs text-[11px] pointer-events-none border border-slate-700">
+                                <span className="text-[9.5px] font-black uppercase tracking-wider text-blue-400 mb-1">
+                                  Full Description / Narration
+                                </span>
+                                <span className="font-mono text-slate-100 break-words leading-relaxed select-all">
+                                  {sampleNarr || selectedPattern.pattern || 'No narration available'}
+                                </span>
+                              </div>
+                            </div>
+                            <span className="px-2 py-0.5 rounded-full text-[10.5px] font-semibold bg-blue-50 text-blue-600 border border-blue-100">
+                              {selectedPattern.matchingCount || 0} transactions
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-[10.5px] mt-0.5">
+                            {isApplied ? (
+                              <>
+                                <span className="text-emerald-600 font-bold flex items-center gap-0.5">
+                                  <Check size={11} strokeWidth={3} /> Applied
+                                </span>
+                                <span className="text-slate-400">• Applied on 22 Sep 2026, 11:42 AM</span>
+                              </>
+                            ) : (
+                              <span className="text-slate-500 font-medium flex items-center gap-1">
+                                <AlertCircle size={11} /> Not Applied
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedPatternId(null)}
+                        className="p-1 rounded-lg hover:bg-slate-200 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
+                        title="Close detail panel"
+                      >
+                        <X size={15} />
+                      </button>
+                    </div>
+
+                    {/* Drawer Scrollable Body */}
+                    <div className="flex-1 overflow-y-auto p-3 space-y-3.5 text-xs">
+                      {/* 1. Detected Pattern */}
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="text-xs font-bold text-slate-900">1. Detected Pattern Tokens</h4>
+                          <span className="text-[10px] font-semibold text-slate-400">Click any token to set as Party</span>
+                        </div>
+                        <div className="mb-2">
+                          <span className="px-2.5 py-0.5 rounded-md text-[11px] font-black uppercase bg-blue-50 text-blue-600 border border-blue-200">
+                            {selectedPattern.txnType}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-1.5">
+                          {Array.from({ length: dynamicTokenCount }).map((_, idx) => {
+                            const isParty = idx === effective.partyPosition;
+                            const isTxnId = idx === effective.txnIdPosition;
+                            const tokenVal = (realParts[idx] !== undefined && realParts[idx] !== '')
+                              ? realParts[idx]
+                              : (tokensList[idx]?.sampleValue || '');
+                            
+                            // Strictly do not render empty indices that don't exist in the narration
+                            if (!tokenVal) return null;
+
+                            // Check if this token matches a master party ledger
+                            const masterMatch = tokenVal && /[a-z]/i.test(tokenVal) && !isStopPhrase(tokenVal)
+                              ? findBestLedgerMatch(tokenVal, normalizedAllLedgers)
+                              : null;
+                            const isMasterMatch = masterMatch && masterMatch.score >= 70;
+
+                            let subLabel = tokenVal;
+                            if (idx === 0 && (selectedPattern.txnType || '')) subLabel = selectedPattern.txnType;
+
+                            return (
+                              <button
+                                key={idx}
+                                type="button"
+                                onClick={() => handleUpdatePatternIndex(selectedPattern.id, 'partyPosition', idx)}
+                                className={`p-2 rounded-lg border text-center transition-all cursor-pointer relative group/tokBtn ${
+                                  isParty
+                                    ? 'bg-blue-50 border-2 border-[#2563EB] text-[#2563EB] shadow-xs font-bold ring-1 ring-blue-400'
+                                    : isMasterMatch
+                                      ? 'bg-emerald-50/80 border-emerald-300 text-emerald-800 hover:bg-emerald-100 font-semibold'
+                                      : 'bg-slate-50/80 border-slate-200 text-slate-700 hover:bg-slate-100'
+                                }`}
+                                title={`Index [${idx}]: "${tokenVal}" ${isMasterMatch ? `(Matches Master: ${masterMatch.ledger} ${masterMatch.score}%)` : ''}`}
+                              >
+                                <div className="flex items-center justify-between gap-1">
+                                  <span className={`text-[10px] font-black ${isParty ? 'text-blue-600' : isMasterMatch ? 'text-emerald-700' : 'text-slate-400'}`}>
+                                    {idx}
+                                  </span>
+                                  {isParty ? (
+                                    <span className="text-[8px] font-black uppercase tracking-wider text-blue-700 bg-blue-100 px-1 rounded">
+                                      Party
+                                    </span>
+                                  ) : isMasterMatch ? (
+                                    <span className="text-[8px] font-black uppercase tracking-wider text-emerald-700 bg-emerald-100 px-1 rounded">
+                                      Match
+                                    </span>
+                                  ) : null}
+                                </div>
+                                <div className="text-[10.5px] font-bold truncate mt-0.5" title={subLabel}>
+                                  {subLabel}
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* 2. Extraction Rule */}
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-900 mb-2">2. Extraction Rule</h4>
+                        <div className="grid grid-cols-2 gap-3 mb-2.5">
+                          <div>
+                            <label className="text-[11px] font-semibold text-slate-600 block mb-1">Party Index</label>
+                            <select
+                              value={effective.partyPosition}
+                              onChange={(e) => handleUpdatePatternIndex(selectedPattern.id, 'partyPosition', e.target.value)}
+                              className="w-full h-8 px-2.5 rounded-lg border text-xs font-semibold bg-white text-slate-800 outline-none focus:border-[#2563EB] cursor-pointer"
+                              style={{ borderColor: 'var(--app-border)' }}
+                            >
+                              <option value={-1}>None</option>
+                              {Array.from({ length: dynamicTokenCount }).map((_, idx) => {
+                                const sVal = realParts[idx] || (tokensList[idx]?.sampleValue) || '';
+                                if (!sVal) return null;
+                                const match = sVal && /[a-z]/i.test(sVal) && !isStopPhrase(sVal) ? findBestLedgerMatch(sVal, normalizedAllLedgers) : null;
+                                const matchSuffix = match && match.score >= 70 ? ` ★ Master: ${match.ledger} (${match.score}%)` : '';
+                                return (
+                                  <option key={idx} value={idx}>
+                                    Position {idx}{sVal ? ` — "${sVal.length > 20 ? sVal.slice(0, 18) + '...' : sVal}"` : ''}{matchSuffix}
+                                  </option>
+                                );
+                              })}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="text-[11px] font-semibold text-slate-600 block mb-1">Transaction ID Index</label>
+                            <select
+                              value={effective.txnIdPosition}
+                              onChange={(e) => handleUpdatePatternIndex(selectedPattern.id, 'txnIdPosition', e.target.value)}
+                              className="w-full h-8 px-2.5 rounded-lg border text-xs font-semibold bg-white text-slate-800 outline-none focus:border-[#2563EB] cursor-pointer"
+                              style={{ borderColor: 'var(--app-border)' }}
+                            >
+                              <option value={-1}>None</option>
+                              {Array.from({ length: dynamicTokenCount }).map((_, idx) => {
+                                const sVal = realParts[idx] || (tokensList[idx]?.sampleValue) || '';
+                                if (!sVal) return null;
+                                return (
+                                  <option key={idx} value={idx}>
+                                    Position {idx}{sVal ? ` — "${sVal.length > 20 ? sVal.slice(0, 18) + '...' : sVal}"` : ''}
+                                  </option>
+                                );
+                              })}
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="mb-2">
+                          <label className="text-[11px] font-semibold text-slate-600 block mb-1">Separator / Delimiter</label>
+                          <div className="h-8 px-3 rounded-lg border bg-slate-50 text-slate-700 text-xs font-medium flex items-center" style={{ borderColor: 'var(--app-border)' }}>
+                            {selectedPattern.separator === '/' ? '/ (Forward Slash)' : (selectedPattern.separator || '/ (Forward Slash)')}
+                          </div>
+                        </div>
+
+                        <p className="text-[11px] text-slate-500 flex items-center gap-1.5 mt-1.5">
+                          <AlertCircle size={13} className="text-[#2563EB] shrink-0" />
+                          <span>Pattern detected using delimiter, token position and fuzzy matching.</span>
+                        </p>
+                      </div>
+
+                      {/* 3. Extracted Values */}
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-900 mb-2">3. Extracted Values</h4>
+                        <div className="rounded-lg border overflow-hidden" style={{ borderColor: 'var(--app-border)' }}>
+                          <table className="w-full text-left text-xs">
+                            <thead className="bg-slate-50 border-b text-[10.5px] font-semibold text-slate-500" style={{ borderColor: 'var(--app-border)' }}>
+                              <tr>
+                                <th className="py-2 px-2.5 w-[30%]">Extracted Party</th>
+                                <th className="py-2 px-1 w-[16%] text-center">Transactions</th>
+                                <th className="py-2 px-2.5 w-[38%]">Master Ledger</th>
+                                <th className="py-2 px-2 w-[16%] text-center">Confidence</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                              {distinctList.length > 0 ? (
+                                distinctList.map((dp, i) => {
+                                  const partyNarrs = (() => {
+                                    if (dp.sampleTransactions && dp.sampleTransactions.length > 0) {
+                                      const l = dp.sampleTransactions.map(t => t.narration || t.sampleNarration || t.raw_narration).filter(Boolean);
+                                      if (l.length > 0) return l;
+                                    }
+                                    if (selectedPattern?.transactions && selectedPattern.transactions.length > 0) {
+                                      const pUpper = (dp.party || '').toUpperCase();
+                                      const matched = selectedPattern.transactions
+                                        .filter(t => (t.narration || '').toUpperCase().includes(pUpper))
+                                        .map(t => t.narration)
+                                        .filter(Boolean);
+                                      if (matched.length > 0) return matched;
+                                    }
+                                    return sampleNarrList.length > 0 ? sampleNarrList : [sampleNarr].filter(Boolean);
+                                  })();
+
+                                  const isExpanded = expandedPartyNarrations === dp.party;
+
+                                  return (
+                                    <React.Fragment key={i}>
+                                      <tr className={`hover:bg-slate-50/50 ${isExpanded ? 'bg-blue-50/40' : ''}`}>
+                                        <td className="py-2 px-2.5 font-bold text-slate-800 text-[11px] truncate max-w-[120px]" title={dp.party}>
+                                          {dp.party}
+                                        </td>
+                                        <td className="py-2 px-1 text-center">
+                                          <div className="inline-flex items-center justify-center gap-1 font-mono text-[11px] text-slate-700">
+                                            <span className="font-bold">{dp.count}</span>
+                                            {/* Eye icon: Click or hover to view narrations row-wise without clipping */}
+                                            <button
+                                              type="button"
+                                              onClick={() => setExpandedPartyNarrations(prev => prev === dp.party ? null : dp.party)}
+                                              onMouseEnter={(e) => {
+                                                const rect = e.currentTarget.getBoundingClientRect();
+                                                setHoveredPartyNarrations({
+                                                  party: dp.party,
+                                                  count: dp.count,
+                                                  narrations: partyNarrs,
+                                                  rect
+                                                });
+                                              }}
+                                              onMouseLeave={() => setHoveredPartyNarrations(null)}
+                                              className={`p-1 rounded transition-colors cursor-pointer ${
+                                                isExpanded
+                                                  ? 'bg-blue-100 text-[#2563EB]'
+                                                  : 'text-slate-400 hover:text-[#2563EB] hover:bg-blue-50'
+                                              }`}
+                                              title="Click to expand or hover to preview descriptions"
+                                            >
+                                              <Eye size={13} />
+                                            </button>
+                                          </div>
+                                        </td>
+                                        <td className="py-1.5 px-2">
+                                          <div className="max-w-[155px]">
+                                            <SmartLedgerDropdown
+                                              value={dp.mappedLedger === 'Unmapped' ? '' : (dp.mappedLedger || '')}
+                                              onChange={(newLedger) => handlePartyLedgerOverride(selectedPattern.id, dp.party, newLedger)}
+                                              options={normalizedAllLedgers}
+                                              extractedParty={dp.party}
+                                              narration={partyNarrs[0] || sampleNarr}
+                                              confidence={dp.mappedLedger && dp.mappedLedger !== 'Unmapped' ? (dp.confidence || 0) : 0}
+                                            />
+                                          </div>
+                                        </td>
+                                        <td className="py-2 px-2 text-center">
+                                          <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                            {dp.confidence || 95}%
+                                          </span>
+                                        </td>
+                                      </tr>
+
+                                      {/* Inline Row-wise Expanded Narrations View */}
+                                      {isExpanded && (
+                                        <tr className="bg-blue-50/50 border-y border-blue-200">
+                                          <td colSpan={4} className="p-2.5">
+                                            <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-blue-200/70">
+                                              <div className="flex items-center gap-1.5 text-blue-700 font-bold text-[10.5px]">
+                                                <Eye size={12} className="text-[#2563EB]" />
+                                                <span>Original Descriptions ({partyNarrs.length} txn{partyNarrs.length > 1 ? 's' : ''}):</span>
+                                              </div>
+                                              <button
+                                                type="button"
+                                                onClick={() => setExpandedPartyNarrations(null)}
+                                                className="text-[10px] font-bold text-slate-500 hover:text-slate-800 px-1.5 py-0.5 rounded hover:bg-blue-100 cursor-pointer"
+                                              >
+                                                ✕ Close
+                                              </button>
+                                            </div>
+                                            <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                                              {partyNarrs.map((narr, nIdx) => (
+                                                <div
+                                                  key={nIdx}
+                                                  className="p-2 rounded-lg bg-white border border-blue-100 font-mono text-[10.5px] text-slate-800 break-words leading-relaxed select-all shadow-2xs"
+                                                >
+                                                  {narr}
+                                                </div>
+                                              ))}
+                                            </div>
+                                          </td>
+                                        </tr>
+                                      )}
+                                    </React.Fragment>
+                                  );
+                                })
+                              ) : (
+                                <tr>
+                                  <td colSpan={4} className="py-4 text-center text-slate-400 italic text-[11px]">
+                                    No parties extracted for this index.
+                                  </td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Drawer Sticky Bottom Apply Button */}
+                    <div className="px-3 py-2 border-t shrink-0 bg-white" style={{ borderColor: 'var(--app-border)' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleApplyPatternIndexing(selectedPattern);
+                          setAppliedPatternIds(prev => new Set([...prev, selectedPattern.id, selectedPattern.txnType]));
+                        }}
+                        className="w-full py-2 rounded-lg text-xs font-bold bg-[#2563EB] hover:bg-blue-700 text-white shadow-xs transition-all cursor-pointer"
+                      >
+                        Apply Pattern Mapping
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         )}
       </div>
+
+      {/* Floating Unclipped Tooltip for Hovering on Party Eye Icon */}
+      {hoveredPartyNarrations && (
+        <div
+          className="fixed z-[9999] w-[420px] max-w-[92vw] bg-white text-slate-800 rounded-xl shadow-2xl border border-slate-200 p-3 pointer-events-none transition-all duration-150 animate-in fade-in"
+          style={{
+            top: Math.max(16, Math.min(window.innerHeight - 290, hoveredPartyNarrations.rect.top - 10)),
+            left: Math.max(16, hoveredPartyNarrations.rect.left - 430),
+          }}
+        >
+          <div className="flex items-center justify-between pb-1.5 mb-2 border-b border-slate-100">
+            <div className="flex items-center gap-1.5">
+              <Eye size={13} className="text-[#2563EB]" />
+              <span className="text-[10.5px] font-black uppercase text-blue-600 tracking-wider">
+                Full Narration Descriptions ({hoveredPartyNarrations.narrations.length} txns)
+              </span>
+            </div>
+            <span className="text-[10px] font-bold text-slate-700 font-mono truncate max-w-[150px] bg-slate-100 px-1.5 py-0.5 rounded">
+              {hoveredPartyNarrations.party}
+            </span>
+          </div>
+
+          <div className="space-y-1.5 max-h-60 overflow-y-auto">
+            {hoveredPartyNarrations.narrations.map((narr, idx) => (
+              <div
+                key={idx}
+                className="p-2 rounded-lg bg-slate-50 border border-slate-200/80 font-mono text-[10.5px] text-slate-700 break-words leading-relaxed select-all"
+              >
+                {narr}
+              </div>
+            ))}
+          </div>
+          <div className="mt-1.5 text-[9.5px] text-slate-400 italic text-right">
+            Click eye icon to keep open in table
+          </div>
+        </div>
+      )}
 
       {/* ═════════════════════════════════════════════════════════════════════════════════ */}
       {/* MODAL: ADD CUSTOM PATTERN                                                         */}

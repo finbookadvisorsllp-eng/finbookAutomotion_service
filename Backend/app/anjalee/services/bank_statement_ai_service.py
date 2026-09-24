@@ -979,13 +979,26 @@ CRITICAL RULES:
                     is_amb = False
                     class_reason = f"Explicitly configured as {rule_v_type} in Bank Rule."
 
-                has_conflict = rule_match.get("hasConflict", False) or is_amb
+                has_conflict = rule_match.get("hasConflict", False)
+                conf_val = float(rule_match.get("confidence", 100))
+                if not has_conflict and conf_val >= 90:
+                    is_amb = False
+
+                # CRITICAL: If the rule matched only for voucher type (no partyLedger resolved),
+                # the confidence must reflect this — it is NOT a complete match.
+                # Cap confidence at 65% when no counterpart ledger is found via rule.
+                if not sel_ledger:
+                    conf_val = min(conf_val, 65.0)
+
                 res_obj = {
                     "voucher_type": classified_v_type,
                     "selected_ledger": sel_ledger,
-                    "confidence": rule_match.get("confidence", 100),
-                    "review_required": has_conflict,
-                    "review_reason": f"Conflicting rules: {', '.join(rule_match.get('conflictingLedgers', []))}" if rule_match.get("hasConflict") else class_reason,
+                    "confidence": conf_val,
+                    "review_required": has_conflict or is_amb or not sel_ledger,
+                    "review_reason": f"Conflicting rules: {', '.join(rule_match.get('conflictingLedgers', []))}" if rule_match.get("hasConflict") else (
+                        f"Bank rule matched voucher type but party ledger not found. Please select counterpart ledger."
+                        if not sel_ledger else class_reason
+                    ),
                     "user_reasoning": rule_match.get("reasoning") or f"Rule match: '{rule_match.get('matchedPattern')}' -> '{sel_ledger}' ({classified_v_type})."
                 }
                 if match_cache is not None:
@@ -994,12 +1007,81 @@ CRITICAL RULES:
         except Exception as e:
             logger.warning(f"Error checking bank rules via RulesBasedMatchingService: {e}")
 
-        # ── Step 2: Party Extraction & Ledger Resolution ──
-        party_cand, extract_conf = NarrationNormalizationService.extract_party_candidate(narration)
+        # ── Step 2: Master-First Reverse Token Matching & Party Extraction ──
+        norm = NarrationNormalizationService.normalize_text(narration)
         channel, channel_conf = NarrationNormalizationService.detect_channel(narration)
+        party_cand = None
+        sel_ledger = None
+        match_score = 0.0
+
+        # Load known customer party aliases from DB
+        known_aliases = {}
+        try:
+            alias_q = {"companyId": company_id} if company_id else {}
+            for a in self.db["bank_party_aliases"].find(alias_q):
+                p_name = (a.get("partyName") or "").strip().lower()
+                r_ledger = (a.get("resolvedLedger") or "").strip()
+                if p_name and r_ledger:
+                    known_aliases[p_name] = r_ledger
+        except Exception:
+            pass
+
+        # Dynamic Token Matching directly against Company Master Ledgers
+        from app.anjalee.services.bank_pattern_engine import PatternDiscoveryEngine, RegexPositionalExtractor
+        cand_seps = ['/', '-', ':', '|', ';']
+        sep_counts = {s: norm.count(s) for s in cand_seps}
+        best_sep = max(cand_seps, key=lambda s: sep_counts[s])
+        sep = best_sep if sep_counts[best_sep] >= 2 else ('/' if '/' in norm else ('-' if '-' in norm else (' ' if ' ' in norm else '/')))
+        raw_tokens = [t.strip() for t in (re.split(r'\s+', norm) if sep == ' ' else norm.split(sep)) if t.strip()]
+
+        # Also get the positional party candidate from RegexPositionalExtractor first
+        # This gives us the correct party position (index 1 in CLG/PARTY/CHEQUE/BANK_CODE narrations)
+        positional_party_cand, positional_conf = RegexPositionalExtractor.extract_party(narration)
+
+        for idx, t in enumerate(raw_tokens):
+            m_res = PatternDiscoveryEngine.match_token_against_masters(
+                t, company_masters=company_masters, known_aliases=known_aliases, bank_ledger=bank_ledger
+            )
+            if m_res:
+                # Extra guard: make sure the matched token is not just a short bank code (3-4 chars)
+                # that could be an IFSC prefix appearing at a non-party position in the narration.
+                # Prefer the positional party candidate if it exists and is at an earlier index
+                # than the matched token — positional extraction is more reliable for structured narrations.
+                token_up = t.strip().upper()
+                token_idx_in_narration = idx
+                positional_idx = -1
+                if positional_party_cand:
+                    # Find what index the positional candidate appears at
+                    for pi, pt in enumerate(raw_tokens):
+                        if pt.strip().upper() == positional_party_cand.strip().upper():
+                            positional_idx = pi
+                            break
+
+                # Skip this token match if it looks like a bank code (3-4 uppercase letters)
+                # and positional extraction found a party at an earlier or valid position
+                is_likely_bank_code = len(token_up) <= 4 and token_up.isalpha() and idx > 1
+                if is_likely_bank_code and positional_party_cand and (positional_idx < 0 or positional_idx <= idx):
+                    # Don't use this bank-code match; continue to find better token
+                    continue
+
+                sel_ledger = m_res["ledger"]
+                party_cand = t.strip()
+                match_score = float(m_res["score"])
+                break
 
         resolution_svc = PartyLedgerResolutionService(self.db)
-        resolved = resolution_svc.resolve_party_ledger(party_cand, narration, company_id, company_masters, ref_number=ref_no)
+        if sel_ledger:
+            # Use positional party candidate as extractedParty (the actual party name from narration)
+            # rather than the raw matched token (which might be a bank code or truncated value)
+            if positional_party_cand and positional_party_cand.strip().upper() != (party_cand or '').strip().upper():
+                party_cand = positional_party_cand
+            resolved = {"resolvedLedger": sel_ledger, "confidence": match_score, "isAmbiguous": False}
+        else:
+            # Fallback to positional candidate extractor and standard resolution
+            party_cand = positional_party_cand
+            if not party_cand:
+                party_cand, extract_conf = NarrationNormalizationService.extract_party_candidate(narration)
+            resolved = resolution_svc.resolve_party_ledger(party_cand, narration, company_id, company_masters, ref_number=ref_no)
 
         if resolved.get("resolvedLedger"):
             sel_ledger = resolved["resolvedLedger"]
@@ -1010,15 +1092,18 @@ CRITICAL RULES:
                     break
 
             classified_v_type, is_amb, class_reason = self.classify_voucher_type(direction, counterpart_grp, sel_ledger, narration)
-            is_ambiguous = resolved.get("isAmbiguous", False) or is_amb
+            is_ambiguous = resolved.get("isAmbiguous", False)
+            conf_val = float(resolved.get("confidence", 85.0))
+            if not is_ambiguous and conf_val >= 90:
+                is_amb = False
 
-            review_reason = "Ambiguous matches: " + ", ".join(resolved.get("candidates", [])) if resolved.get("isAmbiguous") else class_reason
+            review_reason = "Ambiguous matches: " + ", ".join(resolved.get("candidates", [])) if is_ambiguous else class_reason
 
             res_obj = {
                 "voucher_type": classified_v_type,
                 "selected_ledger": sel_ledger,
-                "confidence": resolved.get("confidence", 85.0),
-                "review_required": is_ambiguous,
+                "confidence": conf_val,
+                "review_required": is_ambiguous or is_amb,
                 "review_reason": review_reason,
                 "user_reasoning": f"Extracted party '{party_cand or narration[:20]}' mapped to '{sel_ledger}' as {classified_v_type}. {class_reason}"
             }
@@ -1132,6 +1217,14 @@ CRITICAL RULES:
             rev_reason = match_res["review_reason"]
             user_reasoning = match_res["user_reasoning"]
 
+            # When a ledger was successfully resolved, use it as the extracted party candidate too
+            # so that the frontend correctly shows the matched ledger in the party dropdown
+            if sel_ledger and not party_cand:
+                party_cand = sel_ledger
+
+            # Cap confidence when no party ledger is mapped — rule-only match is incomplete
+            if not sel_ledger and conf > 65.0:
+                conf = 65.0
             # Compute SHA-256 fingerprint for duplicate checking
             fingerprint = self.generate_transaction_fingerprint(
                 company_id or "default", bank_ledger, tx_date, amt, v_type, ref_no, narration
@@ -1143,7 +1236,7 @@ CRITICAL RULES:
                 rev_req = True
                 rev_reason = "Transaction already processed into an existing voucher."
                 dup_cnt += 1
-            elif rev_req or conf < 90 or not sel_ledger:
+            elif not sel_ledger or conf < 90 or rev_req:
                 status = "review_required"
                 rev_req = True
                 if not sel_ledger:
@@ -1151,6 +1244,7 @@ CRITICAL RULES:
                 review_cnt += 1
             else:
                 status = "ready"
+                rev_req = False
                 ready_cnt += 1
 
             # Clean reference & instrument details
@@ -1272,10 +1366,56 @@ CRITICAL RULES:
                 pat_copy = dict(pat)
                 if "created_at" in pat_copy and hasattr(pat_copy["created_at"], "isoformat"):
                     pat_copy["created_at"] = pat_copy["created_at"].isoformat()
+                # Pop _id so MongoDB assigns a unique ObjectId or preserves existing _id without conflict
+                pat_copy.pop("_id", None)
                 self.db["bank_pattern_suggestions"].update_one(
                     {"pattern": pat["pattern"], "bankLedger": bank_ledger},
                     {"$set": pat_copy},
                     upsert=True
+                )
+
+            # Apply discovered pattern rules back into any remaining unmapped items in this batch
+            items_updated = False
+            for pat in discovered_patterns:
+                p_pos = pat.get("partyPosition", -1)
+                sep = pat.get("separator", "/")
+                d_parties = pat.get("distinctParties", [])
+                party_map = {dp["party"].lower().strip(): dp["mappedLedger"] for dp in d_parties if dp.get("mappedLedger") and dp["mappedLedger"] != "Unmapped"}
+
+                if p_pos >= 0 and party_map:
+                    for it in processed_items:
+                        if not it.get("partyLedger") or it.get("status") == "review_required":
+                            narr = it.get("narration") or ""
+                            norm_it = NarrationNormalizationService.normalize_text(narr)
+                            parts = re.split(r'\s+', norm_it) if sep == ' ' else norm_it.split(sep)
+                            if 0 <= p_pos < len(parts):
+                                cand_txt = parts[p_pos].strip()
+                                cand_lower = cand_txt.lower()
+                                if cand_lower in party_map:
+                                    it["partyLedger"] = party_map[cand_lower]
+                                    it["party"] = cand_txt
+                                    it["extractedParty"] = cand_txt
+                                    it["confidence"] = 95.0
+                                    it["status"] = "ready"
+                                    it["review_required"] = False
+                                    it["review_reason"] = None
+                                    it["reasoning"] = f"Auto-mapped via discovered pattern ({pat.get('patternId', 'AI Pattern')} at Index [{p_pos}])"
+                                    items_updated = True
+
+            if items_updated:
+                ready_cnt = sum(1 for i in processed_items if i.get("status") in ["ready", "user_edited"])
+                rev_cnt = sum(1 for i in processed_items if i.get("status") == "review_required")
+                batch_doc["summary"]["ready_count"] = ready_cnt
+                batch_doc["summary"]["review_required_count"] = rev_cnt
+                batch_doc["items"] = processed_items
+                batch_doc["ledger_mappings"] = self.build_ledger_mapping_rows(processed_items, db=self.db, company_id=company_id)
+                self.db["bank_statement_drafts"].update_one(
+                    {"_id": batch_doc["_id"]},
+                    {"$set": {
+                        "summary": batch_doc["summary"],
+                        "items": batch_doc["items"],
+                        "ledger_mappings": batch_doc["ledger_mappings"]
+                    }}
                 )
         except Exception as de:
             logger.warning(f"Automatic pattern discovery on statement upload notice: {de}")
@@ -1290,12 +1430,21 @@ CRITICAL RULES:
         items = doc.get("items") or []
         changed = False
         for it in items:
-            if it.get("status") == "ready":
-                c = float(it.get("confidence") or 0.0)
-                pl = it.get("partyLedger")
-                if c < 90 or not pl or not str(pl).strip():
+            c = float(it.get("confidence") or 0.0)
+            pl = it.get("partyLedger")
+            has_pl = bool(pl and str(pl).strip() and str(pl).strip() != "Unmapped")
+            current_status = it.get("status")
+
+            if current_status == "ready":
+                if c < 90 or not has_pl:
                     it["status"] = "review_required"
                     it["review_required"] = True
+                    changed = True
+            elif current_status == "review_required":
+                # Dynamic promotion: If confidence is >= 90% and counterpart ledger is accurately mapped, promote to ready
+                if c >= 90 and has_pl:
+                    it["status"] = "ready"
+                    it["review_required"] = False
                     changed = True
         if changed:
             ready_cnt = sum(1 for i in items if i.get("status") in ["ready", "user_edited"])
@@ -1665,7 +1814,8 @@ CRITICAL RULES:
                     "already_processed_count": already_cnt,
                     "saved_count": saved_cnt
                 }
-                ledger_maps = self.build_ledger_mapping_rows(items)
+                comp_id = b.get("company_id") or b.get("companyId") or company_id
+                ledger_maps = self.build_ledger_mapping_rows(items, db=self.db, company_id=comp_id)
                 self.db["bank_statement_drafts"].update_one(
                     {"_id": b["_id"]},
                     {"$set": {"items": items, "summary": summary, "ledger_mappings": ledger_maps, "updated_at": datetime.utcnow()}}
@@ -2095,7 +2245,8 @@ CRITICAL RULES:
     ) -> List[Dict[str, Any]]:
         from app.anjalee.services.bank_pattern_engine import (
             RegexPositionalExtractor,
-            PartyLedgerResolutionService
+            PartyLedgerResolutionService,
+            PatternDiscoveryEngine
         )
 
         resolution_svc = None
@@ -2112,30 +2263,75 @@ CRITICAL RULES:
             narration = it.get("narration") or ""
             cur_party = (it.get("extractedParty") or "").strip()
             
-            # Check if current extractedParty is invalid, a channel code, or empty
+            # Check if current extractedParty is invalid, raw unparsed narration, a channel code, or empty
             is_bad_party = (
                 not cur_party or
                 cur_party.upper() in RegexPositionalExtractor.STOP_SEGMENTS or
                 cur_party.isdigit() or
-                len(cur_party) < 3
+                len(cur_party) < 3 or
+                "/" in cur_party or
+                ":" in cur_party or
+                cur_party.upper().startswith(("CLG/", "UPI/", "NEFT/", "RTGS/", "IMPS/", "INFT/", "INF/", "CHQ/", "CHEQUE/", "REJECT:")) or
+                (narration and len(cur_party) >= 25 and cur_party == narration[:len(cur_party)])
             )
+
+            clean_cand = None
+            master_match_info = None
+
             if is_bad_party and narration:
-                party_ext, _ = RegexPositionalExtractor.extract_party(narration)
-                clean_cand = party_ext or (it.get("partyLedger") or narration[:35] if narration else "TRANSACTION")
+                # Reverse-index match: test each token of narration against company master ledgers
+                analysis = PatternDiscoveryEngine.analyze_narration_tokens(
+                    narration,
+                    company_masters=company_masters,
+                    bank_ledger=it.get("bankLedger") or ""
+                )
+                if analysis.get("master_match") and analysis["master_match"].get("token"):
+                    clean_cand = analysis["master_match"]["token"]
+                    master_match_info = analysis["master_match"]
+                elif analysis.get("party_val") and "/" not in str(analysis["party_val"]):
+                    clean_cand = analysis["party_val"]
+                else:
+                    party_ext, _ = RegexPositionalExtractor.extract_party(narration)
+                    clean_cand = party_ext
             else:
-                clean_cand = cur_party or narration[:35]
+                clean_cand = cur_party
+
+            # Sanitize extracted candidate: strip any accidental slashes, channel prefixes, or delimiters
+            if clean_cand:
+                if "/" in clean_cand:
+                    segs = [s.strip() for s in clean_cand.split('/') if s.strip()]
+                    valid_segs = [
+                        s for s in segs 
+                        if s.upper() not in RegexPositionalExtractor.STOP_SEGMENTS and 
+                           not s.isdigit() and 
+                           any(c.isalpha() for c in s) and 
+                           len(s) >= 3
+                    ]
+                    clean_cand = valid_segs[0] if valid_segs else (segs[0] if segs else clean_cand)
+                clean_cand = re.sub(r'^(CLG|UPI|NEFT|RTGS|IMPS|CHQ|INFT|INF)[/:\s-]+', '', clean_cand, flags=re.I).strip()
+
+            if not clean_cand or len(clean_cand) < 2 or clean_cand.upper() in RegexPositionalExtractor.STOP_SEGMENTS:
+                party_ext, _ = RegexPositionalExtractor.extract_party(narration) if narration else (None, 0.0)
+                clean_cand = party_ext or "Unidentified Party"
+
+            # Sync cleaned party candidate back to item dict
+            it["extractedParty"] = clean_cand
 
             suggested = (it.get("partyLedger") or it.get("againstLedger") or "").strip()
             item_id = str(it.get("item_id") or uuid.uuid4())
             it_status = it.get("status")
 
+            # If master_match was directly found during token analysis, prioritize it
+            if master_match_info and (not suggested or suggested == "Unmapped") and it_status not in ["user_edited", "saved"]:
+                suggested = master_match_info.get("ledger") or suggested
+
             # If unmapped or user hasn't confirmed, try resolving against company master ledgers
             resolved_info = None
-            if resolution_svc and company_masters and it_status not in ["user_edited", "saved"]:
+            if resolution_svc and company_masters and it_status not in ["user_edited", "saved"] and (not suggested or suggested == "Unmapped"):
                 resolved_info = resolution_svc.resolve_party_ledger(
                     clean_cand, narration, company_id=company_id, company_masters=company_masters
                 )
-                if resolved_info.get("resolvedLedger"):
+                if resolved_info.get("resolvedLedger") and resolved_info["resolvedLedger"] != "Unmapped":
                     suggested = resolved_info["resolvedLedger"]
 
             is_exact = False
@@ -2151,6 +2347,9 @@ CRITICAL RULES:
             elif it_status in ["user_edited", "saved"]:
                 conf = 100.0
                 method = "User Confirmed"
+            elif master_match_info and suggested and suggested == master_match_info.get("ledger"):
+                conf = float(master_match_info.get("score") or 96.0)
+                method = "System • Exact Match" if master_match_info.get("matchType") in ["exact", "alnum"] else f"AI Resolved ({master_match_info.get('matchType')})"
             elif resolved_info and resolved_info.get("resolvedLedger"):
                 conf = float(resolved_info.get("confidence") or 90.0)
                 m_method = resolved_info.get("matchMethod", "fuzzy")

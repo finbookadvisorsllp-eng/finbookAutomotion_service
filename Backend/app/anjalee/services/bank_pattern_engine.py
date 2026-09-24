@@ -581,8 +581,18 @@ class RegexPositionalExtractor:
     """
 
     BANK_STOPWORDS = {
-        "HDFC", "ICICI", "SBIN", "SBI", "AXIS", "PUNB", "PNB", "KKBK", "KOTAK",
-        "BARB", "BOB", "CNRB", "CANARA", "UBIN", "UNION", "IDFB", "IDFC", "YESB", "YES"
+        # Public sector banks
+        "HDFC", "ICICI", "ICIC", "SBIN", "SBI", "AXIS", "PUNB", "PNB", "KKBK", "KOTAK",
+        "BARB", "BOB", "CNRB", "CANARA", "UBIN", "UNION", "IDFB", "IDFC", "IDFCFIRST",
+        "YESB", "YES", "YESBANK",
+        # Other nationalized / private banks
+        "IDB", "IDBI", "UCO", "CBI", "IOB", "OBC", "UTIB", "FDRL", "FEDERAL",
+        "DENA", "VIJAYA", "TMBL", "KARB", "KVB", "KVBL",
+        "RBL", "RBLB", "CITI", "CITIBANK", "SCB", "HSBC", "DBS",
+        "BANDHAN", "BDBL", "FINO", "PAYTM", "AIRTEL", "JSFB", "JANA",
+        "NKGSB", "SARASWAT", "APGV", "ANDB", "ALLA", "ALLAHABAD",
+        "SIBL", "CSB", "LAKSHMI", "LVB", "DCBL", "DCB",
+        "IBKL", "INDUSIND", "INDB", "PMC", "MAHB", "MAHABANK"
     }
 
     LOCATION_STOPWORDS = {
@@ -594,7 +604,10 @@ class RegexPositionalExtractor:
         'UPI', 'NEFT', 'RTGS', 'IMPS', 'CLG', 'CTS', 'INFT', 'INF', 'MMT', 'IFT',
         'TRF', 'TRANSFER', 'PAYMENT', 'PAY', 'RECEIPT', 'CR', 'DR', 'NA', 'INT',
         'COLL', 'SERVICE', 'CHG', 'CHARGE', 'FEE', 'CHARGES', 'TDS', 'ATM', 'WDL',
-        'CASH', 'SLB', 'SLBL', 'SLBN'
+        'CASH', 'SLB', 'SLBL', 'SLBN',
+        # Bank codes also stop here so they are never extracted as party names
+        'IDB', 'IDBI', 'UCO', 'CBI', 'IOB', 'OBC', 'UTIB', 'FDRL', 'FEDERAL',
+        'DENA', 'VIJAYA', 'RBL', 'BANDHAN', 'FINO', 'IBKL', 'INDUSIND', 'INDB'
     }
 
     @classmethod
@@ -853,11 +866,119 @@ class PatternDiscoveryEngine:
         return pattern_str, group_labels
 
     @classmethod
-    def analyze_narration_tokens(cls, norm: str) -> Dict[str, Any]:
+    def match_token_against_masters(
+        cls,
+        token: str,
+        company_masters: Optional[List[Dict[str, Any]]] = None,
+        known_aliases: Optional[Dict[str, str]] = None,
+        bank_ledger: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Dynamically compares a narration token against Company Master Ledgers and customer party aliases.
+        Returns match dict if found with high confidence (>=85%), else None.
+        """
+        if not token or not company_masters:
+            return None
+        t_clean = token.strip()
+        t_lower = t_clean.lower()
+        if len(t_clean) < 2 or not any(c.isalpha() for c in t_clean):
+            return None
+
+        # Filter out bank transaction channel tokens, general stop words,
+        # AND all Indian bank abbreviations/IFSC codes that appear in CLG narrations as beneficiary bank codes
+        stop_words = {
+            # Transaction channel/type markers
+            "BANK", "NEFT", "RTGS", "UPI", "IMPS", "CLG", "CTS", "CHQ", "CHEQUE",
+            "TRANSFER", "PAYMENT", "RECEIVED", "TRF", "INFT", "INF", "IFT", "PAID",
+            "LTD", "PVT", "PVTLTD", "LIMITED", "PRIVATE", "CR", "DR", "TXN", "REF",
+            "RRN", "MOB", "NA", "NIL", "NULL", "BY", "TO", "FOR", "SLB", "SLBL", "SLBN",
+            "INR", "SUCCESS", "SETTLEMENT", "CHARGES", "GST", "TAX", "INT", "INTEREST", "FEES",
+            # Indian bank IFSC prefixes / common bank abbreviations
+            # These appear in CLG/NEFT/RTGS narrations as beneficiary bank codes, NOT party ledger names
+            "HDFC", "ICIC", "ICICI", "SBIN", "SBI", "AXIS", "KKBK", "KOTAK",
+            "PUNB", "PNB", "BARB", "BOB", "CNRB", "CANARA", "UBIN", "UNION",
+            "IDFB", "IDFC", "IDFCFIRST", "YESB", "YESBANK",
+            "IDB", "IDBI", "UCO", "CBI", "IOB", "OBC", "UTIB", "FDRL",
+            "FEDERAL", "DENA", "VIJAYA", "TMBL", "KARB", "KVB", "KVBL",
+            "RBL", "RBLB", "CITI", "CITIBANK", "SCB", "HSBC", "DBS",
+            "BANDHAN", "BDBL", "FINO", "PAYTM", "AIRTEL", "JSFB", "JANA",
+            "NKGSB", "SARASWAT", "APGV", "ANDB", "ALLA", "ALLAHABAD",
+            "SIBL", "CSB", "LAKSHMI", "LVB", "DCBL", "DCB", "UJVN",
+            "IBKL", "INDUSIND", "INDB", "PMC", "MAHB", "MAHABANK"
+        }
+        if t_clean.upper() in stop_words:
+            return None
+
+        # Filter out bank ledger itself so we never match the source bank account as party
+        if bank_ledger:
+            bl_clean = re.sub(r'[^a-z0-9]', '', bank_ledger.lower())
+            t_alnum_chk = re.sub(r'[^a-z0-9]', '', t_lower)
+            if t_alnum_chk and (t_alnum_chk in bl_clean or bl_clean in t_alnum_chk):
+                if len(t_alnum_chk) >= 4 and len(bl_clean) >= 4:
+                    return None
+
+        # 0. Check previously approved customer party aliases
+        if known_aliases and t_lower in known_aliases:
+            return {
+                "ledger": known_aliases[t_lower],
+                "score": 100.0,
+                "matchType": "alias_cache"
+            }
+
+        t_alnum = re.sub(r'[^a-z0-9]', '', t_lower)
+        if len(t_alnum) < 3:
+            return None
+
+        # 1. Exact match against master ledgers
+        for m in company_masters:
+            m_name = (m.get("ledgerName") or m.get("name") or "").strip()
+            if not m_name:
+                continue
+            if m_name.lower() == t_lower:
+                return {"ledger": m_name, "score": 100.0, "matchType": "exact"}
+
+            # Check aliases
+            aliases = m.get("alias") or m.get("alternateName") or ""
+            if isinstance(aliases, str) and aliases:
+                for a in [x.strip().lower() for x in aliases.split(",") if x.strip()]:
+                    if a == t_lower:
+                        return {"ledger": m_name, "score": 98.0, "matchType": "alias"}
+            elif isinstance(aliases, list):
+                for a in aliases:
+                    if str(a).strip().lower() == t_lower:
+                        return {"ledger": m_name, "score": 98.0, "matchType": "alias"}
+
+        # 2. Alphanumeric match (ignoring spaces and punctuation)
+        if len(t_alnum) >= 4:
+            for m in company_masters:
+                m_name = (m.get("ledgerName") or m.get("name") or "").strip()
+                if not m_name:
+                    continue
+                m_alnum = re.sub(r'[^a-z0-9]', '', m_name.lower())
+                if m_alnum == t_alnum:
+                    return {"ledger": m_name, "score": 96.0, "matchType": "alnum"}
+
+                # Prefix / Substring match (e.g. truncated party name like "AMRAPUR MEDICAL AGENCIE" vs "AMRAPUR MEDICAL AGENCIES GUNA")
+                if len(t_alnum) >= 6 and len(m_alnum) >= 6:
+                    if m_alnum.startswith(t_alnum) or t_alnum.startswith(m_alnum):
+                        return {"ledger": m_name, "score": 92.0, "matchType": "prefix"}
+                    if t_alnum in m_alnum or m_alnum in t_alnum:
+                        return {"ledger": m_name, "score": 88.0, "matchType": "substring"}
+
+        return None
+
+    @classmethod
+    def analyze_narration_tokens(
+        cls,
+        norm: str,
+        company_masters: Optional[List[Dict[str, Any]]] = None,
+        known_aliases: Optional[Dict[str, str]] = None,
+        bank_ledger: Optional[str] = None
+    ) -> Dict[str, Any]:
         """
         Dynamically detects separator, parses zero-based tokens,
         and assigns roles (CHANNEL, TXN_ID, PARTY, VPA, IFSC, BANK_CODE, REMITTANCE)
-        without hardcoded indices.
+        prioritizing direct matches against Company Master Party Ledgers first.
         """
         cand_seps = ['/', '-', ':', '|', ';']
         sep_counts = {s: norm.count(s) for s in cand_seps}
@@ -883,7 +1004,7 @@ class PatternDiscoveryEngine:
             return {
                 "sep": sep, "raw_tokens": [], "skeleton_parts": [], "channel": "OTHER",
                 "txn_id_pos": -1, "txn_id_regex": None, "party_pos": -1, "party_val": None,
-                "other_fields": [], "tokens_meta": []
+                "master_match": None, "other_fields": [], "tokens_meta": []
             }
 
         channel, _ = TransactionClassifierService.classify_channel(norm)
@@ -950,7 +1071,7 @@ class PatternDiscoveryEngine:
                             txn_id_regex = r"[A-Za-z0-9_-]+"
                             break
 
-        # 6. Classify Party Candidate
+        # 6. Classify Party Candidate - MASTER DATA MATCHING FIRST (Reverse-Index Discovery)
         stop_words = {
             "BANK", "NEFT", "RTGS", "UPI", "IMPS", "CLG", "CTS", "CHQ", "CHEQUE",
             "TRANSFER", "PAYMENT", "RECEIVED", "TRF", "INFT", "INF", "IFT", "PAID",
@@ -959,36 +1080,57 @@ class PatternDiscoveryEngine:
             "INR", "SUCCESS", "SETTLEMENT", "CHARGES", "GST", "TAX", "INT", "INTEREST", "FEES"
         }
 
-        candidate_parties = []
-        for idx, t in enumerate(raw_tokens):
-            if roles[idx] is None:
-                t_strip = t.strip()
-                digit_cnt = sum(c.isdigit() for c in t_strip)
-                letter_cnt = sum(c.isalpha() for c in t_strip)
-                has_letters = letter_cnt > 0
-                is_stop = t_strip.upper() in stop_words
-                # Party candidate must NOT be a reference code (e.g. 0807i..., POD119..., N2232...)
-                is_ref = (' ' not in t_strip) and (digit_cnt >= 4 or (digit_cnt > 0 and digit_cnt >= letter_cnt and len(t_strip) >= 6))
-                if has_letters and not is_stop and not is_ref and len(t_strip) >= 2:
-                    score = (50 if ' ' in t_strip else 0) + letter_cnt - (digit_cnt * 5)
-                    candidate_parties.append((idx, t_strip, score))
+        master_match = None
+        if company_masters:
+            for idx, t in enumerate(raw_tokens):
+                if roles[idx] in ["CHANNEL", "TXN_ID", "IFSC", "BANK_CODE"]:
+                    continue
+                match_res = cls.match_token_against_masters(
+                    t, company_masters=company_masters, known_aliases=known_aliases, bank_ledger=bank_ledger
+                )
+                if match_res:
+                    master_match = {
+                        "pos": idx,
+                        "token": t.strip(),
+                        "ledger": match_res["ledger"],
+                        "score": match_res["score"],
+                        "matchType": match_res["matchType"]
+                    }
+                    roles[idx] = "PARTY"
+                    break
 
-        party_pos = -1
-        party_val = None
-        if candidate_parties:
-            if channel == "UPI" and txn_id_pos >= 0:
-                after_txn = [c for c in candidate_parties if c[0] > txn_id_pos]
-                if after_txn:
-                    after_txn.sort(key=lambda x: (x[2], -x[0]), reverse=True)
-                    party_pos, party_val, _ = after_txn[0]
+        party_pos = -1 if master_match is None else master_match["pos"]
+        party_val = None if master_match is None else master_match["token"]
+
+        if master_match is None:
+            # Fallback heuristic scoring if no direct master match found in this narration
+            candidate_parties = []
+            for idx, t in enumerate(raw_tokens):
+                if roles[idx] is None:
+                    t_strip = t.strip()
+                    digit_cnt = sum(c.isdigit() for c in t_strip)
+                    letter_cnt = sum(c.isalpha() for c in t_strip)
+                    has_letters = letter_cnt > 0
+                    is_stop = t_strip.upper() in stop_words
+                    is_ref = (' ' not in t_strip) and (digit_cnt >= 4 or (digit_cnt > 0 and digit_cnt >= letter_cnt and len(t_strip) >= 6))
+                    if has_letters and not is_stop and not is_ref and len(t_strip) >= 2:
+                        score = (50 if ' ' in t_strip else 0) + letter_cnt - (digit_cnt * 5)
+                        candidate_parties.append((idx, t_strip, score))
+
+            if candidate_parties:
+                if channel == "UPI" and txn_id_pos >= 0:
+                    after_txn = [c for c in candidate_parties if c[0] > txn_id_pos]
+                    if after_txn:
+                        after_txn.sort(key=lambda x: (x[2], -x[0]), reverse=True)
+                        party_pos, party_val, _ = after_txn[0]
+                    else:
+                        candidate_parties.sort(key=lambda x: (x[2], -x[0]), reverse=True)
+                        party_pos, party_val, _ = candidate_parties[0]
+                    roles[party_pos] = "PARTY"
                 else:
                     candidate_parties.sort(key=lambda x: (x[2], -x[0]), reverse=True)
                     party_pos, party_val, _ = candidate_parties[0]
-                roles[party_pos] = "PARTY"
-            else:
-                candidate_parties.sort(key=lambda x: (x[2], -x[0]), reverse=True)
-                party_pos, party_val, _ = candidate_parties[0]
-                roles[party_pos] = "PARTY"
+                    roles[party_pos] = "PARTY"
 
         # 7. Unclassified tokens -> ACC_NO, DATE, NUMBER, or REMITTANCE
         for idx, t in enumerate(raw_tokens):
@@ -1111,14 +1253,31 @@ class PatternDiscoveryEngine:
         voucher_svc = VoucherClassifierService(self.db)
         bank_code = self.derive_bank_code(bank_ledger)
 
-        # 1. Group transactions by transaction type
+        # Load known customer party aliases
+        known_aliases = {}
+        try:
+            alias_q = {"companyId": company_id} if company_id else {}
+            for a in self.db["bank_party_aliases"].find(alias_q):
+                p_name = (a.get("partyName") or "").strip().lower()
+                r_ledger = (a.get("resolvedLedger") or "").strip()
+                if p_name and r_ledger:
+                    known_aliases[p_name] = r_ledger
+        except Exception:
+            pass
+
+        # 1. Group transactions by transaction type using master reverse matching
         txns_by_type = defaultdict(list)
         for it in batch_items:
             narr = it.get("narration") or ""
             if not narr:
                 continue
             norm = NarrationNormalizationService.normalize_text(narr)
-            analysis = self.analyze_narration_tokens(norm)
+            analysis = self.analyze_narration_tokens(
+                norm,
+                company_masters=company_masters,
+                known_aliases=known_aliases,
+                bank_ledger=bank_ledger
+            )
             txn_type = analysis.get("channel") or "OTHER_TRANSFER"
             txns_by_type[txn_type].append({
                 "item": it,
@@ -1132,6 +1291,29 @@ class PatternDiscoveryEngine:
         # 2. Iterate each transaction type sorted by transaction volume descending
         for txn_type, type_matched in sorted(txns_by_type.items(), key=lambda x: len(x[1]), reverse=True):
             type_total_count = len(type_matched)
+
+            # Reverse Master-Index Discovery: Check which token index matched master ledgers most frequently
+            master_pos_hits = Counter()
+            for m in type_matched:
+                mm = m["analysis"].get("master_match")
+                if mm and mm.get("pos") is not None and mm["pos"] >= 0:
+                    master_pos_hits[mm["pos"]] += 1
+
+            common_master_pos = None
+            master_hit_count = 0
+            if master_pos_hits:
+                common_master_pos, master_hit_count = master_pos_hits.most_common(1)[0]
+
+            # If master data proved a common party position for this channel, align transactions of this channel
+            if common_master_pos is not None:
+                for m in type_matched:
+                    if not m["analysis"].get("master_match"):
+                        raw_toks = m["analysis"].get("raw_tokens") or []
+                        if 0 <= common_master_pos < len(raw_toks):
+                            cand_tok = raw_toks[common_master_pos].strip()
+                            if len(cand_tok) >= 2 and cand_tok.upper() not in NarrationNormalizationService.STOP_WORDS:
+                                m["analysis"]["party_pos"] = common_master_pos
+                                m["analysis"]["party_val"] = cand_tok
 
             # Sub-cluster into distinct patterns strictly by party position (e.g. Party at Pos [2] vs Pos [3])
             type_patterns = defaultdict(list)
@@ -1185,8 +1367,11 @@ class PatternDiscoveryEngine:
                         txn_id_pos = int(saved_rule["txnIdPosition"])
                     ai_analyzed = True
                     ai_reasoning = f"Reused approved bank rule: '{saved_rule.get('name') or 'Saved Rule'}' (Party Index [{party_pos}])."
-                elif is_pattern_a:
-                    # For Pattern A without saved rule: Apply LLM AI pattern mapping
+                elif common_master_pos is not None and party_pos == common_master_pos:
+                    ai_analyzed = True
+                    ai_reasoning = f"Deterministic pattern discovered via master ledger reverse matching: Party verified at Token Index [{party_pos}] across {master_hit_count} transaction(s). (Zero LLM needed)"
+                elif is_pattern_a and party_pos < 0:
+                    # ONLY fallback to LLM if no master ledger could be matched to any token across the cluster!
                     sample_narrs = [m["narration"] for m in matched[:5]]
                     llm_res = analyze_pattern_a_with_llm(sample_narrs, bank_ledger=bank_ledger, channel=txn_type)
                     if llm_res:
@@ -1223,6 +1408,41 @@ class PatternDiscoveryEngine:
                 # Re-extract distinct parties across all matching transactions in this pattern
                 distinct_parties = {}
                 for m in matched:
+                    norm_txt = m["norm"]
+                    if sep == ' ':
+                        tokens_here = [t.strip() for t in re.split(r'\s+', norm_txt) if t.strip()]
+                    else:
+                        tokens_here = [t.strip() for t in norm_txt.split(sep) if t.strip()]
+
+                    party_val = None
+                    if party_pos >= 0 and party_pos < len(tokens_here):
+                        cand = tokens_here[party_pos].strip()
+                        if len(cand) >= 2 and cand.upper() not in NarrationNormalizationService.STOP_WORDS:
+                            party_val = cand
+
+                    if not party_val:
+                        party_val = m["analysis"].get("party_val") or "Unspecified Party"
+
+                    # Check if master_match exists on this item
+                    m_master = m["analysis"].get("master_match")
+                    if m_master and m_master.get("ledger"):
+                        resolved_ledger = m_master["ledger"]
+                        conf_val = float(m_master.get("score", 98.0))
+                        is_amb = False
+                    else:
+                        res = resolution_svc.resolve_party_ledger(
+                            party_val,
+                            m["narration"],
+                            company_id=company_id,
+                            company_masters=company_masters
+                        )
+                        resolved_ledger = res.get("resolvedLedger") or "Unmapped"
+                        conf_val = float(res.get("confidence", 0.0))
+                        is_amb = res.get("isAmbiguous", False)
+
+                    m["extracted_party"] = party_val
+                    m["mapped_ledger"] = resolved_ledger
+                    m["party_confidence"] = conf_val
                     norm_txt = m["norm"]
                     if sep == ' ':
                         tokens_here = [t.strip() for t in re.split(r'\s+', norm_txt) if t.strip()]
@@ -1376,7 +1596,9 @@ class PatternDiscoveryEngine:
         saved = []
         for s in discovered:
             try:
-                res = self.db["bank_pattern_suggestions"].insert_one(s)
+                s_to_save = dict(s)
+                s_to_save.pop("_id", None)
+                res = self.db["bank_pattern_suggestions"].insert_one(s_to_save)
                 s["_id"] = str(res.inserted_id)
                 saved.append(s)
             except Exception as e:
@@ -1387,6 +1609,7 @@ class PatternDiscoveryEngine:
 
 # Backward compatibility alias
 AIPatternDiscoveryService = PatternDiscoveryEngine
+PatternRuleDiscoveryEngine = PatternDiscoveryEngine
 
 
 # =====================================================================
