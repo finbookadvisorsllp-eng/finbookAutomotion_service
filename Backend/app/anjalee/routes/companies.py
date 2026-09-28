@@ -126,6 +126,8 @@ async def get_current_company_master_data(
 @router.get("/current/dashboard-summary")
 async def get_current_company_dashboard_summary(
     request: Request,
+    companyId: Optional[str] = Query(None),
+    companyName: Optional[str] = Query(None),
     startDate: Optional[str] = Query(None),
     endDate: Optional[str] = Query(None),
     partyLedger: Optional[str] = Query(None),
@@ -134,7 +136,13 @@ async def get_current_company_dashboard_summary(
     """
     Fetch dashboard summary and party ledger details dynamically for the current company.
     """
-    company_header = request.headers.get("x-company-id") or request.headers.get("x-company")
+    company_header = (
+        companyId
+        or request.headers.get("x-company-id")
+        or request.headers.get("x-company")
+        or companyName
+        or request.headers.get("x-company-name")
+    )
     if not company_header:
         auth_header = request.headers.get("authorization") or request.headers.get("Authorization")
         if auth_header and auth_header.startswith("Bearer "):

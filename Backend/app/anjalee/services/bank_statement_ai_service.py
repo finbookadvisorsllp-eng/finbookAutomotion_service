@@ -4,11 +4,13 @@ import json
 import hashlib
 import logging
 import uuid
+import html
 from datetime import datetime, date
 from typing import List, Dict, Any, Optional, Tuple
 from bson import ObjectId
 import openpyxl
 import csv
+import inspect
 
 from app.anjalee.services.ocr_service import OcrService
 from app.anjalee.services.llm_service import llm_service
@@ -1048,36 +1050,49 @@ CRITICAL RULES:
         # This gives us the correct party position (index 1 in CLG/PARTY/CHEQUE/BANK_CODE narrations)
         positional_party_cand, positional_conf = RegexPositionalExtractor.extract_party(narration)
 
-        for idx, t in enumerate(raw_tokens):
+        # For CLG narrations (CLG / PARTY / CHEQUE / BANK / SEQ), token 1 is strictly the party candidate.
+        # Tokens 0 (CLG), 2 (cheque), 3 (bank code), 4+ (seq) must NEVER be matched as party!
+        is_clg = bool(raw_tokens and raw_tokens[0].upper() == 'CLG') or norm.upper().startswith("CLG")
+        if is_clg and len(raw_tokens) > 1:
+            clg_party_tok = raw_tokens[1].strip()
+            party_cand = clg_party_tok
             m_res = PatternDiscoveryEngine.match_token_against_masters(
-                t, company_masters=company_masters, known_aliases=known_aliases, bank_ledger=bank_ledger
+                clg_party_tok, company_masters=company_masters, known_aliases=known_aliases, bank_ledger=bank_ledger
             )
             if m_res:
-                # Extra guard: make sure the matched token is not just a short bank code (3-4 chars)
-                # that could be an IFSC prefix appearing at a non-party position in the narration.
-                # Prefer the positional party candidate if it exists and is at an earlier index
-                # than the matched token — positional extraction is more reliable for structured narrations.
-                token_up = t.strip().upper()
-                token_idx_in_narration = idx
-                positional_idx = -1
-                if positional_party_cand:
-                    # Find what index the positional candidate appears at
-                    for pi, pt in enumerate(raw_tokens):
-                        if pt.strip().upper() == positional_party_cand.strip().upper():
-                            positional_idx = pi
-                            break
-
-                # Skip this token match if it looks like a bank code (3-4 uppercase letters)
-                # and positional extraction found a party at an earlier or valid position
-                is_likely_bank_code = len(token_up) <= 4 and token_up.isalpha() and idx > 1
-                if is_likely_bank_code and positional_party_cand and (positional_idx < 0 or positional_idx <= idx):
-                    # Don't use this bank-code match; continue to find better token
-                    continue
-
                 sel_ledger = m_res["ledger"]
-                party_cand = t.strip()
                 match_score = float(m_res["score"])
-                break
+        else:
+            for idx, t in enumerate(raw_tokens):
+                m_res = PatternDiscoveryEngine.match_token_against_masters(
+                    t, company_masters=company_masters, known_aliases=known_aliases, bank_ledger=bank_ledger
+                )
+                if m_res:
+                    # Extra guard: make sure the matched token is not just a short bank code (3-4 chars)
+                    # that could be an IFSC prefix appearing at a non-party position in the narration.
+                    # Prefer the positional party candidate if it exists and is at an earlier index
+                    # than the matched token — positional extraction is more reliable for structured narrations.
+                    token_up = t.strip().upper()
+                    token_idx_in_narration = idx
+                    positional_idx = -1
+                    if positional_party_cand:
+                        # Find what index the positional candidate appears at
+                        for pi, pt in enumerate(raw_tokens):
+                            if pt.strip().upper() == positional_party_cand.strip().upper():
+                                positional_idx = pi
+                                break
+
+                    # Skip this token match if it looks like a bank code (3-4 uppercase letters)
+                    # and positional extraction found a party at an earlier or valid position
+                    is_likely_bank_code = len(token_up) <= 4 and token_up.isalpha() and idx > 1
+                    if is_likely_bank_code and positional_party_cand and (positional_idx < 0 or positional_idx <= idx):
+                        # Don't use this bank-code match; continue to find better token
+                        continue
+
+                    sel_ledger = m_res["ledger"]
+                    party_cand = t.strip()
+                    match_score = float(m_res["score"])
+                    break
 
         resolution_svc = PartyLedgerResolutionService(self.db)
         if sel_ledger:
@@ -1158,7 +1173,7 @@ CRITICAL RULES:
         """
         Checks if transaction fingerprint already exists in MongoDB collections:
         - 'vouchers'
-        - 'fund_flow_transactions' / 'fundflow'
+        - 'fund_flow_vouchers' / 'fundflow'
         - 'bank_statement_drafts'
         """
         # Check vouchers
@@ -1166,8 +1181,8 @@ CRITICAL RULES:
         if v_exists:
             return True
             
-        # Check fund_flow_transactions
-        ff_exists = self.db["fund_flow_transactions"].find_one({"fingerprint": fingerprint})
+        # Check fund_flow_vouchers
+        ff_exists = self.db["fund_flow_vouchers"].find_one({"fingerprint": fingerprint})
         if not ff_exists:
             ff_exists = self.db["fundflow"].find_one({"fingerprint": fingerprint})
         if ff_exists:
@@ -1181,22 +1196,107 @@ CRITICAL RULES:
         file_name: str,
         file_type: str,
         bank_ledger: str,
-        company_id: Optional[str] = None
+        company_id: Optional[str] = None,
+        force_replace: bool = False
     ) -> Dict[str, Any]:
         """
         Full workflow orchestrator:
-        1. Extract raw statement text/rows (PDF / Excel / CSV).
-        2. Parse transaction lines dynamically via AI.
-        3. Fetch tenant company master ledgers.
+        1. Calculate binary file hash and extract statement transactions.
+        2. Compute AI Content Signature Hash (dates + amounts + normalized narration).
+        3. Check if document was already uploaded (duplicate detection by file & content hash).
         4. Match ledgers & classify Payment / Receipt for each transaction.
-        5. Check duplicate fingerprints.
-        6. Save batch to 'bank_statement_drafts' MongoDB collection.
+        5. Save batch to 'bank_statement_drafts' MongoDB collection.
         """
+        # 1. Binary file hash (reuses DocumentValidationService)
+        try:
+            from app.anjalee.services.document_validation import DocumentValidationService
+            doc_validator = DocumentValidationService()
+            file_hash = doc_validator.calculate_file_hash(file_path)
+        except Exception:
+            sha256 = hashlib.sha256()
+            with open(file_path, "rb") as f:
+                while chunk := f.read(8192):
+                    sha256.update(chunk)
+            file_hash = sha256.hexdigest()
+
         raw_text, raw_rows = self.extract_raw_statement_text(file_path, file_type)
         if raw_rows and isinstance(raw_rows, list) and len(raw_rows) > 0 and isinstance(raw_rows[0], dict) and ("date" in raw_rows[0] or "debit" in raw_rows[0] or "credit" in raw_rows[0]):
             extracted_txs = raw_rows
         else:
             extracted_txs = self.parse_statement_transactions_with_ai(raw_text, bank_ledger)
+
+        # 2. AI Content Signature Hash
+        # Normalizes transaction rows so renaming, re-exporting, or formatting differences still match
+        tx_signatures = []
+        for tx in extracted_txs:
+            t_date = str(tx.get("date") or "")[:10]
+            t_amt = round(float(tx.get("amount") or tx.get("credit") or tx.get("debit") or 0.0), 2)
+            t_narr = re.sub(r'[^a-zA-Z0-9]', '', str(tx.get("narration") or ""))[:25].lower()
+            tx_signatures.append(f"{t_date}_{t_amt}_{t_narr}")
+
+        content_hash = hashlib.sha256("|".join(tx_signatures).encode("utf-8")).hexdigest() if tx_signatures else file_hash
+
+        # 3. Duplicate Document Checking (both File Hash and AI Content Hash)
+        filter_q = {
+            "$or": [
+                {"file_hash": file_hash},
+                {"content_hash": content_hash}
+            ]
+        }
+        if company_id:
+            filter_q = {
+                "$and": [
+                    {"$or": [{"company_id": company_id}, {"company_id": None}, {"company_id": {"$exists": False}}]},
+                    {"$or": [{"file_hash": file_hash}, {"content_hash": content_hash}]}
+                ]
+            }
+
+        existing_batch = self.db["bank_statement_drafts"].find_one(filter_q)
+
+        # If not matched by hash, check if sample fingerprints match an existing batch for same ledger
+        if not existing_batch and len(extracted_txs) >= 3:
+            sample_fps = []
+            for tx in extracted_txs[:5]:
+                t_date = str(tx.get("date") or "")[:10]
+                t_amt = float(tx.get("amount") or tx.get("credit") or tx.get("debit") or 0.0)
+                t_ref = tx.get("referenceNumber")
+                t_narr = tx.get("narration") or ""
+                fp = self.generate_transaction_fingerprint(company_id or "default", bank_ledger, t_date, t_amt, "receipt", t_ref, t_narr)
+                sample_fps.append(fp)
+
+            existing_batch = self.db["bank_statement_drafts"].find_one({
+                "bank_ledger": bank_ledger,
+                "fingerprints": {"$all": sample_fps[:2]}
+            })
+
+        if existing_batch and not force_replace:
+            existing_summary = existing_batch.get("summary") or {}
+            existing_items = existing_batch.get("items") or []
+            existing_count = existing_summary.get("total_count", len(existing_items))
+            uploaded_on_val = existing_batch.get("created_at")
+            if hasattr(uploaded_on_val, "isoformat"):
+                uploaded_on_str = uploaded_on_val.isoformat()
+            else:
+                uploaded_on_str = str(uploaded_on_val or "")
+
+            return {
+                "duplicate_found": True,
+                "existing_doc": {
+                    "id": str(existing_batch["_id"]),
+                    "batch_id": existing_batch.get("batch_id") or str(existing_batch["_id"]),
+                    "filename": existing_batch.get("file_name") or existing_batch.get("filename") or file_name,
+                    "bank_ledger": existing_batch.get("bank_ledger") or bank_ledger,
+                    "uploaded_on": uploaded_on_str,
+                    "total_count": existing_count,
+                    "status": existing_batch.get("status", "draft_review")
+                }
+            }
+
+        # If duplicate and force_replace is requested, remove the old draft batch
+        if existing_batch and force_replace:
+            logger.info(f"force_replace requested: Removing existing draft batch {existing_batch.get('batch_id')}")
+            self.db["bank_statement_drafts"].delete_one({"_id": existing_batch["_id"]})
+
         company_masters = self.get_company_master_ledgers(company_id)
 
         processed_items = []
@@ -1348,6 +1448,9 @@ CRITICAL RULES:
             "file_name": file_name,
             "file_type": file_type,
             "file_path": file_path,
+            "file_hash": file_hash,
+            "content_hash": content_hash,
+            "fingerprints": [it["fingerprint"] for it in processed_items],
             "created_at": datetime.now(),
             "status": "draft_review",
             "summary": {
@@ -1439,7 +1542,54 @@ CRITICAL RULES:
             return None
         items = doc.get("items") or []
         changed = False
+        company_id = doc.get("company_id") or doc.get("companyId")
+        comp_masters = None
+
         for it in items:
+            # Never re-evaluate or revert already saved vouchers
+            if it.get("status") == "saved" or it.get("saved_voucher_id"):
+                continue
+
+            narr = (it.get("narration") or "").strip()
+            # Deep CLG Party Extraction & Sanity Fix:
+            # CLG narrations have structure: CLG / <PARTY> / <CHEQUE> / <BANK_CODE> / <SEQ>
+            # Token at index 1 is strictly the party. Token at index 3 is clearing bank code.
+            if narr.upper().startswith("CLG") or "/" in narr:
+                norm_narr = NarrationNormalizationService.normalize_text(narr)
+                parts = [p.strip() for p in norm_narr.split('/') if p.strip()]
+                if len(parts) >= 2 and parts[0].upper() == "CLG":
+                    correct_party = parts[1]
+                    cur_p = (it.get("extractedParty") or "").strip()
+                    if cur_p != correct_party:
+                        it["extractedParty"] = correct_party
+                        changed = True
+
+                        # If previously mapped partyLedger was a bank ledger due to old token matching of bank code at index 3
+                        # (e.g. 'HDFC BANK LIMITED' from 'HDF' or 'AXIS BANK' from 'AXIS')
+                        cur_pl = (it.get("partyLedger") or "").strip()
+                        if cur_pl and (cur_pl.upper() == "HDFC BANK LIMITED" or any(bk in cur_pl.upper() for bk in ["BANK", "HDFC", "AXIS", "ICICI", "PNB", "SBI", "CANARA", "UNION"])):
+                            if self.db is not None:
+                                try:
+                                    res_svc = PartyLedgerResolutionService(self.db)
+                                    if comp_masters is None:
+                                        comp_masters = res_svc.get_company_master_ledgers(company_id)
+                                    r_info = res_svc.resolve_party_ledger(correct_party, narr, company_id=company_id, company_masters=comp_masters)
+                                    if r_info.get("resolvedLedger") and r_info["resolvedLedger"] != "Unmapped" and "BANK" not in r_info["resolvedLedger"].upper():
+                                        it["partyLedger"] = r_info["resolvedLedger"]
+                                        it["againstLedger"] = r_info["resolvedLedger"]
+                                        it["confidence"] = float(r_info.get("confidence", 85.0))
+                                    else:
+                                        it["partyLedger"] = ""
+                                        it["againstLedger"] = ""
+                                        it["status"] = "review_required"
+                                        it["review_required"] = True
+                                        it["confidence"] = 65.0
+                                except Exception:
+                                    it["partyLedger"] = ""
+                                    it["againstLedger"] = ""
+                                    it["status"] = "review_required"
+                                    it["review_required"] = True
+
             c = float(it.get("confidence") or 0.0)
             pl = it.get("partyLedger")
             has_pl = bool(pl and str(pl).strip() and str(pl).strip() != "Unmapped")
@@ -1456,18 +1606,23 @@ CRITICAL RULES:
                     it["status"] = "ready"
                     it["review_required"] = False
                     changed = True
+        ready_cnt = sum(1 for i in items if i.get("status") in ["ready", "user_edited"])
+        rev_cnt = sum(1 for i in items if i.get("status") == "review_required")
+        already_cnt = sum(1 for i in items if i.get("status") == "already_processed")
+        saved_cnt = sum(1 for i in items if i.get("status") == "saved")
+        pushed_cnt = sum(1 for i in items if str(i.get("tallyPushStatus", "")).upper() in ["POSTED_TO_TALLY", "PUSHED"])
+        pending_push_cnt = sum(1 for i in items if i.get("status") == "saved" and str(i.get("tallyPushStatus", "")).upper() not in ["POSTED_TO_TALLY", "PUSHED"])
+
+        doc["summary"] = {
+            "total_count": len(items),
+            "ready_count": ready_cnt,
+            "review_required_count": rev_cnt,
+            "already_processed_count": already_cnt,
+            "saved_count": saved_cnt,
+            "tally_pushed_count": pushed_cnt,
+            "tally_pending_count": pending_push_cnt
+        }
         if changed:
-            ready_cnt = sum(1 for i in items if i.get("status") in ["ready", "user_edited"])
-            rev_cnt = sum(1 for i in items if i.get("status") == "review_required")
-            already_cnt = sum(1 for i in items if i.get("status") == "already_processed")
-            saved_cnt = sum(1 for i in items if i.get("status") == "saved")
-            doc["summary"] = {
-                "total_count": len(items),
-                "ready_count": ready_cnt,
-                "review_required_count": rev_cnt,
-                "already_processed_count": already_cnt,
-                "saved_count": saved_cnt
-            }
             try:
                 self.db["bank_statement_drafts"].update_one(
                     query,
@@ -1682,10 +1837,17 @@ CRITICAL RULES:
 
         return updated_item
 
-    def reprocess_drafts_with_rule(self, rule_doc: Dict[str, Any], company_id: Optional[str] = None, target_batch_id: Optional[str] = None) -> int:
+    def reprocess_drafts_with_rule(
+        self,
+        rule_doc: Dict[str, Any],
+        company_id: Optional[str] = None,
+        target_batch_id: Optional[str] = None,
+        target_item_ids: Optional[List[str]] = None
+    ) -> int:
         """
-        Idempotently re-evaluates all unmapped draft transactions across active drafts
-        matching this newly approved rule, without requiring statement re-upload.
+        Idempotently re-evaluates unmapped draft transactions matching this newly approved rule,
+        without requiring statement re-upload. If target_item_ids is provided, ONLY those
+        specific transactions of this pattern are reprocessed.
         Supports multi-party mappings from AI pattern discovery.
         """
         import re
@@ -1695,7 +1857,11 @@ CRITICAL RULES:
         bank_ledger = rule_doc.get("bankLedger")
         b_id = target_batch_id or rule_doc.get("batch_id")
 
-        # Build lookup from partyLedgerMappings and bank_party_aliases
+        # Explicit target item IDs for this pattern (to never affect other transactions)
+        target_ids_raw = target_item_ids if target_item_ids is not None else (rule_doc.get("target_item_ids") or rule_doc.get("item_ids"))
+        target_ids_set = set(str(x) for x in target_ids_raw) if target_ids_raw else None
+
+        # Build lookup from partyLedgerMappings specified for THIS pattern
         party_to_ledger = {}
         for pm in (rule_doc.get("partyLedgerMappings") or []):
             p = (pm.get("party") or "").strip().upper()
@@ -1703,17 +1869,19 @@ CRITICAL RULES:
             if p and ml and ml != "Unmapped":
                 party_to_ledger[p] = ml
 
-        alias_filter = {}
-        if company_id and company_id != "default":
-            alias_filter["$or"] = [{"company_id": company_id}, {"companyId": company_id}]
-        try:
-            for al in self.db["bank_party_aliases"].find(alias_filter):
-                p_name = (al.get("partyName") or "").strip().upper()
-                r_led = (al.get("resolvedLedger") or "").strip()
-                if p_name and r_led and r_led != "Unmapped" and p_name not in party_to_ledger:
-                    party_to_ledger[p_name] = r_led
-        except Exception:
-            pass
+        # If no explicit partyLedgerMappings were given on this rule, fall back to global bank_party_aliases
+        if not party_to_ledger and not rule_doc.get("partyLedgerMappings"):
+            alias_filter = {}
+            if company_id and company_id != "default":
+                alias_filter["$or"] = [{"company_id": company_id}, {"companyId": company_id}]
+            try:
+                for al in self.db["bank_party_aliases"].find(alias_filter):
+                    p_name = (al.get("partyName") or "").strip().upper()
+                    r_led = (al.get("resolvedLedger") or "").strip()
+                    if p_name and r_led and r_led != "Unmapped" and p_name not in party_to_ledger:
+                        party_to_ledger[p_name] = r_led
+            except Exception:
+                pass
 
         query: Dict[str, Any] = {"status": {"$ne": "completed"}}
         if company_id and company_id != "default":
@@ -1744,6 +1912,21 @@ CRITICAL RULES:
             for it in items:
                 if it.get("status") in ["saved", "already_processed"]:
                     continue
+
+                it_id = str(it.get("item_id") or it.get("id") or "")
+                # If target_ids_set is provided, strictly only reprocess the specified transactions of this pattern!
+                if target_ids_set is not None:
+                    if it_id not in target_ids_set:
+                        continue
+
+                # If rule has a specific transactionType/channel (e.g. IMPS, UPI, NEFT), skip transactions that do not match
+                if rule_channel and rule_channel not in ["OTHER", "AUTO"]:
+                    it_channel = (it.get("channel") or it.get("transactionType") or "").upper()
+                    if not it_channel:
+                        it_channel, _ = NarrationNormalizationService.detect_channel(it.get("narration") or "")
+                    if it_channel and it_channel != rule_channel:
+                        continue
+
                 # If unmapped or requiring review
                 if not it.get("partyLedger") or it.get("status") == "review_required":
                     narr = it.get("narration") or ""
@@ -1764,44 +1947,23 @@ CRITICAL RULES:
                     if not resolved_party and party_to_ledger:
                         # Check extractedParty field first
                         cand = (it.get("extractedParty") or "").strip().upper()
-                        if cand and cand in party_to_ledger:
+                        if cand and cand in party_to_ledger and party_to_ledger[cand] != "Unmapped":
                             resolved_party = party_to_ledger[cand]
                             matched_reason = f"Auto-resolved via pattern mapping: '{cand}' -> '{resolved_party}'."
 
-                        # If not matched, extract candidate from narration using partyPosition or standard separators
-                        if not resolved_party and narr:
+                        # Extract candidate from narration using partyPosition or standard separators
+                        if not resolved_party and narr and party_pos is not None:
                             norm_narr = NarrationNormalizationService.normalize_text(narr)
-                            # Try common delimiters: '/', '-', ' '
-                            for sep in ['/', '-', ' ']:
-                                parts = [t.strip() for t in (norm_narr.split(sep) if sep != ' ' else re.split(r'\s+', norm_narr)) if t.strip()]
-                                if party_pos is not None and 0 <= party_pos < len(parts):
-                                    tok = parts[party_pos].upper()
-                                    if tok in party_to_ledger:
-                                        resolved_party = party_to_ledger[tok]
-                                        it["extractedParty"] = parts[party_pos]
-                                        matched_reason = f"Auto-resolved via pattern token [{party_pos}]: '{tok}'."
-                                        break
-                                # Also check if any known party key exists as a token
-                                for tok in parts:
-                                    if tok.upper() in party_to_ledger:
-                                        resolved_party = party_to_ledger[tok.upper()]
-                                        it["extractedParty"] = tok
-                                        matched_reason = f"Auto-resolved via matched alias: '{tok}'."
-                                        break
-                                if resolved_party:
-                                    break
+                            sep = rule_doc.get("separator") or '/'
+                            parts = [t.strip() for t in (norm_narr.split(sep) if sep != ' ' else re.split(r'\s+', norm_narr)) if t.strip()]
+                            if 0 <= party_pos < len(parts):
+                                tok = parts[party_pos].upper()
+                                if tok in party_to_ledger and party_to_ledger[tok] != "Unmapped":
+                                    resolved_party = party_to_ledger[tok]
+                                    it["extractedParty"] = parts[party_pos]
+                                    matched_reason = f"Auto-resolved via pattern token [{party_pos}]: '{tok}'."
 
-                        # Fallback: substring search of party keys in narration
-                        if not resolved_party and narr:
-                            upper_narr = narr.upper()
-                            for p_key, p_led in party_to_ledger.items():
-                                if len(p_key) >= 4 and p_key in upper_narr:
-                                    resolved_party = p_led
-                                    it["extractedParty"] = p_key
-                                    matched_reason = f"Auto-resolved via narration text: '{p_key}'."
-                                    break
-
-                    if resolved_party:
+                    if resolved_party and resolved_party != "Unmapped":
                         it["partyLedger"] = resolved_party
                         it["againstLedger"] = resolved_party
                         it["status"] = "ready"
@@ -1877,7 +2039,7 @@ CRITICAL RULES:
         company_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        Converts selected draft items into actual accounting vouchers in 'fund_flow_transactions' / 'vouchers' collection
+        Converts selected draft items into actual accounting vouchers in 'fund_flow_vouchers' / 'vouchers' collection
         with full source traceability ('source': 'bank_statement').
         """
         batch_id_str = str(batch_id) if batch_id else ""
@@ -1911,8 +2073,10 @@ CRITICAL RULES:
                 is_payment = (raw_v_type == "Payment")
 
                 amt = float(item.get("amount") or item.get("debit") or item.get("credit") or 0.0)
-                bank_ledger = item.get("bankLedger") or "Bank Account"
-                party_ledger = item.get("partyLedger") or item.get("againstLedger") or "Unassigned"
+                raw_bl = item.get("bankLedger") or "Bank Account"
+                raw_pl = item.get("partyLedger") or item.get("againstLedger") or "Unassigned"
+                bank_ledger = html.unescape(str(raw_bl)).strip()
+                party_ledger = html.unescape(str(raw_pl)).strip()
 
                 company_id_val = ObjectId(company_id) if (company_id and ObjectId.is_valid(company_id)) else company_id
                 v_guid = f"{uuid.uuid4()}-{str(uuid.uuid4())[:8]}"
@@ -2085,15 +2249,13 @@ CRITICAL RULES:
                 item["status"] = "saved"
                 item["voucherNumber"] = vch_no
                 item["saved_voucher_id"] = str(saved_tx.get("_id"))
+                item["tallyPushStatus"] = "PENDING"
+                item["tallyPushedAt"] = None
                 item["tallyXml"] = saved_tx.get("tallyXml")
                 item["tally_xml"] = saved_tx.get("tally_xml")
                 saved_vouchers.append(saved_tx)
 
         try:
-            self.db["fund_flow_transactions"].update_many(
-                {"batch_id": batch_id},
-                {"$set": {"entryMode": "bank_upload", "source": "bank_upload", "createdVia": "bank_upload"}}
-            )
             self.db["fund_flow_vouchers"].update_many(
                 {"batch_id": batch_id},
                 {"$set": {"entryMode": "bank_upload", "source": "bank_upload", "createdVia": "bank_upload"}}
@@ -2106,13 +2268,17 @@ CRITICAL RULES:
         rev_cnt = sum(1 for i in items if i.get("status") == "review_required")
         already_cnt = sum(1 for i in items if i.get("status") == "already_processed")
         saved_cnt = sum(1 for i in items if i.get("status") == "saved")
+        pushed_cnt = sum(1 for i in items if str(i.get("tallyPushStatus", "")).upper() in ["POSTED_TO_TALLY", "PUSHED"])
+        pending_push_cnt = sum(1 for i in items if i.get("status") == "saved" and str(i.get("tallyPushStatus", "")).upper() not in ["POSTED_TO_TALLY", "PUSHED"])
 
         summary = {
             "total_count": len(items),
             "ready_count": ready_cnt,
             "review_required_count": rev_cnt,
             "already_processed_count": already_cnt,
-            "saved_count": saved_cnt
+            "saved_count": saved_cnt,
+            "tally_pushed_count": pushed_cnt,
+            "tally_pending_count": pending_push_cnt
         }
 
         self.db["bank_statement_drafts"].update_one(
@@ -2125,6 +2291,222 @@ CRITICAL RULES:
             "saved_count": len(saved_vouchers),
             "saved_vouchers": [serialize_doc(v) for v in saved_vouchers],
             "validation_errors": validation_failed_items
+        }
+
+    async def push_vouchers_to_tally(
+        self,
+        batch_id: str,
+        item_ids: Optional[List[str]] = None,
+        voucher_ids: Optional[List[str]] = None
+    ) -> Dict[str, Any]:
+        """
+        Fetches all eligible saved vouchers from the uploaded statement batch (including all voucher types:
+        Receipt, Payment, Contra, Journal, etc.) and pushes them in ONE single XML request to Tally.
+        """
+        from app.anjalee.services.tally.tally_service import TallyPushService, db_find_one, db_find
+        
+        target_voucher_ids = []
+        if voucher_ids:
+            target_voucher_ids.extend([str(v) for v in voucher_ids if v])
+
+        # 1. Fetch from fund_flow_vouchers matching batch_id
+        q = {"$or": [{"batch_id": batch_id}, {"batch_id": str(batch_id)}]}
+        if ObjectId.is_valid(str(batch_id)):
+            q["$or"].append({"batch_id": ObjectId(str(batch_id))})
+        if item_ids:
+            q["item_id"] = {"$in": item_ids}
+
+        batch_v_docs = await db_find(self.db, "fund_flow_vouchers", q)
+        for doc in batch_v_docs:
+            target_voucher_ids.append(str(doc["_id"]))
+
+        # 2. Also check if saved_voucher_id is stored in batch draft items
+        batch_query = {"$or": [{"_id": ObjectId(batch_id)}, {"batch_id": batch_id}]} if (batch_id and ObjectId.is_valid(batch_id)) else {"batch_id": batch_id}
+        draft = await db_find_one(self.db, "bank_statement_drafts", batch_query)
+        if draft:
+            for item in draft.get("items", []):
+                if (not item_ids or item.get("item_id") in item_ids) and item.get("saved_voucher_id"):
+                    target_voucher_ids.append(str(item.get("saved_voucher_id")))
+
+        target_voucher_ids = list(dict.fromkeys(target_voucher_ids))
+        if not target_voucher_ids:
+            return {
+                "success": False,
+                "errorMessage": "No saved vouchers found to push. Please save the vouchers first.",
+                "pushed_count": 0
+            }
+
+        # Check if draft has items that are PENDING or not pushed yet, reset their fund_flow_vouchers status so push is not blocked by previous preview
+        if draft:
+            pending_vids = [
+                str(it.get("saved_voucher_id"))
+                for it in draft.get("items", [])
+                if it.get("saved_voucher_id") and str(it.get("tallyPushStatus", "")).upper() not in ["POSTED_TO_TALLY", "PUSHED"]
+            ]
+            for pvid in pending_vids:
+                if ObjectId.is_valid(pvid):
+                    await db_update_one(self.db, "fund_flow_vouchers", {"_id": ObjectId(pvid)}, {
+                        "$set": {"tallyPushStatus": "PENDING"}
+                    })
+
+        res = await TallyPushService.push_multiple_vouchers_to_tally(
+            self.db,
+            target_voucher_ids,
+            collection_name="fund_flow_vouchers"
+        )
+        return res
+
+    async def preview_batch_xml(
+        self,
+        batch_id: str,
+        item_ids: Optional[List[str]] = None,
+        voucher_ids: Optional[List[str]] = None
+    ) -> Dict[str, Any]:
+        """
+        Generates and returns ONE single combined Tally XML for selected or all saved batch vouchers.
+        """
+        from app.anjalee.services.tally.tally_service import (
+            TallyPushService,
+            db_find_one,
+            db_find,
+            db_update_one,
+            db_insert_one
+        )
+
+        target_voucher_ids = []
+        if voucher_ids:
+            target_voucher_ids.extend([str(v) for v in voucher_ids if v])
+        q = {"$or": [{"batch_id": batch_id}, {"batch_id": str(batch_id)}]}
+        if ObjectId.is_valid(str(batch_id)):
+            q["$or"].append({"batch_id": ObjectId(str(batch_id))})
+        if item_ids:
+            q["item_id"] = {"$in": item_ids}
+
+        batch_v_docs = await db_find(self.db, "fund_flow_vouchers", q)
+        for doc in batch_v_docs:
+            target_voucher_ids.append(str(doc["_id"]))
+
+        batch_query = {"$or": [{"_id": ObjectId(batch_id)}, {"batch_id": batch_id}]} if (batch_id and ObjectId.is_valid(batch_id)) else {"batch_id": batch_id}
+        draft = await db_find_one(self.db, "bank_statement_drafts", batch_query)
+        if draft:
+            for item in draft.get("items", []):
+                if (not item_ids or item.get("item_id") in item_ids) and item.get("saved_voucher_id"):
+                    target_voucher_ids.append(str(item.get("saved_voucher_id")))
+
+        target_voucher_ids = list(dict.fromkeys(target_voucher_ids))
+        if not target_voucher_ids and draft and draft.get("lastTallyXml"):
+            return {
+                "success": True,
+                "xmlPayload": draft["lastTallyXml"],
+                "voucherCount": len(draft.get("items", [])),
+                "savedInDb": True
+            }
+
+        if not target_voucher_ids:
+            return {"success": False, "errorMessage": "No saved vouchers found to preview XML. Please save the vouchers first."}
+
+        docs = []
+        for vid in target_voucher_ids:
+            try:
+                oid = ObjectId(vid) if ObjectId.is_valid(vid) else vid
+                d = await db_find_one(self.db, "fund_flow_vouchers", {"_id": oid})
+                if not d:
+                    d = await db_find_one(self.db, "vouchers", {"_id": oid})
+                if d:
+                    docs.append(d)
+            except Exception:
+                pass
+
+        if not docs:
+            return {"success": False, "errorMessage": "No voucher records found in database."}
+
+        # Filter out already pushed vouchers to prevent duplicate XML generation, but if all were pushed, allow previewing them
+        eligible_docs = []
+        already_pushed_count = 0
+        for d in docs:
+            curr_status = str(d.get("tallyPushStatus") or d.get("status") or "").upper()
+            if curr_status in ["POSTED_TO_TALLY", "PUSHED"]:
+                already_pushed_count += 1
+            else:
+                eligible_docs.append(d)
+
+        # For preview: If all were marked pushed or if specific item_ids were passed, preview all requested docs
+        if not eligible_docs:
+            eligible_docs = docs
+
+        combined_xml, company_name = await TallyPushService.build_multi_voucher_payload(self.db, eligible_docs)
+
+        # Persist combined XML into database collections immediately so it is visible in DB:
+        try:
+            # 1. Update bank_statement_drafts with tallyXml (do NOT change tallyPushStatus to POSTED_TO_TALLY during preview)
+            if draft:
+                draft_items = draft.get("items", [])
+                eligible_vids = set(str(doc["_id"]) for doc in eligible_docs)
+                updated_any = False
+                for it in draft_items:
+                    if str(it.get("saved_voucher_id") or "") in eligible_vids:
+                        it["tallyXml"] = combined_xml
+                        it["tally_xml"] = combined_xml
+                        if not it.get("tallyPushStatus"):
+                            it["tallyPushStatus"] = "PENDING"
+                        updated_any = True
+
+                b_update = {
+                    "$set": {
+                        "lastTallyXml": combined_xml,
+                        "lastXmlGeneratedAt": datetime.utcnow()
+                    }
+                }
+                if updated_any:
+                    b_update["$set"]["items"] = draft_items
+                await db_update_one(self.db, "bank_statement_drafts", batch_query, b_update)
+
+            # 2. Update each eligible voucher in fund_flow_vouchers with tallyXml without marking as posted
+            for doc in eligible_docs:
+                await db_update_one(self.db, "fund_flow_vouchers", {"_id": doc["_id"]}, {
+                    "$set": {
+                        "tallyXml": combined_xml,
+                        "tally_xml": combined_xml,
+                        "lastXmlGeneratedAt": datetime.utcnow()
+                    }
+                })
+
+            # 3. Always store a new master batch record in tally_payloads for each generation (preserve history)
+            prev_count = 0
+            try:
+                prev_count = await self.db["tally_payloads"].count_documents({
+                    "$or": [
+                        {"batch_id": str(batch_id)},
+                        {"batch_id": batch_id}
+                    ]
+                })
+            except Exception:
+                pass
+
+            await db_insert_one(self.db, "tally_payloads", {
+                "type": "BATCH_XML",
+                "batchPush": True,
+                "batch_id": str(batch_id),
+                "companyName": company_name,
+                "voucherCount": len(eligible_docs),
+                "voucherIds": [doc["_id"] for doc in eligible_docs],
+                "voucherNumbers": [doc.get("voucherNumber") for doc in eligible_docs],
+                "voucherTypes": list(set([doc.get("voucherTypeName") or doc.get("voucherType") for doc in eligible_docs if doc.get("voucherTypeName") or doc.get("voucherType")])),
+                "xmlPayload": combined_xml,
+                "xmlVersion": prev_count + 1,
+                "generatedAt": datetime.utcnow(),
+                "status": "Generated"
+            })
+        except Exception as pe:
+            logger.warning(f"Error persisting preview batch XML in database: {pe}")
+
+        return {
+            "success": True,
+            "xmlPayload": combined_xml,
+            "voucherCount": len(eligible_docs),
+            "alreadyPushedCount": already_pushed_count,
+            "companyName": company_name,
+            "savedInDb": True
         }
 
     def apply_rules_to_batch(self, batch_id: str, bank_ledger: str, company_id: Optional[str] = None) -> Dict[str, Any]:
@@ -2274,6 +2656,15 @@ CRITICAL RULES:
             narration = it.get("narration") or ""
             cur_party = (it.get("extractedParty") or "").strip()
             
+            # Deep CLG check: CLG transactions always have party candidate at Index 1
+            is_clg_narr = False
+            clg_parts = [p.strip() for p in narration.split('/') if p.strip()]
+            if clg_parts and clg_parts[0].upper() == 'CLG' and len(clg_parts) >= 2:
+                is_clg_narr = True
+                clean_cand = clg_parts[1]
+                cur_party = clean_cand
+                it["extractedParty"] = clean_cand
+
             # Check if current extractedParty is invalid, raw unparsed narration, a channel code, or empty
             is_bad_party = (
                 not cur_party or
@@ -2286,26 +2677,26 @@ CRITICAL RULES:
                 (narration and len(cur_party) >= 25 and cur_party == narration[:len(cur_party)])
             )
 
-            clean_cand = None
             master_match_info = None
 
-            if is_bad_party and narration:
-                # Reverse-index match: test each token of narration against company master ledgers
-                analysis = PatternDiscoveryEngine.analyze_narration_tokens(
-                    narration,
-                    company_masters=company_masters,
-                    bank_ledger=it.get("bankLedger") or ""
-                )
-                if analysis.get("master_match") and analysis["master_match"].get("token"):
-                    clean_cand = analysis["master_match"]["token"]
-                    master_match_info = analysis["master_match"]
-                elif analysis.get("party_val") and "/" not in str(analysis["party_val"]):
-                    clean_cand = analysis["party_val"]
+            if not is_clg_narr:
+                if is_bad_party and narration:
+                    # Reverse-index match: test each token of narration against company master ledgers
+                    analysis = PatternDiscoveryEngine.analyze_narration_tokens(
+                        narration,
+                        company_masters=company_masters,
+                        bank_ledger=it.get("bankLedger") or ""
+                    )
+                    if analysis.get("master_match") and analysis["master_match"].get("token"):
+                        clean_cand = analysis["master_match"]["token"]
+                        master_match_info = analysis["master_match"]
+                    elif analysis.get("party_val") and "/" not in str(analysis["party_val"]):
+                        clean_cand = analysis["party_val"]
+                    else:
+                        party_ext, _ = RegexPositionalExtractor.extract_party(narration)
+                        clean_cand = party_ext
                 else:
-                    party_ext, _ = RegexPositionalExtractor.extract_party(narration)
-                    clean_cand = party_ext
-            else:
-                clean_cand = cur_party
+                    clean_cand = cur_party
 
             # Sanitize extracted candidate: strip any accidental slashes, channel prefixes, or delimiters
             if clean_cand:
@@ -2329,6 +2720,9 @@ CRITICAL RULES:
             it["extractedParty"] = clean_cand
 
             suggested = (it.get("partyLedger") or it.get("againstLedger") or "").strip()
+            # If CLG transaction and suggested is a bank ledger (e.g. HDFC BANK LIMITED from clearing bank code HDF), reset suggested so it resolves to the real party
+            if is_clg_narr and suggested and any(bk in suggested.upper() for bk in ["BANK", "HDFC", "AXIS", "ICICI", "PNB", "SBI", "CANARA", "UNION"]):
+                suggested = ""
             item_id = str(it.get("item_id") or uuid.uuid4())
             it_status = it.get("status")
 

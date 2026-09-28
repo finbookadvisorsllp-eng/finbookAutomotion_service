@@ -1,5 +1,5 @@
 import logging
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from app.db import get_db
 from app.anjalee.models.ai_models import AiVoucherDraft
 from app.anjalee.schemas.fundflow_schemas import FundFlowTransactionCreate
@@ -19,16 +19,18 @@ class ApproveVoucherRequest(BaseModel):
 
 @router.post("/payment", response_model=Dict[str, Any])
 async def approve_payment_voucher(
+    request: Request,
     payload: ApproveVoucherRequest,
     db = Depends(get_db)
 ):
     draft = payload.draft
     session_id = payload.session_id
+    company_id = request.headers.get("x-company-id") or request.headers.get("x-company")
     logger.info(f"Approving and posting Payment voucher for session: {session_id}")
     
     # 1. Map draft to FundFlowTransactionCreate
-    is_cash = "cash" in draft.credit.lower()
-    voucher_type_val = "cash_payment" if is_cash else "bank_payment"
+    is_cash = "cash" in (draft.credit or "").lower()
+    voucher_type_val = "cash_payment"
     
     # Set bankLedger/cashLedger
     cash_ledger = draft.credit if is_cash else None
@@ -62,7 +64,9 @@ async def approve_payment_voucher(
             })
             
     ff_payload = FundFlowTransactionCreate(
+        companyId=company_id,
         voucherType=voucher_type_val,
+        voucherTypeName="Payment",
         voucherDate=draft.date,
         partyLedger=draft.party,
         againstLedger=draft.credit,
@@ -79,7 +83,7 @@ async def approve_payment_voucher(
     try:
         repo = FundFlowRepository(db)
         service = FundFlowService(repo)
-        tx_data = service.create_transaction(ff_payload)
+        tx_data = service.create_transaction(ff_payload, company_id=company_id)
         tx_id = tx_data.get("_id")
         v_num = tx_data.get("voucherNumber")
         approved_data = await service.update_status(tx_id, StatusUpdate(status="approved", note="Approved via AI Review"))
@@ -111,15 +115,17 @@ async def approve_payment_voucher(
 
 @router.post("/receipt", response_model=Dict[str, Any])
 async def approve_receipt_voucher(
+    request: Request,
     payload: ApproveVoucherRequest,
     db = Depends(get_db)
 ):
     draft = payload.draft
     session_id = payload.session_id
+    company_id = request.headers.get("x-company-id") or request.headers.get("x-company")
     logger.info(f"Approving and posting Receipt voucher for session: {session_id}")
     
-    is_cash = "cash" in draft.debit.lower()
-    voucher_type_val = "cash_receipt" if is_cash else "bank_receipt"
+    is_cash = "cash" in (draft.debit or "").lower()
+    voucher_type_val = "bank_payment"
     
     cash_ledger = draft.debit if is_cash else None
     bank_ledger = None if is_cash else draft.debit
@@ -151,7 +157,9 @@ async def approve_receipt_voucher(
             })
             
     ff_payload = FundFlowTransactionCreate(
+        companyId=company_id,
         voucherType=voucher_type_val,
+        voucherTypeName="Receipt",
         voucherDate=draft.date,
         partyLedger=draft.party,
         againstLedger=draft.debit,
@@ -168,7 +176,7 @@ async def approve_receipt_voucher(
     try:
         repo = FundFlowRepository(db)
         service = FundFlowService(repo)
-        tx_data = service.create_transaction(ff_payload)
+        tx_data = service.create_transaction(ff_payload, company_id=company_id)
         tx_id = tx_data.get("_id")
         v_num = tx_data.get("voucherNumber")
         approved_data = await service.update_status(tx_id, StatusUpdate(status="approved", note="Approved via AI Review"))
@@ -200,16 +208,18 @@ async def approve_receipt_voucher(
 
 @router.post("/contra", response_model=Dict[str, Any])
 async def approve_contra_voucher(
+    request: Request,
     payload: ApproveVoucherRequest,
     db = Depends(get_db)
 ):
     draft = payload.draft
     session_id = payload.session_id
+    company_id = request.headers.get("x-company-id") or request.headers.get("x-company")
     logger.info(f"Approving and posting Contra voucher for session: {session_id}")
     
     voucher_type_val = "contra"
-    is_from_cash = "cash" in draft.credit.lower()
-    is_to_cash = "cash" in draft.debit.lower()
+    is_from_cash = "cash" in (draft.credit or "").lower()
+    is_to_cash = "cash" in (draft.debit or "").lower()
     
     cash_ledger = draft.credit if is_from_cash else (draft.debit if is_to_cash else None)
     bank_ledger = draft.debit if is_from_cash else (draft.credit if is_to_cash else draft.debit)
@@ -223,7 +233,9 @@ async def approve_contra_voucher(
     ]
     
     ff_payload = FundFlowTransactionCreate(
+        companyId=company_id,
         voucherType=voucher_type_val,
+        voucherTypeName="Contra",
         voucherDate=draft.date,
         partyLedger=draft.debit,
         againstLedger=draft.credit,
@@ -240,7 +252,7 @@ async def approve_contra_voucher(
     try:
         repo = FundFlowRepository(db)
         service = FundFlowService(repo)
-        tx_data = service.create_transaction(ff_payload)
+        tx_data = service.create_transaction(ff_payload, company_id=company_id)
         tx_id = tx_data.get("_id")
         v_num = tx_data.get("voucherNumber")
         approved_data = await service.update_status(tx_id, StatusUpdate(status="approved", note="Approved via AI Review"))

@@ -1439,15 +1439,18 @@ class AiChatService:
                 fundflow_repo = FundFlowRepository(self.sync_db)
                 fundflow_service = FundFlowService(fundflow_repo)
                 
-                is_cash = "cash" in draft.debit.lower() or "cash" in draft.credit.lower()
+                is_cash = "cash" in (draft.debit or "").lower() or "cash" in (draft.credit or "").lower()
                 if "payment" in v_type_lower:
-                    v_type_val = "cash_payment" if is_cash else "bank_payment"
+                    v_type_val = "cash_payment"
+                    standard_v_type = "Payment"
                     against = draft.credit
                 elif "receipt" in v_type_lower:
-                    v_type_val = "cash_receipt" if is_cash else "bank_receipt"
+                    v_type_val = "bank_payment"
+                    standard_v_type = "Receipt"
                     against = draft.debit
                 else:
                     v_type_val = "contra"
+                    standard_v_type = "Contra"
                     against = draft.credit
                 
                 bill_rows = []
@@ -1475,8 +1478,12 @@ class AiChatService:
                         }
                     ]
 
+                company_id = session.metadata.get("company_id") or session.metadata.get("companyId") if session.metadata else None
+
                 payload = FundFlowTransactionCreate(
+                    companyId=company_id,
                     voucherType=v_type_val,
+                    voucherTypeName=standard_v_type,
                     voucherDate=draft.date,
                     partyLedger=draft.party,
                     againstLedger=against,

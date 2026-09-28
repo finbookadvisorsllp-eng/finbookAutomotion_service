@@ -418,23 +418,31 @@ class CompanyService:
         is_specific_company = False
         if company_id:
             is_specific_company = True
-            if len(company_id) == 24:
+            c_str = str(company_id).strip()
+            if len(c_str) == 24 and ObjectId.is_valid(c_str):
                 try:
-                    comp_doc = self.repo.db["companies"].find_one({"_id": ObjectId(company_id)})
+                    comp_doc = self.repo.db["companies"].find_one({"_id": ObjectId(c_str)})
                 except Exception:
                     pass
             if not comp_doc:
+                import re
+                esc = re.escape(c_str)
                 comp_doc = self.repo.db["companies"].find_one({
                     "$or": [
-                        {"companyName": company_id},
-                        {"basicCompantFormalName": company_id}
+                        {"companyName": {"$regex": f"^{esc}$", "$options": "i"}},
+                        {"basicCompantFormalName": {"$regex": f"^{esc}$", "$options": "i"}},
+                        {"name": {"$regex": f"^{esc}$", "$options": "i"}},
+                        {"displayName": {"$regex": f"^{esc}$", "$options": "i"}},
+                        {"id": c_str},
+                        {"companyId": c_str}
                     ]
                 })
 
         if not comp_doc and not is_specific_company:
-            comp_doc = self.repo.db["companies"].find_one()
+            comp_doc = self.repo.db["companies"].find_one({"companyName": {"$exists": True, "$ne": ""}}) or self.repo.db["companies"].find_one()
 
         comp_db_id = comp_doc["_id"] if comp_doc else None
+        comp_name = comp_doc.get("companyName") or comp_doc.get("basicCompantFormalName") or comp_doc.get("name") if comp_doc else None
 
         # 1. Check Tally connection / erpConnection configuration
         has_config = False
@@ -661,37 +669,91 @@ class CompanyService:
                 "lastDate": last_d
             }
 
-        # Compute counts dynamically with strict companyId scope for instant performance
-        comp_obj = ObjectId(comp_db_id) if isinstance(comp_db_id, str) and ObjectId.is_valid(comp_db_id) else comp_db_id
-        c_filter = {"companyId": comp_obj} if comp_db_id else {}
+        # Compute counts dynamically with active company scope across all collections
+        company_identifiers = []
+        if comp_db_id:
+            company_identifiers.append(comp_db_id)
+            company_identifiers.append(str(comp_db_id))
+            if ObjectId.is_valid(str(comp_db_id)):
+                company_identifiers.append(ObjectId(str(comp_db_id)))
+        if comp_name:
+            company_identifiers.append(comp_name)
+        if comp_doc:
+            for field in ["companyName", "basicCompantFormalName", "name", "displayName", "id", "companyId"]:
+                val = comp_doc.get(field)
+                if val:
+                    company_identifiers.append(val)
+        if company_id:
+            company_identifiers.append(company_id)
+            c_str = str(company_id).strip()
+            company_identifiers.append(c_str)
+            if len(c_str) == 24 and ObjectId.is_valid(c_str):
+                company_identifiers.append(ObjectId(c_str))
 
-        vch_match = {"dates.date": {"$gte": start_dt, "$lte": end_dt}, **c_filter}
+        company_identifiers = list(set([x for x in company_identifiers if x is not None]))
+
+        if company_identifiers:
+            c_filter = {
+                "$or": [
+                    {"companyId": {"$in": company_identifiers}},
+                    {"company_id": {"$in": company_identifiers}},
+                    {"companyName": {"$in": company_identifiers}},
+                    {"company": {"$in": company_identifiers}}
+                ]
+            }
+        else:
+            c_filter = {}
+
+        vch_match = {**c_filter}
+        sales_match = {"isDeleted": {"$ne": True}, **c_filter}
+        purchase_match = {"isDeleted": {"$ne": True}, **c_filter}
+        fundflow_match = {**c_filter}
+
         if party_ledger:
             vch_match["partyLedgerName"] = party_ledger
+            sales_match["partyLedgerName"] = party_ledger
+            purchase_match["partyLedgerName"] = party_ledger
+            fundflow_match["$or"] = [{"partyLedger": party_ledger}, {"againstLedger": party_ledger}]
 
         tally_count = self.repo.db["vouchers"].count_documents(vch_match)
-
-        sales_match = {"voucherDate": {"$gte": start_str, "$lte": end_str}, "isDeleted": {"$ne": True}, **c_filter}
-        if party_ledger:
-            sales_match["partyLedgerName"] = party_ledger
         sales_count = self.repo.db["sales_vouchers"].count_documents(sales_match)
-
-        purchase_match = {"voucherDate": {"$gte": start_str, "$lte": end_str}, "isDeleted": {"$ne": True}, **c_filter}
-        if party_ledger:
-            purchase_match["partyLedgerName"] = party_ledger
         purchase_count = self.repo.db["purchase_vouchers"].count_documents(purchase_match)
-
-        fundflow_match = {"voucherDate": {"$gte": start_str, "$lte": end_str}, **c_filter}
-        if party_ledger:
-            fundflow_match["$or"] = [{"partyLedger": party_ledger}, {"againstLedger": party_ledger}]
         fundflow_count = self.repo.db["fund_flow_vouchers"].count_documents(fundflow_match)
-
         total_vouchers = tally_count + sales_count + purchase_count + fundflow_count
+
+        # If date filter was requested, check if vouchers exist in that period; if yes, scope by date, else keep full company count
+        if start_dt and end_dt:
+            vch_date = {"dates.date": {"$gte": start_dt, "$lte": end_dt}, **vch_match}
+            sales_date = {"voucherDate": {"$gte": start_str, "$lte": end_str}, **sales_match}
+            purchase_date = {"voucherDate": {"$gte": start_str, "$lte": end_str}, **purchase_match}
+            fundflow_date = {"voucherDate": {"$gte": start_str, "$lte": end_str}, **fundflow_match}
+            d_tot = (
+                self.repo.db["vouchers"].count_documents(vch_date) +
+                self.repo.db["sales_vouchers"].count_documents(sales_date) +
+                self.repo.db["purchase_vouchers"].count_documents(purchase_date) +
+                self.repo.db["fund_flow_vouchers"].count_documents(fundflow_date)
+            )
+            if d_tot > 0:
+                vch_match = vch_date
+                sales_match = sales_date
+                purchase_match = purchase_date
+                fundflow_match = fundflow_date
+                tally_count = self.repo.db["vouchers"].count_documents(vch_match)
+                sales_count = self.repo.db["sales_vouchers"].count_documents(sales_match)
+                purchase_count = self.repo.db["purchase_vouchers"].count_documents(purchase_match)
+                fundflow_count = self.repo.db["fund_flow_vouchers"].count_documents(fundflow_match)
+                total_vouchers = d_tot
 
         # Posted to Tally: count synced from Tally plus manual vouchers posted to Tally
         posted_sales = self.repo.db["sales_vouchers"].count_documents({**sales_match, "status": "POSTED_TO_TALLY"})
         posted_purchase = self.repo.db["purchase_vouchers"].count_documents({**purchase_match, "status": "POSTED_TO_TALLY"})
-        posted_fundflow = self.repo.db["fund_flow_vouchers"].count_documents({**fundflow_match, "status": "POSTED_TO_TALLY"})
+        posted_fundflow = self.repo.db["fund_flow_vouchers"].count_documents({
+            **fundflow_match,
+            "$or": [
+                {"status": "POSTED_TO_TALLY"},
+                {"tallyPushStatus": {"$in": ["POSTED_TO_TALLY", "PUSHED", "posted_to_tally", "pushed"]}}
+            ]
+        })
         posted_to_tally = tally_count + posted_sales + posted_purchase + posted_fundflow
 
         # Pending Approval: manual vouchers in draft/pending status
@@ -707,7 +769,15 @@ class CompanyService:
             **fundflow_match,
             "status": {"$in": ["DRAFT", "PENDING_APPROVAL", "PENDING", "review", "draft", "pending_approval"]}
         })
-        pending_approval = pending_approval_sales + pending_approval_purchase + pending_approval_fundflow
+        drafts_pending = 0
+        try:
+            drafts_pending = self.repo.db["bank_statement_drafts"].count_documents({
+                **c_filter,
+                "status": {"$in": ["draft", "pending", "Draft", "Pending"]}
+            })
+        except Exception:
+            pass
+        pending_approval = pending_approval_sales + pending_approval_purchase + pending_approval_fundflow + drafts_pending
 
         # Failed Sync: failed sync documents in manual collections and vouchers
         failed_sync_sales = self.repo.db["sales_vouchers"].count_documents({
@@ -755,12 +825,34 @@ class CompanyService:
         # - Bank Transactions Imported
         bank_imported = self.repo.db["fund_flow_vouchers"].count_documents({
             **fundflow_match,
-            "voucherType": {"$in": ["bank_payment", "bank_receipt", "contra"]}
+            "$or": [
+                {"voucherType": {"$in": ["bank_payment", "bank_receipt", "contra", "Payment", "Receipt", "Contra"]}},
+                {"entryMode": {"$in": ["banking", "bank", "bank_statement"]}}
+            ]
         })
         bank_transactions_imported = bank_imported
 
-        # - Automation Rules
-        automation_rules = 5
+        # - Imported Today
+        today_start = datetime.combine(datetime.now().date(), datetime.min.time())
+        imported_today_count = 0
+        try:
+            today_q = {
+                "$or": [
+                    {"createdAt": {"$gte": today_start}},
+                    {"auditInfo.createdAt": {"$gte": today_start}}
+                ],
+                **c_filter
+            }
+            imported_today_count = (
+                self.repo.db["fund_flow_vouchers"].count_documents(today_q) +
+                self.repo.db["sales_vouchers"].count_documents(today_q) +
+                self.repo.db["purchase_vouchers"].count_documents(today_q) +
+                self.repo.db["vouchers"].count_documents(today_q)
+            )
+        except Exception:
+            pass
+        if imported_today_count == 0:
+            imported_today_count = ocr_documents_processed
 
         # Donut Chart Sources
         manual_entry_count = self.repo.db["sales_vouchers"].count_documents({**sales_match, "entryMode": "manual"}) + \
@@ -1074,6 +1166,7 @@ class CompanyService:
             "totalVouchers": total_vouchers,
             "postedToTally": posted_to_tally,
             "pendingApproval": pending_approval,
+            "importedToday": imported_today_count,
             "failedSync": failed_sync,
             "ocrDocumentsProcessed": ocr_documents_processed,
             "excelRowsUploaded": excel_rows_uploaded,

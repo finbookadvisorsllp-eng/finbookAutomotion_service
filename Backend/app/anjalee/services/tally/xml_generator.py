@@ -1,15 +1,24 @@
 import os
 import re
+import html
 from datetime import datetime
 import xml.etree.ElementTree as ET
 from typing import List
 from app.anjalee.services.tally.voucher_mapper import TallyVoucher, TallyLedgerEntry, TallyInventoryEntry
 
 def escape_xml(val: str) -> str:
-    """Escapes XML special characters."""
+    """Escapes XML special characters cleanly without double-escaping entities."""
     if not val:
         return ""
     val_str = str(val)
+    # Recursively unescape any pre-existing HTML/XML entities (e.g., &amp;, &amp;amp;)
+    # so we always work with the raw characters, preventing double-escaping into Tally
+    while any(ent in val_str for ent in ["&amp;", "&lt;", "&gt;", "&quot;", "&apos;"]):
+        unescaped = html.unescape(val_str)
+        if unescaped == val_str:
+            break
+        val_str = unescaped
+
     return (val_str.replace("&", "&amp;")
                    .replace("<", "&lt;")
                    .replace(">", "&gt;")
@@ -2411,9 +2420,9 @@ class TallyXmlGenerator:
         xml_str = xml_str.replace("{{ledgerEntries}}", ledger_entries_xml)
         xml_str = xml_str.replace("{{inventoryEntries}}", inventory_entries_xml)
 
-        # For Receipt vouchers, completely remove any VOUCHERNUMBER tag
-        # Tally must automatically generate the Receipt voucher number
-        if "receipt" in vch_type_lower:
+        # For Receipt, Payment, and Contra vouchers, completely remove any VOUCHERNUMBER tag
+        # Tally must automatically generate the voucher number
+        if any(vt in vch_type_lower for vt in ["receipt", "payment", "contra"]):
             xml_str = re.sub(r'[ \t]*<VOUCHERNUMBER>.*?</VOUCHERNUMBER>\s*\n?', '', xml_str)
 
         # 8. Final syntax validation check

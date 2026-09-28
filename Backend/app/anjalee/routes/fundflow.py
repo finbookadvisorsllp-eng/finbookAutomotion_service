@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Depends, Query, Request
-from typing import Optional
+from fastapi import APIRouter, Depends, Query, Request, HTTPException
+from typing import Optional, List
+from pydantic import BaseModel
 from bson import ObjectId
 from datetime import datetime
 from app.db import get_db
@@ -308,11 +309,13 @@ async def get_fundflow_ledgers(
 
 @router.get("/next-voucher-number")
 async def get_next_voucher_number(
+    request: Request,
     voucherType: str = Query("cash_payment"),
     service: FundFlowService = Depends(get_fundflow_service)
 ):
     """Return the next auto-generated voucher number for a voucher type (peek)."""
-    next_number = service.get_next_voucher_number(voucherType)
+    company_header = request.headers.get("x-company-id") or request.headers.get("x-company")
+    next_number = service.get_next_voucher_number(voucherType, company_id=company_header)
     return {"success": True, "data": {"voucherNumber": next_number}}
 
 @router.get("/party-details")
@@ -670,3 +673,30 @@ async def add_comment(
         "success": True,
         "message": "Comment added successfully"
     }
+
+
+class BatchPushToTallyRequest(BaseModel):
+    voucher_ids: List[str]
+
+
+@router.post("/batch-push-to-tally")
+async def batch_push_vouchers_to_tally(
+    payload: BatchPushToTallyRequest,
+    db = Depends(get_db)
+):
+    """
+    Pushes multiple vouchers (across all types: Receipt, Payment, Contra, Journal, etc.)
+    in ONE single combined Tally XML request.
+    """
+    from app.anjalee.services.tally.tally_service import TallyPushService
+    res = await TallyPushService.push_multiple_vouchers_to_tally(
+        db,
+        payload.voucher_ids,
+        collection_name="fund_flow_vouchers"
+    )
+    if not res.get("success") and res.get("pushed_count", 0) == 0 and not res.get("already_pushed_count"):
+        raise HTTPException(
+            status_code=400,
+            detail=res.get("errorMessage") or res.get("message") or "Failed to push vouchers to Tally"
+        )
+    return res

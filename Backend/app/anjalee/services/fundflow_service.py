@@ -96,26 +96,50 @@ class FundFlowService:
         company_id_val = ObjectId(comp_id) if (comp_id and ObjectId.is_valid(str(comp_id))) else comp_id
         
         # Normalize voucher type
-        raw_type = (doc_data.get("voucherTypeName") or doc_data.get("voucherType") or "").strip()
+        raw_name = (doc_data.get("voucherTypeName") or "").strip()
+        raw_type = (doc_data.get("voucherType") or "").strip()
         raw_type_lower = raw_type.lower()
-        if raw_type_lower in ["bank_payment", "receipt"]:
+        raw_name_lower = raw_name.lower()
+
+        if raw_name_lower == "payment" or (not raw_name and raw_type_lower in ["payment", "cash_payment"]):
+            standard_v_type = "Payment"
+            ff_v_type = "cash_payment"
+            is_receipt = False
+            is_payment = True
+        elif raw_name_lower == "receipt" or (not raw_name and raw_type_lower in ["receipt", "bank_payment", "cash_receipt", "bank_receipt"]):
             standard_v_type = "Receipt"
             ff_v_type = "bank_payment"
             is_receipt = True
             is_payment = False
-        elif raw_type_lower in ["contra"]:
+        elif raw_name_lower == "contra" or raw_type_lower == "contra":
             standard_v_type = "Contra"
             ff_v_type = "contra"
             is_receipt = False
             is_payment = False
-        else:  # cash_payment, payment, or default
+        elif "payment" in raw_type_lower and "bank_payment" not in raw_type_lower:
+            standard_v_type = "Payment"
+            ff_v_type = "cash_payment"
+            is_receipt = False
+            is_payment = True
+        elif "receipt" in raw_type_lower:
+            standard_v_type = "Receipt"
+            ff_v_type = "bank_payment"
+            is_receipt = True
+            is_payment = False
+        elif raw_type_lower == "bank_payment":
+            standard_v_type = "Receipt"
+            ff_v_type = "bank_payment"
+            is_receipt = True
+            is_payment = False
+        else:
             standard_v_type = "Payment"
             ff_v_type = "cash_payment"
             is_receipt = False
             is_payment = True
 
-        # Generate sequential voucher number if not already present
-        if not doc_data.get("voucherNumber"):
+        # Generate sequential voucher number if not already present or if temporary draft placeholder
+        v_num_existing = doc_data.get("voucherNumber")
+        if not v_num_existing or str(v_num_existing).startswith(("draft_", "vch_", "BS-", "Unassigned")):
             vch_no = VoucherNumberService.get_next_voucher_number_sync(
                 db=self.repo.db,
                 company_id=comp_id,
@@ -124,7 +148,31 @@ class FundFlowService:
             )
             voucher_num_str = str(vch_no)
         else:
-            voucher_num_str = str(doc_data["voucherNumber"])
+            voucher_num_str = str(v_num_existing)
+            # Sync highest counter when a manual voucher number is saved
+            import re
+            match = re.search(r'^(.*?)(0*(\d+))$', voucher_num_str)
+            if match:
+                seq_val = int(match.group(3))
+                prefix_part = match.group(1).strip()
+                current_year = datetime.now().year
+                fy_str = f"{current_year}-{str(current_year + 1)[-2:]}"
+                comp_str = str(comp_id).strip() if comp_id else "DEFAULT"
+                seq_key = f"{comp_str}_{fy_str}_{standard_v_type.lower()}_MAIN"
+                self.repo.db["counters"].update_one(
+                    {"_id": seq_key},
+                    {
+                        "$max": {"currentNumber": seq_val},
+                        "$set": {
+                            "prefix": prefix_part,
+                            "companyId": comp_str,
+                            "financialYear": fy_str,
+                            "voucherType": standard_v_type.lower(),
+                            "seriesId": "MAIN"
+                        }
+                    },
+                    upsert=True
+                )
 
         # Lookup voucherTypeId if available
         try:
@@ -317,9 +365,9 @@ class FundFlowService:
         if not company_name:
             company_name = "Your Company Name"
 
-        # Generate Tally XML matching user template
-        generated_xml = self.generate_tally_xml(voucher_full_doc, company_name=company_name)
-        voucher_full_doc["tallyXml"] = generated_xml
+        # Save voucher normally as individual voucher; do not generate XML while saving
+        voucher_full_doc["tallyXml"] = None
+        voucher_full_doc["tally_xml"] = None
 
         # Also populate compatibility fields for UI consumption
         voucher_full_doc["voucherType"] = ff_v_type
@@ -423,6 +471,29 @@ class FundFlowService:
         # Reverse invoice balances
         bill_rows = doc.get("billRows") or []
         self._reverse_invoice_balances(bill_rows, exclude_tx_id=tx_id)
+
+        # Delete from secondary collections if present
+        try:
+            self.repo.db["vouchers"].delete_one({"_id": ObjectId(tx_id)})
+        except Exception:
+            pass
+
+        # Reset corresponding draft item in bank_statement_drafts if it originated from bank statement
+        try:
+            self.repo.db["bank_statement_drafts"].update_many(
+                {"items.saved_voucher_id": str(tx_id)},
+                {"$set": {"items.$[elem].status": "ready", "items.$[elem].saved_voucher_id": None}},
+                array_filters=[{"elem.saved_voucher_id": str(tx_id)}]
+            )
+            v_num = doc.get("voucherNumber")
+            if v_num:
+                self.repo.db["bank_statement_drafts"].update_many(
+                    {"items.voucherNumber": v_num},
+                    {"$set": {"items.$[elem].status": "ready", "items.$[elem].saved_voucher_id": None}},
+                    array_filters=[{"elem.voucherNumber": v_num}]
+                )
+        except Exception:
+            pass
         
         success = self.repo.delete_transaction(tx_id)
         if not success:
@@ -615,7 +686,7 @@ class FundFlowService:
 
         elif status_val.lower() in ["posted_to_tally", "pushed"]:
             try:
-                await TallyPushService.push_saved_payload_to_tally(self.repo.db, tx_id, "fund_flow_vouchers")
+                await TallyPushService.push_voucher_to_tally(self.repo.db, tx_id, "fund_flow_vouchers")
                 doc = self.repo.find_transaction_by_id(tx_id)
                 return serialize_doc(doc)
             except Exception as e:
@@ -650,12 +721,22 @@ class FundFlowService:
             doc = self.repo.find_transaction_by_id(tx_id)
             return serialize_doc(doc)
 
-    def get_next_voucher_number(self, voucher_type: str) -> str:
-        from app.anjalee.constants.business_constants import FUNDFLOW_PREFIXES
-        prefix = FUNDFLOW_PREFIXES.get(voucher_type, "PV")
-        seq = self.repo.peek_next_sequence_value(prefix)
-        year = datetime.now().year
-        return f"{prefix}-{year}-{str(seq).zfill(4)}"
+    def get_next_voucher_number(self, voucher_type: str, company_id: Optional[str] = None) -> str:
+        raw_lower = (voucher_type or "cash_payment").lower()
+        if raw_lower in ["cash_payment", "payment"]:
+            v_clean = "payment"
+        elif raw_lower in ["bank_payment", "receipt"]:
+            v_clean = "receipt"
+        elif raw_lower in ["contra"]:
+            v_clean = "contra"
+        else:
+            v_clean = voucher_type
+
+        return VoucherNumberService.peek_next_voucher_number_sync(
+            db=self.repo.db,
+            company_id=company_id,
+            voucher_type=v_clean
+        )
 
     def add_comment(self, tx_id: str, payload: CommentRequest) -> None:
         update_op = {
@@ -682,7 +763,7 @@ class FundFlowService:
         """
         Fetch all vouchers connected to a specific bank ledger across all collections:
         - Tally synced vouchers ('vouchers')
-        - Manual / Fund Flow vouchers ('fund_flow_transactions' / 'fundflow')
+        - Manual / Fund Flow vouchers ('fund_flow_vouchers' / 'fundflow')
         - Sales & Purchase vouchers ('sales_vouchers', 'purchase_vouchers')
         """
         db = self.repo.db
@@ -785,7 +866,7 @@ class FundFlowService:
                 "narration": doc.get("narration") or ""
             })
 
-        # 2. Search in 'fund_flow_transactions' / 'fundflow' collection
+        # 2. Search in 'fund_flow_vouchers' / 'fundflow' collection
         ff_query = {
             "$or": [
                 {"bankLedger": regex_bank},
@@ -794,7 +875,7 @@ class FundFlowService:
                 {"ledgerRows.ledgerName": regex_bank}
             ]
         }
-        ff_docs = list(db["fund_flow_transactions"].find(ff_query).sort("createdAt", -1).limit(500))
+        ff_docs = list(db["fund_flow_vouchers"].find(ff_query).sort("createdAt", -1).limit(500))
         if not ff_docs:
             ff_docs = list(db["fundflow"].find(ff_query).sort("createdAt", -1).limit(500))
 

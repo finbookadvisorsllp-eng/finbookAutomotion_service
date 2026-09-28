@@ -2,6 +2,19 @@ from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 from bson import ObjectId
+import html
+
+def clean_tally_name(name: Any) -> str:
+    """Cleans up and unescapes any pre-existing HTML/XML entity references in ledger names."""
+    if not name:
+        return ""
+    s = str(name).strip()
+    while any(ent in s for ent in ["&amp;", "&lt;", "&gt;", "&quot;", "&apos;"]):
+        un = html.unescape(s)
+        if un == s:
+            break
+        s = un
+    return s
 
 class TallyBillAllocation(BaseModel):
     refNo: str
@@ -26,6 +39,11 @@ class TallyLedgerEntry(BaseModel):
     billAllocations: List[TallyBillAllocation] = []
     bankAllocations: List[TallyBankAllocation] = []
     costAllocations: List[TallyCostAllocation] = []
+
+    def __init__(self, **data):
+        if "ledgerName" in data and data["ledgerName"]:
+            data["ledgerName"] = clean_tally_name(data["ledgerName"])
+        super().__init__(**data)
 
 class TallyBatchDetails(BaseModel):
     batchName: str
@@ -58,6 +76,11 @@ class TallyVoucher(BaseModel):
     ledgerEntries: List[TallyLedgerEntry] = []
     inventoryEntries: List[TallyInventoryEntry] = []
     taxEntries: List[TallyLedgerEntry] = []
+
+    def __init__(self, **data):
+        if "partyLedgerName" in data and data["partyLedgerName"]:
+            data["partyLedgerName"] = clean_tally_name(data["partyLedgerName"])
+        super().__init__(**data)
 
 class VoucherMapper:
     @staticmethod
@@ -127,7 +150,7 @@ class VoucherMapper:
         vch.masterId = master_id
         vch.alterId = alter_id
         vch.isUpdate = is_update
-        if category == "receipt":
+        if category in ["receipt", "payment", "contra"]:
             vch.voucherNumber = ""
         return vch
 
@@ -587,9 +610,12 @@ class VoucherMapper:
                     bankAllocations=bank_allocs
                 ))
 
-            # Ensure Party/Credit is FIRST and Bank/Debit is SECOND for Receipt vouchers
-            if category == "receipt" and len(ledger_entries) == 2:
-                if ledger_entries[0].isDeemedPositive == "Yes" and ledger_entries[1].isDeemedPositive == "No":
+            # Ensure Party/Counterpart is FIRST and Bank is SECOND for Receipt and Contra vouchers
+            if category in ["receipt", "contra"] and len(ledger_entries) == 2:
+                b_name = str(doc.get("bankLedger") or doc.get("destinationLedger") or "").lower()
+                if b_name and b_name in ledger_entries[0].ledgerName.lower():
+                    ledger_entries = [ledger_entries[1], ledger_entries[0]]
+                elif category in ["receipt", "contra"] and ledger_entries[0].isDeemedPositive == "Yes" and ledger_entries[1].isDeemedPositive == "No":
                     ledger_entries = [ledger_entries[1], ledger_entries[0]]
         # Check if there are complex ledger rows
         elif ledger_rows := doc.get("ledgerRows"):
@@ -782,18 +808,39 @@ class VoucherMapper:
                 ))
             else:
                 # Contra: Destination is debited (negative), Source is credited (positive)
+                # In Tally Day Book, 'Particulars' shows the FIRST ledger entry (ledger_entries[0]).
+                # The counterpart ledger (src_ledger / party_name) MUST be the FIRST entry so that
+                # its name is displayed in Tally Day Book Particulars instead of the bank name.
                 dest_ledger = doc.get("destinationLedger") or cb_ledger
                 src_ledger = doc.get("sourceLedger") or party_name
-                ledger_entries.append(TallyLedgerEntry(
-                    ledgerName=dest_ledger,
-                    amount=-amount,
-                    isDeemedPositive="Yes"
-                ))
-                ledger_entries.append(TallyLedgerEntry(
-                    ledgerName=src_ledger,
-                    amount=amount,
-                    isDeemedPositive="No"
-                ))
+                b_name = str(doc.get("bankLedger") or "").strip().lower()
+
+                if b_name and b_name in src_ledger.lower():
+                    # Bank is sourceLedger, counterpart is dest_ledger
+                    ledger_entries.append(TallyLedgerEntry(
+                        ledgerName=dest_ledger,
+                        amount=-amount,
+                        isDeemedPositive="Yes"
+                    ))
+                    ledger_entries.append(TallyLedgerEntry(
+                        ledgerName=src_ledger,
+                        amount=amount,
+                        isDeemedPositive="No",
+                        bankAllocations=bank_allocs
+                    ))
+                else:
+                    # Counterpart is src_ledger (FIRST), Bank is dest_ledger (SECOND)
+                    ledger_entries.append(TallyLedgerEntry(
+                        ledgerName=src_ledger,
+                        amount=amount,
+                        isDeemedPositive="No"
+                    ))
+                    ledger_entries.append(TallyLedgerEntry(
+                        ledgerName=dest_ledger,
+                        amount=-amount,
+                        isDeemedPositive="Yes",
+                        bankAllocations=bank_allocs
+                    ))
 
         return TallyVoucher(
             companyName=company_name,

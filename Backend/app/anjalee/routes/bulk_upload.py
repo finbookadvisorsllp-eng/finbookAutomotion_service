@@ -1630,7 +1630,7 @@ async def delete_saved_bulk_voucher(
     query = {"$or": query_conditions}
 
     deleted_count = 0
-    for coll_name in ["sales_vouchers", "purchase_vouchers", "vouchers", "fund_flow_transactions"]:
+    for coll_name in ["sales_vouchers", "purchase_vouchers", "vouchers", "fund_flow_vouchers"]:
         res = await db[coll_name].delete_many(query)
         deleted_count += res.deleted_count
 
@@ -2173,7 +2173,7 @@ async def save_bulk_vouchers(
         elif is_purchase:
             await db["purchase_vouchers"].update_one(query, {"$set": doc}, upsert=True)
         else:
-            await db["fund_flow_transactions"].update_one(query, {"$set": doc}, upsert=True)
+            await db["fund_flow_vouchers"].update_one(query, {"$set": doc}, upsert=True)
 
         saved_vouchers_list.append({
             "id": str(doc.get("_id") or vch_no),

@@ -37,17 +37,24 @@ class SaveVouchersRequest(BaseModel):
     item_ids: List[str]
 
 
+class PushToTallyStatementRequest(BaseModel):
+    batch_id: str
+    item_ids: Optional[List[str]] = None
+    voucher_ids: Optional[List[str]] = None
+
+
 @router.post("/upload")
 async def upload_bank_statement(
     request: Request,
     file: UploadFile = File(...),
     bankLedger: str = Form(...),
+    force_replace: bool = Form(False),
     db = Depends(get_db)
 ):
     """
     Upload Bank Statement (PDF, XLSX, XLS, CSV).
     Extracts transaction lines, runs AI categorization & master ledger matching,
-    checks duplicate fingerprints, and returns draft review batch.
+    checks duplicate file hashes & content signatures, and returns draft review batch.
     """
     company_header = request.headers.get("x-company-id") or request.headers.get("x-company")
     
@@ -73,14 +80,34 @@ async def upload_bank_statement(
             file_name=file.filename,
             file_type=file_ext,
             bank_ledger=bankLedger,
-            company_id=company_header
+            company_id=company_header,
+            force_replace=force_replace
         )
+
+        if batch_res.get("duplicate_found"):
+            if os.path.exists(saved_path):
+                try:
+                    os.remove(saved_path)
+                except Exception:
+                    pass
+            return {
+                "success": True,
+                "duplicate_found": True,
+                "existing_doc": batch_res.get("existing_doc")
+            }
+
         return {
             "success": True,
+            "duplicate_found": False,
             "data": batch_res
         }
     except Exception as e:
         logger.error(f"Error processing bank statement upload: {e}", exc_info=True)
+        if os.path.exists(saved_path):
+            try:
+                os.remove(saved_path)
+            except Exception:
+                pass
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to process bank statement: {str(e)}"
@@ -161,6 +188,54 @@ async def save_approved_vouchers(
     if not res.get("success"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=res.get("error", "Failed to save vouchers"))
 
+    # Automatically generate and persist Tally XML for the newly saved vouchers in tally_payloads!
+    if res.get("saved_vouchers"):
+        try:
+            saved_vids = [str(v.get("_id") or v.get("id")) for v in res["saved_vouchers"] if (v.get("_id") or v.get("id"))]
+            xml_res = await service.preview_batch_xml(payload.batch_id, payload.item_ids, saved_vids)
+            if xml_res.get("success") and xml_res.get("xmlPayload"):
+                res["xmlPayload"] = xml_res["xmlPayload"]
+                res["xmlGenerated"] = True
+        except Exception as xe:
+            logger.warning(f"Auto XML generation after save error: {xe}")
+
+    return res
+
+
+@router.post("/push-to-tally")
+async def push_statement_vouchers_to_tally(
+    payload: PushToTallyStatementRequest,
+    db = Depends(get_db)
+):
+    """
+    Pushes multiple saved vouchers from a statement batch into Tally in ONE single XML request.
+    Includes all voucher types (Receipt, Payment, Contra, Journal, etc.).
+    """
+    service = BankStatementAIService(db)
+    res = await service.push_vouchers_to_tally(payload.batch_id, payload.item_ids, payload.voucher_ids)
+    if not res.get("success") and res.get("pushed_count", 0) == 0 and not res.get("already_pushed_count") and not res.get("xmlPayload"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=res.get("errorMessage") or res.get("message") or "Failed to push vouchers to Tally"
+        )
+    return res
+
+
+@router.post("/preview-batch-xml")
+async def preview_statement_batch_xml(
+    payload: PushToTallyStatementRequest,
+    db = Depends(get_db)
+):
+    """
+    Returns the single combined Tally XML for selected or saved batch vouchers without pushing.
+    """
+    service = BankStatementAIService(db)
+    res = await service.preview_batch_xml(payload.batch_id, payload.item_ids, payload.voucher_ids)
+    if not res.get("success") and not res.get("xmlPayload"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=res.get("errorMessage") or "Failed to preview batch XML"
+        )
     return res
 
 
@@ -249,6 +324,8 @@ class ApproveSuggestionRequest(BaseModel):
     # Multi-party ledger mappings from expanded panel:
     # [{"party": "RAJAT PHARMACEUTICALS", "mappedLedger": "Rajat Pharma A/c", "confidence": 95}]
     partyLedgerMappings: Optional[List[Dict[str, Any]]] = None
+    item_ids: Optional[List[str]] = None
+    target_item_ids: Optional[List[str]] = None
 
 
 class PatternFeedbackRequest(BaseModel):
@@ -858,6 +935,8 @@ async def approve_pattern_suggestion(
         "partyLedgerId": payload.partyLedgerId,
         "partyLedgerMappings": party_mappings,
         "batch_id": payload.batch_id,
+        "item_ids": payload.item_ids or payload.target_item_ids or [],
+        "target_item_ids": payload.item_ids or payload.target_item_ids or [],
         "voucherType": payload.voucherType or "Auto",
         "direction": "any",
         "confidenceThreshold": 95.0,
@@ -887,7 +966,12 @@ async def approve_pattern_suggestion(
     updated_batch_data = None
     try:
         service = BankStatementAIService(db)
-        result = service.reprocess_drafts_with_rule(rule_doc, company_id=company_header, target_batch_id=payload.batch_id)
+        result = service.reprocess_drafts_with_rule(
+            rule_doc,
+            company_id=company_header,
+            target_batch_id=payload.batch_id,
+            target_item_ids=payload.item_ids or payload.target_item_ids
+        )
         reprocessed_cnt = result or 0  # guard against None
         if payload.batch_id:
             updated_batch_data = service.get_batch_draft(payload.batch_id)

@@ -581,18 +581,18 @@ class RegexPositionalExtractor:
     """
 
     BANK_STOPWORDS = {
-        # Public sector banks
-        "HDFC", "ICICI", "ICIC", "SBIN", "SBI", "AXIS", "PUNB", "PNB", "KKBK", "KOTAK",
-        "BARB", "BOB", "CNRB", "CANARA", "UBIN", "UNION", "IDFB", "IDFC", "IDFCFIRST",
+        # Public sector banks & clearing abbreviations
+        "HDF", "HDFC", "ICICI", "ICIC", "SBIN", "SBI", "AXIS", "PUNB", "PNB", "KKBK", "KOTAK",
+        "BARB", "BOB", "CNRB", "CANARA", "UBIN", "UNION", "UBI", "IDFB", "IDFC", "IDFCFIRST",
         "YESB", "YES", "YESBANK",
         # Other nationalized / private banks
-        "IDB", "IDBI", "UCO", "CBI", "IOB", "OBC", "UTIB", "FDRL", "FEDERAL",
+        "IDB", "IDBI", "UCO", "CBI", "IOB", "OBC", "UTIB", "FDRL", "FED", "FEDERAL",
         "DENA", "VIJAYA", "TMBL", "KARB", "KVB", "KVBL",
         "RBL", "RBLB", "CITI", "CITIBANK", "SCB", "HSBC", "DBS",
         "BANDHAN", "BDBL", "FINO", "PAYTM", "AIRTEL", "JSFB", "JANA",
         "NKGSB", "SARASWAT", "APGV", "ANDB", "ALLA", "ALLAHABAD",
         "SIBL", "CSB", "LAKSHMI", "LVB", "DCBL", "DCB",
-        "IBKL", "INDUSIND", "INDB", "PMC", "MAHB", "MAHABANK"
+        "IBKL", "INDUSIND", "INDB", "PMC", "MAHB", "MAHABANK", "BOI", "BKID"
     }
 
     LOCATION_STOPWORDS = {
@@ -605,9 +605,11 @@ class RegexPositionalExtractor:
         'TRF', 'TRANSFER', 'PAYMENT', 'PAY', 'RECEIPT', 'CR', 'DR', 'NA', 'INT',
         'COLL', 'SERVICE', 'CHG', 'CHARGE', 'FEE', 'CHARGES', 'TDS', 'ATM', 'WDL',
         'CASH', 'SLB', 'SLBL', 'SLBN',
-        # Bank codes also stop here so they are never extracted as party names
-        'IDB', 'IDBI', 'UCO', 'CBI', 'IOB', 'OBC', 'UTIB', 'FDRL', 'FEDERAL',
-        'DENA', 'VIJAYA', 'RBL', 'BANDHAN', 'FINO', 'IBKL', 'INDUSIND', 'INDB'
+        # Bank clearing codes also stop here so they are never extracted as party names
+        'HDF', 'HDFC', 'ICICI', 'ICIC', 'SBIN', 'SBI', 'AXIS', 'PUNB', 'PNB', 'KKBK', 'KOTAK',
+        'BARB', 'BOB', 'CNRB', 'CANARA', 'UBIN', 'UNION', 'UBI', 'IDFB', 'IDFC', 'YESB', 'YES',
+        'IDB', 'IDBI', 'UCO', 'CBI', 'IOB', 'OBC', 'UTIB', 'FDRL', 'FED', 'FEDERAL',
+        'DENA', 'VIJAYA', 'RBL', 'BANDHAN', 'FINO', 'IBKL', 'INDUSIND', 'INDB', 'BOI', 'BKID'
     }
 
     @classmethod
@@ -669,6 +671,15 @@ class RegexPositionalExtractor:
                 delim = d
 
         segments = [s.strip() for s in text.split(delim) if s.strip()] if max_splits > 0 else [s.strip() for s in text.split() if s.strip()]
+
+        # ── Deterministic Rule for CLG (Cheque Clearing) ──
+        # In all Indian CLG narrations: CLG / <PARTY_NAME> / <CHQ_NO> / <BANK_CODE> / <DATE_SEQ>
+        # Token at index 1 is ALWAYS the party candidate
+        if segments and (segments[0].upper() in ['CLG', 'CTS'] or text.upper().startswith('CLG/') or '/CLG/' in text.upper()):
+            if len(segments) > 1:
+                clg_party = cls.clean_extracted_party(segments[1])
+                if clg_party and clg_party.upper() not in cls.STOP_SEGMENTS:
+                    return (clg_party, 98.0)
 
         # Filter and score candidates dynamically
         candidates = []
@@ -895,16 +906,16 @@ class PatternDiscoveryEngine:
             "INR", "SUCCESS", "SETTLEMENT", "CHARGES", "GST", "TAX", "INT", "INTEREST", "FEES",
             # Indian bank IFSC prefixes / common bank abbreviations
             # These appear in CLG/NEFT/RTGS narrations as beneficiary bank codes, NOT party ledger names
-            "HDFC", "ICIC", "ICICI", "SBIN", "SBI", "AXIS", "KKBK", "KOTAK",
-            "PUNB", "PNB", "BARB", "BOB", "CNRB", "CANARA", "UBIN", "UNION",
-            "IDFB", "IDFC", "IDFCFIRST", "YESB", "YESBANK",
-            "IDB", "IDBI", "UCO", "CBI", "IOB", "OBC", "UTIB", "FDRL",
+            "HDF", "HDFC", "ICIC", "ICICI", "SBIN", "SBI", "AXIS", "KKBK", "KOTAK",
+            "PUNB", "PNB", "BARB", "BOB", "CNRB", "CANARA", "UBIN", "UNION", "UBI",
+            "IDFB", "IDFC", "IDFCFIRST", "YESB", "YES", "YESBANK",
+            "IDB", "IDBI", "UCO", "CBI", "IOB", "OBC", "UTIB", "FDRL", "FED",
             "FEDERAL", "DENA", "VIJAYA", "TMBL", "KARB", "KVB", "KVBL",
             "RBL", "RBLB", "CITI", "CITIBANK", "SCB", "HSBC", "DBS",
             "BANDHAN", "BDBL", "FINO", "PAYTM", "AIRTEL", "JSFB", "JANA",
             "NKGSB", "SARASWAT", "APGV", "ANDB", "ALLA", "ALLAHABAD",
             "SIBL", "CSB", "LAKSHMI", "LVB", "DCBL", "DCB", "UJVN",
-            "IBKL", "INDUSIND", "INDB", "PMC", "MAHB", "MAHABANK"
+            "IBKL", "INDUSIND", "INDB", "PMC", "MAHB", "MAHABANK", "BOI", "BKID"
         }
         if t_clean.upper() in stop_words:
             return None
@@ -1016,121 +1027,173 @@ class PatternDiscoveryEngine:
             if tu in ["UPI", "NEFT", "RTGS", "IMPS", "MMT", "CLG", "CTS", "CHQ", "CHEQUE", "INFT", "INF", "TRF", "TRANSFER", "POS", "ATM", "ACH", "NACH", "ECS"]:
                 roles[idx] = "CHANNEL"
 
-        # 2. Classify VPA tokens (@ handle)
-        for idx, t in enumerate(raw_tokens):
-            if roles[idx] is None and '@' in t:
-                roles[idx] = "VPA"
-
-        # 3. Classify IFSC tokens
-        for idx, t in enumerate(raw_tokens):
-            if roles[idx] is None and (re.match(r'^[A-Z]{4}0[A-Z0-9]{6}$', t.upper()) or re.match(r'^[A-Z]{4}\s+[A-Z0-9]{6}$', t.upper())):
-                roles[idx] = "IFSC"
-
-        # 4. Classify Bank Clearing Codes (e.g., HDF, ICIC, SBIN, UTIB)
-        for idx, t in enumerate(raw_tokens):
-            if roles[idx] is None and re.match(r'^[A-Z]{3,4}$', t.upper()) and t.upper() in ["HDF", "ICIC", "SBIN", "UTIB", "KKBK", "PUNB", "BARB", "YESB", "IDFB", "AXIS", "SBI", "PNB"]:
-                roles[idx] = "BANK_CODE"
-
-        # 5. Classify Transaction ID / UTR / Reference
-        txn_id_pos = -1
-        txn_id_regex = None
-        # 5a. 12-digit numeric RRN (UPI standard)
-        for idx, t in enumerate(raw_tokens):
-            if roles[idx] is None and re.match(r'^\d{12}$', t):
-                roles[idx] = "TXN_ID"
-                txn_id_pos = idx
-                txn_id_regex = r"\d{12}"
-                break
-        # 5b. Alphanumeric UTR (NEFT/RTGS standard)
-        if txn_id_pos == -1:
-            for idx, t in enumerate(raw_tokens):
-                if roles[idx] is None and re.match(r'^[A-Z]{4}[0-9A-Z]{7,18}$', t.upper()):
-                    roles[idx] = "TXN_ID"
-                    txn_id_pos = idx
-                    txn_id_regex = r"[A-Z]{4}[0-9A-Z]+"
-                    break
-        # 5c. General numeric reference (6-18 digits)
-        if txn_id_pos == -1:
-            for idx, t in enumerate(raw_tokens):
-                if roles[idx] is None and re.match(r'^\d{6,18}$', t):
-                    roles[idx] = "TXN_ID"
-                    txn_id_pos = idx
-                    txn_id_regex = r"\d+"
-                    break
-        # 5d. Alphanumeric reference code / UTR (e.g. 0807i29998629781, POD119344552, N223260456922004, CIB207697194)
-        if txn_id_pos == -1:
-            for idx, t in enumerate(raw_tokens):
-                t_strip = t.strip()
-                digit_cnt = sum(c.isdigit() for c in t_strip)
-                letter_cnt = sum(c.isalpha() for c in t_strip)
-                if roles[idx] is None and ' ' not in t_strip and len(t_strip) >= 6:
-                    if (digit_cnt >= 4) or (digit_cnt >= 2 and letter_cnt >= 1 and len(t_strip) >= 8):
-                        if re.match(r'^[A-Za-z0-9_-]+$', t_strip):
-                            roles[idx] = "TXN_ID"
-                            txn_id_pos = idx
-                            txn_id_regex = r"[A-Za-z0-9_-]+"
-                            break
-
-        # 6. Classify Party Candidate - MASTER DATA MATCHING FIRST (Reverse-Index Discovery)
-        stop_words = {
-            "BANK", "NEFT", "RTGS", "UPI", "IMPS", "CLG", "CTS", "CHQ", "CHEQUE",
-            "TRANSFER", "PAYMENT", "RECEIVED", "TRF", "INFT", "INF", "IFT", "PAID",
-            "LTD", "PVT", "PVTLTD", "LIMITED", "PRIVATE", "CR", "DR", "TXN", "REF",
-            "RRN", "MOB", "NA", "NIL", "NULL", "BY", "TO", "FOR", "SLB", "SLBL", "SLBN",
-            "INR", "SUCCESS", "SETTLEMENT", "CHARGES", "GST", "TAX", "INT", "INTEREST", "FEES"
+        ALL_BANK_CODES = {
+            "HDF", "HDFC", "ICIC", "ICICI", "SBIN", "SBI", "AXIS", "UTIB", "KKBK", "KOTAK",
+            "PUNB", "PNB", "BARB", "BOB", "CNRB", "CANARA", "UBIN", "UNION", "UBI", "YESB", "YES",
+            "IDFB", "IDFC", "IDB", "IDBI", "UCO", "CBI", "IOB", "OBC", "FDRL", "FED", "FEDERAL",
+            "BOI", "BKID", "RBL", "INDB", "INDUSIND"
         }
 
-        master_match = None
-        if company_masters:
-            for idx, t in enumerate(raw_tokens):
-                if roles[idx] in ["CHANNEL", "TXN_ID", "IFSC", "BANK_CODE"]:
-                    continue
+        # Deterministic Handling for CLG (Cheque Clearing): CLG / <PARTY> / <CHQ_NO> / <BANK_CODE> / <DATE_SEQ>
+        is_clg_channel = channel == "CLG" or (raw_tokens and raw_tokens[0].upper() in ["CLG", "CTS"]) or norm.startswith("clg/")
+        if is_clg_channel:
+            channel = "CLG"
+            roles[0] = "CHANNEL"
+            party_pos = -1
+            party_val = None
+            master_match = None
+            txn_id_pos = -1
+            txn_id_regex = None
+
+            if len(raw_tokens) > 1:
+                # Token 1 is ALWAYS the party name in CLG
+                roles[1] = "PARTY"
+                party_pos = 1
+                party_val = raw_tokens[1].strip()
+
+            if len(raw_tokens) > 2:
+                # Token 2 is Cheque / Instrument Number
+                roles[2] = "TXN_ID"
+                txn_id_pos = 2
+                txn_id_regex = r"\d+"
+
+            if len(raw_tokens) > 3:
+                # Token 3 is Clearing Bank Code (e.g. HDF, PNB, IDB, CBI, AXIS, UCO)
+                roles[3] = "BANK_CODE"
+
+            if len(raw_tokens) > 4:
+                for idx in range(4, len(raw_tokens)):
+                    roles[idx] = "DATE" if re.search(r'\d{1,2}[./-]\d{1,2}[./-]\d{2,4}', raw_tokens[idx]) else "REMITTANCE"
+
+            # Master-data matching for CLG evaluated ONLY on party candidate at index 1
+            if company_masters and party_pos == 1 and party_val:
                 match_res = cls.match_token_against_masters(
-                    t, company_masters=company_masters, known_aliases=known_aliases, bank_ledger=bank_ledger
+                    party_val, company_masters=company_masters, known_aliases=known_aliases, bank_ledger=bank_ledger
                 )
                 if match_res:
                     master_match = {
-                        "pos": idx,
-                        "token": t.strip(),
+                        "pos": 1,
+                        "token": party_val,
                         "ledger": match_res["ledger"],
                         "score": match_res["score"],
                         "matchType": match_res["matchType"]
                     }
-                    roles[idx] = "PARTY"
-                    break
-
-        party_pos = -1 if master_match is None else master_match["pos"]
-        party_val = None if master_match is None else master_match["token"]
-
-        if master_match is None:
-            # Fallback heuristic scoring if no direct master match found in this narration
-            candidate_parties = []
+        else:
+            # 2. Classify VPA tokens (@ handle)
             for idx, t in enumerate(raw_tokens):
-                if roles[idx] is None:
+                if roles[idx] is None and '@' in t:
+                    roles[idx] = "VPA"
+
+            # 3. Classify IFSC tokens
+            for idx, t in enumerate(raw_tokens):
+                if roles[idx] is None and (re.match(r'^[A-Z]{4}0[A-Z0-9]{6}$', t.upper()) or re.match(r'^[A-Z]{4}\s+[A-Z0-9]{6}$', t.upper())):
+                    roles[idx] = "IFSC"
+
+            # 4. Classify Bank Clearing Codes (e.g., HDF, ICIC, SBIN, UTIB)
+            for idx, t in enumerate(raw_tokens):
+                if roles[idx] is None and re.match(r'^[A-Z]{3,4}$', t.upper()) and t.upper() in ALL_BANK_CODES:
+                    roles[idx] = "BANK_CODE"
+
+            # 5. Classify Transaction ID / UTR / Reference
+            txn_id_pos = -1
+            txn_id_regex = None
+            # 5a. 12-digit numeric RRN (UPI standard)
+            for idx, t in enumerate(raw_tokens):
+                if roles[idx] is None and re.match(r'^\d{12}$', t):
+                    roles[idx] = "TXN_ID"
+                    txn_id_pos = idx
+                    txn_id_regex = r"\d{12}"
+                    break
+            # 5b. Alphanumeric UTR (NEFT/RTGS standard)
+            if txn_id_pos == -1:
+                for idx, t in enumerate(raw_tokens):
+                    if roles[idx] is None and re.match(r'^[A-Z]{4}[0-9A-Z]{7,18}$', t.upper()):
+                        roles[idx] = "TXN_ID"
+                        txn_id_pos = idx
+                        txn_id_regex = r"[A-Z]{4}[0-9A-Z]+"
+                        break
+            # 5c. General numeric reference (6-18 digits)
+            if txn_id_pos == -1:
+                for idx, t in enumerate(raw_tokens):
+                    if roles[idx] is None and re.match(r'^\d{6,18}$', t):
+                        roles[idx] = "TXN_ID"
+                        txn_id_pos = idx
+                        txn_id_regex = r"\d+"
+                        break
+            # 5d. Alphanumeric reference code / UTR (e.g. 0807i29998629781, POD119344552, N223260456922004, CIB207697194)
+            if txn_id_pos == -1:
+                for idx, t in enumerate(raw_tokens):
                     t_strip = t.strip()
                     digit_cnt = sum(c.isdigit() for c in t_strip)
                     letter_cnt = sum(c.isalpha() for c in t_strip)
-                    has_letters = letter_cnt > 0
-                    is_stop = t_strip.upper() in stop_words
-                    is_ref = (' ' not in t_strip) and (digit_cnt >= 4 or (digit_cnt > 0 and digit_cnt >= letter_cnt and len(t_strip) >= 6))
-                    if has_letters and not is_stop and not is_ref and len(t_strip) >= 2:
-                        score = (50 if ' ' in t_strip else 0) + letter_cnt - (digit_cnt * 5)
-                        candidate_parties.append((idx, t_strip, score))
+                    if roles[idx] is None and ' ' not in t_strip and len(t_strip) >= 6:
+                        if (digit_cnt >= 4) or (digit_cnt >= 2 and letter_cnt >= 1 and len(t_strip) >= 8):
+                            if re.match(r'^[A-Za-z0-9_-]+$', t_strip):
+                                roles[idx] = "TXN_ID"
+                                txn_id_pos = idx
+                                txn_id_regex = r"[A-Za-z0-9_-]+"
+                                break
 
-            if candidate_parties:
-                if channel == "UPI" and txn_id_pos >= 0:
-                    after_txn = [c for c in candidate_parties if c[0] > txn_id_pos]
-                    if after_txn:
-                        after_txn.sort(key=lambda x: (x[2], -x[0]), reverse=True)
-                        party_pos, party_val, _ = after_txn[0]
+            # 6. Classify Party Candidate - MASTER DATA MATCHING FIRST (Reverse-Index Discovery)
+            stop_words = {
+                "BANK", "NEFT", "RTGS", "UPI", "IMPS", "CLG", "CTS", "CHQ", "CHEQUE",
+                "TRANSFER", "PAYMENT", "RECEIVED", "TRF", "INFT", "INF", "IFT", "PAID",
+                "LTD", "PVT", "PVTLTD", "LIMITED", "PRIVATE", "CR", "DR", "TXN", "REF",
+                "RRN", "MOB", "NA", "NIL", "NULL", "BY", "TO", "FOR", "SLB", "SLBL", "SLBN",
+                "INR", "SUCCESS", "SETTLEMENT", "CHARGES", "GST", "TAX", "INT", "INTEREST", "FEES"
+            }
+
+            master_match = None
+            if company_masters:
+                for idx, t in enumerate(raw_tokens):
+                    if roles[idx] in ["CHANNEL", "TXN_ID", "IFSC", "BANK_CODE"]:
+                        continue
+                    match_res = cls.match_token_against_masters(
+                        t, company_masters=company_masters, known_aliases=known_aliases, bank_ledger=bank_ledger
+                    )
+                    if match_res:
+                        master_match = {
+                            "pos": idx,
+                            "token": t.strip(),
+                            "ledger": match_res["ledger"],
+                            "score": match_res["score"],
+                            "matchType": match_res["matchType"]
+                        }
+                        roles[idx] = "PARTY"
+                        break
+
+            party_pos = -1 if master_match is None else master_match["pos"]
+            party_val = None if master_match is None else master_match["token"]
+
+            if master_match is None:
+                # Fallback heuristic scoring if no direct master match found in this narration
+                candidate_parties = []
+                for idx, t in enumerate(raw_tokens):
+                    if roles[idx] is None:
+                        t_strip = t.strip()
+                        digit_cnt = sum(c.isdigit() for c in t_strip)
+                        letter_cnt = sum(c.isalpha() for c in t_strip)
+                        has_letters = letter_cnt > 0
+                        is_stop = t_strip.upper() in stop_words or t_strip.upper() in ALL_BANK_CODES
+                        is_ref = (' ' not in t_strip) and (digit_cnt >= 4 or (digit_cnt > 0 and digit_cnt >= letter_cnt and len(t_strip) >= 6))
+                        if has_letters and not is_stop and not is_ref and len(t_strip) >= 2:
+                            score = (50 if ' ' in t_strip else 0) + letter_cnt - (digit_cnt * 5)
+                            candidate_parties.append((idx, t_strip, score))
+
+                if candidate_parties:
+                    if channel == "UPI" and txn_id_pos >= 0:
+                        after_txn = [c for c in candidate_parties if c[0] > txn_id_pos]
+                        if after_txn:
+                            after_txn.sort(key=lambda x: (x[2], -x[0]), reverse=True)
+                            party_pos, party_val, _ = after_txn[0]
+                        else:
+                            candidate_parties.sort(key=lambda x: (x[2], -x[0]), reverse=True)
+                            party_pos, party_val, _ = candidate_parties[0]
+                        roles[party_pos] = "PARTY"
                     else:
                         candidate_parties.sort(key=lambda x: (x[2], -x[0]), reverse=True)
                         party_pos, party_val, _ = candidate_parties[0]
-                    roles[party_pos] = "PARTY"
-                else:
-                    candidate_parties.sort(key=lambda x: (x[2], -x[0]), reverse=True)
-                    party_pos, party_val, _ = candidate_parties[0]
-                    roles[party_pos] = "PARTY"
+                        roles[party_pos] = "PARTY"
 
         # 7. Unclassified tokens -> ACC_NO, DATE, NUMBER, or REMITTANCE
         for idx, t in enumerate(raw_tokens):
@@ -1304,16 +1367,23 @@ class PatternDiscoveryEngine:
             if master_pos_hits:
                 common_master_pos, master_hit_count = master_pos_hits.most_common(1)[0]
 
+            # CLG narrations always place party candidate at Token Index [1]
+            if txn_type == "CLG":
+                common_master_pos = 1
+
             # If master data proved a common party position for this channel, align transactions of this channel
             if common_master_pos is not None:
                 for m in type_matched:
-                    if not m["analysis"].get("master_match"):
-                        raw_toks = m["analysis"].get("raw_tokens") or []
-                        if 0 <= common_master_pos < len(raw_toks):
-                            cand_tok = raw_toks[common_master_pos].strip()
-                            if len(cand_tok) >= 2 and cand_tok.upper() not in NarrationNormalizationService.STOP_WORDS:
-                                m["analysis"]["party_pos"] = common_master_pos
-                                m["analysis"]["party_val"] = cand_tok
+                    raw_toks = m["analysis"].get("raw_tokens") or []
+                    if 0 <= common_master_pos < len(raw_toks):
+                        cand_tok = raw_toks[common_master_pos].strip()
+                        if len(cand_tok) >= 2 and cand_tok.upper() not in NarrationNormalizationService.STOP_WORDS:
+                            m["analysis"]["party_pos"] = common_master_pos
+                            m["analysis"]["party_val"] = cand_tok
+                            # Discard any accidental master match at a different index (e.g. bank code at index 3)
+                            mm = m["analysis"].get("master_match")
+                            if mm and mm.get("pos") != common_master_pos:
+                                m["analysis"]["master_match"] = None
 
             # Sub-cluster into distinct patterns strictly by party position (e.g. Party at Pos [2] vs Pos [3])
             type_patterns = defaultdict(list)
@@ -1423,9 +1493,9 @@ class PatternDiscoveryEngine:
                     if not party_val:
                         party_val = m["analysis"].get("party_val") or "Unspecified Party"
 
-                    # Check if master_match exists on this item
+                    # Check if master_match exists on this item at this exact party position
                     m_master = m["analysis"].get("master_match")
-                    if m_master and m_master.get("ledger"):
+                    if m_master and m_master.get("ledger") and m_master.get("pos") == party_pos:
                         resolved_ledger = m_master["ledger"]
                         conf_val = float(m_master.get("score", 98.0))
                         is_amb = False
@@ -1443,20 +1513,10 @@ class PatternDiscoveryEngine:
                     m["extracted_party"] = party_val
                     m["mapped_ledger"] = resolved_ledger
                     m["party_confidence"] = conf_val
-                    norm_txt = m["norm"]
-                    if sep == ' ':
-                        tokens_here = [t.strip() for t in re.split(r'\s+', norm_txt) if t.strip()]
-                    else:
-                        tokens_here = [t.strip() for t in norm_txt.split(sep) if t.strip()]
-
-                    party_val = None
-                    if party_pos >= 0 and party_pos < len(tokens_here):
-                        cand = tokens_here[party_pos].strip()
-                        if len(cand) >= 2 and cand.upper() not in NarrationNormalizationService.STOP_WORDS:
-                            party_val = cand
-
-                    if not party_val:
-                        party_val = m["analysis"].get("party_val") or "Unspecified Party"
+                    if "item" in m and isinstance(m["item"], dict):
+                        m["item"]["extractedParty"] = party_val
+                        if resolved_ledger and resolved_ledger != "Unmapped":
+                            m["item"]["partyLedger"] = resolved_ledger
 
                     it_obj = m["item"]
                     tx_info = {
@@ -1570,10 +1630,16 @@ class PatternDiscoveryEngine:
                     "transactions": [
                         {
                             "id": str(m["item"].get("item_id") or m["item"].get("_id") or ""),
+                            "item_id": str(m["item"].get("item_id") or m["item"].get("_id") or ""),
                             "date": m["item"].get("voucherDate") or m["item"].get("date") or "",
                             "amount": m["item"].get("amount") or m["item"].get("debit", 0) or m["item"].get("credit", 0),
                             "reference": m["item"].get("referenceNumber") or m["item"].get("instNumber") or "—",
-                            "narration": m["narration"]
+                            "narration": m["narration"],
+                            "status": m["item"].get("status"),
+                            "review_required": m["item"].get("review_required"),
+                            "partyLedger": m["item"].get("partyLedger") or m["item"].get("againstLedger"),
+                            "mappingMethod": m["item"].get("mappingMethod"),
+                            "confidence": m["item"].get("confidence")
                         }
                         for m in matched[:50]
                     ],
