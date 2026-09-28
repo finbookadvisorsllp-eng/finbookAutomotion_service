@@ -26,7 +26,9 @@ import {
   Check,
   Landmark,
   Sparkles,
-  SlidersHorizontal
+  SlidersHorizontal,
+  ShieldAlert,
+  Send
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
@@ -87,15 +89,70 @@ const BankPanel = ({ mode: propMode, isDark }) => {
   const [isAiStatementModalOpen, setIsAiStatementModalOpen] = useState(false);
   const [isColumnConfigOpen, setIsColumnConfigOpen] = useState(false);
   const [isInboxFilterOpen, setIsInboxFilterOpen] = useState(false);
+  const [brsVoucherTypeFilter, setBrsVoucherTypeFilter] = useState('ALL'); // ALL, Payment, Receipt, Contra
+  const [brsStatusFilter, setBrsStatusFilter] = useState('ALL'); // ALL, PUSHED, PENDING, FAILED
 
   const fundFlowStore = useFundFlowStore();
+
+  const [deletingId, setDeletingId] = useState(null);
+
+  const handleDeleteVoucher = async (voucher) => {
+    const vId = voucher.id;
+    if (!vId) return;
+    if (!window.confirm(`Are you sure you want to delete voucher "${voucher.voucherNumber || voucher.description || 'this voucher'}"? It will be permanently deleted from the database.`)) {
+      return;
+    }
+    setDeletingId(vId);
+    try {
+      const res = await fundflowApi.delete(vId);
+      if (res && res.success) {
+        toast.success(`Voucher ${voucher.voucherNumber || ''} deleted from database successfully`);
+        setSelectedRows(prev => prev.filter(k => k !== vId));
+        await fundFlowStore.fetchTransactions();
+        fetchAiBatches(false);
+      } else {
+        toast.error(res?.message || 'Failed to delete voucher');
+      }
+    } catch (err) {
+      console.error('Error deleting voucher:', err);
+      toast.error(err?.response?.data?.detail || err?.response?.data?.message || 'Failed to delete voucher');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedRows.length === 0) return;
+    if (!window.confirm(`Are you sure you want to delete ${selectedRows.length} selected vouchers from the database?`)) return;
+    let deletedCount = 0;
+    for (const id of selectedRows) {
+      try {
+        const res = await fundflowApi.delete(id);
+        if (res?.success) deletedCount++;
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    toast.success(`Deleted ${deletedCount} vouchers from database successfully`);
+    await fundFlowStore.fetchTransactions();
+    fetchAiBatches(false);
+    setSelectedRows([]);
+  };
 
   useEffect(() => {
     fundFlowStore.fetchMasterData();
     fundFlowStore.setFilter('voucherType', '');
     fundFlowStore.setFilter('search', '');
     fundFlowStore.fetchTransactions();
+    fetchAiBatches(false);
   }, []);
+
+  useEffect(() => {
+    if (activeTab === 'Inbox') {
+      fundFlowStore.fetchTransactions();
+      fetchAiBatches(false);
+    }
+  }, [activeTab]);
 
   const isStrictBankLedger = (l) => {
     if (!l) return false;
@@ -212,24 +269,139 @@ const BankPanel = ({ mode: propMode, isDark }) => {
 
   const allTransactions = fundFlowStore.transactions || [];
 
-  const inboxData = useMemo(() => {
-    if (!allTransactions || allTransactions.length === 0) return [];
-    return allTransactions
-      .filter(tx => tx.status === 'draft' || tx.status === 'failed_tally')
-      .map(tx => {
+  const baseInboxData = useMemo(() => {
+    const list = [];
+    const seenKeys = new Set();
+
+    // 1. Collect strictly from allTransactions (actual active vouchers in MongoDB fund_flow_vouchers)
+    (allTransactions || []).forEach(tx => {
+      // Exclude soft-deleted or deleted transactions
+      if (tx.flags?.isDeleted || tx.isDeleted || tx.status === 'deleted' || tx.status === 'DELETED') {
+        return;
+      }
+
+      const isBankUpload = tx.source === 'bank_upload' || 
+                           tx.source === 'bank_statement' || 
+                           tx.entryMode === 'bank_upload' || 
+                           tx.createdVia === 'bank_upload' || 
+                           !!tx.batch_id || 
+                           !!tx.fingerprint ||
+                           tx.status === 'ACTIVE' || 
+                           tx.status === 'saved' ||
+                           tx.status === 'approved' ||
+                           tx.status === 'APPROVED' ||
+                           tx.status === 'posted_to_tally' ||
+                           tx.status === 'POSTED_TO_TALLY' ||
+                           tx.status === 'FAILED_TALLY' ||
+                           tx.status === 'failed_tally';
+
+      if (isBankUpload) {
         const partyNames = (tx.ledgerRows || []).map(r => r.ledgerName).filter(Boolean).join(', ') || tx.partyLedger || tx.partyLedgerName || '—';
-        const typeStr = tx.voucherTypeName || (tx.voucherType === 'bank_payment' ? 'Receipt' : tx.voucherType === 'cash_payment' ? 'Payment' : (tx.voucherType || 'Payment'));
+        const rawType = (tx.voucherTypeName || tx.voucherType || '').toLowerCase();
+        const typeStr = (rawType.includes('receipt') || rawType === 'bank_payment') ? 'Receipt' : (rawType.includes('contra') ? 'Contra' : 'Payment');
         const vDate = tx.voucherDate || tx.dates?.voucherDate || (tx.dates?.date ? new Date(tx.dates.date).toLocaleDateString('en-IN') : '—');
-        return {
-          id: tx._id,
-          date: typeof vDate === 'string' ? vDate : new Date(vDate).toLocaleDateString('en-IN'),
-          description: tx.narration || `Manual Entry Voucher ${tx.voucherNumber}`,
-          amount: (parseFloat(tx.amount || tx.totals?.grandTotal || 0) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }),
-          type: typeStr,
-          party: partyNames
-        };
-      });
+        const vNum = tx.voucherNumber || tx.referenceNumber || '';
+        const amt = parseFloat(tx.amount || tx.totals?.grandTotal || 0) || 0;
+        const bLedger = tx.bankLedger || tx.againstLedger || '';
+
+        const key = vNum ? `${typeStr}_${vNum}` : String(tx._id || tx.id);
+        if (!seenKeys.has(key)) {
+          seenKeys.add(key);
+
+          const rawStatus = (tx.status || '').toLowerCase();
+          const tPushStatus = String(tx.tallyPushStatus || '').toUpperCase();
+          const hasXml = Boolean(
+            tx.tallyXml || 
+            tx.tally_xml || 
+            tPushStatus === 'POSTED_TO_TALLY' || 
+            tPushStatus === 'PUSHED' || 
+            rawStatus === 'posted_to_tally' || 
+            rawStatus === 'pushed'
+          );
+
+          // Production-grade status rule:
+          // 1. If XML is generated / pushed -> 'Pushed'
+          // 2. If XML is not generated yet -> 'Pending' (never falsely marked as failed from historical logs)
+          let statusCode = 'pending';
+          let statusLabel = 'Pending';
+          let lastError = '';
+
+          if (hasXml) {
+            statusCode = 'pushed';
+            statusLabel = 'Pushed';
+          } else {
+            statusCode = 'pending';
+            statusLabel = 'Pending';
+          }
+
+          list.push({
+            id: String(tx._id || tx.id),
+            voucherNumber: vNum || '—',
+            date: typeof vDate === 'string' ? vDate : new Date(vDate).toLocaleDateString('en-IN'),
+            rawDate: vDate,
+            description: tx.narration || `Voucher ${vNum || ''}`,
+            amount: amt.toLocaleString('en-IN', { minimumFractionDigits: 2 }),
+            rawAmount: amt,
+            type: typeStr,
+            party: partyNames,
+            bankLedger: bLedger,
+            status: statusLabel,
+            statusCode: statusCode,
+            statusError: lastError,
+            source: 'fundflow'
+          });
+        }
+      }
+    });
+
+    return list;
   }, [allTransactions]);
+
+  const inboxData = useMemo(() => {
+    let result = baseInboxData;
+
+    // Filter by selected bank if a specific account is chosen in header dropdown
+    if (selectedBank) {
+      result = result.filter(v => 
+        (v.bankLedger || '').toLowerCase().includes(selectedBank.toLowerCase()) ||
+        selectedBank.toLowerCase().includes((v.bankLedger || '').toLowerCase())
+      );
+    }
+
+    // Filter by status (ALL, PUSHED, PENDING, FAILED)
+    if (brsStatusFilter !== 'ALL') {
+      result = result.filter(v => v.statusCode.toUpperCase() === brsStatusFilter.toUpperCase());
+    }
+
+    // Filter by voucher type (ALL, Payment, Receipt, Contra)
+    if (brsVoucherTypeFilter !== 'ALL') {
+      result = result.filter(v => v.type.toUpperCase() === brsVoucherTypeFilter.toUpperCase());
+    }
+
+    // Sort strictly according to series and voucher type:
+    const extractSeqNum = (str) => {
+      if (!str) return 0;
+      const match = String(str).match(/(\d+)(?!.*\d)/);
+      return match ? parseInt(match[1], 10) : 0;
+    };
+
+    result.sort((a, b) => {
+      if (a.type !== b.type) {
+        return a.type.localeCompare(b.type);
+      }
+      const seqA = extractSeqNum(a.voucherNumber);
+      const seqB = extractSeqNum(b.voucherNumber);
+      if (seqA !== seqB && seqA > 0 && seqB > 0) {
+        return seqA - seqB;
+      }
+      if (a.voucherNumber && b.voucherNumber && a.voucherNumber !== '—' && b.voucherNumber !== '—') {
+        return String(a.voucherNumber).localeCompare(String(b.voucherNumber), undefined, { numeric: true });
+      }
+      return String(a.rawDate || a.date).localeCompare(String(b.rawDate || b.date));
+    });
+
+    return result;
+  }, [baseInboxData, selectedBank, brsStatusFilter, brsVoucherTypeFilter]);
 
   const reviewData = useMemo(() => {
     if (!allTransactions || allTransactions.length === 0) return [];
@@ -439,12 +611,57 @@ const BankPanel = ({ mode: propMode, isDark }) => {
 
     'Inbox': [
       srCol,
-      { key: 'date', header: 'Date', sortable: true, render: (r) => <span className="font-semibold" style={{ color: 'var(--app-muted)' }}>{r.date}</span> },
-      { key: 'description', header: 'Description', sortable: true, render: (r) => <span className="font-bold" style={{ color: 'var(--app-heading)' }}>{r.description}</span> },
+      {
+        key: 'voucherNumber',
+        header: 'Voucher No / Series',
+        sortable: true,
+        render: (r) => (
+          <span className="font-mono text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-2.5 py-0.5 rounded-md border border-blue-200 dark:border-blue-800 tracking-tight whitespace-nowrap shadow-2xs">
+            {r.voucherNumber || '—'}
+          </span>
+        )
+      },
+      { key: 'date', header: 'Date', sortable: true, render: (r) => <span className="font-semibold whitespace-nowrap" style={{ color: 'var(--app-muted)' }}>{r.date}</span> },
+      { key: 'description', header: 'Description', sortable: true, render: (r) => <span className="font-bold truncate max-w-[280px] block" title={r.description} style={{ color: 'var(--app-heading)' }}>{r.description}</span> },
       amtCol,
       { key: 'type', header: 'Type', render: (r) => <Badge tone={typeTone(r.type)}>{r.type}</Badge> },
       { key: 'party', header: 'Party Ledger', sortable: true, render: (r) => <span className="font-semibold">{r.party}</span> },
-      { key: 'act', header: '', align: 'center', width: '60px', render: () => <Info size={14} className="mx-auto" style={{ color: 'var(--app-muted)' }} /> },
+      {
+        key: 'status',
+        header: 'Status',
+        align: 'center',
+        render: (r) => {
+          if (r.statusCode === 'pushed') {
+            return <Badge tone="success">Pushed</Badge>;
+          }
+          if (r.statusCode === 'failed') {
+            return (
+              <span title={r.statusError || 'Failed to push to Tally'}>
+                <Badge tone="danger">Failed</Badge>
+              </span>
+            );
+          }
+          return <Badge tone="warning">Pending</Badge>;
+        }
+      },
+      {
+        key: 'act',
+        header: 'Action',
+        align: 'center',
+        width: '70px',
+        render: (r) => (
+          <div className="flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => handleDeleteVoucher(r)}
+              disabled={deletingId === r.id}
+              title="Delete Voucher from Database"
+              className="p-1.5 rounded-md text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/50 hover:text-rose-600 transition-all cursor-pointer border border-rose-200 dark:border-rose-800/60 active:scale-95 disabled:opacity-50"
+            >
+              {deletingId === r.id ? <RefreshCw size={13} className="animate-spin text-rose-500" /> : <Trash2 size={13} />}
+            </button>
+          </div>
+        )
+      },
     ],
     'ReviewArchive': [
       srCol,
@@ -477,12 +694,42 @@ const BankPanel = ({ mode: propMode, isDark }) => {
           { label: 'Account Holders', value: uniq(dbBankAccounts, 'accountName'), icon: CheckCircle2 },
         ];
 
-      case 'Inbox':
+      case 'Inbox': {
+        const total = baseInboxData.length;
+        const pushed = baseInboxData.filter((r) => r.statusCode === 'pushed').length;
+        const pending = baseInboxData.filter((r) => r.statusCode === 'pending').length;
+        const failed = baseInboxData.filter((r) => r.statusCode === 'failed').length;
         return [
-          { label: 'Unreconciled', value: inboxData.length, icon: Info },
-          { label: 'Receipts', value: inboxData.filter((r) => r.type === 'Receipt').length, icon: Download },
-          { label: 'Inbox Value', value: inr(sumAmt(inboxData)), icon: Landmark },
+          {
+            label: 'Total Saved Vouchers',
+            value: total,
+            icon: CheckCircle2,
+            active: brsStatusFilter === 'ALL',
+            onClick: () => setBrsStatusFilter('ALL')
+          },
+          {
+            label: 'Pushed to Tally',
+            value: pushed,
+            icon: Send,
+            active: brsStatusFilter === 'PUSHED',
+            onClick: () => setBrsStatusFilter(prev => prev === 'PUSHED' ? 'ALL' : 'PUSHED')
+          },
+          {
+            label: 'Pending Push',
+            value: pending,
+            icon: Download,
+            active: brsStatusFilter === 'PENDING',
+            onClick: () => setBrsStatusFilter(prev => prev === 'PENDING' ? 'ALL' : 'PENDING')
+          },
+          {
+            label: 'Errors / Issues',
+            value: failed,
+            icon: ShieldAlert,
+            active: brsStatusFilter === 'FAILED',
+            onClick: () => setBrsStatusFilter(prev => prev === 'FAILED' ? 'ALL' : 'FAILED')
+          },
         ];
+      }
       case 'Review':
         return [
           { label: 'Pending Review', value: reviewData.length, icon: Info },
@@ -698,13 +945,22 @@ const BankPanel = ({ mode: propMode, isDark }) => {
             <p className="text-xs font-semibold text-[var(--app-muted)] max-w-md mt-1 mb-5">
               Upload your PDF or Excel/CSV bank statement. Our AI automatically extracts transactions, matches counterpart ledgers against active company masters, and generates Payment/Receipt voucher drafts for review.
             </p>
-            <button
-              onClick={() => setIsAiStatementModalOpen(true)}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider bg-[var(--app-accent)] text-white shadow-md hover:opacity-90 transition-all cursor-pointer"
-            >
-              <Upload size={15} />
-              <span>Upload Bank Statement (PDF / Excel)</span>
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setIsAiStatementModalOpen(true)}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider bg-[var(--app-accent)] text-white shadow-md hover:opacity-90 transition-all cursor-pointer"
+              >
+                <Upload size={15} />
+                <span>Upload Bank Statement (PDF / Excel)</span>
+              </button>
+              <button
+                onClick={() => setActiveTab('Add Bank Rule')}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider border border-[#2563EB]/40 bg-[#2563EB]/10 text-[#2563EB] hover:bg-[#2563EB]/20 transition-all cursor-pointer"
+              >
+                <SlidersHorizontal size={15} />
+                <span>Bank Mapping</span>
+              </button>
+            </div>
           </div>
         );
       }
@@ -982,6 +1238,64 @@ const BankPanel = ({ mode: propMode, isDark }) => {
         selectedKeys={selectedRows}
         onToggleRow={(id) => setSelectedRows((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]))}
         onToggleAll={(c) => setSelectedRows(c ? rows.map((r) => r.id) : [])}
+        filters={activeTab === 'Inbox' ? (
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-lg border border-slate-200 dark:border-slate-700/60 shadow-2xs">
+              {[
+                { id: 'ALL', label: 'All Status' },
+                { id: 'PUSHED', label: 'Pushed' },
+                { id: 'PENDING', label: 'Pending' },
+                { id: 'FAILED', label: 'Errors' }
+              ].map(s => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => setBrsStatusFilter(s.id)}
+                  className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                    brsStatusFilter === s.id
+                      ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-lg border border-slate-200 dark:border-slate-700/60 shadow-2xs">
+              {[
+                { id: 'ALL', label: 'All Types' },
+                { id: 'Payment', label: 'Payment' },
+                { id: 'Receipt', label: 'Receipt' },
+                { id: 'Contra', label: 'Contra' }
+              ].map(t => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setBrsVoucherTypeFilter(t.id)}
+                  className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                    brsVoucherTypeFilter === t.id
+                      ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : undefined}
+        actions={activeTab === 'Inbox' && selectedRows.length > 0 ? (
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={handleBulkDelete}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 hover:bg-rose-500 hover:text-white shadow-xs transition-all cursor-pointer"
+            >
+              <Trash2 size={12} />
+              <span>Delete Selected ({selectedRows.length})</span>
+            </button>
+          </div>
+        ) : undefined}
         search={{ value: bankSearch, onChange: setBankSearch, placeholder: 'Search transactions…' }}
         onRowClick={activeTab === 'Manage Bank' ? (row) => setSelectedBankRow(prev => prev?.id === row.id ? null : row) : undefined}
         rowClassName={activeTab === 'Manage Bank' ? (row) => row.id === selectedBankRow?.id ? 'bg-[var(--app-accent-soft)] border-l-2 border-[var(--app-accent)]' : '' : undefined}
@@ -1185,9 +1499,17 @@ const BankPanel = ({ mode: propMode, isDark }) => {
 
       {/* KPI cards */}
       {tabKpis().length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 shrink-0">
+        <div className={`grid gap-3 shrink-0 ${tabKpis().length === 4 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2 sm:grid-cols-3'}`}>
           {tabKpis().map((k, i) => (
-            <StatCard key={`${activeTab}-${k.label}`} index={i} label={k.label} value={k.value} icon={k.icon} />
+            <StatCard
+              key={`${activeTab}-${k.label}`}
+              index={i}
+              label={k.label}
+              value={k.value}
+              icon={k.icon}
+              onClick={k.onClick}
+              active={k.active}
+            />
           ))}
         </div>
       )}
@@ -1998,6 +2320,7 @@ const BankStatementUploadModal = ({ onClose, BANK_LEDGERS, initialLedger, onBatc
   const [file, setFile] = useState(null);
   const [bankLedger, setBankLedger] = useState(initialLedger || effectiveLedgers[0] || 'Primary Bank Account');
   const [loading, setLoading] = useState(false);
+  const [duplicateUploadInfo, setDuplicateUploadInfo] = useState(null);
 
   useEffect(() => {
     if (initialLedger) {
@@ -2007,17 +2330,31 @@ const BankStatementUploadModal = ({ onClose, BANK_LEDGERS, initialLedger, onBatc
     }
   }, [initialLedger, BANK_LEDGERS]);
 
-  const handleUpload = async () => {
-    if (!file) {
+  const handleUpload = async (forceReplace = false) => {
+    const uploadFile = forceReplace && duplicateUploadInfo ? duplicateUploadInfo.file : file;
+    const targetLedger = forceReplace && duplicateUploadInfo
+      ? duplicateUploadInfo.targetLedger
+      : (bankLedger || effectiveLedgers[0] || 'Primary Bank Account');
+
+    if (!uploadFile) {
       toast.error('Please select a bank statement file (PDF or Excel/CSV)');
       return;
     }
-    const targetLedger = bankLedger || effectiveLedgers[0] || 'Primary Bank Account';
 
     setLoading(true);
     try {
-      const res = await bankStatementAiApi.uploadStatement(file, targetLedger);
+      const res = await bankStatementAiApi.uploadStatement(uploadFile, targetLedger, forceReplace);
+      if (res.success && res.duplicate_found) {
+        setDuplicateUploadInfo({
+          file: uploadFile,
+          targetLedger: targetLedger,
+          existingDoc: res.existing_doc
+        });
+        return;
+      }
+
       if (res.success && res.data) {
+        setDuplicateUploadInfo(null);
         toast.success(`Statement processed for '${targetLedger}'! Found ${res.data.summary.total_count} transactions.`);
         onBatchCreated(res.data);
         onClose();
@@ -2029,74 +2366,189 @@ const BankStatementUploadModal = ({ onClose, BANK_LEDGERS, initialLedger, onBatc
     }
   };
 
+  const handleOpenExistingBatch = async () => {
+    if (!duplicateUploadInfo?.existingDoc) return;
+    const existing = duplicateUploadInfo.existingDoc;
+    setLoading(true);
+    try {
+      const batchRes = await bankStatementAiApi.getBatchReview(existing.batch_id);
+      if (batchRes && batchRes.data) {
+        toast.info(`Opening existing statement batch '${existing.filename}'`);
+        onBatchCreated(batchRes.data);
+        onClose();
+      } else {
+        onBatchCreated({
+          batch_id: existing.batch_id,
+          file_name: existing.filename,
+          bank_ledger: existing.bank_ledger,
+          summary: { total_count: existing.total_count }
+        });
+        onClose();
+      }
+    } catch (err) {
+      toast.error('Could not load existing batch: ' + (err.response?.data?.detail || err.message));
+    } finally {
+      setLoading(false);
+      setDuplicateUploadInfo(null);
+    }
+  };
+
   return (
-    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 animate-in fade-in duration-300">
-      <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px]" onClick={onClose} />
-      <div className="relative w-[650px] bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col">
-        <div className="p-6 flex items-center justify-between border-b" style={{ borderColor: 'var(--app-row-border)' }}>
-          <div className="flex items-center gap-2">
-            <Sparkles className="text-[var(--app-accent)]" size={20} />
-            <h2 className="text-[18px] font-black text-[var(--app-heading)] tracking-tight">AI Bank Statement Ingestion</h2>
-          </div>
-          <button onClick={onClose} className="p-1 text-[var(--app-muted)] hover:text-[var(--app-heading)] transition-colors"><X size={20} /></button>
-        </div>
-
-        <div className="p-8 space-y-6">
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-[11px] font-extrabold uppercase text-[var(--app-muted)]">Target Bank Ledger</label>
-              {bankLedger && (
-                <span className="text-[10.5px] font-extrabold text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-                  Target: {bankLedger}
-                </span>
-              )}
+    <>
+      <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 animate-in fade-in duration-300">
+        <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px]" onClick={onClose} />
+        <div className="relative w-[650px] bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col">
+          <div className="p-6 flex items-center justify-between border-b" style={{ borderColor: 'var(--app-row-border)' }}>
+            <div className="flex items-center gap-2">
+              <Sparkles className="text-[var(--app-accent)]" size={20} />
+              <h2 className="text-[18px] font-black text-[var(--app-heading)] tracking-tight">AI Bank Statement Ingestion</h2>
             </div>
-            <SearchableDropdown placeholder="Select Bank Ledger" items={effectiveLedgers} value={bankLedger} onChange={setBankLedger} />
-            <p className="text-[10px] text-[var(--app-muted)] mt-1.5 font-medium">
-              Only verified bank accounts (Bank Accounts, Bank OD A/c) are listed.
-            </p>
+            <button onClick={onClose} className="p-1 text-[var(--app-muted)] hover:text-[var(--app-heading)] transition-colors"><X size={20} /></button>
           </div>
 
-          <div>
-            <label className="text-[11px] font-extrabold uppercase text-[var(--app-muted)] block mb-2">Bank Statement File (.pdf, .xlsx, .xls, .csv)</label>
-            <div className="border-2 border-dashed rounded-2xl p-6 text-center bg-[var(--app-control-bg)] hover:border-[var(--app-accent)] transition-all cursor-pointer relative" style={{ borderColor: 'var(--app-border)' }}>
-              <input
-                type="file"
-                accept=".pdf,.xlsx,.xls,.csv"
-                onChange={(e) => setFile(e.target.files[0])}
-                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-              />
-              <Upload className="mx-auto text-[var(--app-accent)] mb-2" size={28} />
-              {file ? (
-                <div>
-                  <span className="text-xs font-black text-[var(--app-heading)] block">{file.name}</span>
-                  <span className="text-[10px] font-semibold text-[var(--app-muted)]">{(file.size / 1024).toFixed(1)} KB</span>
-                </div>
-              ) : (
-                <div>
-                  <span className="text-xs font-bold text-[var(--app-heading)] block">Click or Drag & Drop Bank Statement</span>
-                  <span className="text-[10px] font-semibold text-[var(--app-muted)]">Supports PDF statements, Excel (.xlsx, .xls) and CSV files</span>
-                </div>
-              )}
+          <div className="p-8 space-y-6">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-[11px] font-extrabold uppercase text-[var(--app-muted)]">Target Bank Ledger</label>
+                {bankLedger && (
+                  <span className="text-[10.5px] font-extrabold text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                    Target: {bankLedger}
+                  </span>
+                )}
+              </div>
+              <SearchableDropdown placeholder="Select Bank Ledger" items={effectiveLedgers} value={bankLedger} onChange={setBankLedger} />
+              <p className="text-[10px] text-[var(--app-muted)] mt-1.5 font-medium">
+                Only verified bank accounts (Bank Accounts, Bank OD A/c) are listed.
+              </p>
             </div>
-          </div>
 
-          <div className="flex justify-end gap-3 pt-2">
-            <button onClick={onClose} className="px-5 py-2.5 rounded-xl border text-xs font-bold hover:bg-[var(--app-control-hover)]" style={{ borderColor: 'var(--app-border)', color: 'var(--app-muted)' }}>
-              Cancel
-            </button>
-            <button
-              onClick={handleUpload}
-              disabled={loading || !file}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider bg-[var(--app-accent)] text-white shadow-md hover:opacity-90 disabled:opacity-50 transition-all cursor-pointer"
-            >
-              {loading ? <RefreshCw className="animate-spin" size={14} /> : <Sparkles size={14} />}
-              <span>{loading ? 'Processing AI Extraction...' : 'Upload & Process AI Statement'}</span>
-            </button>
+            <div>
+              <label className="text-[11px] font-extrabold uppercase text-[var(--app-muted)] block mb-2">Bank Statement File (.pdf, .xlsx, .xls, .csv)</label>
+              <div className="border-2 border-dashed rounded-2xl p-6 text-center bg-[var(--app-control-bg)] hover:border-[var(--app-accent)] transition-all cursor-pointer relative" style={{ borderColor: 'var(--app-border)' }}>
+                <input
+                  type="file"
+                  accept=".pdf,.xlsx,.xls,.csv"
+                  onChange={(e) => setFile(e.target.files[0])}
+                  className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                />
+                <Upload className="mx-auto text-[var(--app-accent)] mb-2" size={28} />
+                {file ? (
+                  <div>
+                    <span className="text-xs font-black text-[var(--app-heading)] block">{file.name}</span>
+                    <span className="text-[10px] font-semibold text-[var(--app-muted)]">{(file.size / 1024).toFixed(1)} KB</span>
+                  </div>
+                ) : (
+                  <div>
+                    <span className="text-xs font-bold text-[var(--app-heading)] block">Click or Drag & Drop Bank Statement</span>
+                    <span className="text-[10px] font-semibold text-[var(--app-muted)]">Supports PDF statements, Excel (.xlsx, .xls) and CSV files</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <button onClick={onClose} className="px-5 py-2.5 rounded-xl border text-xs font-bold hover:bg-[var(--app-control-hover)] cursor-pointer" style={{ borderColor: 'var(--app-border)', color: 'var(--app-muted)' }}>
+                Cancel
+              </button>
+              <button
+                onClick={() => handleUpload(false)}
+                disabled={loading || !file}
+                className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider bg-[var(--app-accent)] text-white shadow-md hover:opacity-90 disabled:opacity-50 transition-all cursor-pointer"
+              >
+                {loading ? <RefreshCw className="animate-spin" size={14} /> : <Sparkles size={14} />}
+                <span>{loading ? 'Processing AI Extraction...' : 'Upload & Process AI Statement'}</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+
+      {/* ── Duplicate Document Resolution Modal (reusing OCR/Invoice style) ── */}
+      {duplicateUploadInfo && (
+        <div className="fixed inset-0 z-[600] flex items-center justify-center bg-black/60 backdrop-blur-xs select-none animate-fadeIn p-4">
+          <div className="bg-white dark:bg-[#15151a] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95">
+            {/* Header */}
+            <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center gap-2.5">
+              <ShieldAlert className="text-rose-500 shrink-0" size={20} />
+              <div>
+                <h3 className="text-sm font-black text-slate-800 dark:text-slate-100">Duplicate Document Detected</h3>
+                <p className="text-[10px] text-slate-500 font-semibold">AI Content & Hash Verification</p>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-5 space-y-4">
+              <p className="text-[11.5px] text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
+                An identical document has already been uploaded for this bank account. The transactions and statement content match an existing batch:
+              </p>
+
+              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-800/70 space-y-2.5">
+                <div className="flex justify-between items-center text-[11px]">
+                  <span className="text-slate-400 dark:text-slate-500 font-semibold">Previous File</span>
+                  <span className="font-bold text-slate-700 dark:text-slate-200 truncate max-w-[210px]" title={duplicateUploadInfo.existingDoc.filename}>
+                    {duplicateUploadInfo.existingDoc.filename}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-[11px]">
+                  <span className="text-slate-400 dark:text-slate-500 font-semibold">Bank Ledger</span>
+                  <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                    {duplicateUploadInfo.existingDoc.bank_ledger}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-[11px]">
+                  <span className="text-slate-400 dark:text-slate-500 font-semibold">Upload Date</span>
+                  <span className="font-bold text-slate-700 dark:text-slate-300">
+                    {duplicateUploadInfo.existingDoc.uploaded_on ? new Date(duplicateUploadInfo.existingDoc.uploaded_on).toLocaleString() : 'Earlier'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-[11px]">
+                  <span className="text-slate-400 dark:text-slate-500 font-semibold">Transactions</span>
+                  <span className="font-extrabold text-indigo-600 dark:text-indigo-400">
+                    {duplicateUploadInfo.existingDoc.total_count} txns
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-[11px]">
+                  <span className="text-slate-400 dark:text-slate-500 font-semibold">Status</span>
+                  <span className="text-[9.5px] font-extrabold px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-200/40 uppercase tracking-wider">
+                    {duplicateUploadInfo.existingDoc.status}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Actions Footer */}
+            <div className="px-5 py-3.5 bg-slate-50/70 dark:bg-slate-900/30 border-t border-slate-100 dark:border-slate-800 flex flex-wrap gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setDuplicateUploadInfo(null);
+                  toast.info("Upload cancelled.");
+                }}
+                className="px-3.5 py-1.5 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-[11px] font-bold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors bg-white dark:bg-transparent"
+              >
+                Cancel Upload
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleUpload(true)}
+                className="px-3.5 py-1.5 border border-amber-300 text-amber-600 dark:text-amber-400 text-[11px] font-bold rounded-lg hover:bg-amber-50 dark:hover:bg-amber-950/30 cursor-pointer transition-colors bg-white dark:bg-transparent"
+              >
+                Replace
+              </button>
+
+              <button
+                type="button"
+                onClick={handleOpenExistingBatch}
+                className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold rounded-lg cursor-pointer transition-colors border-none shadow-sm"
+              >
+                Open Existing
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 

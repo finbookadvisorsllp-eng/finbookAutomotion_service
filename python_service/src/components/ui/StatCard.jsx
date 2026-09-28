@@ -3,14 +3,20 @@ import useCountUp from './useCountUp'
 
 // Flat ERP KPI card: neutral surface, accent icon, semantic delta, count-up
 // value. No tilt / hover-lift / hover-shadow — functional, not decorative.
-export default function StatCard({ label, value, icon: Icon, delta, right, insight }) {
+export default function StatCard({ label, value, icon: Icon, delta, right, insight, onClick, active, className }) {
   const up = delta?.dir !== 'down'
   const display = useCountUp(value)
 
   return (
     <div
-      style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-panel-bg)' }}
-      className="rounded-xl border p-3 flex flex-col gap-2"
+      onClick={onClick}
+      style={{
+        borderColor: active ? 'var(--app-accent)' : 'var(--app-border)',
+        backgroundColor: active ? 'var(--app-control-bg)' : 'var(--app-panel-bg)'
+      }}
+      className={`rounded-xl border p-3 flex flex-col gap-2 transition-all ${
+        onClick ? 'cursor-pointer hover:border-[var(--app-accent)] hover:shadow-xs active:scale-[0.99]' : ''
+      } ${active ? 'ring-2 ring-[var(--app-accent)]/20 shadow-xs' : ''} ${className || ''}`}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">

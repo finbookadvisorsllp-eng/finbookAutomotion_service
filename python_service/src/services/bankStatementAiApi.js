@@ -6,10 +6,13 @@ export const bankStatementAiApi = {
   /**
    * Upload bank statement (PDF, XLSX, XLS, CSV) + bankLedger
    */
-  uploadStatement: (file, bankLedger, onProgress) => {
+  uploadStatement: (file, bankLedger, forceReplace = false, onProgress) => {
     const form = new FormData();
     form.append('file', file);
     form.append('bankLedger', bankLedger);
+    if (forceReplace) {
+      form.append('force_replace', 'true');
+    }
 
     return apiClient.post(`${BASE_URL}/upload`, form, {
       headers: { 'Content-Type': 'multipart/form-data' },
@@ -43,6 +46,26 @@ export const bankStatementAiApi = {
    */
   saveVouchers: (batchId, itemIds) =>
     apiClient.post(`${BASE_URL}/save-vouchers`, { batch_id: batchId, item_ids: itemIds }).then((r) => r.data),
+
+  /**
+   * Push saved vouchers to Tally in ONE single combined XML request
+   */
+  pushToTally: (batchId, itemIds = null, voucherIds = null) =>
+    apiClient.post(`${BASE_URL}/push-to-tally`, {
+      batch_id: batchId,
+      item_ids: itemIds,
+      voucher_ids: voucherIds
+    }).then((r) => r.data),
+
+  /**
+   * Preview single combined Tally XML for selected/saved vouchers
+   */
+  previewBatchXml: (batchId, itemIds = null, voucherIds = null) =>
+    apiClient.post(`${BASE_URL}/preview-batch-xml`, {
+      batch_id: batchId,
+      item_ids: itemIds,
+      voucher_ids: voucherIds
+    }).then((r) => r.data),
 
   /**
    * Completely delete a processed bank statement draft batch

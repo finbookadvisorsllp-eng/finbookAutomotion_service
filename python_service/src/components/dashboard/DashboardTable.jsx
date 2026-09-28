@@ -24,6 +24,8 @@ function SectionLabel({ icon: Icon, children }) {
 export default function DashboardTable() {
   const navigate = useNavigate()
   const selectedCompany = useAppStore((s) => s.selectedCompany)
+  const orgId = useAppStore((s) => s.orgId)
+  const orgName = useAppStore((s) => s.orgName)
   const currentUser = useAppStore((s) => s.user)
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -38,12 +40,17 @@ export default function DashboardTable() {
     return () => window.removeEventListener('fy-changed', onFy)
   }, [])
 
+  const activeCompId = orgId || localStorage.getItem('selectedCompanyId') || localStorage.getItem('companyId') || localStorage.getItem('activeCompany') || selectedCompany
+  const activeCompName = orgName || localStorage.getItem('companyName')
+
   useEffect(() => {
     let active = true
     const load = async () => {
       setLoading(true)
       try {
         const params = {}
+        if (activeCompId) params.companyId = activeCompId
+        if (activeCompName) params.companyName = activeCompName
         const y = selectedFy.split('-')[0].replace(/\D/g, '')
         if (y) { params.startDate = `20${y}-04-01`; params.endDate = `20${parseInt(y) + 1}-03-31` }
         if (partyFilter !== 'All') params.partyLedger = partyFilter
@@ -56,8 +63,16 @@ export default function DashboardTable() {
       }
     }
     load()
-    return () => { active = false }
-  }, [selectedCompany, selectedFy, partyFilter])
+
+    const onCompChanged = () => {
+      load()
+    }
+    window.addEventListener('company-changed', onCompChanged)
+    return () => {
+      active = false
+      window.removeEventListener('company-changed', onCompChanged)
+    }
+  }, [selectedCompany, orgId, orgName, activeCompId, activeCompName, selectedFy, partyFilter])
 
   if (loading) return <div className="h-full flex items-center justify-center"><ThinkingLoader /></div>
 
@@ -72,7 +87,7 @@ export default function DashboardTable() {
 
   const totalVouchersStr = typeof data?.totalVouchers === 'number' ? data.totalVouchers.toLocaleString('en-IN') : (data?.totalVouchers || '0')
   const pendingApprovalStr = typeof data?.pendingApproval === 'number' ? data.pendingApproval.toLocaleString('en-IN') : (data?.pendingApproval || '0')
-  const importedTodayStr = typeof data?.ocrDocumentsProcessed === 'number' ? data.ocrDocumentsProcessed.toLocaleString('en-IN') : (data?.ocrDocumentsProcessed || '0')
+  const importedTodayStr = typeof data?.importedToday === 'number' ? data.importedToday.toLocaleString('en-IN') : (typeof data?.ocrDocumentsProcessed === 'number' ? data.ocrDocumentsProcessed.toLocaleString('en-IN') : (data?.ocrDocumentsProcessed || '0'))
   const postedToTallyStr = typeof data?.postedToTally === 'number' ? data.postedToTally.toLocaleString('en-IN') : (data?.postedToTally || '0')
 
   const kpis = [

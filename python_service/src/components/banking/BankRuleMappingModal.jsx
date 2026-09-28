@@ -2,13 +2,14 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import {
   Landmark, Layers, GitBranch, Search, Filter, ChevronDown, ChevronRight,
   CheckCircle2, AlertCircle, Sparkles, Plus, Check, X, RefreshCw,
-  MoreVertical, ArrowLeft, Eye, Edit3, Trash2, Sliders, FileText, CheckCircle
+  ArrowLeft, Eye
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
 import { toast } from 'sonner';
 import bankRulesApi from '../../services/bankRulesApi';
 import bankStatementAiApi from '../../services/bankStatementAiApi';
 import SmartLedgerDropdown, { findBestLedgerMatch } from './SmartLedgerDropdown';
+import { useFundFlowStore } from '../../stores/useFundFlowStore';
 
 // Memory cache so returning to Ledger Mapping tab or switching bank accounts is 0ms instant without re-analyzing
 const ledgerMappingsCache = new Map();
@@ -41,7 +42,9 @@ export const BANK_STOP_WORDS = new Set([
   'RRN', 'MOB', 'NA', 'NIL', 'NULL', 'BY', 'TO', 'FOR', 'INR', 'SUCCESS', 'SETTLEMENT', 'CHARGES',
   'PAY', 'CLEAR', 'AS', 'ON', 'PAY CLEAR', 'PAY CLEAR AS ON', 'FEE', 'FEES', 'TAX', 'GST', 'SMS',
   'INTEREST', 'INT', 'SAVINGS', 'MONTHLY', 'REVERSAL', 'RETURN', 'CHARGEBACK', 'SLB', 'SLBL', 'SLBN',
-  'SELF', 'OWN', 'A/C', 'ACC', 'ACCOUNT'
+  'SELF', 'OWN', 'A/C', 'ACC', 'ACCOUNT',
+  'HDF', 'AXIS', 'PNB', 'CBI', 'IDB', 'UCO', 'BOB', 'BOI', 'BKID', 'UBI', 'IOB', 'SIB',
+  'KKBK', 'ICIC', 'PUNB', 'BARB', 'SBIN', 'FED', 'FEDERAL', 'INDUSIND', 'CANARA', 'CENTRAL', 'UNION', 'KOTAK', 'YES', 'HDFC', 'ICICI'
 ]);
 
 export const isStopPhrase = (str) => {
@@ -111,6 +114,24 @@ export const analyzeNarrationTokens = (narration) => {
     }
   });
 
+  // For CLG narrations (CLG / PARTY / CHEQUE / BANK / SEQ), token 1 is strictly the PARTY candidate
+  if (channel === 'CLG' && rawParts.length >= 2) {
+    roles[0] = 'CHANNEL';
+    roles[1] = 'PARTY';
+    partyPos = 1;
+    if (rawParts.length >= 3) {
+      roles[2] = 'TXN_ID';
+      txnIdPos = 2;
+      txnIdRegex = '\\d+';
+    }
+    if (rawParts.length >= 4) {
+      roles[3] = 'BANK_CODE';
+    }
+    for (let i = 4; i < rawParts.length; i++) {
+      if (!roles[i]) roles[i] = 'TXN_INFO';
+    }
+  }
+
   for (let idx = 0; idx < rawParts.length; idx++) {
     if (!roles[idx]) {
       const p = rawParts[idx].trim();
@@ -164,7 +185,7 @@ export const analyzeNarrationTokens = (narration) => {
     }
   });
 
-  if (candParties.length > 0) {
+  if (candParties.length > 0 && partyPos < 0) {
     if (channel === 'UPI' && txnIdPos >= 0) {
       const afterTxn = candParties.filter(c => c.idx > txnIdPos);
       if (afterTxn.length > 0) {
@@ -322,23 +343,23 @@ const LedgerMappingRow = React.memo(function LedgerMappingRow({
 
   return (
     <tr className="hover:bg-blue-50/20 transition-colors">
-      {/* Column 1: EXTRACTED PARTY ONLY (No other information) */}
-      <td className="py-2 px-3 align-middle">
-        <span className="text-xs font-bold text-slate-900 tracking-tight block truncate max-w-[230px]" title={partyText}>
+      {/* Column 1: EXTRACTED PARTY ONLY */}
+      <td className="py-1.5 px-2.5 align-middle overflow-hidden">
+        <span className="text-xs font-bold text-slate-900 tracking-tight block truncate" title={partyText}>
           {partyText}
         </span>
       </td>
 
       {/* Column 2: DESCRIPTION / NARRATION */}
-      <td className="py-2 px-3 align-middle">
-        <span className="font-mono text-[10.5px] text-slate-600 block break-words line-clamp-2 leading-tight" title={row.narration}>
+      <td className="py-1.5 px-2.5 align-middle overflow-hidden">
+        <span className="font-mono text-[10px] text-slate-600 block truncate" title={row.narration}>
           {row.narration || row.sampleNarration || '—'}
         </span>
       </td>
 
       {/* Column 3: LEDGER SELECTION (Smart Dropdown) */}
-      <td className="py-2 px-3 align-middle">
-        <div className="min-w-[180px] max-w-[280px]">
+      <td className="py-1.5 px-2.5 align-middle overflow-hidden">
+        <div className="w-full min-w-0">
           <SmartLedgerDropdown
             value={row.suggestedLedger || ''}
             onChange={handleLedgerChange}
@@ -353,9 +374,9 @@ const LedgerMappingRow = React.memo(function LedgerMappingRow({
       </td>
 
       {/* Column 4: CONFIDENCE SCORE */}
-      <td className="py-2 px-3 text-center align-middle">
+      <td className="py-1.5 px-2 text-center align-middle whitespace-nowrap overflow-hidden">
         <span
-          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-bold font-mono border shadow-2xs ${
+          className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold font-mono border shadow-2xs ${
             conf >= 90
               ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
               : conf >= 60
@@ -369,19 +390,19 @@ const LedgerMappingRow = React.memo(function LedgerMappingRow({
       </td>
 
       {/* Column 5: MAPPING METHOD (2 bases: System Auto vs User Verified) */}
-      <td className="py-2 px-3 text-center align-middle">
+      <td className="py-1.5 px-2 text-center align-middle whitespace-nowrap overflow-hidden">
         {isUserVerified ? (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10.5px] font-bold bg-blue-50 text-blue-700 border border-blue-200 shadow-2xs">
-            <Check size={11} strokeWidth={2.5} />
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 shadow-2xs">
+            <Check size={10} strokeWidth={2.5} />
             <span>User Verified</span>
           </span>
         ) : hasLedger ? (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10.5px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
-            <Sparkles size={11} />
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
+            <Sparkles size={10} />
             <span>System (Auto)</span>
           </span>
         ) : (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10.5px] font-medium bg-slate-100 text-slate-500 border border-slate-200">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-500 border border-slate-200">
             <span>Unmapped</span>
           </span>
         )}
@@ -405,6 +426,33 @@ export default function BankRuleMappingModal({
     currentBankLedger || availableBankLedgers[0] || 'BANK AC'
   );
   const [isBankSelectorOpen, setIsBankSelectorOpen] = useState(false);
+  const fundFlowMasterData = useFundFlowStore((s) => s.masterData);
+
+  // Dynamically resolve all available bank ledgers across masters and prop inputs
+  const combinedBankLedgers = useMemo(() => {
+    const list = new Set();
+    (availableBankLedgers || []).forEach(b => {
+      const name = typeof b === 'string' ? b : (b?.ledgerName || b?.name || '');
+      if (name && name !== 'BANK AC') list.add(name);
+    });
+    (fundFlowMasterData?.cashBankLedgers || []).forEach(b => {
+      const name = typeof b === 'string' ? b : (b?.ledgerName || b?.name || '');
+      if (name && name !== 'BANK AC') list.add(name);
+    });
+    (allLedgersList || []).forEach(l => {
+      const name = typeof l === 'string' ? l : (l?.ledgerName || l?.name || '');
+      const group = (typeof l === 'object' ? (l?.groupName || l?.parentGroup || '') : '').toLowerCase();
+      if (group && (group.includes('bank') || group.includes('cash'))) {
+        if (name && name !== 'BANK AC') list.add(name);
+      }
+    });
+    if (selectedBankLedger && selectedBankLedger !== 'BANK AC') list.add(selectedBankLedger);
+    if (currentBankLedger && currentBankLedger !== 'BANK AC') list.add(currentBankLedger);
+
+    const arr = Array.from(list).filter(Boolean);
+    arr.sort((a, b) => a.localeCompare(b));
+    return arr;
+  }, [availableBankLedgers, fundFlowMasterData?.cashBankLedgers, allLedgersList, selectedBankLedger, currentBankLedger]);
 
   // Main navigation: exactly TWO tabs
   const [activeTab, setActiveTab] = useState('ledger_mapping'); // 'ledger_mapping' | 'pattern_mapping'
@@ -422,7 +470,6 @@ export default function BankRuleMappingModal({
   });
   const [mappingSearch, setMappingSearch] = useState('');
   const [mappingFilter, setMappingFilter] = useState('all'); // all, mapped, unmapped, confirmed
-  const [expandedRows, setExpandedRows] = useState({});
   const [updatingPatternId, setUpdatingPatternId] = useState(null);
   const [mappingPage, setMappingPage] = useState(1);
   const [mappingPageSize, setMappingPageSize] = useState('all');
@@ -459,33 +506,100 @@ export default function BankRuleMappingModal({
   // Hierarchy & Interactive Token Indexing state
   const [selectedTxnType, setSelectedTxnType] = useState('ALL');
   const [customPatternIndexes, setCustomPatternIndexes] = useState(() => {
-    return customPatternIndexesCache.get(currentBankLedger || 'default') || {};
+    const bankKey = currentBankLedger || 'default';
+    const cached = customPatternIndexesCache.get(bankKey);
+    if (cached) return cached;
+    try {
+      const saved = localStorage.getItem(`pattern_indexes_${bankKey}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        customPatternIndexesCache.set(bankKey, parsed);
+        return parsed;
+      }
+    } catch { }
+    return {};
   });
+
   const [partyLedgerOverrides, setPartyLedgerOverrides] = useState(() => {
-    return partyLedgerOverridesCache.get(currentBankLedger || 'default') || {};
+    const bankKey = currentBankLedger || 'default';
+    const cached = partyLedgerOverridesCache.get(bankKey);
+    if (cached) return cached;
+    try {
+      const saved = localStorage.getItem(`party_overrides_${bankKey}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        partyLedgerOverridesCache.set(bankKey, parsed);
+        return parsed;
+      }
+    } catch { }
+    return {};
   });
   const [inspectingPartyModal, setInspectingPartyModal] = useState(null);
 
   // Pattern Mapping UI state matching layout
   const [selectedPatternId, setSelectedPatternId] = useState(null);
   const [appliedPatternIds, setAppliedPatternIds] = useState(() => {
-    return appliedPatternIdsCache.get(currentBankLedger || 'default') || new Set(['NEFT', 'CLG']);
+    const bankKey = currentBankLedger || 'default';
+    const cached = appliedPatternIdsCache.get(bankKey);
+    if (cached && cached.size > 0) return cached;
+    try {
+      const saved = localStorage.getItem(`applied_patterns_${bankKey}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const s = new Set(parsed);
+          appliedPatternIdsCache.set(bankKey, s);
+          return s;
+        }
+      }
+    } catch { }
+    return new Set();
   });
   const [patternStatusFilter, setPatternStatusFilter] = useState('all'); // all, applied, not_applied
   const [hoveredPartyNarrations, setHoveredPartyNarrations] = useState(null);
   const [expandedPartyNarrations, setExpandedPartyNarrations] = useState(null);
 
-  // Sync caches when selectedBankLedger changes
+  // Sync caches & localStorage when selectedBankLedger changes
   useEffect(() => {
     const key = selectedBankLedger || 'default';
     if (customPatternIndexesCache.has(key)) {
       setCustomPatternIndexes(customPatternIndexesCache.get(key));
+    } else {
+      try {
+        const saved = localStorage.getItem(`pattern_indexes_${key}`);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          customPatternIndexesCache.set(key, parsed);
+          setCustomPatternIndexes(parsed);
+        }
+      } catch { }
     }
     if (partyLedgerOverridesCache.has(key)) {
       setPartyLedgerOverrides(partyLedgerOverridesCache.get(key));
+    } else {
+      try {
+        const saved = localStorage.getItem(`party_overrides_${key}`);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          partyLedgerOverridesCache.set(key, parsed);
+          setPartyLedgerOverrides(parsed);
+        }
+      } catch { }
     }
     if (appliedPatternIdsCache.has(key)) {
       setAppliedPatternIds(appliedPatternIdsCache.get(key));
+    } else {
+      try {
+        const saved = localStorage.getItem(`applied_patterns_${key}`);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            const s = new Set(parsed);
+            appliedPatternIdsCache.set(key, s);
+            setAppliedPatternIds(s);
+          }
+        }
+      } catch { }
     }
   }, [selectedBankLedger]);
 
@@ -498,7 +612,11 @@ export default function BankRuleMappingModal({
           [field]: Number(newIndex)
         }
       };
-      customPatternIndexesCache.set(selectedBankLedger || 'default', next);
+      const bankKey = selectedBankLedger || 'default';
+      customPatternIndexesCache.set(bankKey, next);
+      try {
+        localStorage.setItem(`pattern_indexes_${bankKey}`, JSON.stringify(next));
+      } catch { }
       return next;
     });
   };
@@ -509,10 +627,41 @@ export default function BankRuleMappingModal({
         ...prev,
         [`${patId}_${partyName}`]: ledgerName
       };
-      partyLedgerOverridesCache.set(selectedBankLedger || 'default', next);
+      const bankKey = selectedBankLedger || 'default';
+      partyLedgerOverridesCache.set(bankKey, next);
+      try {
+        localStorage.setItem(`party_overrides_${bankKey}`, JSON.stringify(next));
+      } catch { }
       return next;
     });
   };
+
+  // Helper to permanently mark pattern as applied across state, cache, and localStorage
+  const markPatternAsApplied = useCallback((pat) => {
+    if (!pat) return;
+    const raw = pat.raw || pat;
+    const custom = customPatternIndexes[pat.id];
+    const pPos = custom?.partyPosition !== undefined ? custom.partyPosition : (pat.partyPosition !== undefined ? pat.partyPosition : -1);
+    const bankKey = selectedBankLedger || 'default';
+    const keysToAdd = [
+      pat.id,
+      pat.patternId,
+      raw.id,
+      raw._id,
+      `${pat.txnType}_pos_${pPos}`,
+      `${bankKey}_${pat.txnType}_pos_${pPos}`
+    ].filter(Boolean);
+
+    setAppliedPatternIds(prev => {
+      const next = new Set(prev);
+      keysToAdd.forEach(k => next.add(String(k)));
+      appliedPatternIdsCache.set(bankKey, next);
+      try {
+        localStorage.setItem(`applied_patterns_${bankKey}`, JSON.stringify(Array.from(next)));
+      } catch { }
+      return next;
+    });
+  }, [selectedBankLedger, customPatternIndexes]);
 
   const getEffectivePatternData = (pat) => {
     const custom = customPatternIndexes[pat.id];
@@ -522,10 +671,17 @@ export default function BankRuleMappingModal({
 
     const txns = pat.transactions || [];
     const sep = (pat.separator && pat.separator.includes(',')) ? pat.separator.split(',')[0].trim() : (pat.separator || '/');
+    const isClg = (pat.txnType || pat.channel || '').toUpperCase() === 'CLG' || (pat.pattern || '').toUpperCase().startsWith('CLG');
 
-    // Auto Reverse-Index Matching: If user hasn't explicitly set party position,
-    // evaluate each token index against master ledgers and pick the index that matches most frequently
-    if (custom?.partyPosition === undefined && txns.length > 0 && normalizedAllLedgers.length > 0) {
+    // For CLG, position 1 is strictly the party position unless explicitly user-customized
+    if (isClg) {
+      if (custom?.partyPosition !== undefined) {
+        partyPos = custom.partyPosition;
+      } else {
+        partyPos = 1;
+      }
+    } else if (partyPos < 0 && custom?.partyPosition === undefined && txns.length > 0 && normalizedAllLedgers.length > 0) {
+      // Auto Reverse-Index Matching: Only if partyPos is NOT defined (< 0) and user hasn't explicitly set party position
       const posScores = {};
       const sampleTxns = txns.slice(0, 25);
       sampleTxns.forEach(tx => {
@@ -558,20 +714,24 @@ export default function BankRuleMappingModal({
 
     // Safety clamp: partyPos must NEVER exceed the actual token count of the narration
     if (actualTokenCount > 0 && (partyPos >= actualTokenCount || partyPos < 0)) {
-      let bestPos = -1;
-      let bestScore = -1;
-      actualParts.forEach((p, idx) => {
-        const pTrim = p.trim();
-        if (pTrim.length >= 3 && !isStopPhrase(pTrim) && /[a-z]/i.test(pTrim)) {
-          const m = findBestLedgerMatch(pTrim, normalizedAllLedgers);
-          const score = m ? m.score : 0;
-          if (score > bestScore) {
-            bestScore = score;
-            bestPos = idx;
+      if (isClg && actualTokenCount > 1) {
+        partyPos = 1;
+      } else {
+        let bestPos = -1;
+        let bestScore = -1;
+        actualParts.forEach((p, idx) => {
+          const pTrim = p.trim();
+          if (pTrim.length >= 3 && !isStopPhrase(pTrim) && /[a-z]/i.test(pTrim)) {
+            const m = findBestLedgerMatch(pTrim, normalizedAllLedgers);
+            const score = m ? m.score : 0;
+            if (score > bestScore) {
+              bestScore = score;
+              bestPos = idx;
+            }
           }
-        }
-      });
-      partyPos = bestPos >= 0 ? bestPos : (actualTokenCount > 3 ? 3 : 0);
+        });
+        partyPos = bestPos >= 0 ? bestPos : (actualTokenCount > 1 ? 1 : 0);
+      }
     }
 
     let sampleParty = pat.extractedParty || '';
@@ -668,8 +828,96 @@ export default function BankRuleMappingModal({
     };
   };
 
+  // Lookup map of latest live review batch items by item_id / patternId / id / _id
+  const liveItemsMap = useMemo(() => {
+    const map = new Map();
+    (ledgerMappings || []).forEach(m => {
+      if (m.item_id) map.set(String(m.item_id), m);
+      if (m.id) map.set(String(m.id), m);
+      if (m._id) map.set(String(m._id), m);
+      if (m.patternId) map.set(String(m.patternId), m);
+    });
+    return map;
+  }, [ledgerMappings]);
+
+  // Determine whether a pattern is Applied or Not Applied:
+  // 1. Explicitly applied via user action in this session or persisted in cache/localStorage
+  // 2. Active approved rule in DB rules from server
+  // 3. Raw suggestion marked as approved in DB
+  // 4. Automatically applied if in AI Voucher Review, ALL its matching transactions are already mapped with exact values according to index position and ready
+  const isPatternApplied = useCallback((pat) => {
+    if (!pat) return false;
+    const raw = pat.raw || pat;
+    const custom = customPatternIndexes[pat.id];
+    const pPos = custom?.partyPosition !== undefined ? custom.partyPosition : (pat.partyPosition !== undefined ? pat.partyPosition : -1);
+    const bankKey = selectedBankLedger || 'default';
+
+    // 1. Explicit session / persisted application check by multiple signatures:
+    const candidateKeys = [
+      pat.id,
+      pat.patternId,
+      raw.id,
+      raw._id,
+      `${pat.txnType}_pos_${pPos}`,
+      `${bankKey}_${pat.txnType}_pos_${pPos}`
+    ].filter(Boolean);
+
+    if (candidateKeys.some(k => appliedPatternIds.has(String(k)))) {
+      return true;
+    }
+
+    // 2. Check if active approved rule exists in DB rules from server:
+    if (rules && rules.length > 0) {
+      const hasActiveRule = rules.some(r => {
+        if (r.status === 'inactive') return false;
+        const matchesBank = !r.bankLedger || r.bankLedger === selectedBankLedger;
+        const matchesType = (r.transactionType && r.transactionType.toUpperCase() === (pat.txnType || '').toUpperCase());
+        const matchesPattern = (r.structuralPattern && (r.structuralPattern === pat.pattern || r.structuralPattern === pat.skeleton));
+        const matchesPos = (r.partyPosition === undefined || r.partyPosition === pPos);
+        return matchesBank && (matchesType || matchesPattern) && matchesPos;
+      });
+      if (hasActiveRule) return true;
+    }
+
+    // 3. Check if raw suggestion was marked as approved in DB:
+    if (raw.reviewStatus === 'approved' || raw.status === 'active') {
+      return true;
+    }
+
+    // Default library with 0 transactions is not applied
+    if (!pat.matchingCount || pat.matchingCount === 0) {
+      return false;
+    }
+
+    // 4. Check if in AI Voucher Review, ALL its matching transactions are already mapped with exact values according to index position and ready
+    const effective = getEffectivePatternData(pat);
+    const parties = effective.distinctParties || pat.distinctParties || [];
+    if (parties.length === 0) return false;
+
+    // If ANY distinct party for this pattern is unmapped or empty, it is NOT applied
+    const hasUnmappedParty = parties.some(p => !p.mappedLedger || p.mappedLedger === 'Unmapped' || p.mappedLedger.startsWith('--'));
+    if (hasUnmappedParty) return false;
+
+    // Check transactions: all transactions in AI Voucher Review must be mapped with valid counterpart ledgers and not in review
+    const txns = (pat.transactions && pat.transactions.length > 0) ? pat.transactions : (raw.transactions || []);
+    if (txns.length === 0) return false;
+
+    const allTxnsMapped = txns.every(tx => {
+      const txId = String(tx.item_id || tx.id || tx._id || '');
+      const item = (txId && liveItemsMap.get(txId)) || tx;
+      const ledger = (item.partyLedger || item.againstLedger || item.suggestedLedger || tx.partyLedger || '').trim();
+      const hasValidLedger = ledger && ledger !== 'Unmapped' && !ledger.startsWith('--');
+      const isReviewRequired = item.review_required === true || item.status === 'review_required';
+      return hasValidLedger && !isReviewRequired;
+    });
+
+    return allTxnsMapped;
+  }, [appliedPatternIds, liveItemsMap, rules, selectedBankLedger, customPatternIndexes, partyLedgerOverrides, normalizedAllLedgers]);
+
   // Apply custom token index & auto-map transactions to Tally Master
   const handleApplyPatternIndexing = async (pat) => {
+    // Immediately mark pattern as applied across state, cache, and localStorage
+    markPatternAsApplied(pat);
     const effective = getEffectivePatternData(pat);
     const raw = pat.raw || pat;
 
@@ -700,7 +948,8 @@ export default function BankRuleMappingModal({
           bankLedger: selectedBankLedger,
           batch_id: batchId,
           scope: 'bank_specific',
-          partyLedgerMappings: partyLedgerMappings  // ← full list for bulk alias save
+          partyLedgerMappings: partyLedgerMappings,
+          item_ids: (pat.transactions || []).map(t => t.item_id || t.id).filter(Boolean)
         });
 
         updatedBatch = approveRes?.updated_batch || null;
@@ -717,17 +966,19 @@ export default function BankRuleMappingModal({
         try {
           const fresh = await bankStatementAiApi.getBatchReview(batchId);
           if (fresh?.data) updatedBatch = fresh.data;
-        } catch (e) { }
+        } catch { }
       }
 
       if (onRulesApplied) onRulesApplied(updatedBatch);
 
       // Update local ledger mappings for all transactions of this pattern/type
-      if (pat.transactions && pat.transactions.length > 0) {
+      const patTxns = (pat.transactions && pat.transactions.length > 0) ? pat.transactions : (raw.transactions || []);
+      if (patTxns.length > 0) {
         const pPos = effective.partyPosition;
         const sep = pat.separator || '/';
         const partyLedgerLookup = {};
-        (effective.distinctParties || []).forEach(dp => {
+        const partiesList = effective.distinctParties || [];
+        partiesList.forEach(dp => {
           if (dp.mappedLedger && dp.mappedLedger !== 'Unmapped') {
             partyLedgerLookup[dp.party.toLowerCase().trim()] = {
               ledger: dp.mappedLedger,
@@ -738,7 +989,7 @@ export default function BankRuleMappingModal({
 
         setLedgerMappings(prev => {
           const updated = prev.map(m => {
-            if (pat.transactions.some(t => (t.item_id && t.item_id === m.item_id) || (t.id && t.id === m.id))) {
+            if (patTxns.some(t => (t.item_id && t.item_id === m.item_id) || (t.id && t.id === m.id))) {
               const narr = m.narration || m.sampleNarration || '';
               const parts = sep === ' ' ? narr.trim().split(/\s+/) : narr.split(sep);
               const extracted = (pPos >= 0 && pPos < parts.length) ? parts[pPos].trim() : m.extractedParty;
@@ -761,20 +1012,20 @@ export default function BankRuleMappingModal({
 
         // Save pattern overrides permanently so returning to Pattern Mapping preserves applied ledgers
         const updatedOverrides = { ...partyLedgerOverrides };
-        (effective.distinctParties || []).forEach(dp => {
+        const partiesToSave = effective.distinctParties || [];
+        partiesToSave.forEach(dp => {
           if (dp.mappedLedger && dp.mappedLedger !== 'Unmapped') {
             updatedOverrides[`${pat.id}_${dp.party}`] = dp.mappedLedger;
           }
         });
         setPartyLedgerOverrides(updatedOverrides);
         partyLedgerOverridesCache.set(selectedBankLedger || 'default', updatedOverrides);
-        setAppliedPatternIds(prev => {
-          const next = new Set([...prev, pat.id, pat.txnType, pat.channel]);
-          appliedPatternIdsCache.set(selectedBankLedger || 'default', next);
-          return next;
-        });
+        try {
+          localStorage.setItem(`party_overrides_${selectedBankLedger || 'default'}`, JSON.stringify(updatedOverrides));
+        } catch { }
+        markPatternAsApplied(pat);
       }
-    } catch (err) {
+    } catch {
       toast.success(`Applied Party Index [${effective.partyPosition}] for ${pat.txnType || pat.patternName}!`);
     }
   };
@@ -879,11 +1130,11 @@ export default function BankRuleMappingModal({
   useEffect(() => {
     if (currentBankLedger && currentBankLedger !== selectedBankLedger) {
       setSelectedBankLedger(currentBankLedger);
-    } else if ((!selectedBankLedger || selectedBankLedger === 'BANK AC') && availableBankLedgers?.length > 0) {
-      const preferred = availableBankLedgers.find(bl => bl !== 'BANK AC') || availableBankLedgers[0];
+    } else if ((!selectedBankLedger || selectedBankLedger === 'BANK AC') && combinedBankLedgers?.length > 0) {
+      const preferred = combinedBankLedgers.find(bl => bl !== 'BANK AC') || combinedBankLedgers[0];
       if (preferred) setSelectedBankLedger(preferred);
     }
-  }, [currentBankLedger, availableBankLedgers]);
+  }, [currentBankLedger, combinedBankLedgers]);
 
   useEffect(() => {
     if (activeTab === 'ledger_mapping') {
@@ -1218,48 +1469,15 @@ export default function BankRuleMappingModal({
 
     const hasStatementTxns = ledgerMappings && ledgerMappings.length > 0;
 
-    // 1. Group transactions into Transaction Types & Distinct Structural Patterns
-    // Prioritize backend AI pattern discovery suggestions (derived with Master-First Reverse Index matching)
-    if (suggestions && suggestions.length > 0) {
-      suggestions.forEach(s => {
-        let type = (s.transactionType || s.txnType || s.channel || 'OTHER').toUpperCase();
-        if (type === 'INTERNAL_TRANSFER' || type === 'OTHER_TRANSFER') type = 'TRANSFER';
-        if (type === 'BANK_CHARGES') type = 'CHARGES';
-        if (type === 'CHEQUE') type = 'CHQ';
-        if (type === 'MANDATE') type = 'NACH';
-        if (type === 'CARD') type = 'POS';
-
-        if (!typePatternGroups.has(type)) {
-          typePatternGroups.set(type, new Map());
-        }
-        const structMap = typePatternGroups.get(type);
-        const sig = s.candidatePattern || s.pattern || `sig_${s.id}`;
-        if (!structMap.has(sig) && (s.matchingCount > 0 || s.frequency > 0)) {
-          structMap.set(sig, {
-            id: s._id || s.id,
-            txnType: type,
-            separator: s.separator || '/',
-            skeleton: s.pattern || s.candidatePattern,
-            partyPosition: s.partyPosition !== undefined ? s.partyPosition : -1,
-            txnIdPosition: s.txnIdPosition !== undefined ? s.txnIdPosition : -1,
-            matchingCount: s.matchingCount || s.frequency || 0,
-            transactions: s.transactions || [],
-            sampleNarrations: s.sampleNarrations || [],
-            tokens: s.tokens || [],
-            raw: s,
-            distinctPartiesMap: (s.distinctParties || []).reduce((acc, dp) => {
-              acc[dp.party] = dp;
-              return acc;
-            }, {})
-          });
-        }
-      });
-    } else if (hasStatementTxns) {
-      // Fallback to client-side grouping only when suggestions haven't loaded yet
+    // 1. Group statement transactions from ledgerMappings first (Ground Truth for all active statement transactions)
+    if (hasStatementTxns) {
       ledgerMappings.forEach((m) => {
         const narr = m.narration || m.sampleNarration || '';
         const analysis = getCachedNarrationAnalysis(narr);
         let txnType = (analysis.channel || m.channel || 'OTHER').toUpperCase();
+        if (txnType === 'INTERNAL_TRANSFER' || txnType === 'OTHER_TRANSFER') txnType = 'TRANSFER';
+        if (txnType === 'BANK_CHARGES') txnType = 'CHARGES';
+        if (txnType === 'CHEQUE') txnType = 'CHQ';
         if (txnType === 'MANDATE') txnType = 'NACH';
         if (txnType === 'CARD') txnType = 'POS';
 
@@ -1267,7 +1485,8 @@ export default function BankRuleMappingModal({
           typePatternGroups.set(txnType, new Map());
         }
         const structMap = typePatternGroups.get(txnType);
-        const sig = `${txnType}__party${analysis.partyPos >= 0 ? analysis.partyPos : 'none'}`;
+        const pPos = (txnType === 'CLG') ? 1 : (analysis.partyPos >= 0 ? analysis.partyPos : -1);
+        const sig = `${txnType}__pos_${pPos}`;
 
         if (!structMap.has(sig)) {
           structMap.set(sig, {
@@ -1275,8 +1494,8 @@ export default function BankRuleMappingModal({
             separator: analysis.sep || '/',
             separators: new Set([analysis.sep || '/']),
             skeleton: analysis.skeleton,
-            partyPosition: analysis.partyPos >= 0 ? analysis.partyPos : -1,
-            txnIdPosition: analysis.txnIdPos >= 0 ? analysis.txnIdPos : -1,
+            partyPosition: pPos,
+            txnIdPosition: txnType === 'CLG' ? 2 : (analysis.txnIdPos >= 0 ? analysis.txnIdPos : -1),
             matchingCount: 0,
             transactions: [],
             sampleNarrations: [],
@@ -1293,7 +1512,7 @@ export default function BankRuleMappingModal({
           g.sampleNarrations.push(narr);
         }
 
-        // Extract party candidate dynamically using this specific transaction's own narration separator
+        // Extract party candidate dynamically strictly from this group's partyPosition
         const txSep = analysis.sep || g.separator || '/';
         const parts = txSep === ' ' ? narr.trim().split(/\s+/) : narr.split(txSep);
         const pCand = (g.partyPosition >= 0 && g.partyPosition < parts.length) ? parts[g.partyPosition].trim() : (m.extractedParty || '');
@@ -1335,6 +1554,97 @@ export default function BankRuleMappingModal({
               g.distinctPartiesMap[pCand].sampleTransactions.push(m);
             }
           }
+        }
+      });
+    }
+
+    // 2. Enrich with backend AI pattern discovery suggestions (or fallback if no statement transactions loaded)
+    if (suggestions && suggestions.length > 0) {
+      suggestions.forEach(s => {
+        let type = (s.transactionType || s.txnType || s.channel || 'OTHER').toUpperCase();
+        if (type === 'INTERNAL_TRANSFER' || type === 'OTHER_TRANSFER') type = 'TRANSFER';
+        if (type === 'BANK_CHARGES') type = 'CHARGES';
+        if (type === 'CHEQUE') type = 'CHQ';
+        if (type === 'MANDATE') type = 'NACH';
+        if (type === 'CARD') type = 'POS';
+
+        if (!typePatternGroups.has(type)) {
+          typePatternGroups.set(type, new Map());
+        }
+        const structMap = typePatternGroups.get(type);
+        // Group strictly by partyPosition so all transactions in a group share the same index position
+        const pPos = (type === 'CLG') ? 1 : (s.partyPosition !== undefined ? s.partyPosition : -1);
+        const sig = `${type}__pos_${pPos}`;
+
+        if (structMap.has(sig)) {
+          // Group already created from statement transactions: enrich with backend metadata without dropping any statement txns
+          const existing = structMap.get(sig);
+          if (!existing.raw) existing.raw = s;
+          if (s._id || s.id) existing.id = s._id || s.id;
+          if (s.pattern || s.candidatePattern) existing.skeleton = s.pattern || s.candidatePattern;
+          if (s.tokens && s.tokens.length > 0 && (!existing.tokens || existing.tokens.length === 0)) {
+            existing.tokens = s.tokens;
+          }
+          if (s.distinctParties && s.distinctParties.length > 0) {
+            s.distinctParties.forEach(dp => {
+              if (dp.party && existing.distinctPartiesMap[dp.party]) {
+                if (dp.mappedLedger && dp.mappedLedger !== 'Unmapped' && existing.distinctPartiesMap[dp.party].mappedLedger === 'Unmapped') {
+                  existing.distinctPartiesMap[dp.party].mappedLedger = dp.mappedLedger;
+                  existing.distinctPartiesMap[dp.party].confidence = dp.confidence || 90;
+                }
+              }
+            });
+          }
+        } else if (!hasStatementTxns && (s.matchingCount > 0 || s.frequency > 0)) {
+          // When no statement transactions uploaded yet, build group directly from backend suggestion
+          const dPartiesMap = {};
+          const sTxns = s.transactions || [];
+          const sep = s.separator || '/';
+
+          if (sTxns.length > 0) {
+            sTxns.forEach(tx => {
+              const narr = tx.narration || tx.sampleNarration || tx.raw_narration || '';
+              const parts = sep === ' ' ? narr.trim().split(/\s+/) : narr.split(sep);
+              const pCand = (pPos >= 0 && pPos < parts.length) ? parts[pPos].trim() : (tx.extractedParty || '');
+              if (pCand && pCand.length >= 2 && !isStopPhrase(pCand)) {
+                if (!dPartiesMap[pCand]) {
+                  const match = findBestLedgerMatch(pCand, normalizedAllLedgers);
+                  dPartiesMap[pCand] = {
+                    party: pCand,
+                    mappedLedger: (match && match.score >= 70) ? match.ledger : 'Unmapped',
+                    count: 1,
+                    confidence: (match && match.score >= 70) ? match.score : 0,
+                    sampleTransactions: [tx]
+                  };
+                } else {
+                  dPartiesMap[pCand].count += 1;
+                }
+              }
+            });
+          }
+
+          if (Object.keys(dPartiesMap).length === 0 && s.distinctParties) {
+            (s.distinctParties || []).forEach(dp => {
+              if (dp.party && !isStopPhrase(dp.party)) {
+                dPartiesMap[dp.party] = dp;
+              }
+            });
+          }
+
+          structMap.set(sig, {
+            id: s._id || s.id,
+            txnType: type,
+            separator: s.separator || '/',
+            skeleton: s.pattern || s.candidatePattern,
+            partyPosition: pPos,
+            txnIdPosition: s.txnIdPosition !== undefined ? s.txnIdPosition : (type === 'CLG' ? 2 : -1),
+            matchingCount: s.matchingCount || s.frequency || 0,
+            transactions: s.transactions || [],
+            sampleNarrations: s.sampleNarrations || [],
+            tokens: s.tokens || [],
+            raw: s,
+            distinctPartiesMap: dPartiesMap
+          });
         }
       });
     }
@@ -1511,9 +1821,9 @@ export default function BankRuleMappingModal({
 
     // Apply Status Filter
     if (patternStatusFilter === 'applied') {
-      list = list.filter(p => appliedPatternIds.has(p.id) || appliedPatternIds.has(p.txnType) || appliedPatternIds.has(p.channel));
+      list = list.filter(p => isPatternApplied(p));
     } else if (patternStatusFilter === 'not_applied') {
-      list = list.filter(p => !appliedPatternIds.has(p.id) && !appliedPatternIds.has(p.txnType) && !appliedPatternIds.has(p.channel));
+      list = list.filter(p => !isPatternApplied(p));
     }
 
     // Apply Search — if searching, include 0-count defaults too so user can find them
@@ -1532,7 +1842,7 @@ export default function BankRuleMappingModal({
     }
 
     return list || [];
-  }, [allCombinedPatterns, selectedTxnType, patternFilter, patternSearch, patternStatusFilter, appliedPatternIds]);
+  }, [allCombinedPatterns, selectedTxnType, patternFilter, patternSearch, patternStatusFilter, isPatternApplied]);
 
   const paginatedPatterns = useMemo(() => {
     const safeList = combinedPatterns || [];
@@ -1634,7 +1944,7 @@ export default function BankRuleMappingModal({
           </div>
         </div>
 
-        {/* Bank Account Shared Context */}
+        {/* Bank Account Shared Context & Add Custom Pattern Button */}
         <div className="flex items-center gap-2">
           {/* Bank Account Selector Card */}
           <div className="relative">
@@ -1659,8 +1969,8 @@ export default function BankRuleMappingModal({
                   className="absolute right-0 mt-1 w-64 bg-white border rounded-xl shadow-xl z-30 py-1 max-h-60 overflow-y-auto"
                   style={{ borderColor: 'var(--app-border)' }}
                 >
-                  {availableBankLedgers.length > 0 ? (
-                    availableBankLedgers.map(bl => (
+                  {combinedBankLedgers.length > 0 ? (
+                    combinedBankLedgers.map(bl => (
                       <button
                         key={bl}
                         onClick={() => {
@@ -1681,6 +1991,20 @@ export default function BankRuleMappingModal({
               </>
             )}
           </div>
+
+          {/* + Add Custom Pattern Button (Always visible directly in Bank Mapping header) */}
+          <button
+            type="button"
+            onClick={() => {
+              setIsAddPatternOpen(true);
+              setPatternTestResult(null);
+            }}
+            className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-[#2563EB] hover:bg-blue-700 text-white shadow-xs transition-all cursor-pointer shrink-0"
+            title="Add Custom Pattern Rule"
+          >
+            <Plus size={13} strokeWidth={2.5} />
+            <span>Add Custom Pattern</span>
+          </button>
         </div>
       </div>
 
@@ -1746,15 +2070,15 @@ export default function BankRuleMappingModal({
             </div>
 
             {/* ── Table with 5 Columns: Extracted Party alone, Description/Narration separate column ── */}
-            <div className="flex-1 overflow-auto min-h-0">
-              <table className="w-full text-left border-collapse">
+            <div className="flex-1 overflow-x-hidden overflow-y-auto min-h-0">
+              <table className="w-full table-fixed text-left border-collapse">
                 <thead className="sticky top-0 bg-slate-50 border-b z-10" style={{ borderColor: 'var(--app-border)' }}>
                   <tr className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                    <th className="py-2 px-3 w-[24%]">EXTRACTED PARTY</th>
-                    <th className="py-2 px-3 w-[32%]">DESCRIPTION / NARRATION</th>
-                    <th className="py-2 px-3 w-[24%]">LEDGER SELECTION</th>
-                    <th className="py-2 px-3 w-[10%] text-center">CONFIDENCE SCORE</th>
-                    <th className="py-2 px-3 w-[10%] text-center">MAPPING METHOD</th>
+                    <th className="py-2 px-2.5 w-[20%]">EXTRACTED PARTY</th>
+                    <th className="py-2 px-2.5 w-[32%]">DESCRIPTION / NARRATION</th>
+                    <th className="py-2 px-2.5 w-[26%]">LEDGER SELECTION</th>
+                    <th className="py-2 px-2 text-center w-[10%]">CONFIDENCE SCORE</th>
+                    <th className="py-2 px-2 text-center w-[12%]">MAPPING METHOD</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100" style={{ borderColor: 'var(--app-border)' }}>
@@ -1770,7 +2094,20 @@ export default function BankRuleMappingModal({
                   ) : paginatedMappings.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="py-16 text-center text-xs font-medium text-slate-500">
-                        No transactions found for {selectedBankLedger}. Upload a statement to automatically identify patterns.
+                        <div className="flex flex-col items-center justify-center gap-2 max-w-md mx-auto">
+                          <p>No statement transactions found for {selectedBankLedger}. Upload a statement or create a custom pattern rule directly.</p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsAddPatternOpen(true);
+                              setPatternTestResult(null);
+                            }}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-[#2563EB] hover:bg-blue-700 text-white shadow-xs transition-all cursor-pointer mt-1"
+                          >
+                            <Plus size={13} strokeWidth={2.5} />
+                            <span>Add Custom Pattern</span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ) : (
@@ -1902,35 +2239,22 @@ export default function BankRuleMappingModal({
                   </select>
                 </div>
               </div>
-
-              {/* + Add Custom Pattern Button */}
-              <button
-                type="button"
-                onClick={() => {
-                  setIsAddPatternOpen(true);
-                  setPatternTestResult(null);
-                }}
-                className="flex items-center gap-1.5 px-3 h-7.5 rounded-lg text-xs font-bold bg-[#2563EB] hover:bg-blue-700 text-white shadow-xs transition-all cursor-pointer shrink-0"
-              >
-                <Plus size={13} strokeWidth={2.5} />
-                <span>Add Custom Pattern</span>
-              </button>
             </div>
 
             {/* Main Content: Single Full-Width Pattern Table with Accordion */}
             <div className="flex-1 flex min-h-0 overflow-hidden bg-slate-50/20">
               {/* Full-Width Pattern Table */}
               <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-                <div className="flex-1 overflow-y-auto min-h-0">
-                  <table className="w-full text-left border-collapse">
+                <div className="flex-1 overflow-x-hidden overflow-y-auto min-h-0">
+                  <table className="w-full table-fixed text-left border-collapse">
                     <thead className="sticky top-0 bg-white border-b z-10" style={{ borderColor: 'var(--app-border)' }}>
                       <tr className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                        <th className="py-2 px-3">Pattern / Transaction Type</th>
-                        <th className="py-2 px-2.5">Transactions</th>
-                        <th className="py-2 px-2.5">Party Index</th>
-                        <th className="py-2 px-2.5">Status</th>
-                        <th className="py-2 px-2.5">Details</th>
-                        <th className="py-2 px-3 text-center">Action</th>
+                        <th className="py-2 px-3 w-[36%]">Pattern / Transaction Type</th>
+                        <th className="py-2 px-2 w-[14%]">Transactions</th>
+                        <th className="py-2 px-2 w-[14%]">Party Index</th>
+                        <th className="py-2 px-2 w-[12%]">Status</th>
+                        <th className="py-2 px-2 w-[12%]">Details</th>
+                        <th className="py-2 px-2 text-center w-[12%]">Action</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 bg-white">
@@ -1944,14 +2268,27 @@ export default function BankRuleMappingModal({
                       ) : paginatedPatterns.length === 0 ? (
                         <tr>
                           <td colSpan={6} className="py-12 text-center text-xs font-medium text-slate-400">
-                            No patterns found for current filters.
+                            <div className="flex flex-col items-center justify-center gap-2 max-w-md mx-auto">
+                              <p>No patterns found for {selectedBankLedger}.</p>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIsAddPatternOpen(true);
+                                  setPatternTestResult(null);
+                                }}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-[#2563EB] hover:bg-blue-700 text-white shadow-xs transition-all cursor-pointer mt-1"
+                              >
+                                <Plus size={13} strokeWidth={2.5} />
+                                <span>Add Custom Pattern</span>
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ) : (
                         paginatedPatterns.map((pat) => {
                           const effective = getEffectivePatternData(pat);
                           const badgeCfg = getTypeBadgeConfig(pat.txnType);
-                          const isApplied = appliedPatternIds.has(pat.id) || appliedPatternIds.has(pat.txnType) || appliedPatternIds.has(pat.channel);
+                          const isApplied = isPatternApplied(pat);
                           const isSelected = selectedPattern?.id === pat.id;
                           const sampleNarr = (pat.raw?.sampleNarrations && pat.raw.sampleNarrations[0]) ||
                             (pat.transactions && pat.transactions[0]?.narration) || pat.pattern || '';
@@ -2055,8 +2392,8 @@ export default function BankRuleMappingModal({
                                   <button
                                     type="button"
                                     onClick={() => {
+                                      markPatternAsApplied(pat);
                                       handleApplyPatternIndexing(pat);
-                                      setAppliedPatternIds(prev => new Set([...prev, pat.id, pat.txnType]));
                                     }}
                                     disabled={pat.matchingCount === 0}
                                     className="px-3.5 py-0.5 rounded-lg text-xs font-bold bg-[#2563EB] hover:bg-blue-700 text-white shadow-xs transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
@@ -2070,7 +2407,7 @@ export default function BankRuleMappingModal({
                             {/* ─── Inline Accordion Expansion ─── */}
                             {isSelected && (() => {
                               const eff = getEffectivePatternData(pat);
-                              const isAppl = appliedPatternIds.has(pat.id) || appliedPatternIds.has(pat.txnType) || appliedPatternIds.has(pat.channel);
+                              const isAppl = isPatternApplied(pat);
                               const distList = eff.distinctParties || [];
                               const sampNarr = (pat.raw?.sampleNarrations && pat.raw.sampleNarrations[0]) || (pat.transactions && pat.transactions[0]?.narration) || pat.pattern || '';
                               const sampNarrList = ((pat.sampleNarrations && pat.sampleNarrations.length > 0) ? pat.sampleNarrations : (pat.transactions && pat.transactions.length > 0) ? pat.transactions.map(t => t.narration) : [sampNarr]).filter(Boolean).slice(0, 3);
@@ -2224,7 +2561,7 @@ export default function BankRuleMappingModal({
                                                     if (!sv) return null;
                                                     const m = sv && /[a-z]/i.test(sv) && !isStopPhrase(sv) ? findBestLedgerMatch(sv, normalizedAllLedgers) : null;
                                                     const sfx = m && m.score >= 70 ? ` ★ ${m.ledger} (${m.score}%)` : '';
-                                                    return <option key={idx} value={idx}>Position {idx} — "{sv.length > 18 ? sv.slice(0, 16) + '...' : sv}"{sfx}</option>;
+                                                    return <option key={idx} value={idx}>{`Position ${idx} — "${sv.length > 18 ? sv.slice(0, 16) + '...' : sv}"${sfx}`}</option>;
                                                   })}
                                                 </select>
                                               </div>
@@ -2241,7 +2578,7 @@ export default function BankRuleMappingModal({
                                                   {Array.from({ length: dynCnt }).map((_, idx) => {
                                                     const sv = realPts[idx] || (tokList[idx]?.sampleValue) || '';
                                                     if (!sv) return null;
-                                                    return <option key={idx} value={idx}>Position {idx} — "{sv.length > 18 ? sv.slice(0, 16) + '...' : sv}"</option>;
+                                                    return <option key={idx} value={idx}>{`Position ${idx} — "${sv.length > 18 ? sv.slice(0, 16) + '...' : sv}"`}</option>;
                                                   })}
                                                 </select>
                                               </div>
@@ -2387,8 +2724,8 @@ export default function BankRuleMappingModal({
                                             type="button"
                                             onClick={(e) => {
                                               e.stopPropagation();
+                                              markPatternAsApplied(pat);
                                               handleApplyPatternIndexing(pat);
-                                              setAppliedPatternIds(prev => new Set([...prev, pat.id, pat.txnType]));
                                             }}
                                             className="w-full py-2.5 px-4 rounded-xl text-xs font-bold bg-[#2563EB] hover:bg-blue-700 active:bg-blue-800 text-white shadow-sm hover:shadow transition-all cursor-pointer flex items-center justify-center gap-1.5"
                                           >
@@ -2512,13 +2849,22 @@ export default function BankRuleMappingModal({
                   <label className="text-[10px] font-bold text-[var(--app-muted)] uppercase tracking-wider block mb-1">
                     Bank Account
                   </label>
-                  <input
-                    type="text"
-                    disabled
+                  <select
                     value={selectedBankLedger}
-                    className="w-full h-8 px-3 rounded-lg border text-xs font-bold bg-[var(--app-control-bg)] text-[var(--app-heading)] opacity-80 cursor-not-allowed"
+                    onChange={(e) => setSelectedBankLedger(e.target.value)}
+                    className="w-full h-8 px-3 rounded-lg border text-xs font-bold bg-[var(--app-panel-bg)] text-[var(--app-heading)] outline-none focus:border-[#2563EB] cursor-pointer"
                     style={{ borderColor: 'var(--app-border)' }}
-                  />
+                  >
+                    {combinedBankLedgers.length > 0 ? (
+                      combinedBankLedgers.map((bank) => (
+                        <option key={bank} value={bank}>
+                          {bank}
+                        </option>
+                      ))
+                    ) : (
+                      <option value={selectedBankLedger}>{selectedBankLedger}</option>
+                    )}
+                  </select>
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-[var(--app-muted)] uppercase tracking-wider block mb-1">

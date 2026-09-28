@@ -119,15 +119,15 @@ function Dashboard() {
   // glassmorphism (the style guide bans heavy gradients + excessive animation).
   return (
     <div
-      className={`h-screen overflow-hidden relative ${isDark ? 'dark' : ''}`}
+      className={`h-full w-full overflow-hidden relative flex flex-col ${isDark ? 'dark' : ''}`}
       style={{ backgroundColor: 'var(--app-bg)', color: 'var(--app-heading)' }}
     >
       <div
-        className="overflow-hidden h-full flex flex-row border relative z-10"
+        className="overflow-hidden h-full w-full flex flex-row border relative z-10 flex-1"
         style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-panel-bg)' }}
       >
         {/* Desktop sidebar (full height, on the left) */}
-        <div className="hidden md:flex h-full">
+        <div className="hidden md:flex h-full shrink-0">
           <Sidebar
             activeItem={activeItem}
             onItemClick={handleItemClick}
@@ -138,7 +138,7 @@ function Dashboard() {
         </div>
 
         {/* Right side panel: Navbar on top, Main content on bottom */}
-        <div className="flex-1 flex flex-col overflow-hidden h-full">
+        <div className="flex-1 flex flex-col overflow-hidden h-full min-w-0">
           <Navbar
             isDark={isDark}
             mode={mode}

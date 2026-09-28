@@ -88,7 +88,7 @@ export const useFundFlowStore = create((set, get) => ({
   transactions:  [],
   totalCount:    0,
   currentPage:   1,
-  pageLimit:     50,
+  pageLimit:     500,
   filters: {
     voucherType: 'cash_payment',
     status:      '',
@@ -137,6 +137,8 @@ export const useFundFlowStore = create((set, get) => ({
   // ─────────────────────────────────────────────────────────────────────────
   //  Actions: List + Filters
   // ─────────────────────────────────────────────────────────────────────────
+
+  setPageLimit: (limit) => set({ pageLimit: limit, currentPage: 1 }),
 
   setFilter: (key, value) => set((s) => ({
     filters: { ...s.filters, [key]: value },

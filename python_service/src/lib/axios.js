@@ -11,9 +11,14 @@ const api = axios.create({
 
 // Attach auth + tenant scope on every request.
 api.interceptors.request.use((config) => {
-  const { token, selectedCompany } = useAppStore.getState()
+  const { token, selectedCompany, orgId, orgName } = useAppStore.getState()
+  const activeCompanyId = orgId || localStorage.getItem('selectedCompanyId') || localStorage.getItem('companyId') || localStorage.getItem('activeCompany')
+  const activeCompanyName = orgName || localStorage.getItem('companyName')
+
   if (token) config.headers.Authorization = `Bearer ${token}`
   if (selectedCompany) config.headers['X-Company'] = selectedCompany
+  if (activeCompanyId) config.headers['X-Company-Id'] = activeCompanyId
+  if (activeCompanyName) config.headers['X-Company-Name'] = activeCompanyName
   return config
 })
 
