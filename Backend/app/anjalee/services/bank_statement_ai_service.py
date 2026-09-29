@@ -828,7 +828,8 @@ CRITICAL RULES:
         amount: float,
         narration: str = "",
         ref_no: Optional[str] = None,
-        company_id: Optional[str] = None
+        company_id: Optional[str] = None,
+        bills_cache: Optional[Dict[str, Any]] = None
     ) -> List[Dict[str, Any]]:
         """
         Matches bank payment/receipt against party's outstanding bills.
@@ -843,7 +844,14 @@ CRITICAL RULES:
         if voucher_type.lower() == "contra":
             return []
 
-        pending_bills = self.get_party_outstanding_bills(party_ledger, voucher_type, company_id=company_id)
+        cache_key = f"{party_ledger.strip().lower()}|{voucher_type.strip().lower()}"
+        if bills_cache is not None and cache_key in bills_cache:
+            pending_bills = bills_cache[cache_key]
+        else:
+            pending_bills = self.get_party_outstanding_bills(party_ledger, voucher_type, company_id=company_id)
+            if bills_cache is not None:
+                bills_cache[cache_key] = pending_bills
+
         if not pending_bills:
             return [{
                 "name": "On Account",
@@ -944,7 +952,9 @@ CRITICAL RULES:
         bank_ledger: str,
         company_masters: List[Dict[str, Any]],
         match_cache: Optional[Dict[str, Any]] = None,
-        company_id: Optional[str] = None
+        company_id: Optional[str] = None,
+        applicable_rules: Optional[List[Dict[str, Any]]] = None,
+        known_aliases: Optional[Dict[str, str]] = None
     ) -> Dict[str, Any]:
         """
         Uses RulesBasedMatchingService (Engine A) and PartyLedgerResolutionService to categorize:
@@ -972,8 +982,8 @@ CRITICAL RULES:
         # ── Step 1: Check Deterministic Bank Mapping Rules First via Engine A ──
         try:
             rules_svc = RulesBasedMatchingService(self.db)
-            applicable_rules = rules_svc.get_applicable_rules(bank_ledger, company_id)
-            rule_match = rules_svc.match_transaction(narration, amt, is_credit, applicable_rules)
+            rules_to_match = applicable_rules if applicable_rules is not None else rules_svc.get_applicable_rules(bank_ledger, company_id)
+            rule_match = rules_svc.match_transaction(narration, amt, is_credit, rules_to_match)
 
             if rule_match:
                 sel_ledger = rule_match.get("partyLedger")
@@ -1026,17 +1036,18 @@ CRITICAL RULES:
         sel_ledger = None
         match_score = 0.0
 
-        # Load known customer party aliases from DB
-        known_aliases = {}
-        try:
-            alias_q = {"companyId": company_id} if company_id else {}
-            for a in self.db["bank_party_aliases"].find(alias_q):
-                p_name = (a.get("partyName") or "").strip().lower()
-                r_ledger = (a.get("resolvedLedger") or "").strip()
-                if p_name and r_ledger:
-                    known_aliases[p_name] = r_ledger
-        except Exception:
-            pass
+        # Load known customer party aliases from DB if not provided
+        if known_aliases is None:
+            known_aliases = {}
+            try:
+                alias_q = {"companyId": company_id} if company_id else {}
+                for a in self.db["bank_party_aliases"].find(alias_q):
+                    p_name = (a.get("partyName") or "").strip().lower()
+                    r_ledger = (a.get("resolvedLedger") or "").strip()
+                    if p_name and r_ledger:
+                        known_aliases[p_name] = r_ledger
+            except Exception:
+                pass
 
         # Dynamic Token Matching directly against Company Master Ledgers
         from app.anjalee.services.bank_pattern_engine import PatternDiscoveryEngine, RegexPositionalExtractor
@@ -1169,6 +1180,27 @@ CRITICAL RULES:
         raw_key = f"{company_id}|{bank_ledger.lower().strip()}|{str(tx_date)[:10]}|{round(amount, 2)}|{voucher_type.lower()}|{str(ref_no or '').strip()}|{narration.lower().strip()[:30]}"
         return hashlib.sha256(raw_key.encode("utf-8")).hexdigest()
 
+    def get_existing_fingerprints(self, fingerprints: List[str]) -> set:
+        """
+        Batch-checks multiple transaction fingerprints in MongoDB collections in ONE bulk query per collection.
+        Returns a set of fingerprints that already exist in DB.
+        """
+        if not fingerprints:
+            return set()
+        clean_fps = [fp for fp in fingerprints if fp]
+        if not clean_fps:
+            return set()
+        existing = set()
+        for coll in ["vouchers", "fund_flow_vouchers", "fundflow"]:
+            try:
+                for doc in self.db[coll].find({"fingerprint": {"$in": clean_fps}}, {"fingerprint": 1}):
+                    fp = doc.get("fingerprint")
+                    if fp:
+                        existing.add(fp)
+            except Exception as e:
+                logger.warning(f"Error bulk checking fingerprints in {coll}: {e}")
+        return existing
+
     def check_duplicate_transaction(self, fingerprint: str) -> bool:
         """
         Checks if transaction fingerprint already exists in MongoDB collections:
@@ -1298,6 +1330,40 @@ CRITICAL RULES:
             self.db["bank_statement_drafts"].delete_one({"_id": existing_batch["_id"]})
 
         company_masters = self.get_company_master_ledgers(company_id)
+        comp_name = self.get_company_name(company_id)
+
+        # Pre-fetch rules & aliases ONCE for the entire batch to eliminate hundreds of DB roundtrips
+        rules_svc = RulesBasedMatchingService(self.db)
+        prefetched_rules = rules_svc.get_applicable_rules(bank_ledger, company_id)
+
+        prefetched_aliases = {}
+        try:
+            alias_q = {"companyId": company_id} if company_id else {}
+            for a in self.db["bank_party_aliases"].find(alias_q):
+                p_name = (a.get("partyName") or "").strip().lower()
+                r_ledger = (a.get("resolvedLedger") or "").strip()
+                if p_name and r_ledger:
+                    prefetched_aliases[p_name] = r_ledger
+        except Exception:
+            pass
+
+        # Pre-calculate candidate fingerprints and bulk-check duplicates in ONE single query
+        candidate_fps = []
+        for idx, tx in enumerate(extracted_txs):
+            t_date = tx.get("date") or datetime.now().strftime("%Y-%m-%d")
+            t_amt = float(tx.get("amount") or tx.get("credit") or tx.get("debit") or 0.0)
+            t_ref = tx.get("referenceNumber")
+            t_narr = tx.get("narration") or f"Bank Transaction {idx+1}"
+            t_type = str(tx.get("type") or "").lower()
+            is_cr = float(tx.get("credit") or 0) > 0 or t_type == "credit" or "received" in t_narr.lower()
+            v_type_cand = "Receipt" if is_cr else "Payment"
+            fp = self.generate_transaction_fingerprint(
+                company_id or "default", bank_ledger, t_date, t_amt, v_type_cand, t_ref, t_narr
+            )
+            candidate_fps.append(fp)
+
+        existing_fps = self.get_existing_fingerprints(candidate_fps)
+        bills_cache = {}
 
         processed_items = []
         ready_cnt = 0
@@ -1318,8 +1384,11 @@ CRITICAL RULES:
             if not party_cand:
                 party_cand, _ = NarrationNormalizationService.extract_party_candidate(narration)
 
-            # Match ledger and determine voucher type with cache
-            match_res = self.match_ledger_and_categorize(tx, bank_ledger, company_masters, match_cache, company_id=company_id)
+            # Match ledger and determine voucher type with cache & pre-fetched rules/aliases
+            match_res = self.match_ledger_and_categorize(
+                tx, bank_ledger, company_masters, match_cache, company_id=company_id,
+                applicable_rules=prefetched_rules, known_aliases=prefetched_aliases
+            )
             v_type = match_res["voucher_type"]
             sel_ledger = match_res["selected_ledger"]
             conf = match_res["confidence"]
@@ -1335,11 +1404,12 @@ CRITICAL RULES:
             # Cap confidence when no party ledger is mapped — rule-only match is incomplete
             if not sel_ledger and conf > 65.0:
                 conf = 65.0
-            # Compute SHA-256 fingerprint for duplicate checking
+
+            # Compute SHA-256 fingerprint and check duplicate in O(1) memory
             fingerprint = self.generate_transaction_fingerprint(
                 company_id or "default", bank_ledger, tx_date, amt, v_type, ref_no, narration
             )
-            is_dup = self.check_duplicate_transaction(fingerprint)
+            is_dup = fingerprint in existing_fps
 
             if is_dup:
                 status = "already_processed"
@@ -1372,7 +1442,7 @@ CRITICAL RULES:
                 "amount": round(bank_alloc_amount, 2)
             }]
 
-            # Bill Allocations
+            # Bill Allocations with in-batch cache
             bill_allocations = []
             if sel_ledger and v_type in ["Receipt", "Payment"]:
                 bill_allocations = self.match_bills_for_transaction(
@@ -1381,27 +1451,9 @@ CRITICAL RULES:
                     amount=amt,
                     narration=narration,
                     ref_no=clean_ref or ref_no,
-                    company_id=company_id
+                    company_id=company_id,
+                    bills_cache=bills_cache
                 )
-
-            # Pre-generate XML preview
-            comp_name = self.get_company_name(company_id)
-            preview_vch_data = {
-                "voucherType": v_type,
-                "voucherTypeName": v_type,
-                "voucherDate": tx_date,
-                "voucherNumber": f"BS-{datetime.now().year}-{str(idx+1).zfill(4)}",
-                "narration": narration,
-                "bankLedger": bank_ledger,
-                "partyLedger": sel_ledger or "Unassigned",
-                "amount": round(amt, 2),
-                "instNumber": clean_ref or "",
-                "referenceNumber": clean_ref or "",
-                "transType": tally_trans_type,
-                "bankAllocations": bank_allocations,
-                "billAllocations": bill_allocations
-            }
-            preview_xml = self.generate_preview_xml(preview_vch_data, comp_name)
 
             # Format item matching manual voucher entry schema fields
             item_doc = {
@@ -1435,8 +1487,8 @@ CRITICAL RULES:
                 "entryMode": "bank_upload",
                 "bankAllocations": bank_allocations,
                 "billAllocations": bill_allocations,
-                "tallyXml": preview_xml,
-                "tally_xml": preview_xml
+                "tallyXml": "",
+                "tally_xml": ""
             }
             processed_items.append(item_doc)
 

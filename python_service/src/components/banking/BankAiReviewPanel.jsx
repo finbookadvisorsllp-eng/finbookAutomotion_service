@@ -741,14 +741,14 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
 
     if (item.status === 'user_edited' || item.status === 'user_verified') {
       return (
-        <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400 border border-blue-300 dark:border-blue-800 flex items-center justify-center gap-1">
+        <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400 border border-blue-300 dark:border-blue-800 inline-flex items-center justify-center gap-1 whitespace-nowrap">
           <Edit3 size={10} /> USER VERIFIED
         </span>
       );
     }
     if (item.status === 'already_processed') {
       return (
-        <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-300 dark:border-rose-800 flex items-center justify-center gap-1">
+        <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-300 dark:border-rose-800 inline-flex items-center justify-center gap-1 whitespace-nowrap">
           <Lock size={10} /> DUPLICATE
         </span>
       );
@@ -763,7 +763,7 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
       return (
         <span
           title={reasonText}
-          className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800 flex items-center justify-center gap-1"
+          className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800 inline-flex items-center justify-center gap-1 whitespace-nowrap"
         >
           <Check size={10} /> READY
         </span>
@@ -775,7 +775,7 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
       return (
         <span
           title={reasonText}
-          className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-300 dark:border-amber-800 flex items-center justify-center gap-1 cursor-help"
+          className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-300 dark:border-amber-800 inline-flex items-center justify-center gap-1 cursor-help whitespace-nowrap"
         >
           <AlertCircle size={10} /> REVIEW REQUIRED
         </span>
@@ -786,7 +786,7 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
     return (
       <span
         title={reasonText}
-        className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-300 dark:border-rose-800 flex items-center justify-center gap-1 cursor-help"
+        className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-300 dark:border-rose-800 inline-flex items-center justify-center gap-1 cursor-help whitespace-nowrap"
       >
         <AlertCircle size={10} /> REVIEW REQUIRED
       </span>
@@ -798,62 +798,62 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
     const score = Number(confidence) || 0;
     if (score >= 90) {
       return (
-        <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full font-mono text-[10px] font-black bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800">
+        <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full font-mono text-[9.5px] font-black bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800 whitespace-nowrap">
           {score}%
         </span>
       );
     }
     if (score >= 60) {
       return (
-        <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full font-mono text-[10px] font-black bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-300 dark:border-amber-800">
+        <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full font-mono text-[9.5px] font-black bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-300 dark:border-amber-800 whitespace-nowrap">
           {score}%
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full font-mono text-[10px] font-black bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-300 dark:border-rose-800">
+      <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full font-mono text-[9.5px] font-black bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-300 dark:border-rose-800 whitespace-nowrap">
         {score}%
       </span>
     );
   };
 
   return (
-    <div className="flex flex-col gap-3 h-full overflow-hidden bg-[var(--app-panel-bg)] rounded-xl border p-3.5" style={{ borderColor: 'var(--app-border)' }}>
+    <div className="flex flex-col gap-2.5 h-full overflow-hidden bg-[var(--app-panel-bg)] rounded-xl border p-2.5" style={{ borderColor: 'var(--app-border)' }}>
       
       {/* Top Header */}
-      <div className="flex items-center justify-between pb-3 border-b shrink-0" style={{ borderColor: 'var(--app-border)' }}>
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-md shrink-0">
-            <Sparkles size={20} />
+      <div className="flex items-center justify-between pb-2 border-b shrink-0 gap-2" style={{ borderColor: 'var(--app-border)' }}>
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="h-8.5 w-8.5 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-xs shrink-0">
+            <Sparkles size={17} />
           </div>
-          <div>
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <h1 className="text-[16px] font-black text-[var(--app-heading)] tracking-tight">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-[15px] font-black text-[var(--app-heading)] tracking-tight whitespace-nowrap">
                 AI Bank Statement & Master Mapping Review
               </h1>
-              <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-indigo-500/10 border border-indigo-500/25 text-indigo-600 font-black text-[11px]">
-                <Building2 size={13} />
-                <span className="text-[var(--app-muted)] font-bold uppercase text-[9.5px]">Selected Bank Ledger:</span>
+              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-indigo-500/10 border border-indigo-500/25 text-indigo-600 font-bold text-[10px] whitespace-nowrap">
+                <Building2 size={12} />
+                <span className="text-[var(--app-muted)] uppercase text-[9px]">Selected Bank Ledger:</span>
                 <span className="text-[var(--app-heading)] font-black">{batchData.bank_ledger}</span>
               </div>
             </div>
-            <p className="text-[11px] font-medium text-[var(--app-muted)] mt-0.5">
+            <p className="text-[10.5px] font-medium text-[var(--app-muted)] truncate mt-0.5">
               Statement: <span className="font-bold text-[var(--app-heading)]">{batchData.file_name}</span> | Bank Ledger: <span className="font-bold text-indigo-600">{batchData.bank_ledger}</span>
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
           <button
             onClick={onClose}
-            className="px-3 py-1.5 border rounded-lg text-[11px] font-bold uppercase tracking-wider hover:bg-[var(--app-control-hover)] transition-all cursor-pointer"
+            className="h-8 px-3 py-1 border rounded-lg text-[10.5px] font-bold uppercase tracking-wider hover:bg-[var(--app-control-hover)] transition-all cursor-pointer whitespace-nowrap inline-flex items-center justify-center"
             style={{ borderColor: 'var(--app-border)', color: 'var(--app-muted)' }}
           >
             ← Back to Bank
           </button>
           <button
             onClick={handlePreviewBatchXml}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider border border-indigo-400 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900 transition-all cursor-pointer shadow-xs"
+            className="h-8 px-3 py-1 rounded-lg text-[10.5px] font-black uppercase tracking-wider border border-indigo-400 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900 transition-all cursor-pointer shadow-2xs whitespace-nowrap inline-flex items-center gap-1.5"
             title="Preview generated Tally XML payload for saved/selected vouchers"
           >
             <FileCode size={13} />
@@ -862,18 +862,18 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
           <button
             onClick={handleSaveSelectedVouchers}
             disabled={selectedItemIds.length === 0 || savingLoading}
-            className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider bg-[var(--app-accent)] text-white shadow-md hover:opacity-90 transition-all disabled:opacity-50 cursor-pointer"
+            className="h-8 px-3.5 py-1 rounded-lg text-[10.5px] font-black uppercase tracking-wider bg-[var(--app-accent)] text-white shadow-xs hover:opacity-90 transition-all disabled:opacity-50 cursor-pointer whitespace-nowrap inline-flex items-center gap-1.5"
           >
-            {savingLoading ? <RefreshCw className="animate-spin" size={14} /> : <CheckCircle2 size={14} />}
+            {savingLoading ? <RefreshCw className="animate-spin" size={13} /> : <CheckCircle2 size={13} />}
             <span>Approve & Save Vouchers ({selectedItemIds.length})</span>
           </button>
           <button
             onClick={handlePushSelectedVouchers}
             disabled={pushLoading || (selectedItemIds.length === 0 && dynamicSummary.tally_pending_count === 0)}
-            className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md hover:opacity-90 transition-all disabled:opacity-50 cursor-pointer"
+            className="h-8 px-3.5 py-1 rounded-lg text-[10.5px] font-black uppercase tracking-wider bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-xs hover:opacity-90 transition-all disabled:opacity-50 cursor-pointer whitespace-nowrap inline-flex items-center gap-1.5"
             title="Push vouchers to Tally in ONE single XML request"
           >
-            {pushLoading ? <RefreshCw className="animate-spin" size={13} /> : <Send size={13} />}
+            {pushLoading ? <RefreshCw className="animate-spin" size={12} /> : <Send size={12} />}
             <span>
               {selectedItemIds.length > 0
                 ? `Push Selected (${selectedItemIds.length})`
@@ -884,7 +884,7 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 shrink-0">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 shrink-0">
         {[
           { id: 'all', label: 'Total Statement Items', count: dynamicSummary.total_count, color: 'text-[var(--app-heading)]' },
           { id: 'ready', label: 'Mapped & Ready', count: dynamicSummary.ready_count, color: 'text-emerald-500' },
@@ -903,14 +903,14 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
           <button
             key={kpi.id}
             onClick={() => setActiveFilter(kpi.id)}
-            className={`p-2.5 rounded-xl border transition-all text-left cursor-pointer ${
-              activeFilter === kpi.id ? 'ring-2 ring-[var(--app-accent)] bg-[var(--app-control-bg)]' : 'bg-[var(--app-panel-bg)] hover:bg-[var(--app-control-hover)]'
+            className={`px-3 py-1.5 rounded-lg border transition-all text-left cursor-pointer ${
+              activeFilter === kpi.id ? 'ring-1.5 ring-[var(--app-accent)] bg-[var(--app-control-bg)]' : 'bg-[var(--app-panel-bg)] hover:bg-[var(--app-control-hover)]'
             }`}
             style={{ borderColor: 'var(--app-border)' }}
           >
             <span className="text-[9px] font-bold text-[var(--app-muted)] uppercase tracking-wider block truncate">{kpi.label}</span>
             <div className="flex items-baseline justify-between gap-1 mt-0.5">
-              <span className={`text-[17px] font-black ${kpi.color}`}>{kpi.count}</span>
+              <span className={`text-[16px] font-black leading-tight ${kpi.color}`}>{kpi.count}</span>
               {kpi.subtext && (
                 <span className="text-[9px] font-bold text-[var(--app-muted)] truncate">{kpi.subtext}</span>
               )}
@@ -920,7 +920,7 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
       </div>
 
       {/* Voucher Type Small Clickable Cards (Single Line) */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 shrink-0">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 shrink-0">
         {[
           { id: 'ALL', label: 'All Voucher Types', count: voucherTypeCounts.all, color: 'text-[var(--app-heading)]', dot: 'bg-slate-400' },
           { id: 'Receipt', label: 'Receipts (Inflow)', count: voucherTypeCounts.receipt, color: 'text-emerald-500', dot: 'bg-emerald-500' },
@@ -932,21 +932,21 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
             <button
               key={vtCard.id}
               onClick={() => setVoucherTypeFilter(prev => prev === vtCard.id && vtCard.id !== 'ALL' ? 'ALL' : vtCard.id)}
-              className={`flex items-center justify-between px-3 py-1.5 rounded-lg border transition-all text-left cursor-pointer ${
+              className={`flex items-center justify-between px-2.5 py-1 rounded-md border transition-all text-left cursor-pointer ${
                 isSelected
-                  ? 'ring-2 ring-[var(--app-accent)] bg-[var(--app-control-bg)] shadow-xs'
+                  ? 'ring-1.5 ring-[var(--app-accent)] bg-[var(--app-control-bg)] shadow-2xs'
                   : 'bg-[var(--app-panel-bg)] hover:bg-[var(--app-control-hover)]'
               }`}
               style={{ borderColor: 'var(--app-border)' }}
             >
-              <div className="flex items-center gap-2 min-w-0">
-                <span className={`w-2 h-2 rounded-full shrink-0 ${vtCard.dot}`} />
-                <span className="text-[10px] font-bold text-[var(--app-muted)] uppercase tracking-wider truncate">{vtCard.label}</span>
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${vtCard.dot}`} />
+                <span className="text-[9.5px] font-bold text-[var(--app-muted)] uppercase tracking-wider truncate">{vtCard.label}</span>
               </div>
-              <div className="flex items-center gap-1.5 ml-2 shrink-0">
-                <span className={`text-[13px] font-black ${vtCard.color}`}>{vtCard.count}</span>
+              <div className="flex items-center gap-1.5 ml-1.5 shrink-0">
+                <span className={`text-[12px] font-black ${vtCard.color}`}>{vtCard.count}</span>
                 {isSelected && (
-                  <span className="text-[8px] font-extrabold text-[var(--app-accent)] uppercase px-1 py-0.5 rounded bg-[var(--app-accent)]/10">Active</span>
+                  <span className="text-[7.5px] font-extrabold text-[var(--app-accent)] uppercase px-1 py-0.5 rounded bg-[var(--app-accent)]/10 leading-none">Active</span>
                 )}
               </div>
             </button>
@@ -955,28 +955,28 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
       </div>
 
       {/* Controls Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 p-2.5 rounded-xl border bg-[var(--app-control-bg)] shrink-0" style={{ borderColor: 'var(--app-border)' }}>
-        <div className="flex items-center gap-3">
-          <label className="flex items-center gap-2 cursor-pointer font-extrabold text-[11px] text-[var(--app-heading)]">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg border bg-[var(--app-control-bg)] shrink-0" style={{ borderColor: 'var(--app-border)' }}>
+        <div className="flex items-center gap-2.5">
+          <label className="flex items-center gap-1.5 cursor-pointer font-extrabold text-[10.5px] text-[var(--app-heading)]">
             <input
               type="checkbox"
               onChange={(e) => toggleSelectAll(e.target.checked)}
               checked={selectedItemIds.length > 0 && selectedItemIds.length === filteredItems.filter(i => i.status !== 'already_processed' && i.status !== 'saved').length}
-              className="w-4 h-4 rounded accent-[var(--app-accent)]"
+              className="w-3.5 h-3.5 rounded accent-[var(--app-accent)] cursor-pointer"
             />
             Select All Eligible ({filteredItems.filter(i => i.status !== 'already_processed' && i.status !== 'saved').length})
           </label>
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="relative min-w-[240px]">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--app-muted)]" size={13} />
+          <div className="relative min-w-[220px]">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--app-muted)]" size={12} />
             <input
               type="text"
               placeholder="Search narration, master, reference..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full h-8 pl-8 pr-3 border rounded-lg text-[11px] font-semibold outline-none focus:border-[var(--app-accent)] bg-[var(--app-panel-bg)]"
+              className="w-full h-7 pl-7.5 pr-2.5 border rounded-md text-[10.5px] font-semibold outline-none focus:border-[var(--app-accent)] bg-[var(--app-panel-bg)]"
               style={{ borderColor: 'var(--app-border)', color: 'var(--app-heading)' }}
             />
           </div>
@@ -987,10 +987,10 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
                 onNavigateToAddRule();
               }
             }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[11px] font-extrabold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors cursor-pointer shadow-xs"
+            className="h-7 px-2.5 py-1 rounded-md border text-[10.5px] font-extrabold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors cursor-pointer shadow-2xs whitespace-nowrap inline-flex items-center gap-1.5"
             title="Open Bank Pattern & Party Ledger Mapping Engine"
           >
-            <SlidersHorizontal size={13} />
+            <SlidersHorizontal size={12} />
             <span>Add Rule</span>
           </button>
         </div>
@@ -998,21 +998,21 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
 
       {/* Main Review Table matching Manual Entry Form Layout */}
       <div className="flex-1 overflow-auto border rounded-xl" style={{ borderColor: 'var(--app-border)' }}>
-        <table className="w-full text-left border-collapse text-[11px] min-w-[1150px]">
+        <table className="w-full text-left border-collapse text-[11px] min-w-[1360px]">
           <thead className="sticky top-0 bg-[var(--app-control-bg)] z-10 border-b" style={{ borderColor: 'var(--app-border)' }}>
             <tr>
-              <th className="py-2.5 px-2 w-14 text-center font-black text-[var(--app-muted)] uppercase tracking-wider text-[10px]">SR #</th>
-              <th className="py-2.5 px-2 font-black text-[var(--app-muted)] uppercase tracking-wider w-26 text-[10px]">Voucher Date</th>
-              <th className="py-2.5 px-2 font-black text-[var(--app-muted)] uppercase tracking-wider w-28 text-[10px]">Voucher Type</th>
-              <th className="py-2.5 px-2 font-black text-[var(--app-muted)] uppercase tracking-wider w-20 text-center text-[10px]">Transaction Type</th>
-              <th className="py-2.5 px-2 font-black text-[var(--app-muted)] uppercase tracking-wider w-40 text-[10px]">Exact Extracted Value</th>
-              <th className="py-2.5 px-2 font-black text-[var(--app-muted)] uppercase tracking-wider w-60 text-[10px]">Party / Ledger Name</th>
-              <th className="py-2.5 px-2 font-black text-[var(--app-muted)] uppercase tracking-wider text-[10px]">Description / Narration</th>
-              <th className="py-2.5 px-2 font-black text-[var(--app-muted)] uppercase tracking-wider text-right w-28 text-[10px]">Amount (₹)</th>
-              <th className="py-2.5 px-2 font-black text-[var(--app-muted)] uppercase tracking-wider w-26 text-[10px]">Reference No.</th>
-              <th className="py-2.5 px-2 font-black text-[var(--app-muted)] uppercase tracking-wider text-center w-20 text-[10px]">Confidence</th>
-              <th className="py-2.5 px-2 font-black text-[var(--app-muted)] uppercase tracking-wider text-center w-28 text-[10px]">Status</th>
-              <th className="py-2.5 px-2 font-black text-[var(--app-muted)] uppercase tracking-wider text-center w-20 text-[10px]">Action</th>
+              <th className="py-2 px-1 w-12 text-center font-black text-[var(--app-muted)] uppercase tracking-wider text-[10px]">SR #</th>
+              <th className="py-2 px-1 font-black text-[var(--app-muted)] uppercase tracking-wider w-24 text-center text-[10px]">Voucher Date</th>
+              <th className="py-2 px-1.5 font-black text-[var(--app-muted)] uppercase tracking-wider w-32 min-w-[115px] text-[10px]">Voucher Type</th>
+              <th className="py-2 px-1 font-black text-[var(--app-muted)] uppercase tracking-wider w-20 text-center text-[10px]">Txn Type</th>
+              <th className="py-2 px-1.5 font-black text-[var(--app-muted)] uppercase tracking-wider w-36 max-w-[150px] text-[10px]">Exact Extracted Value</th>
+              <th className="py-2 px-1.5 font-black text-[var(--app-muted)] uppercase tracking-wider w-56 min-w-[210px] text-[10px]">Party / Ledger Name</th>
+              <th className="py-2 px-2 font-black text-[var(--app-muted)] uppercase tracking-wider min-w-[320px] text-[10px]">Description / Narration</th>
+              <th className="py-2 px-1.5 font-black text-[var(--app-muted)] uppercase tracking-wider text-right w-28 text-[10px]">Amount (₹)</th>
+              <th className="py-2 px-1 font-black text-[var(--app-muted)] uppercase tracking-wider w-24 text-[10px]">Reference No.</th>
+              <th className="py-2 px-1 font-black text-[var(--app-muted)] uppercase tracking-wider text-center w-16 text-[10px]">Confidence</th>
+              <th className="py-2 px-1 font-black text-[var(--app-muted)] uppercase tracking-wider text-center w-24 text-[10px]">Status</th>
+              <th className="py-2 px-1 font-black text-[var(--app-muted)] uppercase tracking-wider text-center w-22 text-[10px]">Action</th>
             </tr>
           </thead>
           <tbody>
@@ -1056,8 +1056,8 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
                     style={{ borderColor: 'var(--app-border)' }}
                   >
                     {/* 1. SR # with Checkbox combined */}
-                    <td className="py-2 px-2 text-center whitespace-nowrap">
-                      <div className="flex items-center justify-center gap-1.5">
+                    <td className="py-1.5 px-1 text-center whitespace-nowrap">
+                      <div className="flex items-center justify-center gap-1">
                         <input
                           type="checkbox"
                           checked={isSelected}
@@ -1065,14 +1065,14 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
                           onChange={() => toggleSelectItem(item.item_id)}
                           className="w-3.5 h-3.5 rounded accent-[var(--app-accent)] cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
                         />
-                        <span className="text-[11px] font-mono text-[var(--app-muted)] font-bold">
+                        <span className="text-[10.5px] font-mono text-[var(--app-muted)] font-bold">
                           {rowNumber}
                         </span>
                       </div>
                     </td>
 
                     {/* 2. Voucher Date */}
-                    <td className="py-2 px-2">
+                    <td className="py-1.5 px-1">
                       <input
                         type="text"
                         value={vDate}
@@ -1080,17 +1080,17 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
                           handleUpdateItemField(item.item_id, 'date', e.target.value);
                           handleUpdateItemField(item.item_id, 'voucherDate', e.target.value);
                         }}
-                        className="w-full h-7 px-1.5 border rounded text-[11px] font-mono font-bold bg-[var(--app-panel-bg)] text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)] text-center"
+                        className="w-full h-7 px-1 border rounded text-[10.5px] font-mono font-bold bg-[var(--app-panel-bg)] text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)] text-center"
                         style={{ borderColor: 'var(--app-border)' }}
                       />
                     </td>
 
                     {/* 3. Voucher Type */}
-                    <td className="py-2 px-2">
+                    <td className="py-1.5 px-1.5">
                       <select
                         value={currentVType}
                         onChange={(e) => handleUpdateItemField(item.item_id, 'voucherType', e.target.value)}
-                        className={`w-full h-7 px-1.5 border rounded text-[10.5px] font-black outline-none focus:border-[var(--app-accent)] cursor-pointer ${
+                        className={`w-full h-7 px-1.5 pr-4 border rounded text-[10.5px] font-bold outline-none focus:border-[var(--app-accent)] cursor-pointer truncate ${
                           isContra
                             ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400 border-blue-300 dark:border-blue-800'
                             : isReceipt
@@ -1100,29 +1100,29 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
                       >
                         <option value="Receipt">Receipt (Inflow)</option>
                         <option value="Payment">Payment (Outflow)</option>
-                        <option value="Contra">Contra (Bank Transfer)</option>
+                        <option value="Contra">Contra (Transfer)</option>
                       </select>
                     </td>
 
                     {/* 4. Transaction Type */}
-                    <td className="py-2 px-2 text-center">
-                      <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider border ${getTxTypeBadgeClass(txType)}`}>
+                    <td className="py-1.5 px-1 text-center">
+                      <span className={`inline-block px-1.5 py-0.5 rounded text-[9.5px] font-black uppercase tracking-wider border ${getTxTypeBadgeClass(txType)}`}>
                         {txType}
                       </span>
                     </td>
 
                     {/* 5. Exact Extracted Value */}
-                    <td className="py-2 px-2">
-                      <div className="max-w-[160px]" title={extractExactValue(item.narration, item)}>
-                        <span className="font-mono text-[10.5px] font-bold text-indigo-700 dark:text-indigo-300 truncate block bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 rounded border border-indigo-200 dark:border-indigo-800">
+                    <td className="py-1.5 px-1.5">
+                      <div className="w-full max-w-[150px]" title={extractExactValue(item.narration, item)}>
+                        <span className="font-mono text-[10px] font-bold text-indigo-700 dark:text-indigo-300 truncate block bg-indigo-50/80 dark:bg-indigo-950/40 px-1.5 py-0.5 rounded border border-indigo-200 dark:border-indigo-800">
                           {extractExactValue(item.narration, item)}
                         </span>
                       </div>
                     </td>
 
                     {/* 6. Party / Ledger Name */}
-                    <td className="py-2 px-2">
-                      <div className="min-w-[210px] max-w-[260px]">
+                    <td className="py-1.5 px-1.5">
+                      <div className="w-full min-w-[200px] max-w-[240px]">
                         <SmartLedgerDropdown
                           value={effParty || ''}
                           onChange={(newVal) => handleUpdateItemField(item.item_id, 'partyLedger', newVal)}
@@ -1138,29 +1138,31 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
                       </div>
                     </td>
 
-                    {/* 7. Description / Narration */}
-                    <td className="py-2 px-2">
-                      <input
-                        type="text"
-                        readOnly
-                        value={item.narration || ''}
-                        onKeyDown={(e) => {
-                          const allowedKeys = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'Tab'];
-                          if (allowedKeys.includes(e.key) || ((e.ctrlKey || e.metaKey) && ['c', 'a', 'C', 'A'].includes(e.key))) {
-                            return;
-                          }
-                          e.preventDefault();
-                        }}
-                        className="w-full h-7 px-2 border rounded text-[10.5px] font-medium bg-[var(--app-panel-bg)] text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)] cursor-text truncate"
-                        style={{ borderColor: 'var(--app-border)' }}
-                        title={item.narration}
-                      />
+                    {/* 7. Description / Narration (Enlarged with min-w-[320px]) */}
+                    <td className="py-1.5 px-2 min-w-[320px]">
+                      <div className="w-full min-w-[300px]">
+                        <input
+                          type="text"
+                          readOnly
+                          value={item.narration || ''}
+                          onKeyDown={(e) => {
+                            const allowedKeys = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'Tab'];
+                            if (allowedKeys.includes(e.key) || ((e.ctrlKey || e.metaKey) && ['c', 'a', 'C', 'A'].includes(e.key))) {
+                              return;
+                            }
+                            e.preventDefault();
+                          }}
+                          className="w-full h-7 px-2.5 border rounded text-[11px] font-medium bg-[var(--app-panel-bg)] text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)] cursor-text truncate transition-colors hover:bg-[var(--app-control-hover)]/30"
+                          style={{ borderColor: 'var(--app-border)' }}
+                          title={item.narration}
+                        />
+                      </div>
                     </td>
 
                     {/* 8. Amount (₹) */}
-                    <td className="py-2 px-2 text-right">
+                    <td className="py-1.5 px-1.5 text-right">
                       <div className="flex items-center gap-1 justify-end">
-                        <span className={`px-1 py-0.5 rounded text-[9px] font-black uppercase shrink-0 border ${
+                        <span className={`px-1 py-0.5 rounded text-[8.5px] font-black uppercase shrink-0 border ${
                           isReceipt
                             ? 'bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800'
                             : 'bg-rose-100 text-rose-700 border-rose-300 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800'
@@ -1186,7 +1188,7 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
                     </td>
 
                     {/* 9. Reference No. */}
-                    <td className="py-2 px-2">
+                    <td className="py-1.5 px-1">
                       <input
                         type="text"
                         value={item.referenceNumber || item.instNumber || ''}
@@ -1194,24 +1196,24 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
                           handleUpdateItemField(item.item_id, 'referenceNumber', e.target.value);
                           handleUpdateItemField(item.item_id, 'instNumber', e.target.value);
                         }}
-                        className="w-full h-7 px-2 border rounded text-[10.5px] font-mono font-medium bg-[var(--app-panel-bg)] text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)] truncate"
+                        className="w-full h-7 px-1.5 border rounded text-[10px] font-mono font-medium bg-[var(--app-panel-bg)] text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)] truncate"
                         style={{ borderColor: 'var(--app-border)' }}
                         placeholder="Ref/UTR"
                       />
                     </td>
 
                     {/* 10. Confidence */}
-                    <td className="py-2 px-2 text-center">
+                    <td className="py-1.5 px-1 text-center">
                       {getConfidenceBadge(effConfidence)}
                     </td>
 
                     {/* 11. Status */}
-                    <td className="py-2 px-2 text-center">
+                    <td className="py-1.5 px-1 text-center">
                       {getStatusBadge(item, effConfidence, effParty)}
                     </td>
 
-                    {/* 12. Actions: Save + Eye Icon buttons */}
-                    <td className="py-2 px-2 text-center">
+                    {/* 12. Actions: Save + Eye + XML */}
+                    <td className="py-1.5 px-1 text-center">
                       <div className="flex items-center justify-center gap-1">
                         {/* Per-row Save button — visible only for non-saved, non-duplicate items */}
                         {item.status !== 'saved' && item.status !== 'already_processed' && (
@@ -1219,7 +1221,7 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
                             onClick={() => handleSaveSingleVoucher(item.item_id)}
                             disabled={savingSingleItemId === item.item_id || !effParty}
                             title={!effParty ? 'Map a party ledger first to save' : 'Save this voucher to MongoDB'}
-                            className="w-6 h-6 rounded-full flex items-center justify-center border border-emerald-400 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:border-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 transition-colors mx-auto cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                            className="w-6 h-6 rounded-md flex items-center justify-center border border-emerald-400 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 hover:shadow-2xs active:scale-95 dark:border-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
                           >
                             {savingSingleItemId === item.item_id
                               ? <RefreshCw size={10} className="animate-spin" />
@@ -1228,15 +1230,15 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
                         )}
                         <button
                           onClick={() => setEditingItem(item)}
-                          className="w-6 h-6 rounded-full flex items-center justify-center border border-sky-300 bg-sky-50 text-sky-600 hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-400 transition-colors mx-auto cursor-pointer"
+                          className="w-6 h-6 rounded-md flex items-center justify-center border border-sky-300 bg-sky-50 text-sky-600 hover:bg-sky-100 hover:shadow-2xs active:scale-95 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-400 transition-all cursor-pointer shrink-0"
                           title="View Full Context"
                         >
-                          <Eye size={12} />
+                          <Eye size={11} />
                         </button>
                         <button
                           onClick={() => handlePreviewItemXml(item)}
                           disabled={loadingXmlItemId === item.item_id}
-                          className="w-6 h-6 rounded-full flex items-center justify-center border border-indigo-300 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-400 transition-colors mx-auto cursor-pointer disabled:opacity-50"
+                          className="w-6 h-6 rounded-md flex items-center justify-center border border-indigo-300 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 hover:shadow-2xs active:scale-95 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-400 transition-all cursor-pointer disabled:opacity-50 shrink-0"
                           title="View / Generate Tally XML"
                         >
                           {loadingXmlItemId === item.item_id ? <RefreshCw size={10} className="animate-spin" /> : <FileCode size={11} />}
@@ -1248,7 +1250,7 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
               })
             ) : (
               <tr>
-                <td colSpan={12} className="py-12 text-center text-[var(--app-muted)] font-semibold italic">
+                <td colSpan={12} className="py-10 text-center text-[var(--app-muted)] font-semibold italic">
                   No statement items match the selected filter.
                 </td>
               </tr>
@@ -1259,7 +1261,7 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
 
       {/* Table Pagination Bar */}
       {filteredItems.length > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2 border rounded-xl bg-[var(--app-control-bg)] shrink-0 text-[11px]" style={{ borderColor: 'var(--app-border)' }}>
+        <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 border rounded-lg bg-[var(--app-control-bg)] shrink-0 text-[11px]" style={{ borderColor: 'var(--app-border)' }}>
           <div className="flex items-center gap-2 text-[var(--app-muted)] font-semibold">
             <span>
               Showing <strong className="text-[var(--app-heading)] font-black">
