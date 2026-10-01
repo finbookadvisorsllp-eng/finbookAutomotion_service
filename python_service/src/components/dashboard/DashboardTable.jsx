@@ -52,7 +52,11 @@ export default function DashboardTable() {
         if (activeCompId) params.companyId = activeCompId
         if (activeCompName) params.companyName = activeCompName
         const y = selectedFy.split('-')[0].replace(/\D/g, '')
-        if (y) { params.startDate = `20${y}-04-01`; params.endDate = `20${parseInt(y) + 1}-03-31` }
+        if (y) {
+          const yr = y.length === 2 ? `20${y}` : (y.length >= 4 ? y.slice(-4) : y)
+          params.startDate = `${yr}-04-01`
+          params.endDate = `${parseInt(yr) + 1}-03-31`
+        }
         if (partyFilter !== 'All') params.partyLedger = partyFilter
         const res = await api.get('/companies/current/dashboard-summary', { params })
         if (active && res.data?.success) setData(res.data.data)

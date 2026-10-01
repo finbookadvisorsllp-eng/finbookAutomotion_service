@@ -1,6 +1,7 @@
 import os
 import re
 import logging
+import asyncio
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 from bson import ObjectId
@@ -43,6 +44,16 @@ class PushToTallyStatementRequest(BaseModel):
     voucher_ids: Optional[List[str]] = None
 
 
+class BulkItemMapping(BaseModel):
+    item_id: str
+    partyLedger: str
+
+
+class BulkAcceptSuggestedRequest(BaseModel):
+    batch_id: str
+    items: List[BulkItemMapping]
+
+
 @router.post("/upload")
 async def upload_bank_statement(
     request: Request,
@@ -57,6 +68,8 @@ async def upload_bank_statement(
     checks duplicate file hashes & content signatures, and returns draft review batch.
     """
     company_header = request.headers.get("x-company-id") or request.headers.get("x-company")
+    if not company_header and hasattr(db, "name"):
+        company_header = db.name
     
     file_ext = os.path.splitext(file.filename)[1].lower()
     if file_ext not in [".pdf", ".xlsx", ".xls", ".csv"]:
@@ -75,7 +88,8 @@ async def upload_bank_statement(
 
     service = BankStatementAIService(db)
     try:
-        batch_res = service.process_and_create_batch_draft(
+        batch_res = await asyncio.to_thread(
+            service.process_and_create_batch_draft,
             file_path=saved_path,
             file_name=file.filename,
             file_type=file_ext,
@@ -173,6 +187,22 @@ async def update_batch_item(
     }
 
 
+@router.post("/batch-accept-suggested")
+async def batch_accept_suggested_items(
+    payload: BulkAcceptSuggestedRequest,
+    db = Depends(get_db)
+):
+    """
+    Accept auto-suggested or accountant-confirmed party ledgers for multiple items in 1 single atomic operation.
+    Marks them as user_edited (READY) with 100% confidence without opening individual dropdowns.
+    """
+    service = BankStatementAIService(db)
+    res = service.bulk_accept_suggested_items(payload.batch_id, [it.model_dump() for it in payload.items])
+    if not res.get("success"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=res.get("error", "Failed to accept suggested ledgers"))
+    return res
+
+
 @router.post("/save-vouchers")
 async def save_approved_vouchers(
     request: Request,
@@ -188,16 +218,17 @@ async def save_approved_vouchers(
     if not res.get("success"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=res.get("error", "Failed to save vouchers"))
 
-    # Automatically generate and persist Tally XML for the newly saved vouchers in tally_payloads!
+    # Automatically generate and persist Tally XML for reasonable batch sizes
     if res.get("saved_vouchers"):
         try:
             saved_vids = [str(v.get("_id") or v.get("id")) for v in res["saved_vouchers"] if (v.get("_id") or v.get("id"))]
-            xml_res = await service.preview_batch_xml(payload.batch_id, payload.item_ids, saved_vids)
-            if xml_res.get("success") and xml_res.get("xmlPayload"):
-                res["xmlPayload"] = xml_res["xmlPayload"]
-                res["xmlGenerated"] = True
+            if len(saved_vids) <= 200:
+                xml_res = await service.preview_batch_xml(payload.batch_id, payload.item_ids, saved_vids)
+                if xml_res.get("success") and xml_res.get("xmlPayload"):
+                    res["xmlPayload"] = xml_res["xmlPayload"]
+                    res["xmlGenerated"] = True
         except Exception as xe:
-            logger.warning(f"Auto XML generation after save error: {xe}")
+            logger.warning(f"Auto XML generation after save warning: {xe}")
 
     return res
 
@@ -210,8 +241,33 @@ async def push_statement_vouchers_to_tally(
     """
     Pushes multiple saved vouchers from a statement batch into Tally in ONE single XML request.
     Includes all voucher types (Receipt, Payment, Contra, Journal, etc.).
+    Blocked if any items in the batch still have 'review_required' status —
+    all vouchers must be READY before batch XML is generated.
     """
     service = BankStatementAIService(db)
+
+    # Guard: block push if any non-duplicate items are still review_required
+    from bson import ObjectId
+    try:
+        bid = ObjectId(payload.batch_id) if payload.batch_id else None
+        if bid:
+            batch_doc = db["bank_statement_drafts"].find_one({"_id": bid})
+            if batch_doc:
+                all_items = batch_doc.get("items", [])
+                unready = [
+                    it for it in all_items
+                    if it.get("status") not in ("ready", "saved", "already_processed", "user_edited", "user_verified")
+                ]
+                if unready:
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail=f"{len(unready)} voucher(s) still have 'Review Required' status. Please map all party ledgers and ensure all vouchers are READY before pushing to Tally."
+                    )
+    except HTTPException:
+        raise
+    except Exception as guard_err:
+        logger.warning(f"push-to-tally guard check failed (non-blocking): {guard_err}")
+
     res = await service.push_vouchers_to_tally(payload.batch_id, payload.item_ids, payload.voucher_ids)
     if not res.get("success") and res.get("pushed_count", 0) == 0 and not res.get("already_pushed_count") and not res.get("xmlPayload"):
         raise HTTPException(

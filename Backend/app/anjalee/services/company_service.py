@@ -832,6 +832,15 @@ class CompanyService:
         })
         bank_transactions_imported = bank_imported
 
+        # - Automation Rules Count
+        try:
+            automation_rules = (
+                self.repo.db["bank_mapping_rules"].count_documents(c_filter) +
+                self.repo.db["bank_party_aliases"].count_documents(c_filter)
+            )
+        except Exception:
+            automation_rules = 0
+
         # - Imported Today
         today_start = datetime.combine(datetime.now().date(), datetime.min.time())
         imported_today_count = 0

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
-  FileText, CheckCircle2, AlertCircle, RefreshCw, Check, Search, Filter,
+  FileText, CheckCircle2, AlertCircle, RefreshCw, Check, CheckCheck, Search, Filter,
   Eye, Edit3, X, Sparkles, ArrowRight, ShieldCheck, HelpCircle, Layers, Building, ChevronRight, ChevronLeft, Lock, Plus, Trash2,
   SlidersHorizontal, Building2, Sliders, Save, Send, Code, Copy, FileCode, Clock
 } from 'lucide-react';
@@ -10,6 +10,7 @@ import bankStatementAiApi from '../../services/bankStatementAiApi';
 import { useFundFlowStore } from '../../stores/useFundFlowStore';
 import apiClient from '../../lib/apiClient';
 import SmartLedgerDropdown, { findBestLedgerMatch } from './SmartLedgerDropdown';
+import { calculateBatchSummary, getBatchItemEffectiveStatus, getBatchItemEffectiveParty } from './bankSummaryHelper';
 
 export default function BankAiReviewPanel({ batchData: initialBatchData, onClose, onRefreshList, onNavigateToAddRule }) {
   const [batchData, setBatchData] = useState(initialBatchData);
@@ -24,6 +25,7 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
   const [savingSingleItemId, setSavingSingleItemId] = useState(null);
   const [pushLoading, setPushLoading] = useState(false);
   const [loadingXmlItemId, setLoadingXmlItemId] = useState(null);
+  const [acceptingSuggestedLoading, setAcceptingSuggestedLoading] = useState(false);
   
   // Pagination state for ultra-fast rendering of large statements
   const [currentPage, setCurrentPage] = useState(1);
@@ -185,109 +187,19 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
 
   const items = batchData?.items || [];
   
-  // Helper to extract or auto-resolve party ledger from exact extracted candidate against Tally Masters
+  // Shared helpers to resolve party ledger and effective status (100% synchronized with BankPanel)
   const getEffectiveParty = useCallback((item) => {
-    if (!item) return '';
-    // 1. Use backend-set partyLedger if valid
-    if (item.partyLedger && String(item.partyLedger).trim() && item.partyLedger !== 'Unmapped') {
-      return String(item.partyLedger).trim();
-    }
-    // 2. Use backend-set againstLedger as fallback
-    if (item.againstLedger && String(item.againstLedger).trim() && item.againstLedger !== 'Unmapped') {
-      return String(item.againstLedger).trim();
-    }
-    // 3. Live-match extractedParty against loaded master ledgers
-    const cand = item.extractedParty && String(item.extractedParty).trim();
-    if (cand && cand !== '—') {
-      // First check if extractedParty IS already a master ledger name (exact or alnum)
-      const candLower = cand.toLowerCase();
-      const directMatch = allLedgersList.find(l => l.toLowerCase() === candLower);
-      if (directMatch) return directMatch;
-      // Then fuzzy match
-      const bestMatch = findBestLedgerMatch(cand, allLedgersList);
-      if (bestMatch && bestMatch.score >= 70 && bestMatch.ledger) {
-        return bestMatch.ledger;
-      }
-    }
-    // 4. Try matching a narration excerpt if nothing else works
-    const narrationExcerpt = extractExactValue(item.narration, item);
-    if (narrationExcerpt && narrationExcerpt !== '—' && narrationExcerpt.length >= 4) {
-      const bestMatch = findBestLedgerMatch(narrationExcerpt, allLedgersList);
-      if (bestMatch && bestMatch.score >= 80 && bestMatch.ledger) {
-        return bestMatch.ledger;
-      }
-    }
-    return '';
+    return getBatchItemEffectiveParty(item, allLedgersList);
   }, [allLedgersList]);
 
-  // Helper to determine effective status based on dynamic confidence score & party ledger
   const getEffectiveStatus = useCallback((item) => {
-    if (!item) return 'review_required';
-    if (item.status === 'saved' || Boolean(item.saved_voucher_id)) {
-      return 'saved';
-    }
-    if (item.status === 'already_processed' || item.status === 'user_edited') {
-      return item.status;
-    }
-    const effParty = getEffectiveParty(item);
-    const hasParty = Boolean(effParty);
-    const rawScore = Number(item.confidence) || 0;
-    // Cap confidence at 65% when no party is mapped — a rule-only match is incomplete
-    const score = hasParty
-      ? (rawScore > 0 ? rawScore : 85)
-      : Math.min(rawScore > 0 ? rawScore : 45, 65);
-    // Only mark as ready when BOTH party is mapped AND confidence >= 90%
-    if (score >= 90 && hasParty) {
-      return 'ready';
-    }
-    if (hasParty && item.status === 'ready') {
-      return 'ready';
-    }
-    return 'review_required';
-  }, [getEffectiveParty]);
+    return getBatchItemEffectiveStatus(item, allLedgersList);
+  }, [allLedgersList]);
 
-  // Dynamic summary stats synced with effective status
+  // Dynamic summary stats strictly synced with shared calculateBatchSummary
   const dynamicSummary = useMemo(() => {
-    let ready_count = 0;
-    let review_required_count = 0;
-    let already_processed_count = 0;
-    let saved_count = 0;
-    let tally_pushed_count = 0;
-    let tally_pending_count = 0;
-    items.forEach(it => {
-      const isSaved = it.status === 'saved' || Boolean(it.saved_voucher_id);
-      const hasXml = Boolean(
-        it.tallyXml || 
-        it.tally_xml || 
-        String(it.tallyPushStatus || '').toUpperCase() === 'POSTED_TO_TALLY' ||
-        String(it.tallyPushStatus || '').toUpperCase() === 'PUSHED' ||
-        String(it.status || '').toUpperCase() === 'POSTED_TO_TALLY'
-      );
-
-      if (isSaved) {
-        saved_count++;
-        if (hasXml) {
-          tally_pushed_count++;
-        } else {
-          tally_pending_count++;
-        }
-      } else {
-        const eff = getEffectiveStatus(it);
-        if (eff === 'ready' || eff === 'user_edited') ready_count++;
-        else if (eff === 'review_required') review_required_count++;
-        else if (eff === 'already_processed') already_processed_count++;
-      }
-    });
-    return {
-      total_count: items.length,
-      ready_count,
-      review_required_count,
-      already_processed_count,
-      saved_count,
-      tally_pushed_count,
-      tally_pending_count
-    };
-  }, [items, getEffectiveStatus]);
+    return calculateBatchSummary(batchData, allLedgersList);
+  }, [batchData, allLedgersList]);
 
   // Helper to resolve voucher type for counting and filtering
   const resolveVoucherType = useCallback((item) => {
@@ -360,31 +272,113 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
     return filteredItems.slice(start, start + pageSize);
   }, [filteredItems, currentPage, pageSize]);
 
+  const getItemSuggestedLedger = useCallback((item) => {
+    if (!item) return '';
+    const rawParty = item.partyLedger || item.againstLedger || '';
+    if (rawParty && rawParty !== 'Unmapped' && rawParty !== '—' && !rawParty.includes('-- Select') && rawParty.trim()) {
+      return rawParty.trim();
+    }
+    const eff = getEffectiveParty(item);
+    if (eff && eff !== 'Unmapped' && eff !== '—' && !eff.includes('-- Select') && eff.trim()) {
+      return eff.trim();
+    }
+    return '';
+  }, [getEffectiveParty]);
+
+  const allEligibleItems = useMemo(() => {
+    return filteredItems.filter(i => {
+      const eff = getEffectiveStatus(i);
+      return eff !== 'already_processed' && eff !== 'saved';
+    });
+  }, [filteredItems, getEffectiveStatus]);
+
+  const itemsWithSuggestions = useMemo(() => {
+    return allEligibleItems.filter(i => Boolean(getItemSuggestedLedger(i)));
+  }, [allEligibleItems, getItemSuggestedLedger]);
+
+  const selectedWithSuggestionsCount = useMemo(() => {
+    if (!selectedItemIds.length) return 0;
+    const selectedSet = new Set(selectedItemIds);
+    return itemsWithSuggestions.filter(i => selectedSet.has(i.item_id)).length;
+  }, [selectedItemIds, itemsWithSuggestions]);
+
   const toggleSelectItem = (itemId) => {
     setSelectedItemIds(prev =>
       prev.includes(itemId) ? prev.filter(id => id !== itemId) : [...prev, itemId]
     );
   };
 
+  const toggleSelectSuggested = (checked) => {
+    if (checked) {
+      const suggestedIds = itemsWithSuggestions.map(i => i.item_id);
+      setSelectedItemIds(suggestedIds);
+    } else {
+      setSelectedItemIds([]);
+    }
+  };
+
   const toggleSelectAll = (checked) => {
     if (checked) {
-      const saveableIds = filteredItems.filter(i => {
-        const eff = getEffectiveStatus(i);
-        return eff !== 'already_processed' && eff !== 'saved';
-      }).map(i => i.item_id);
-      setSelectedItemIds(saveableIds);
+      const allIds = allEligibleItems.map(i => i.item_id);
+      setSelectedItemIds(allIds);
     } else {
       setSelectedItemIds([]);
     }
   };
 
   const handleUpdateItemField = async (itemId, field, value) => {
+    const isPartyField = field === 'partyLedger' || field === 'againstLedger';
+
+    // 1. Optimistic local update so UI reflects 100% Ready INSTANTLY (0ms lag)
+    setBatchData(prev => {
+      if (!prev || !prev.items) return prev;
+      return {
+        ...prev,
+        items: prev.items.map(it => {
+          if (it.item_id === itemId) {
+            return {
+              ...it,
+              [field]: value,
+              ...(isPartyField ? {
+                partyLedger: value,
+                againstLedger: value,
+                status: 'user_edited',
+                review_required: false,
+                confidence: 100,
+                user_reasoning: 'Manually verified & selected by user'
+              } : {})
+            };
+          }
+          return it;
+        })
+      };
+    });
+
+    if (editingItem && editingItem.item_id === itemId) {
+      setEditingItem(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          [field]: value,
+          ...(isPartyField ? {
+            partyLedger: value,
+            againstLedger: value,
+            status: 'user_edited',
+            review_required: false,
+            confidence: 100,
+            user_reasoning: 'Manually verified & selected by user'
+          } : {})
+        };
+      });
+    }
+
     try {
       const bId = batchData.batch_id || batchData._id;
       const res = await bankStatementAiApi.updateTransaction(bId, itemId, { [field]: value });
       if (res.success && res.data) {
-        if (field === 'partyLedger' && res.data.affectedCount && res.data.affectedCount > 1) {
-          toast.success(`Mapped "${value}" to ${res.data.affectedCount} transaction(s) across statement without re-upload!`);
+        const affCount = res.affectedCount || res.data?.affectedCount || 1;
+        if (field === 'partyLedger' && affCount > 1) {
+          toast.success(`Mapped "${value}" to ${affCount} transaction(s) across statement without re-upload!`);
           const refreshed = await bankStatementAiApi.getBatchReview(bId);
           if (refreshed?.success && refreshed.data) {
             setBatchData(refreshed.data);
@@ -392,15 +386,105 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
         } else {
           setBatchData(prev => ({
             ...prev,
-            items: prev.items.map(i => i.item_id === itemId ? res.data : i)
+            items: prev.items.map(i => i.item_id === itemId ? {
+              ...res.data,
+              confidence: 100,
+              status: 'user_edited',
+              review_required: false
+            } : i)
           }));
         }
         if (editingItem && editingItem.item_id === itemId) {
-          setEditingItem(res.data);
+          setEditingItem({
+            ...res.data,
+            confidence: 100,
+            status: 'user_edited',
+            review_required: false
+          });
         }
       }
     } catch (err) {
       toast.error('Failed to update transaction field');
+    }
+  };
+
+  const handleVerifyItem = async (itemId, ledgerToVerify) => {
+    const item = (batchData?.items || []).find(i => i.item_id === itemId);
+    const ledger = ledgerToVerify || item?.partyLedger || getEffectiveParty(item);
+    if (!ledger || ledger === 'Unmapped') {
+      toast.error('Please select a valid party ledger first to verify.');
+      return;
+    }
+    await handleUpdateItemField(itemId, 'partyLedger', ledger);
+    toast.success(`Verified "${ledger}" — marked 100% Ready!`);
+  };
+
+  const handleAcceptSuggestedForSelected = async () => {
+    if (!selectedItemIds.length) return;
+    const bId = batchData?.batch_id || batchData?._id;
+    if (!bId) return;
+
+    const currentItems = batchData.items || [];
+    const mappings = [];
+
+    // ONLY select items that actually have a non-empty, valid suggested ledger!
+    for (const id of selectedItemIds) {
+      const it = currentItems.find(i => i.item_id === id);
+      if (!it) continue;
+      const effParty = getItemSuggestedLedger(it);
+      if (effParty) {
+        mappings.push({ item_id: id, partyLedger: effParty });
+      }
+    }
+
+    if (!mappings.length) {
+      toast.error('None of the selected vouchers have an auto-suggested ledger to accept. Unmapped vouchers require manual selection.');
+      return;
+    }
+
+    setAcceptingSuggestedLoading(true);
+
+    // Instant optimistic update for 0ms UI lag ONLY on items with valid suggested ledger
+    const mapLookup = new Map(mappings.map(m => [m.item_id, m.partyLedger]));
+    setBatchData(prev => {
+      if (!prev || !prev.items) return prev;
+      return {
+        ...prev,
+        items: prev.items.map(it => {
+          if (mapLookup.has(it.item_id)) {
+            const p = mapLookup.get(it.item_id);
+            return {
+              ...it,
+              partyLedger: p,
+              againstLedger: p,
+              status: 'user_edited',
+              review_required: false,
+              confidence: 100,
+              user_reasoning: 'Auto-suggested ledger accepted by user'
+            };
+          }
+          // Unmapped items remain completely untouched!
+          return it;
+        })
+      };
+    });
+
+    try {
+      const res = await bankStatementAiApi.bulkAcceptSuggested(bId, mappings);
+      if (res?.success) {
+        toast.success(`Accepted suggested ledgers for ${res.accepted_count || mappings.length} voucher(s) — marked 100% Ready!`);
+        if (res.data) {
+          setBatchData(res.data);
+        }
+        setSelectedItemIds([]);
+      } else {
+        toast.error(res?.error || 'Failed to accept suggested ledgers');
+      }
+    } catch (err) {
+      console.error('Failed to bulk accept suggested ledgers:', err);
+      toast.error('Failed to accept suggested ledgers');
+    } finally {
+      setAcceptingSuggestedLoading(false);
     }
   };
 
@@ -474,23 +558,39 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
     const bId = batchData.batch_id || batchData._id;
     setSavingLoading(true);
     try {
+      // 1. Fast bulk bind: if any selected items need suggested ledgers bound, do it in ONE batch call!
+      const unmappedNeedBinding = [];
+      const currentItems = batchData.items || [];
       for (const id of selectedItemIds) {
-        const it = (batchData.items || []).find(i => i.item_id === id);
-        const effParty = it ? (it.partyLedger || getEffectiveParty(it)) : '';
-        if (it && (!it.partyLedger || it.partyLedger === 'Unmapped') && effParty) {
-          try {
-            await bankStatementAiApi.updateTransaction(bId, id, { partyLedger: effParty });
-          } catch (e) {}
+        const it = currentItems.find(i => i.item_id === id);
+        if (it && (!it.partyLedger || it.partyLedger === 'Unmapped' || it.partyLedger.includes('-- Select'))) {
+          const effParty = getItemSuggestedLedger(it);
+          if (effParty) {
+            unmappedNeedBinding.push({ item_id: id, partyLedger: effParty });
+          }
         }
       }
-      const res = await bankStatementAiApi.saveVouchers(bId, selectedItemIds);
-      if (res.success) {
-        toast.success(`Successfully saved ${res.saved_count} accounting voucher(s) and generated Tally XML!`);
-        // Refresh batch data
-        const updatedBatch = await bankStatementAiApi.getBatchReview(bId);
-        if (updatedBatch?.success) {
-          setBatchData(updatedBatch.data);
+      if (unmappedNeedBinding.length > 0) {
+        try {
+          await bankStatementAiApi.bulkAcceptSuggested(bId, unmappedNeedBinding);
+        } catch (e) {
+          console.warn('Auto-binding suggested ledgers warning:', e);
         }
+      }
+
+      // 2. Direct fast save of all selected vouchers in 1 single request
+      const res = await bankStatementAiApi.saveVouchers(bId, selectedItemIds);
+      if (res && res.success) {
+        toast.success(`Successfully saved ${res.saved_count || selectedItemIds.length} accounting voucher(s)!`);
+        
+        // Refresh batch data
+        try {
+          const updatedBatch = await bankStatementAiApi.getBatchReview(bId);
+          if (updatedBatch?.success && updatedBatch.data) {
+            setBatchData(updatedBatch.data);
+          }
+        } catch (e) {}
+
         if (res.xmlPayload) {
           setXmlPreviewItem({
             isBatch: true,
@@ -502,9 +602,14 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
         }
         setSelectedItemIds([]);
         if (onRefreshList) onRefreshList();
+        // Background refresh transactions for BRS tab
+        fundFlowStore.fetchTransactions().catch(() => {});
+      } else {
+        toast.error(res?.error || 'Failed to save vouchers');
       }
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Error saving accounting vouchers');
+      console.error('Failed to save vouchers:', err);
+      toast.error(err?.response?.data?.detail || err?.response?.data?.message || err?.message || 'Error saving accounting vouchers');
     } finally {
       setSavingLoading(false);
     }
@@ -694,18 +799,15 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
       partyLedger: maybeParty
     };
     const isSaved = item.status === 'saved' || Boolean(item.saved_voucher_id);
-    const hasXml = Boolean(
-      item.tallyXml || 
-      item.tally_xml || 
+    const isPushedToTally = 
       String(item.tallyPushStatus || '').toUpperCase() === 'POSTED_TO_TALLY' ||
       String(item.tallyPushStatus || '').toUpperCase() === 'PUSHED' ||
-      String(item.status || '').toUpperCase() === 'POSTED_TO_TALLY'
-    );
+      String(item.status || '').toUpperCase() === 'POSTED_TO_TALLY';
     const isFailed = String(item.tallyPushStatus || '').toUpperCase() === 'FAILED_TALLY';
 
-    // 1. Saved Vouchers: Clickable TALLY PUSHED or PENDING badges to immediately view/generate XML!
+    // 1. Saved Vouchers: Show TALLY PUSHED if posted to Tally, otherwise show SAVED
     if (isSaved) {
-      if (hasXml) {
+      if (isPushedToTally) {
         return (
           <button
             type="button"
@@ -722,27 +824,38 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
           </button>
         );
       }
+      if (item.tallyXml || item.tally_xml) {
+        return (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); handlePreviewItemXml(item); }}
+            title="Saved to MongoDB. Click to view Tally XML"
+            className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border border-purple-300 dark:border-purple-800 flex items-center justify-center gap-1 shadow-xs hover:scale-105 hover:bg-purple-200 dark:hover:bg-purple-900 transition-all cursor-pointer"
+          >
+            <CheckCircle2 size={10} className="text-purple-600 dark:text-purple-400" />
+            <span>SAVED</span>
+          </button>
+        );
+      }
       return (
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); handlePreviewItemXml(item); }}
-          title="Saved to MongoDB. Click to view / generate Tally XML!"
-          className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-300 dark:border-amber-800 flex items-center justify-center gap-1 shadow-xs hover:scale-105 hover:bg-amber-200 dark:hover:bg-amber-900 transition-all cursor-pointer animate-pulse"
+        <span
+          title="Saved in MongoDB"
+          className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border border-purple-300 dark:border-purple-800 flex items-center justify-center gap-1 shadow-xs"
         >
-          {loadingXmlItemId === item.item_id ? (
-            <RefreshCw size={10} className="animate-spin text-amber-600 dark:text-amber-400" />
-          ) : (
-            <Clock size={10} className="text-amber-600 dark:text-amber-400" />
-          )}
-          <span>PENDING (VIEW XML)</span>
-        </button>
+          <CheckCircle2 size={10} className="text-purple-600 dark:text-purple-400" />
+          <span>SAVED</span>
+        </span>
       );
     }
 
-    if (item.status === 'user_edited' || item.status === 'user_verified') {
+    // 2. User verified or 100% confident items: Show READY with green styling
+    if (item.status === 'user_edited' || item.status === 'user_verified' || Number(item.confidence) === 100 || maybeConfidence === 100) {
       return (
-        <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400 border border-blue-300 dark:border-blue-800 inline-flex items-center justify-center gap-1 whitespace-nowrap">
-          <Edit3 size={10} /> USER VERIFIED
+        <span
+          title="Manually verified & selected by user • 100% Ready"
+          className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800 inline-flex items-center justify-center gap-1 whitespace-nowrap shadow-xs"
+        >
+          <Check size={10} /> READY
         </span>
       );
     }
@@ -770,15 +883,23 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
       );
     }
 
-    // Orange: 60% to 89% -> Review Required
+    // Orange: 60% to 89% -> Review Required (Clickable to quickly verify if candidate is present!)
     if (score >= 60) {
       return (
-        <span
-          title={reasonText}
-          className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-300 dark:border-amber-800 inline-flex items-center justify-center gap-1 cursor-help whitespace-nowrap"
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (item.item_id && maybeParty) {
+              handleVerifyItem(item.item_id, maybeParty);
+            }
+          }}
+          title={maybeParty ? `Click to verify and approve "${maybeParty}" as 100% Ready` : reasonText}
+          className={`px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-300 dark:border-amber-800 inline-flex flex-col items-center justify-center leading-tight text-center ${maybeParty ? 'hover:bg-amber-200 dark:hover:bg-amber-900 cursor-pointer shadow-2xs' : 'cursor-help'}`}
         >
-          <AlertCircle size={10} /> REVIEW REQUIRED
-        </span>
+          <span className="inline-flex items-center gap-0.5"><AlertCircle size={10} /> REVIEW</span>
+          <span>REQUIRED</span>
+        </button>
       );
     }
 
@@ -786,9 +907,10 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
     return (
       <span
         title={reasonText}
-        className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-300 dark:border-rose-800 inline-flex items-center justify-center gap-1 cursor-help whitespace-nowrap"
+        className="px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-300 dark:border-rose-800 inline-flex flex-col items-center justify-center cursor-help leading-tight text-center"
       >
-        <AlertCircle size={10} /> REVIEW REQUIRED
+        <span className="inline-flex items-center gap-0.5"><AlertCircle size={10} /> REVIEW</span>
+        <span>REQUIRED</span>
       </span>
     );
   };
@@ -845,20 +967,13 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
 
         <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
           <button
-            onClick={onClose}
+            onClick={() => onClose && onClose(batchData)}
             className="h-8 px-3 py-1 border rounded-lg text-[10.5px] font-bold uppercase tracking-wider hover:bg-[var(--app-control-hover)] transition-all cursor-pointer whitespace-nowrap inline-flex items-center justify-center"
             style={{ borderColor: 'var(--app-border)', color: 'var(--app-muted)' }}
           >
             ← Back to Bank
           </button>
-          <button
-            onClick={handlePreviewBatchXml}
-            className="h-8 px-3 py-1 rounded-lg text-[10.5px] font-black uppercase tracking-wider border border-indigo-400 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900 transition-all cursor-pointer shadow-2xs whitespace-nowrap inline-flex items-center gap-1.5"
-            title="Preview generated Tally XML payload for saved/selected vouchers"
-          >
-            <FileCode size={13} />
-            <span>View XML</span>
-          </button>
+
           <button
             onClick={handleSaveSelectedVouchers}
             disabled={selectedItemIds.length === 0 || savingLoading}
@@ -869,9 +984,13 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
           </button>
           <button
             onClick={handlePushSelectedVouchers}
-            disabled={pushLoading || (selectedItemIds.length === 0 && dynamicSummary.tally_pending_count === 0)}
-            className="h-8 px-3.5 py-1 rounded-lg text-[10.5px] font-black uppercase tracking-wider bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-xs hover:opacity-90 transition-all disabled:opacity-50 cursor-pointer whitespace-nowrap inline-flex items-center gap-1.5"
-            title="Push vouchers to Tally in ONE single XML request"
+            disabled={pushLoading || (selectedItemIds.length === 0 && dynamicSummary.tally_pending_count === 0) || dynamicSummary.review_required_count > 0}
+            title={
+              dynamicSummary.review_required_count > 0
+                ? `${dynamicSummary.review_required_count} voucher(s) still have 'Review Required' status. Map all party ledgers to READY before pushing to Tally.`
+                : 'Push vouchers to Tally in ONE single XML request'
+            }
+            className="h-8 px-3.5 py-1 rounded-lg text-[10.5px] font-black uppercase tracking-wider bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-xs hover:opacity-90 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer whitespace-nowrap inline-flex items-center gap-1.5"
           >
             {pushLoading ? <RefreshCw className="animate-spin" size={12} /> : <Send size={12} />}
             <span>
@@ -886,10 +1005,38 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
       {/* KPI Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 shrink-0">
         {[
-          { id: 'all', label: 'Total Statement Items', count: dynamicSummary.total_count, color: 'text-[var(--app-heading)]' },
-          { id: 'ready', label: 'Mapped & Ready', count: dynamicSummary.ready_count, color: 'text-emerald-500' },
-          { id: 'review_required', label: 'Review Required', count: dynamicSummary.review_required_count, color: 'text-amber-500' },
-          { id: 'already_processed', label: 'Duplicates', count: dynamicSummary.already_processed_count, color: 'text-rose-500' },
+          { 
+            id: 'all', 
+            label: 'Total Statement Items', 
+            count: dynamicSummary.total_count, 
+            color: 'text-[var(--app-heading)]',
+            activeClass: 'bg-indigo-50/90 dark:bg-indigo-950/50 border-indigo-400 ring-2 ring-indigo-500/25 shadow-sm',
+            activePill: 'bg-indigo-600 text-white'
+          },
+          { 
+            id: 'ready', 
+            label: 'Mapped & Ready', 
+            count: dynamicSummary.ready_count, 
+            color: 'text-emerald-600 dark:text-emerald-400',
+            activeClass: 'bg-emerald-50/90 dark:bg-emerald-950/50 border-emerald-500 ring-2 ring-emerald-500/25 shadow-sm',
+            activePill: 'bg-emerald-600 text-white'
+          },
+          { 
+            id: 'review_required', 
+            label: 'Review Required', 
+            count: dynamicSummary.review_required_count, 
+            color: 'text-amber-600 dark:text-amber-400',
+            activeClass: 'bg-amber-50/90 dark:bg-amber-950/50 border-amber-500 ring-2 ring-amber-500/25 shadow-sm',
+            activePill: 'bg-amber-600 text-white'
+          },
+          { 
+            id: 'already_processed', 
+            label: 'Duplicates', 
+            count: dynamicSummary.already_processed_count, 
+            color: 'text-rose-600 dark:text-rose-400',
+            activeClass: 'bg-rose-50/90 dark:bg-rose-950/50 border-rose-500 ring-2 ring-rose-500/25 shadow-sm',
+            activePill: 'bg-rose-600 text-white'
+          },
           { 
             id: 'saved', 
             label: 'Saved Vouchers', 
@@ -897,35 +1044,69 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
             subtext: dynamicSummary.saved_count > 0 
               ? `${dynamicSummary.tally_pushed_count} Pushed • ${dynamicSummary.tally_pending_count} Pending`
               : null,
-            color: 'text-purple-500' 
+            color: 'text-purple-600 dark:text-purple-400',
+            activeClass: 'bg-purple-50/90 dark:bg-purple-950/50 border-purple-500 ring-2 ring-purple-500/25 shadow-sm',
+            activePill: 'bg-purple-600 text-white'
           }
-        ].map(kpi => (
-          <button
-            key={kpi.id}
-            onClick={() => setActiveFilter(kpi.id)}
-            className={`px-3 py-1.5 rounded-lg border transition-all text-left cursor-pointer ${
-              activeFilter === kpi.id ? 'ring-1.5 ring-[var(--app-accent)] bg-[var(--app-control-bg)]' : 'bg-[var(--app-panel-bg)] hover:bg-[var(--app-control-hover)]'
-            }`}
-            style={{ borderColor: 'var(--app-border)' }}
-          >
-            <span className="text-[9px] font-bold text-[var(--app-muted)] uppercase tracking-wider block truncate">{kpi.label}</span>
-            <div className="flex items-baseline justify-between gap-1 mt-0.5">
-              <span className={`text-[16px] font-black leading-tight ${kpi.color}`}>{kpi.count}</span>
-              {kpi.subtext && (
-                <span className="text-[9px] font-bold text-[var(--app-muted)] truncate">{kpi.subtext}</span>
-              )}
-            </div>
-          </button>
-        ))}
+        ].map(kpi => {
+          const isActive = activeFilter === kpi.id;
+          return (
+            <button
+              key={kpi.id}
+              onClick={() => setActiveFilter(kpi.id)}
+              className={`px-3 py-1.5 rounded-lg border transition-all text-left cursor-pointer relative ${
+                isActive
+                  ? kpi.activeClass
+                  : 'bg-[var(--app-panel-bg)] hover:bg-[var(--app-control-hover)]'
+              }`}
+              style={!isActive ? { borderColor: 'var(--app-border)' } : undefined}
+            >
+              <div className="flex items-center justify-between gap-1">
+                <span className={`text-[9px] uppercase tracking-wider block truncate ${isActive ? 'font-black text-[var(--app-heading)]' : 'font-bold text-[var(--app-muted)]'}`}>
+                  {kpi.label}
+                </span>
+                {isActive && (
+                  <span className={`text-[7.5px] font-black uppercase px-1.5 py-0.5 rounded leading-none shrink-0 ${kpi.activePill}`}>
+                    Active
+                  </span>
+                )}
+              </div>
+              <div className="flex items-baseline justify-between gap-1 mt-0.5">
+                <span className={`text-[16px] font-black leading-tight ${kpi.color}`}>{kpi.count}</span>
+                {kpi.subtext && (
+                  <span className="text-[9px] font-bold text-[var(--app-muted)] truncate">{kpi.subtext}</span>
+                )}
+              </div>
+            </button>
+          );
+        })}
       </div>
+
+      {/* Warning Banner: shown when review_required items still exist */}
+      {dynamicSummary.review_required_count > 0 && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 shrink-0">
+          <AlertCircle size={14} className="text-amber-600 dark:text-amber-400 shrink-0" />
+          <span className="text-[10.5px] font-bold text-amber-800 dark:text-amber-300 flex-1">
+            <span className="font-black">{dynamicSummary.review_required_count} voucher(s)</span> still have{' '}
+            <span className="font-black">REVIEW REQUIRED</span> status — please map all party ledgers to{' '}
+            <span className="font-black text-emerald-700 dark:text-emerald-400">READY</span> before Tally XML can be generated.
+          </span>
+          <button
+            onClick={() => setActiveFilter('review_required')}
+            className="text-[9.5px] font-black uppercase tracking-wider px-2 py-1 rounded bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-200 hover:bg-amber-300 dark:hover:bg-amber-700 transition-colors cursor-pointer whitespace-nowrap"
+          >
+            View Pending →
+          </button>
+        </div>
+      )}
 
       {/* Voucher Type Small Clickable Cards (Single Line) */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 shrink-0">
         {[
-          { id: 'ALL', label: 'All Voucher Types', count: voucherTypeCounts.all, color: 'text-[var(--app-heading)]', dot: 'bg-slate-400' },
-          { id: 'Receipt', label: 'Receipts (Inflow)', count: voucherTypeCounts.receipt, color: 'text-emerald-500', dot: 'bg-emerald-500' },
-          { id: 'Payment', label: 'Payments (Outflow)', count: voucherTypeCounts.payment, color: 'text-rose-500', dot: 'bg-rose-500' },
-          { id: 'Contra', label: 'Contra (Transfer)', count: voucherTypeCounts.contra, color: 'text-blue-500', dot: 'bg-blue-500' }
+          { id: 'ALL', label: 'All Voucher Types', count: voucherTypeCounts.all, color: 'text-[var(--app-heading)]', dot: 'bg-indigo-500', activeClass: 'bg-indigo-50/90 dark:bg-indigo-950/50 border-indigo-400 ring-2 ring-indigo-500/25 shadow-2xs', activePill: 'bg-indigo-600 text-white' },
+          { id: 'Receipt', label: 'Receipts (Inflow)', count: voucherTypeCounts.receipt, color: 'text-emerald-500', dot: 'bg-emerald-500', activeClass: 'bg-emerald-50/90 dark:bg-emerald-950/50 border-emerald-500 ring-2 ring-emerald-500/25 shadow-2xs', activePill: 'bg-emerald-600 text-white' },
+          { id: 'Payment', label: 'Payments (Outflow)', count: voucherTypeCounts.payment, color: 'text-rose-500', dot: 'bg-rose-500', activeClass: 'bg-rose-50/90 dark:bg-rose-950/50 border-rose-500 ring-2 ring-rose-500/25 shadow-2xs', activePill: 'bg-rose-600 text-white' },
+          { id: 'Contra', label: 'Contra (Transfer)', count: voucherTypeCounts.contra, color: 'text-blue-500', dot: 'bg-blue-500', activeClass: 'bg-blue-50/90 dark:bg-blue-950/50 border-blue-500 ring-2 ring-blue-500/25 shadow-2xs', activePill: 'bg-blue-600 text-white' }
         ].map(vtCard => {
           const isSelected = voucherTypeFilter === vtCard.id;
           return (
@@ -934,19 +1115,19 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
               onClick={() => setVoucherTypeFilter(prev => prev === vtCard.id && vtCard.id !== 'ALL' ? 'ALL' : vtCard.id)}
               className={`flex items-center justify-between px-2.5 py-1 rounded-md border transition-all text-left cursor-pointer ${
                 isSelected
-                  ? 'ring-1.5 ring-[var(--app-accent)] bg-[var(--app-control-bg)] shadow-2xs'
+                  ? `${vtCard.activeClass}`
                   : 'bg-[var(--app-panel-bg)] hover:bg-[var(--app-control-hover)]'
               }`}
-              style={{ borderColor: 'var(--app-border)' }}
+              style={!isSelected ? { borderColor: 'var(--app-border)' } : undefined}
             >
               <div className="flex items-center gap-1.5 min-w-0">
                 <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${vtCard.dot}`} />
-                <span className="text-[9.5px] font-bold text-[var(--app-muted)] uppercase tracking-wider truncate">{vtCard.label}</span>
+                <span className={`text-[9.5px] uppercase tracking-wider truncate ${isSelected ? 'font-black text-[var(--app-heading)]' : 'font-bold text-[var(--app-muted)]'}`}>{vtCard.label}</span>
               </div>
               <div className="flex items-center gap-1.5 ml-1.5 shrink-0">
                 <span className={`text-[12px] font-black ${vtCard.color}`}>{vtCard.count}</span>
                 {isSelected && (
-                  <span className="text-[7.5px] font-extrabold text-[var(--app-accent)] uppercase px-1 py-0.5 rounded bg-[var(--app-accent)]/10 leading-none">Active</span>
+                  <span className={`text-[7.5px] font-black uppercase px-1.5 py-0.5 rounded leading-none ${vtCard.activePill}`}>Active</span>
                 )}
               </div>
             </button>
@@ -956,16 +1137,43 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
 
       {/* Controls Bar */}
       <div className="flex flex-wrap items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg border bg-[var(--app-control-bg)] shrink-0" style={{ borderColor: 'var(--app-border)' }}>
-        <div className="flex items-center gap-2.5">
-          <label className="flex items-center gap-1.5 cursor-pointer font-extrabold text-[10.5px] text-[var(--app-heading)]">
+        <div className="flex items-center gap-2.5 flex-wrap">
+          {/* 1. Primary: Select Auto-Matched (only items that have suggested ledgers) */}
+          <label className="flex items-center gap-1.5 cursor-pointer font-extrabold text-[10.5px] text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-1 rounded border border-emerald-300 dark:border-emerald-800 transition-all hover:bg-emerald-100/70 shadow-2xs">
             <input
               type="checkbox"
-              onChange={(e) => toggleSelectAll(e.target.checked)}
-              checked={selectedItemIds.length > 0 && selectedItemIds.length === filteredItems.filter(i => i.status !== 'already_processed' && i.status !== 'saved').length}
-              className="w-3.5 h-3.5 rounded accent-[var(--app-accent)] cursor-pointer"
+              onChange={(e) => toggleSelectSuggested(e.target.checked)}
+              checked={itemsWithSuggestions.length > 0 && itemsWithSuggestions.every(i => selectedItemIds.includes(i.item_id))}
+              className="w-3.5 h-3.5 rounded accent-emerald-600 cursor-pointer"
             />
-            Select All Eligible ({filteredItems.filter(i => i.status !== 'already_processed' && i.status !== 'saved').length})
+            <span>Select Auto-Matched ({itemsWithSuggestions.length})</span>
           </label>
+
+          {/* 2. Secondary: Select All Eligible (including unmapped) if there are any unmapped items */}
+          {allEligibleItems.length > itemsWithSuggestions.length && (
+            <label className="flex items-center gap-1.5 cursor-pointer font-bold text-[10px] text-[var(--app-muted)] hover:text-[var(--app-heading)] transition-colors">
+              <input
+                type="checkbox"
+                onChange={(e) => toggleSelectAll(e.target.checked)}
+                checked={allEligibleItems.length > 0 && selectedItemIds.length === allEligibleItems.length}
+                className="w-3 h-3 rounded accent-[var(--app-accent)] cursor-pointer"
+              />
+              <span>All Eligible ({allEligibleItems.length})</span>
+            </label>
+          )}
+
+          {/* 3. Action button: Only accepts items with actual suggested ledgers */}
+          {selectedWithSuggestionsCount > 0 && (
+            <button
+              onClick={handleAcceptSuggestedForSelected}
+              disabled={acceptingSuggestedLoading}
+              className="h-7 px-3 py-1 rounded-md text-[10.5px] font-black text-white bg-emerald-600 hover:bg-emerald-700 transition-all cursor-pointer shadow-xs inline-flex items-center gap-1.5 disabled:opacity-50"
+              title="Accept auto-suggested ledgers for selected vouchers and mark them 100% Ready (unmapped vouchers will remain untouched)"
+            >
+              {acceptingSuggestedLoading ? <RefreshCw className="animate-spin" size={12} /> : <CheckCheck size={13} />}
+              <span>Accept Suggested ({selectedWithSuggestionsCount})</span>
+            </button>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -1002,12 +1210,12 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
           <thead className="sticky top-0 bg-[var(--app-control-bg)] z-10 border-b" style={{ borderColor: 'var(--app-border)' }}>
             <tr>
               <th className="py-2 px-1 w-12 text-center font-black text-[var(--app-muted)] uppercase tracking-wider text-[10px]">SR #</th>
-              <th className="py-2 px-1 font-black text-[var(--app-muted)] uppercase tracking-wider w-24 text-center text-[10px]">Voucher Date</th>
-              <th className="py-2 px-1.5 font-black text-[var(--app-muted)] uppercase tracking-wider w-32 min-w-[115px] text-[10px]">Voucher Type</th>
+              <th className="py-2 px-1 font-black text-[var(--app-muted)] uppercase tracking-wider w-32 text-center text-[10px]">Voucher Date</th>
+              <th className="py-2 px-1.5 font-black text-[var(--app-muted)] uppercase tracking-wider w-24 min-w-[85px] text-[10px]">Voucher Type</th>
               <th className="py-2 px-1 font-black text-[var(--app-muted)] uppercase tracking-wider w-20 text-center text-[10px]">Txn Type</th>
               <th className="py-2 px-1.5 font-black text-[var(--app-muted)] uppercase tracking-wider w-36 max-w-[150px] text-[10px]">Exact Extracted Value</th>
               <th className="py-2 px-1.5 font-black text-[var(--app-muted)] uppercase tracking-wider w-56 min-w-[210px] text-[10px]">Party / Ledger Name</th>
-              <th className="py-2 px-2 font-black text-[var(--app-muted)] uppercase tracking-wider min-w-[320px] text-[10px]">Description / Narration</th>
+              <th className="py-2 px-2 font-black text-[var(--app-muted)] uppercase tracking-wider min-w-[220px] text-[10px]">Description / Narration</th>
               <th className="py-2 px-1.5 font-black text-[var(--app-muted)] uppercase tracking-wider text-right w-28 text-[10px]">Amount (₹)</th>
               <th className="py-2 px-1 font-black text-[var(--app-muted)] uppercase tracking-wider w-24 text-[10px]">Reference No.</th>
               <th className="py-2 px-1 font-black text-[var(--app-muted)] uppercase tracking-wider text-center w-16 text-[10px]">Confidence</th>
@@ -1027,12 +1235,22 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
                   ? rawParty.trim()
                   : getEffectiveParty(item);
                 const hasMaster = Boolean(effParty);
-                // effConfidence: If no party ledger is mapped, cap at 65% max to reflect incomplete matching.
-                // If party is resolved, use the backend confidence (but fall back to 85 if not provided).
+                const cand = item.extractedParty && String(item.extractedParty).trim();
+                const liveMatch = (cand && cand !== '—') ? findBestLedgerMatch(cand, allLedgersList) : null;
                 const rawConf = Number(item.confidence) || 0;
-                const effConfidence = hasMaster
-                  ? (rawConf > 0 ? rawConf : 85)
-                  : Math.min(rawConf > 0 ? rawConf : 45, 65);
+                const isUserVerified = item.status === 'user_edited' || item.status === 'user_verified' || rawConf === 100;
+                let effConfidence;
+                if (isUserVerified) {
+                  effConfidence = 100;
+                } else if (hasMaster) {
+                  if (liveMatch) {
+                    effConfidence = liveMatch.isAmbiguous ? Math.min(liveMatch.score, 85) : Math.max(liveMatch.score, rawConf > 0 ? rawConf : 90);
+                  } else {
+                    effConfidence = Math.max(90, rawConf > 0 ? rawConf : 90);
+                  }
+                } else {
+                  effConfidence = Math.min(rawConf > 0 ? rawConf : 45, 65);
+                }
                 const currentVType = resolveVoucherType(item);
                 const isContra = currentVType === 'Contra';
                 const isOutflow = currentVType === 'Payment';
@@ -1074,13 +1292,13 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
                     {/* 2. Voucher Date */}
                     <td className="py-1.5 px-1">
                       <input
-                        type="text"
-                        value={vDate}
+                        type="date"
+                        value={vDate ? (vDate.length === 10 ? vDate : vDate.slice(0, 10)) : ''}
                         onChange={(e) => {
                           handleUpdateItemField(item.item_id, 'date', e.target.value);
                           handleUpdateItemField(item.item_id, 'voucherDate', e.target.value);
                         }}
-                        className="w-full h-7 px-1 border rounded text-[10.5px] font-mono font-bold bg-[var(--app-panel-bg)] text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)] text-center"
+                        className="w-full h-7 px-1 border rounded text-[10px] font-mono font-bold bg-[var(--app-panel-bg)] text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)] text-center"
                         style={{ borderColor: 'var(--app-border)' }}
                       />
                     </td>
@@ -1090,7 +1308,7 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
                       <select
                         value={currentVType}
                         onChange={(e) => handleUpdateItemField(item.item_id, 'voucherType', e.target.value)}
-                        className={`w-full h-7 px-1.5 pr-4 border rounded text-[10.5px] font-bold outline-none focus:border-[var(--app-accent)] cursor-pointer truncate ${
+                        className={`w-full h-6 px-1 pr-3 border rounded text-[9.5px] font-bold outline-none focus:border-[var(--app-accent)] cursor-pointer ${
                           isContra
                             ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400 border-blue-300 dark:border-blue-800'
                             : isReceipt
@@ -1098,9 +1316,9 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
                             : 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border-rose-300 dark:border-rose-800'
                         }`}
                       >
-                        <option value="Receipt">Receipt (Inflow)</option>
-                        <option value="Payment">Payment (Outflow)</option>
-                        <option value="Contra">Contra (Transfer)</option>
+                        <option value="Receipt">Receipt</option>
+                        <option value="Payment">Payment</option>
+                        <option value="Contra">Contra</option>
                       </select>
                     </td>
 
@@ -1114,7 +1332,7 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
                     {/* 5. Exact Extracted Value */}
                     <td className="py-1.5 px-1.5">
                       <div className="w-full max-w-[150px]" title={extractExactValue(item.narration, item)}>
-                        <span className="font-mono text-[10px] font-bold text-indigo-700 dark:text-indigo-300 truncate block bg-indigo-50/80 dark:bg-indigo-950/40 px-1.5 py-0.5 rounded border border-indigo-200 dark:border-indigo-800">
+                        <span className="font-mono text-[10px] font-bold text-indigo-700 dark:text-indigo-300 break-words whitespace-normal block bg-indigo-50/80 dark:bg-indigo-950/40 px-1.5 py-0.5 rounded border border-indigo-200 dark:border-indigo-800 leading-snug">
                           {extractExactValue(item.narration, item)}
                         </span>
                       </div>
@@ -1138,26 +1356,19 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
                       </div>
                     </td>
 
-                    {/* 7. Description / Narration (Enlarged with min-w-[320px]) */}
-                    <td className="py-1.5 px-2 min-w-[320px]">
-                      <div className="w-full min-w-[300px]">
-                        <input
-                          type="text"
-                          readOnly
-                          value={item.narration || ''}
-                          onKeyDown={(e) => {
-                            const allowedKeys = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'Tab'];
-                            if (allowedKeys.includes(e.key) || ((e.ctrlKey || e.metaKey) && ['c', 'a', 'C', 'A'].includes(e.key))) {
-                              return;
-                            }
-                            e.preventDefault();
-                          }}
-                          className="w-full h-7 px-2.5 border rounded text-[11px] font-medium bg-[var(--app-panel-bg)] text-[var(--app-heading)] outline-none focus:border-[var(--app-accent)] cursor-text truncate transition-colors hover:bg-[var(--app-control-hover)]/30"
-                          style={{ borderColor: 'var(--app-border)' }}
+                    {/* 7. Description / Narration */}
+                    <td className="py-1.5 px-2 min-w-[220px]">
+                      <div className="w-full min-w-[200px]">
+                        <div
                           title={item.narration}
-                        />
+                          className="w-full text-[11px] font-medium text-[var(--app-heading)] break-words whitespace-normal leading-snug select-text cursor-text"
+                        >
+                          {(item.narration || '').replace(/[\r\n]+/g, ' ').replace(/\s{2,}/g, ' ').trim()}
+                        </div>
                       </div>
                     </td>
+
+
 
                     {/* 8. Amount (₹) */}
                     <td className="py-1.5 px-1.5 text-right">
@@ -1235,14 +1446,7 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
                         >
                           <Eye size={11} />
                         </button>
-                        <button
-                          onClick={() => handlePreviewItemXml(item)}
-                          disabled={loadingXmlItemId === item.item_id}
-                          className="w-6 h-6 rounded-md flex items-center justify-center border border-indigo-300 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 hover:shadow-2xs active:scale-95 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-400 transition-all cursor-pointer disabled:opacity-50 shrink-0"
-                          title="View / Generate Tally XML"
-                        >
-                          {loadingXmlItemId === item.item_id ? <RefreshCw size={10} className="animate-spin" /> : <FileCode size={11} />}
-                        </button>
+
                       </div>
                     </td>
                   </tr>
@@ -1401,7 +1605,7 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
                         <span className="text-[10px] font-black uppercase text-indigo-500 flex items-center gap-1">
                           <Sparkles size={12} /> AI Classification Reasoning
                         </span>
-                        {getConfidenceBadge(editingItem.confidence)}
+                        {getConfidenceBadge(editingItem.status === 'user_edited' || editingItem.status === 'user_verified' || Number(editingItem.confidence) === 100 ? 100 : (editingItem.confidence || 90))}
                       </div>
                       <p className="text-[11px] font-semibold text-[var(--app-heading)] leading-snug">
                         {editingItem.user_reasoning || 'AI matched transaction narration against active company master ledgers.'}
@@ -1473,7 +1677,7 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
                         extractedParty={extractExactValue(editingItem.narration, editingItem)}
                         narration={editingItem.narration}
                         voucherType={editingItem.voucherType}
-                        confidence={editingItem.confidence || (getEffectiveParty(editingItem) ? 98 : 45)}
+                        confidence={editingItem.status === 'user_edited' || editingItem.status === 'user_verified' || Number(editingItem.confidence) === 100 ? 100 : (editingItem.confidence || (getEffectiveParty(editingItem) ? 98 : 45))}
                         reviewReason={editingItem.partyLedger || getEffectiveParty(editingItem) ? '' : editingItem.review_reason}
                         onAddRule={onNavigateToAddRule}
                       />

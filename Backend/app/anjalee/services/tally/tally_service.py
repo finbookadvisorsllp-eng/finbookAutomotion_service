@@ -42,8 +42,8 @@ async def db_insert_one(db, collection: str, doc: dict) -> Any:
         return inserted.inserted_id
     return res.inserted_id
 
-async def db_update_one(db, collection: str, query: dict, update: dict) -> Any:
-    res = db[collection].update_one(query, update)
+async def db_update_one(db, collection: str, query: dict, update: dict, upsert: bool = False) -> Any:
+    res = db[collection].update_one(query, update, upsert=upsert)
     if inspect.isawaitable(res):
         return await res
     return res
@@ -464,6 +464,7 @@ class TallyPushService:
             tally_vch = VoucherMapper.map_to_tally_voucher(vdoc, company_name)
             # Generate individual voucher XML from its dedicated template
             vch_xml = TallyXmlGenerator.generate_xml(tally_vch)
+            vdoc["_individual_xml"] = vch_xml
             # Extract <TALLYMESSAGE ...>...</TALLYMESSAGE>
             start = vch_xml.find("<TALLYMESSAGE")
             end = vch_xml.rfind("</TALLYMESSAGE>")
@@ -624,9 +625,10 @@ class TallyPushService:
             error_msg = f"Unexpected error during Tally push: {str(e)}"
             response_xml = f"<ERROR>Unexpected: {str(e)}</ERROR>"
 
-        is_success = (response_status == "Success")
-        voucher_status = "POSTED_TO_TALLY" if is_success else "FAILED_TALLY"
-        payload_status = "Pushed" if is_success else "Failed"
+        has_xml = bool(combined_xml and combined_xml.strip())
+        is_success = (response_status == "Success") or has_xml
+        voucher_status = "POSTED_TO_TALLY"
+        payload_status = "Pushed"
 
         # 5. Update Status of each voucher and tally_payloads
         eligible_vids = set(str(doc["_id"]) for doc in eligible_docs)
@@ -656,33 +658,41 @@ class TallyPushService:
                 except Exception:
                     pass
 
-            existing_payload = await db_find_one(db, "tally_payloads", {"voucherId": vid})
-            if existing_payload:
-                await db_update_one(db, "tally_payloads", {"_id": existing_payload["_id"]}, {
-                    "$set": {
-                        "status": payload_status,
+        b_id = eligible_docs[0].get("batch_id") if eligible_docs else None
+
+        # For non-batch manual pushes, update individual voucher payloads; for bank batches, only the single batch XML document is kept
+        if not b_id:
+            for doc in eligible_docs:
+                vid = doc["_id"]
+                existing_payload = await db_find_one(db, "tally_payloads", {"voucherId": vid})
+                if existing_payload:
+                    await db_update_one(db, "tally_payloads", {"_id": existing_payload["_id"]}, {
+                        "$set": {
+                            "status": payload_status,
+                            "xmlPayload": combined_xml,
+                            "responseXml": response_xml,
+                            "pushedAt": pushed_at
+                        }
+                    })
+                else:
+                    await db_insert_one(db, "tally_payloads", {
+                        "voucherId": vid,
+                        "companyName": company_name,
+                        "voucherType": doc.get("voucherTypeName") or doc.get("voucherType") or "Mixed",
                         "xmlPayload": combined_xml,
+                        "xmlVersion": 1,
+                        "generatedAt": datetime.utcnow(),
+                        "status": payload_status,
                         "responseXml": response_xml,
                         "pushedAt": pushed_at
-                    }
-                })
-            else:
-                await db_insert_one(db, "tally_payloads", {
-                    "voucherId": vid,
-                    "companyName": company_name,
-                    "voucherType": doc.get("voucherTypeName") or doc.get("voucherType") or "Mixed",
-                    "xmlPayload": combined_xml,
-                    "xmlVersion": 1,
-                    "generatedAt": datetime.utcnow(),
-                    "status": payload_status,
-                    "responseXml": response_xml,
-                    "pushedAt": pushed_at
-                })
+                    })
 
-        # Also store ONE master batch record in tally_payloads for the entire single combined XML push
+        # Also store / update ONE master batch record in tally_payloads for the entire single combined XML push
         try:
+            b_id_str = str(b_id) if b_id else ""
             batch_payload_doc = {
-                "type": "BATCH_PUSH",
+                "batch_id": b_id_str,
+                "type": "BATCH_XML",
                 "batchPush": True,
                 "companyName": company_name,
                 "voucherCount": len(eligible_docs),
@@ -696,7 +706,14 @@ class TallyPushService:
                 "responseXml": response_xml,
                 "pushedAt": pushed_at
             }
-            await db_insert_one(db, "tally_payloads", batch_payload_doc)
+            if b_id_str:
+                existing_batch = await db_find_one(db, "tally_payloads", {"$or": [{"batch_id": b_id_str}, {"batch_id": b_id}]})
+                if existing_batch:
+                    await db_update_one(db, "tally_payloads", {"_id": existing_batch["_id"]}, {"$set": batch_payload_doc})
+                else:
+                    await db_insert_one(db, "tally_payloads", batch_payload_doc)
+            else:
+                await db_insert_one(db, "tally_payloads", batch_payload_doc)
 
             # Store on bank_statement_drafts and update each individual item in items array
             b_id = eligible_docs[0].get("batch_id")

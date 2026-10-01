@@ -572,6 +572,367 @@ class TransactionClassifierService:
 
 
 # =====================================================================
+# 2B. PARTY NORMALIZATION & CANDIDATE INDEXING SERVICE
+# =====================================================================
+class PartyNormalizationService:
+    """
+    Standardizes party and counterparty entity names before matching against Tally masters.
+    Performs prefix/suffix stripping, corporate abbreviation normalization,
+    and banking noise removal without modifying the original raw narration.
+    """
+    PREFIXES = re.compile(
+        r'^(?:m/s\.?|ms\.?|messrs|mr\.?|mrs\.?|shri\.?|smt\.?|dr\.?|prof\.?|ca\.?|adv\.?)\s+',
+        re.IGNORECASE
+    )
+
+    BANK_CHANNEL_PREFIXES = re.compile(
+        r'^(?:upi|neft|rtgs|imps|clg|cts|inft|inf|chq|cheque|mmt|ift|trf|transfer)[-_/:\s]+',
+        re.IGNORECASE
+    )
+
+    ABBREVIATIONS = [
+        (re.compile(r'\b(?:pvt\.?\s*ltd\.?|private\s+limited)\b', re.IGNORECASE), 'pvt ltd'),
+        (re.compile(r'\b(?:ltd\.?|limited)\b', re.IGNORECASE), 'ltd'),
+        (re.compile(r'\b(?:co\.?|company)\b', re.IGNORECASE), 'co'),
+        (re.compile(r'\b(?:corp\.?|corporation)\b', re.IGNORECASE), 'corp'),
+        (re.compile(r'\b(?:trf|transfer)\b', re.IGNORECASE), 'transfer'),
+        (re.compile(r'\b(?:pharma\.?|pharmaceuticals?)\b', re.IGNORECASE), 'pharma'),
+        (re.compile(r'\b(?:ent\.?|enterprises?)\b', re.IGNORECASE), 'enterprises'),
+        (re.compile(r'\b(?:agy\.?|agencies|agency)\b', re.IGNORECASE), 'agencies'),
+        (re.compile(r'\b(?:med\.?|medical|medicos)\b', re.IGNORECASE), 'medical'),
+        (re.compile(r'\b(?:trans\.?|transport|transports|roadways|roadlines)\b', re.IGNORECASE), 'transport'),
+        (re.compile(r'\b(?:dist\.?|distributors?)\b', re.IGNORECASE), 'distributors'),
+    ]
+
+    @classmethod
+    def normalize_party_for_matching(cls, raw_party: Optional[str]) -> str:
+        """
+        Normalizes a party string into a canonical representation for fast master matching.
+        Example:
+          'M/S BHAGYODAY MEDICAL AGENCIES' -> 'bhagyoday medical agencies'
+          'Bhagyoday Medical Agencies'     -> 'bhagyoday medical agencies'
+        """
+        if not raw_party:
+            return ""
+        text = str(raw_party).strip()
+        if not text:
+            return ""
+
+        # Step 1: Strip leading bank channel tokens (e.g. UPI-, NEFT-, INFT/)
+        text = cls.BANK_CHANNEL_PREFIXES.sub('', text)
+
+        # Step 2: Strip person/entity title prefixes (M/s, Shri, Mr., etc.)
+        text = cls.PREFIXES.sub('', text)
+
+        # Step 3: Remove trailing IFSC/location codes or numeric suffixes
+        text = re.sub(r'[-/](?:indore|bhopal|mumbai|delhi|[A-Z]{4}\d{7}|\d{6,})$', '', text, flags=re.IGNORECASE).strip()
+
+        # Step 4: Lowercase and strip punctuation
+        text = text.lower()
+        text = re.sub(r'[\'\"`.,;:_\-/\\|()[\]{}]', ' ', text)
+
+        # Step 5: Canonicalize common business abbreviations
+        for pattern, replacement in cls.ABBREVIATIONS:
+            text = pattern.sub(replacement, text)
+
+        # Step 6: Collapse whitespace
+        text = re.sub(r'\s+', ' ', text).strip()
+        return text
+
+    @classmethod
+    def to_alphanumeric_key(cls, normalized_text: str) -> str:
+        """Strips all non-alphanumeric chars for zero-space exact matching."""
+        return re.sub(r'[^a-z0-9]', '', normalized_text.lower())
+
+    @classmethod
+    def alphanumeric_clean(cls, normalized_text: str) -> str:
+        """Strips all non-alphanumeric chars and common stop words for zero-space exact matching."""
+        if not normalized_text:
+            return ""
+        cleaned = re.sub(r'\b(and|co|corp|corporation)\b', '', normalized_text.lower())
+        return re.sub(r'[^a-z0-9]', '', cleaned)
+
+
+class StatementPatternDetector:
+    """
+    Detects repeated narration patterns directly from the uploaded statement's transactions.
+    Identifies delimiters, structural token counts, static channels, reference positions,
+    and party candidate positions without requiring hardcoded static rules.
+    """
+    DELIMITERS = ['/', '-', '|', ':', ' ']
+
+    @classmethod
+    def detect_statement_patterns(cls, transactions: List[Any], bank_ledger: str = "") -> Dict[str, Any]:
+        """
+        Analyzes all narrations in the current statement, groups them by structural signature,
+        and identifies reusable patterns for bank + transaction type.
+        """
+        if not transactions:
+            return {}
+
+        grouped = defaultdict(list)
+        for tx in transactions:
+            narr = str(tx.get("narration") if isinstance(tx, dict) else tx or "").strip()
+            if len(narr) < 4:
+                continue
+            # Pick dominant delimiter
+            delim = '/'
+            max_cnt = 0
+            for d in ['/', '-', '|', ':']:
+                c = narr.count(d)
+                if c > max_cnt:
+                    max_cnt = c
+                    delim = d
+
+            tokens = [t.strip() for t in narr.split(delim) if t.strip()]
+            if len(tokens) >= 2:
+                sig = f"{delim}_{len(tokens)}_{tokens[0].upper()[:6]}"
+                grouped[sig].append((tokens, narr, tx))
+
+        discovered_patterns = {}
+        for sig, items in grouped.items():
+            if len(items) >= 2:
+                delim = sig[0]
+                token_count = int(sig.split('_')[1])
+                sample_tokens = [it[0] for it in items]
+
+                party_pos = None
+                ref_pos = None
+                txn_type_pos = 0
+
+                for pos in range(token_count):
+                    vals = [st[pos] for st in sample_tokens if len(st) > pos]
+                    if not vals:
+                        continue
+
+                    # Static tokens across all items in group -> channel/prefix
+                    if len(set(v.upper() for v in vals)) == 1:
+                        if pos == 0 or (pos == 1 and vals[0].upper() in ["INF", "INFT", "UPI", "NEFT", "RTGS", "IMPS", "CLG"]):
+                            txn_type_pos = pos
+                        continue
+
+                    # Reference number detection (10-16 digits or alphanumeric UTR)
+                    ref_matches = sum(1 for v in vals if re.match(r'^(?:[A-Z]{4}\d{6,}|\d{6,20}|[A-Z0-9]{10,24})$', v.strip(), re.IGNORECASE))
+                    if ref_matches / len(vals) >= 0.7 and ref_pos is None:
+                        ref_pos = pos
+                        continue
+
+                    # Virtual Payment Address (contains @)
+                    if any('@' in v for v in vals):
+                        continue
+
+                    # Party candidate detection (has alphabetic chars, length >= 3, not pure stop words)
+                    party_matches = sum(1 for v in vals if any(c.isalpha() for c in v) and len(v) >= 3 and v.upper() not in RegexPositionalExtractor.STOP_SEGMENTS)
+                    if party_matches / len(vals) >= 0.6 and party_pos is None:
+                        party_pos = pos
+
+                # Fallback party position if not automatically chosen
+                if party_pos is None:
+                    for pos in range(token_count):
+                        if pos != ref_pos and pos != txn_type_pos:
+                            party_pos = pos
+                            break
+
+                discovered_patterns[sig] = {
+                    "bank_ledger": bank_ledger,
+                    "delimiter": delim,
+                    "token_count": token_count,
+                    "txn_type_pos": txn_type_pos,
+                    "ref_pos": ref_pos,
+                    "party_pos": party_pos,
+                    "sample_count": len(items)
+                }
+
+        if bank_ledger and discovered_patterns:
+            BankPatternCache.populate_from_statement(bank_ledger, discovered_patterns)
+
+        return discovered_patterns
+
+
+class BankPatternCache:
+    """
+    Bank-wise pattern cache that associates pattern structure with bank and transaction type.
+    Reuses discovered patterns across statements so repeated pattern analysis is bypassed.
+    """
+    _cache: Dict[str, Dict[str, Any]] = {}
+
+    @classmethod
+    def get_pattern(
+        cls,
+        bank_ledger: str,
+        channel_or_signature: str,
+        token_count: Optional[int] = None,
+        delimiter: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        b_key = bank_ledger.strip().upper()
+        if token_count is not None and delimiter is not None:
+            # Check standard format {delim}_{token_count}_{channel} or pipe separated
+            for candidate_sig in [
+                f"{delimiter}_{token_count}_{channel_or_signature}",
+                f"{channel_or_signature}_{token_count}_{delimiter}",
+                f"{channel_or_signature}|{token_count}|{delimiter}"
+            ]:
+                full_k = f"{b_key}|{candidate_sig}"
+                if full_k in cls._cache:
+                    return cls._cache[full_k]
+
+        key = f"{b_key}|{channel_or_signature}"
+        if key in cls._cache:
+            return cls._cache[key]
+        for k, v in cls._cache.items():
+            if k.startswith(f"{b_key}|") and (channel_or_signature in k):
+                return v
+        return None
+
+    @classmethod
+    def set_pattern(cls, bank_ledger: str, signature: str, pattern_data: Dict[str, Any]):
+        key = f"{bank_ledger.strip().upper()}|{signature}"
+        cls._cache[key] = pattern_data
+
+    @classmethod
+    def populate_from_statement(cls, bank_ledger: str, patterns: Dict[str, Any]):
+        for sig, pdata in patterns.items():
+            cls.set_pattern(bank_ledger, sig, pdata)
+
+    @classmethod
+    def extract_with_cached_pattern(cls, narration: str, bank_ledger: str) -> Tuple[Optional[str], Optional[str]]:
+        """
+        Attempts to extract (party, reference) using cached patterns for this bank.
+        Returns (party_candidate, reference_number) if matched, else (None, None).
+        """
+        if not narration or not bank_ledger:
+            return (None, None)
+
+        b_key = bank_ledger.strip().upper()
+        for key, pdata in cls._cache.items():
+            if not key.startswith(b_key):
+                continue
+            delim = pdata.get("delimiter", "/")
+            tokens = [t.strip() for t in narration.split(delim) if t.strip()]
+            if len(tokens) == pdata.get("token_count"):
+                party_pos = pdata.get("party_pos")
+                ref_pos = pdata.get("ref_pos")
+                party = tokens[party_pos] if party_pos is not None and party_pos < len(tokens) else None
+                ref = tokens[ref_pos] if ref_pos is not None and ref_pos < len(tokens) else None
+                if party:
+                    return (RegexPositionalExtractor.clean_extracted_party(party), ref)
+
+        return (None, None)
+
+
+class MasterLedgerIndex:
+    """
+    High-speed in-memory candidate index over company master ledgers.
+    Reduces fuzzy matching search space from thousands of ledgers down to 5-30 relevant candidates.
+    """
+    def __init__(self, company_masters: List[Dict[str, Any]]):
+        self.masters = company_masters
+        self.raw_name_map: Dict[str, Dict[str, Any]] = {}
+        self.alias_map: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+        self.exact_map: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+        self.alnum_map: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+        self.token_index: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+        self.prefix_index: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+
+        STOP_WORDS_INDEX = {
+            'ltd', 'pvt', 'limited', 'private', 'transport', 'transports', 'roadways',
+            'roadlines', 'pharmaceuticals', 'pharma', 'medical', 'medicos', 'enterprises',
+            'agencies', 'agency', 'traders', 'corporation', 'corporat', 'co', 'and', 'the',
+            'services', 'service', 'solution', 'solutions', 'logistics', 'healthcare',
+            'store', 'stores', 'supplier', 'suppliers', 'dealer', 'dealers', 'mart'
+        }
+
+        self._candidate_cache: Dict[Tuple[str, int], List[Dict[str, Any]]] = {}
+
+        for m in company_masters:
+            name = (m.get("name") or m.get("ledgerName") or "").strip()
+            if not name:
+                continue
+            name_lower = name.lower()
+            m["_name_lower"] = name_lower
+            self.raw_name_map[name_lower] = m
+
+            aliases = m.get("alias") or m.get("alternateName") or ""
+            if isinstance(aliases, str) and aliases:
+                for a in [x.strip().lower() for x in aliases.split(",") if x.strip()]:
+                    self.alias_map[a].append(m)
+            elif isinstance(aliases, list):
+                for a in aliases:
+                    if a and str(a).strip():
+                        self.alias_map[str(a).strip().lower()].append(m)
+
+            norm = PartyNormalizationService.normalize_party_for_matching(name)
+            alnum = PartyNormalizationService.to_alphanumeric_key(norm)
+
+            if norm:
+                self.exact_map[norm].append(m)
+            if alnum:
+                self.alnum_map[alnum].append(m)
+
+            if len(norm) >= 3:
+                self.prefix_index[norm[:3]].append(m)
+
+            tokens = [w for w in re.findall(r'[a-z]{3,}', norm) if w not in STOP_WORDS_INDEX]
+            for tok in tokens:
+                self.token_index[tok].append(m)
+
+    def find_candidates(self, target_normalized: str, max_candidates: int = 40) -> List[Dict[str, Any]]:
+        """Filters master ledgers to a small candidate subset for Jaro-Winkler comparison."""
+        cache_key = (target_normalized, max_candidates)
+        if cache_key in self._candidate_cache:
+            return self._candidate_cache[cache_key]
+
+        candidates = []
+        seen = set()
+
+        def add_master(m):
+            mid = m.get("id") or m.get("name")
+            if mid not in seen:
+                seen.add(mid)
+                candidates.append(m)
+
+        # 1. Prefix match on first 3 characters
+        if len(target_normalized) >= 3:
+            for m in self.prefix_index.get(target_normalized[:3], []):
+                add_master(m)
+
+        # 2. Token overlap matches
+        tokens = [w for w in re.findall(r'[a-z]{3,}', target_normalized)]
+        for tok in tokens:
+            for m in self.token_index.get(tok, []):
+                add_master(m)
+                if len(candidates) >= max_candidates:
+                    break
+
+        # 3. Substring fallback if candidates are scarce (only for small catalogs <= 300 to avoid O(N) freeze)
+        if len(candidates) < 10 and len(target_normalized) >= 4 and len(self.masters) <= 300:
+            for m in self.masters:
+                m_low = m.get("_name_lower") or (m.get("name") or "").lower()
+                if target_normalized in m_low or (len(m_low) >= 4 and m_low in target_normalized):
+                    add_master(m)
+                    if len(candidates) >= max_candidates:
+                        break
+
+        # 4. Final safety: if no candidates found, provide first 30 masters
+        res = candidates[:max_candidates] if candidates else self.masters[:30]
+        self._candidate_cache[cache_key] = res
+        return res
+
+
+_GLOBAL_MASTER_INDEX_CACHE: Dict[int, MasterLedgerIndex] = {}
+
+def get_or_build_master_index(company_masters: Optional[List[Dict[str, Any]]]) -> Optional[MasterLedgerIndex]:
+    """Returns or builds cached MasterLedgerIndex for fast candidate retrieval across entire batch."""
+    if not company_masters:
+        return None
+    cache_key = id(company_masters)
+    if cache_key not in _GLOBAL_MASTER_INDEX_CACHE:
+        _GLOBAL_MASTER_INDEX_CACHE[cache_key] = MasterLedgerIndex(company_masters)
+    return _GLOBAL_MASTER_INDEX_CACHE[cache_key]
+
+
+
+# =====================================================================
 # 3. REGEX & POSITIONAL EXTRACTION SERVICE
 # =====================================================================
 class RegexPositionalExtractor:
@@ -651,13 +1012,20 @@ class RegexPositionalExtractor:
         return cleaned
 
     @classmethod
-    def extract_party(cls, narration: str) -> Tuple[Optional[str], float]:
+    def extract_party(cls, narration: str, bank_ledger: Optional[str] = None) -> Tuple[Optional[str], float]:
         """
         Extracts party name candidate from narration with confidence score.
+        Checks BankPatternCache first, then CLG rule, then dynamic candidate extraction.
         """
         text = NarrationNormalizationService.normalize_text(narration)
         if not text or len(text) < 3:
             return (None, 0.0)
+
+        # ── Step 0: Check Bank-wise Pattern Cache First ─────────────────────
+        if bank_ledger:
+            cached_party, _ = BankPatternCache.extract_with_cached_pattern(text, bank_ledger)
+            if cached_party:
+                return (cached_party, 95.0)
 
         # ── Dynamic Delimiter & Entity Role Extraction ───────────────────────
         # Determine dominant delimiter dynamically
@@ -940,41 +1308,44 @@ class PatternDiscoveryEngine:
         if len(t_alnum) < 3:
             return None
 
-        # 1. Exact match against master ledgers
-        for m in company_masters:
-            m_name = (m.get("ledgerName") or m.get("name") or "").strip()
-            if not m_name:
-                continue
-            if m_name.lower() == t_lower:
+        # 1. Exact & Alias match against master ledgers via index
+        m_idx = get_or_build_master_index(company_masters)
+        if m_idx:
+            if t_lower in m_idx.raw_name_map:
+                m = m_idx.raw_name_map[t_lower]
+                m_name = (m.get("ledgerName") or m.get("name") or "").strip()
                 return {"ledger": m_name, "score": 100.0, "matchType": "exact"}
 
-            # Check aliases
-            aliases = m.get("alias") or m.get("alternateName") or ""
-            if isinstance(aliases, str) and aliases:
-                for a in [x.strip().lower() for x in aliases.split(",") if x.strip()]:
-                    if a == t_lower:
-                        return {"ledger": m_name, "score": 98.0, "matchType": "alias"}
-            elif isinstance(aliases, list):
-                for a in aliases:
-                    if str(a).strip().lower() == t_lower:
-                        return {"ledger": m_name, "score": 98.0, "matchType": "alias"}
-
-        # 2. Alphanumeric match (ignoring spaces and punctuation)
-        if len(t_alnum) >= 4:
-            for m in company_masters:
+            if t_lower in m_idx.exact_map:
+                m = m_idx.exact_map[t_lower][0]
                 m_name = (m.get("ledgerName") or m.get("name") or "").strip()
-                if not m_name:
-                    continue
-                m_alnum = re.sub(r'[^a-z0-9]', '', m_name.lower())
-                if m_alnum == t_alnum:
+                return {"ledger": m_name, "score": 100.0, "matchType": "exact"}
+
+            if t_lower in m_idx.alias_map:
+                m = m_idx.alias_map[t_lower][0]
+                m_name = (m.get("ledgerName") or m.get("name") or "").strip()
+                return {"ledger": m_name, "score": 98.0, "matchType": "alias"}
+
+            # 2. Alphanumeric match (ignoring spaces and punctuation)
+            if len(t_alnum) >= 4:
+                if t_alnum in m_idx.alnum_map:
+                    m = m_idx.alnum_map[t_alnum][0]
+                    m_name = (m.get("ledgerName") or m.get("name") or "").strip()
                     return {"ledger": m_name, "score": 96.0, "matchType": "alnum"}
 
-                # Prefix / Substring match (e.g. truncated party name like "AMRAPUR MEDICAL AGENCIE" vs "AMRAPUR MEDICAL AGENCIES GUNA")
-                if len(t_alnum) >= 6 and len(m_alnum) >= 6:
-                    if m_alnum.startswith(t_alnum) or t_alnum.startswith(m_alnum):
-                        return {"ledger": m_name, "score": 92.0, "matchType": "prefix"}
-                    if t_alnum in m_alnum or m_alnum in t_alnum:
-                        return {"ledger": m_name, "score": 88.0, "matchType": "substring"}
+                # Prefix / Substring match on candidate subset (max 30 candidates instead of 28,000!)
+                if len(t_alnum) >= 6:
+                    candidates = m_idx.find_candidates(t_lower, max_candidates=30)
+                    for m in candidates:
+                        m_name = (m.get("ledgerName") or m.get("name") or "").strip()
+                        if not m_name:
+                            continue
+                        m_alnum = re.sub(r'[^a-z0-9]', '', m_name.lower())
+                        if len(m_alnum) >= 6:
+                            if m_alnum.startswith(t_alnum) or t_alnum.startswith(m_alnum):
+                                return {"ledger": m_name, "score": 92.0, "matchType": "prefix"}
+                            if t_alnum in m_alnum or m_alnum in t_alnum:
+                                return {"ledger": m_name, "score": 88.0, "matchType": "substring"}
 
         return None
 
@@ -1296,7 +1667,9 @@ class PatternDiscoveryEngine:
         self,
         batch_items: List[Dict[str, Any]],
         bank_ledger: str,
-        company_id: Optional[str] = None
+        company_id: Optional[str] = None,
+        company_masters: Optional[List[Dict[str, Any]]] = None,
+        known_aliases: Optional[Dict[str, str]] = None
     ) -> List[Dict[str, Any]]:
         """
         Clusters transactions hierarchically:
@@ -1312,21 +1685,23 @@ class PatternDiscoveryEngine:
             return []
 
         resolution_svc = PartyLedgerResolutionService(self.db)
-        company_masters = resolution_svc.get_company_master_ledgers(company_id)
+        if company_masters is None:
+            company_masters = resolution_svc.get_company_master_ledgers(company_id)
         voucher_svc = VoucherClassifierService(self.db)
         bank_code = self.derive_bank_code(bank_ledger)
 
         # Load known customer party aliases
-        known_aliases = {}
-        try:
-            alias_q = {"companyId": company_id} if company_id else {}
-            for a in self.db["bank_party_aliases"].find(alias_q):
-                p_name = (a.get("partyName") or "").strip().lower()
-                r_ledger = (a.get("resolvedLedger") or "").strip()
-                if p_name and r_ledger:
-                    known_aliases[p_name] = r_ledger
-        except Exception:
-            pass
+        if known_aliases is None:
+            known_aliases = {}
+            try:
+                alias_q = {"companyId": company_id} if company_id else {}
+                for a in self.db["bank_party_aliases"].find(alias_q):
+                    p_name = (a.get("partyName") or "").strip().lower()
+                    r_ledger = (a.get("resolvedLedger") or "").strip()
+                    if p_name and r_ledger:
+                        known_aliases[p_name] = r_ledger
+            except Exception:
+                pass
 
         # 1. Group transactions by transaction type using master reverse matching
         txns_by_type = defaultdict(list)
@@ -1350,6 +1725,19 @@ class PatternDiscoveryEngine:
             })
 
         discovered = []
+
+        # Pre-fetch active bank mapping rules once for this bank
+        active_rules = []
+        try:
+            clean_bl = (bank_ledger or "").strip()
+            bl_reg = re.compile(f"^{re.escape(clean_bl)}$", re.I)
+            rule_q = {
+                "status": "active",
+                "$or": [{"bankLedger": bl_reg}, {"bank_ledger": bl_reg}]
+            }
+            active_rules = list(self.db["bank_mapping_rules"].find(rule_q).sort("createdAt", -1))
+        except Exception as ex:
+            logger.warning(f"Error checking saved bank_mapping_rules: {ex}")
 
         # 2. Iterate each transaction type sorted by transaction volume descending
         for txn_type, type_matched in sorted(txns_by_type.items(), key=lambda x: len(x[1]), reverse=True):
@@ -1413,22 +1801,12 @@ class PatternDiscoveryEngine:
 
                 # Check if an approved rule exists in bank_mapping_rules for this bank & pattern/type
                 saved_rule = None
-                try:
-                    clean_bl = (bank_ledger or "").strip()
-                    bl_reg = re.compile(f"^{re.escape(clean_bl)}$", re.I)
-                    rule_q = {
-                        "status": "active",
-                        "$or": [{"bankLedger": bl_reg}, {"bank_ledger": bl_reg}]
-                    }
-                    cursor = self.db["bank_mapping_rules"].find(rule_q).sort("createdAt", -1)
-                    for r in cursor:
-                        r_type = (r.get("transactionType") or r.get("txnType") or "").upper()
-                        r_pat = r.get("structuralPattern") or r.get("pattern") or ""
-                        if r_pat == skel or (r_type and r_type == txn_type.upper()):
-                            saved_rule = r
-                            break
-                except Exception as ex:
-                    logger.warning(f"Error checking saved bank_mapping_rules: {ex}")
+                for r in active_rules:
+                    r_type = (r.get("transactionType") or r.get("txnType") or "").upper()
+                    r_pat = r.get("structuralPattern") or r.get("pattern") or ""
+                    if r_pat == skel or (r_type and r_type == txn_type.upper()):
+                        saved_rule = r
+                        break
 
                 if saved_rule:
                     if saved_rule.get("partyPosition") is not None and int(saved_rule["partyPosition"]) >= 0:
@@ -1493,9 +1871,14 @@ class PatternDiscoveryEngine:
                     if not party_val:
                         party_val = m["analysis"].get("party_val") or "Unspecified Party"
 
-                    # Check if master_match exists on this item at this exact party position
+                    # Check if item already has a mapped ledger from main processing
+                    it_party = m.get("item", {}).get("partyLedger") if isinstance(m.get("item"), dict) else None
                     m_master = m["analysis"].get("master_match")
-                    if m_master and m_master.get("ledger") and m_master.get("pos") == party_pos:
+                    if it_party and it_party != "Unmapped":
+                        resolved_ledger = it_party
+                        conf_val = float(m["item"].get("confidence", 90.0))
+                        is_amb = False
+                    elif m_master and m_master.get("ledger") and m_master.get("pos") == party_pos:
                         resolved_ledger = m_master["ledger"]
                         conf_val = float(m_master.get("score", 98.0))
                         is_amb = False
@@ -1504,7 +1887,8 @@ class PatternDiscoveryEngine:
                             party_val,
                             m["narration"],
                             company_id=company_id,
-                            company_masters=company_masters
+                            company_masters=company_masters,
+                            known_aliases=known_aliases
                         )
                         resolved_ledger = res.get("resolvedLedger") or "Unmapped"
                         conf_val = float(res.get("confidence", 0.0))
@@ -1528,18 +1912,12 @@ class PatternDiscoveryEngine:
                     }
 
                     if party_val not in distinct_parties:
-                        res = resolution_svc.resolve_party_ledger(
-                            party_val,
-                            m["narration"],
-                            company_id=company_id,
-                            company_masters=company_masters
-                        )
                         distinct_parties[party_val] = {
                             "party": party_val,
                             "count": 1,
-                            "mappedLedger": res.get("resolvedLedger") or "Unmapped",
-                            "confidence": res.get("confidence", 0),
-                            "isAmbiguous": res.get("isAmbiguous", False),
+                            "mappedLedger": resolved_ledger,
+                            "confidence": conf_val,
+                            "isAmbiguous": is_amb,
                             "sampleTransactions": [tx_info]
                         }
                     else:
@@ -1700,6 +2078,15 @@ class PartyLedgerResolutionService:
             self.history_matcher = VoucherHistoryMatcher(db)
         except Exception:
             self.history_matcher = None
+        self._index_cache = {}
+        self._party_resolution_cache = {}
+
+    def get_or_build_master_index(self, company_masters: List[Dict[str, Any]]) -> "MasterLedgerIndex":
+        """Returns or builds cached MasterLedgerIndex for fast candidate retrieval."""
+        cache_key = id(company_masters)
+        if cache_key not in self._index_cache:
+            self._index_cache[cache_key] = MasterLedgerIndex(company_masters)
+        return self._index_cache[cache_key]
 
     def get_company_master_ledgers(self, company_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """Queries the active company master ledgers dynamically."""
@@ -1756,7 +2143,35 @@ class PartyLedgerResolutionService:
         narration: str,
         company_id: Optional[str] = None,
         company_masters: Optional[List[Dict[str, Any]]] = None,
-        ref_number: Optional[str] = None
+        ref_number: Optional[str] = None,
+        known_aliases: Optional[Dict[str, str]] = None
+    ) -> Dict[str, Any]:
+        target_text = (party_text or "").strip()
+        target_lower = target_text.lower()
+        res_cache_key = (str(company_id or "default"), target_lower)
+        if target_lower and res_cache_key in self._party_resolution_cache:
+            return self._party_resolution_cache[res_cache_key]
+
+        res = self._do_resolve_party_ledger(
+            party_text=party_text,
+            narration=narration,
+            company_id=company_id,
+            company_masters=company_masters,
+            ref_number=ref_number,
+            known_aliases=known_aliases
+        )
+        if target_lower:
+            self._party_resolution_cache[res_cache_key] = res
+        return res
+
+    def _do_resolve_party_ledger(
+        self,
+        party_text: Optional[str],
+        narration: str,
+        company_id: Optional[str] = None,
+        company_masters: Optional[List[Dict[str, Any]]] = None,
+        ref_number: Optional[str] = None,
+        known_aliases: Optional[Dict[str, str]] = None
     ) -> Dict[str, Any]:
         """
         Resolves party text and narration against company ledgers.
@@ -1785,8 +2200,48 @@ class PartyLedgerResolutionService:
         target_text = (party_text or "").strip()
         target_lower = target_text.lower()
         narration_lower = narration.lower()
+        res_cache_key = (str(company_id or "default"), target_lower)
 
-        # Reject pure numeric references, phone numbers, or account codes (e.g. "76345426")
+        # Step 0: Heuristic Classifications (Bank Charges, Interest, Cash, Tax)
+        heuristics = [
+            (r'\b(sms|charges?|service\s*charges?|commission|chg|annual\s*fee|card\s*fee|min\s*bal|consolidated\s*chg)\b', "charges"),
+            (r'\b(int\.coll|interest|sb\s*int|fd\s*int|interest\s*rec|interest\s*pd)\b', "interest"),
+            (r'\b(cash\s*dep|cash\s*wdl|atm\s*wdl|cash\s*deposit|cash\s*withdrawal|by\s*cash|to\s*cash|self\s*cash)\b', "cash"),
+            (r'\b(gst|cgst|sgst|igst|tax\s*deducted|tds)\b', "tax"),
+        ]
+        for pattern, keyword in heuristics:
+            if re.search(pattern, narration_lower):
+                matched_m = next((m for m in company_masters if keyword in m.get("name", "").lower()), None)
+                if matched_m:
+                    res = {
+                        "resolvedLedger": matched_m["name"],
+                        "resolvedLedgerId": matched_m.get("id"),
+                        "confidence": 92.0,
+                        "matchMethod": "heuristic",
+                        "isAmbiguous": False,
+                        "candidates": [matched_m["name"]],
+                        "unmappedReason": None
+                    }
+                    if target_lower:
+                        self._party_resolution_cache[res_cache_key] = res
+                    return res
+
+        # If target_text is numeric or empty, fallback to valid narration segments
+        BANK_STOP_TOKENS = {
+            'upi', 'neft', 'rtgs', 'imps', 'clg', 'cts', 'chq', 'cheque', 'trf', 'transfer',
+            'payment', 'pay', 'receipt', 'received', 'cr', 'dr', 'inft', 'inf', 'ift', 'mmt',
+            'atm', 'wdl', 'dep', 'pos', 'ach', 'sip', 'na', 'coll', 'by', 'to', 'for', 'on',
+            'from', 'as', 'slb', 'slbl', 'slbn', 'chg', 'charge', 'charges', 'fee', 'tax', 'gst'
+        }
+        if not target_text or not any(c.isalpha() for c in target_text) or len(target_text) < 2 or target_lower in BANK_STOP_TOKENS:
+            segs = [s.strip() for s in re.split(r'[\/\-_:;*|]+', narration) if s.strip()]
+            for s in segs:
+                if any(c.isalpha() for c in s) and len(s) >= 3 and s.lower() not in BANK_STOP_TOKENS:
+                    target_text = s
+                    target_lower = s.lower()
+                    break
+
+        # Reject pure numeric references, phone numbers, or account codes if no candidate found
         if not target_text or not any(c.isalpha() for c in target_text) or len(target_text) < 2:
             return {
                 "resolvedLedger": None,
@@ -1798,7 +2253,7 @@ class PartyLedgerResolutionService:
                 "unmappedReason": "Party candidate is numeric or invalid reference"
             }
 
-        # Reject narration remark phrases that are not parties (e.g. "pay clear as on", "charges")
+        # Reject narration remark phrases that are not parties (e.g. "pay clear as on")
         STOP_PHRASES = {
             "pay clear as on", "pay clear", "clear as on", "clear", "pay", "as on",
             "self", "own", "internal", "transfer", "trf", "inft", "inf", "charges",
@@ -1815,57 +2270,71 @@ class PartyLedgerResolutionService:
                 "unmappedReason": f"'{target_text}' is a narration remark phrase, not a party candidate"
             }
 
-        # Step 1: Exact Normalized Ledger Name Match
-        if target_lower:
-            exact_matches = [m for m in company_masters if m.get("name", "").strip().lower() == target_lower]
-            if len(exact_matches) == 1:
-                matched = exact_matches[0]
-                return {
-                    "resolvedLedger": matched["name"],
-                    "resolvedLedgerId": matched.get("id"),
-                    "confidence": 100.0,
-                    "matchMethod": "exact",
-                    "isAmbiguous": False,
-                    "candidates": [matched["name"]],
-                    "unmappedReason": None
-                }
-            elif len(exact_matches) > 1:
-                cand_names = [m["name"] for m in exact_matches]
-                return {
-                    "resolvedLedger": None,
-                    "resolvedLedgerId": None,
-                    "confidence": 75.0,
-                    "matchMethod": "exact",
-                    "isAmbiguous": True,
-                    "candidates": cand_names,
-                    "unmappedReason": f"Ambiguous exact matches found in Tally master: {', '.join(cand_names[:3])}"
-                }
+        # Party Normalization (Requirement 7)
+        norm_target = PartyNormalizationService.normalize_party_for_matching(target_text)
+        norm_alnum = PartyNormalizationService.alphanumeric_clean(norm_target or target_text)
+
+        # Intra-batch/session party mapping cache check (Requirement 10 & 11)
+        res_cache_key = (str(company_id or "default"), norm_target or target_lower)
+        if res_cache_key in self._party_resolution_cache:
+            return self._party_resolution_cache[res_cache_key]
+
+        master_index = self.get_or_build_master_index(company_masters)
+
+        # Step 1: Exact Normalized Ledger Name Match (Requirement 8 & 9)
+        for cand_key in [norm_target, target_lower]:
+            if cand_key and cand_key in master_index.exact_map:
+                exact_matches = master_index.exact_map[cand_key]
+                if len(exact_matches) == 1:
+                    matched = exact_matches[0]
+                    res = {
+                        "resolvedLedger": matched["name"],
+                        "resolvedLedgerId": matched.get("id"),
+                        "confidence": 100.0,
+                        "matchMethod": "exact",
+                        "isAmbiguous": False,
+                        "candidates": [matched["name"]],
+                        "unmappedReason": None
+                    }
+                    self._party_resolution_cache[res_cache_key] = res
+                    return res
+                elif len(exact_matches) > 1:
+                    cand_names = [m["name"] for m in exact_matches]
+                    return {
+                        "resolvedLedger": None,
+                        "resolvedLedgerId": None,
+                        "confidence": 75.0,
+                        "matchMethod": "exact",
+                        "isAmbiguous": True,
+                        "candidates": cand_names,
+                        "unmappedReason": f"Ambiguous exact matches found in Tally master: {', '.join(cand_names[:3])}"
+                    }
 
         # Step 1b: Alphanumeric Normalized Match (e.g. HIMANSHUROADLINES == HIMANSHU ROADLINES, SGNCO == SGN & CO.)
         target_alnum = re.sub(r'[^A-Za-z0-9]', '', re.sub(r'\b(and|co|corp|corporation)\b', '', target_lower))
-        if len(target_alnum) >= 4:
-            alnum_matches = []
-            for m in company_masters:
-                m_alnum = re.sub(r'[^A-Za-z0-9]', '', re.sub(r'\b(and|co|corp|corporation)\b', '', m.get("name", "").lower()))
-                if m_alnum == target_alnum:
-                    alnum_matches.append(m)
-            if len(alnum_matches) == 1:
-                matched = alnum_matches[0]
-                return {
-                    "resolvedLedger": matched["name"],
-                    "resolvedLedgerId": matched.get("id"),
-                    "confidence": 99.0,
-                    "matchMethod": "alnum_exact",
-                    "isAmbiguous": False,
-                    "candidates": [matched["name"]],
-                    "unmappedReason": None
-                }
+        for cand_alnum in [norm_alnum, target_alnum]:
+            if cand_alnum and len(cand_alnum) >= 4 and cand_alnum in master_index.alnum_map:
+                alnum_matches = master_index.alnum_map[cand_alnum]
+                if len(alnum_matches) == 1:
+                    matched = alnum_matches[0]
+                    res = {
+                        "resolvedLedger": matched["name"],
+                        "resolvedLedgerId": matched.get("id"),
+                        "confidence": 99.0,
+                        "matchMethod": "alnum_exact",
+                        "isAmbiguous": False,
+                        "candidates": [matched["name"]],
+                        "unmappedReason": None
+                    }
+                    self._party_resolution_cache[res_cache_key] = res
+                    return res
 
         # Step 1c: Truncated Prefix / Substring Match (e.g. SUDHIR ROAD TRANSPORT CORPORATION vs SUDHIR ROAD TRANSPORT CORPORAT)
         raw_target_alnum = re.sub(r'[^A-Za-z0-9]', '', target_lower)
         if len(raw_target_alnum) >= 8:
             prefix_matches = []
-            for m in company_masters:
+            cand_pool = master_index.find_candidates(norm_target or target_lower, max_candidates=50) if len(company_masters) > 100 else company_masters
+            for m in cand_pool:
                 m_raw_alnum = re.sub(r'[^A-Za-z0-9]', '', m.get("name", "").lower())
                 if len(m_raw_alnum) >= 8:
                     if raw_target_alnum.startswith(m_raw_alnum) or m_raw_alnum.startswith(raw_target_alnum):
@@ -1897,8 +2366,22 @@ class PartyLedgerResolutionService:
             # Extract significant words from target (skip stop words and short words)
             tgt_words = [w for w in re.findall(r'[a-z]{3,}', target_lower) if w not in STOP_WORDS_SET]
             if len(tgt_words) >= 1:
+                if len(company_masters) > 100:
+                    cand_set = set()
+                    word_cand_pool = []
+                    for w in tgt_words:
+                        for cm in master_index.token_index.get(w, []):
+                            mid = cm.get("id") or cm.get("name")
+                            if mid not in cand_set:
+                                cand_set.add(mid)
+                                word_cand_pool.append(cm)
+                    if not word_cand_pool:
+                        word_cand_pool = master_index.find_candidates(norm_target or target_lower, max_candidates=50)
+                else:
+                    word_cand_pool = company_masters
+
                 sep_scored = []
-                for m in company_masters:
+                for m in word_cand_pool:
                     m_words = [w for w in re.findall(r'[a-z]{3,}', m.get("name", "").lower()) if w not in STOP_WORDS_SET]
                     if not m_words:
                         continue
@@ -1919,42 +2402,63 @@ class PartyLedgerResolutionService:
                         sep_scored.append((combined * 0.9, m))
 
                 if len(sep_scored) == 1:
-                    # Unique match across entire master — auto-select at high confidence
+                    # Unique match across entire master — auto-select at high confidence (>= 90%)
                     best_score, best_m = sep_scored[0]
-                    return {
+                    res = {
                         "resolvedLedger": best_m["name"],
                         "resolvedLedgerId": best_m.get("id"),
-                        "confidence": round(min(98.0, max(88.0, best_score * 100 + 10)), 1),
+                        "confidence": round(min(98.0, max(92.0, best_score * 100 + 10)), 1),
                         "matchMethod": "word_set_unique",
                         "isAmbiguous": False,
                         "candidates": [best_m["name"]],
                         "unmappedReason": None
                     }
+                    self._party_resolution_cache[res_cache_key] = res
+                    return res
                 elif len(sep_scored) > 1:
                     sep_scored.sort(key=lambda x: x[0], reverse=True)
                     best_score, best_m = sep_scored[0]
-                    # If top match is significantly better than second, auto-select
-                    if best_score - sep_scored[1][0] >= 0.20 and best_score >= 0.75:
+                    sec_score = sep_scored[1][0]
+                    cand_names = [m["name"] for _, m in sep_scored[:5]]
+
+                    # Dominant Winner Logic:
+                    # True Ambiguity ONLY occurs when both candidates have high scores (>= 0.85) and difference is tiny (< 0.03)
+                    is_tie = best_score >= 0.85 and sec_score >= 0.85 and (best_score - sec_score < 0.03)
+                    if is_tie:
                         return {
+                            "resolvedLedger": None,
+                            "resolvedLedgerId": None,
+                            "confidence": 65.0,
+                            "matchMethod": "word_set_ambiguous",
+                            "isAmbiguous": True,
+                            "candidates": cand_names,
+                            "unmappedReason": f"Multiple matching ledgers found in Tally master: {', '.join(cand_names[:3])}"
+                        }
+                    else:
+                        # Clear dominant winner!
+                        res = {
                             "resolvedLedger": best_m["name"],
                             "resolvedLedgerId": best_m.get("id"),
-                            "confidence": round(min(95.0, max(82.0, best_score * 100)), 1),
+                            "confidence": round(min(96.0, max(90.0, best_score * 100)), 1),
                             "matchMethod": "word_set_dominant",
                             "isAmbiguous": False,
-                            "candidates": [m["name"] for _, m in sep_scored[:5]],
+                            "candidates": cand_names,
                             "unmappedReason": None
                         }
+                        self._party_resolution_cache[res_cache_key] = res
+                        return res
 
         # Step 1e: Unique Single Master Ledger Substring Match
-        # If exactly one Tally ledger name contains the entire extracted party text as a substring
-        if target_lower and len(target_lower) >= 5:
+        # If one Tally ledger name contains the entire extracted party text as a substring or is closest in length
+        if target_lower and len(target_lower) >= 4:
+            cand_pool = master_index.find_candidates(target_lower, max_candidates=50) if len(company_masters) > 100 else company_masters
             substring_matches = [
-                m for m in company_masters
+                m for m in cand_pool
                 if target_lower in m.get("name", "").lower() or m.get("name", "").lower() in target_lower
             ]
             if len(substring_matches) == 1:
                 matched = substring_matches[0]
-                return {
+                res = {
                     "resolvedLedger": matched["name"],
                     "resolvedLedgerId": matched.get("id"),
                     "confidence": 94.0,
@@ -1963,34 +2467,81 @@ class PartyLedgerResolutionService:
                     "candidates": [matched["name"]],
                     "unmappedReason": None
                 }
+                self._party_resolution_cache[res_cache_key] = res
+                return res
+            elif len(substring_matches) > 1:
+                # Sort by smallest length difference to target_lower (closest name wins)
+                substring_matches.sort(key=lambda m: abs(len(m.get("name", "")) - len(target_lower)))
+                top_m = substring_matches[0]
+                sec_m = substring_matches[1]
+                diff_top = abs(len(top_m.get("name", "")) - len(target_lower))
+                diff_sec = abs(len(sec_m.get("name", "")) - len(target_lower))
+                cand_names = [m["name"] for m in substring_matches[:5]]
+
+                if diff_sec - diff_top >= 3:
+                    # Clear winner with much closer name length!
+                    res = {
+                        "resolvedLedger": top_m["name"],
+                        "resolvedLedgerId": top_m.get("id"),
+                        "confidence": 92.0,
+                        "matchMethod": "substring_dominant",
+                        "isAmbiguous": False,
+                        "candidates": cand_names,
+                        "unmappedReason": None
+                    }
+                    self._party_resolution_cache[res_cache_key] = res
+                    return res
+                else:
+                    return {
+                        "resolvedLedger": None,
+                        "resolvedLedgerId": None,
+                        "confidence": 65.0,
+                        "matchMethod": "substring_ambiguous",
+                        "isAmbiguous": True,
+                        "candidates": cand_names,
+                        "unmappedReason": f"Multiple matching ledgers found: {', '.join(cand_names[:3])}"
+                    }
 
         # Step 2: Customer Verified Party Alias in DB (Learned from previous user approvals)
-        if target_lower and company_id:
-            try:
-                # Lookup by partyName (new format from approve flow) OR legacy alias field
-                alias_doc = self.db["bank_party_aliases"].find_one({
-                    "$and": [
-                        {"$or": [{"companyId": company_id}, {"company_id": company_id}]},
-                        {"$or": [
-                            {"partyName": {"$regex": f"^{re.escape(target_text)}$", "$options": "i"}},
-                            {"alias": target_lower}
-                        ]}
-                    ]
-                })
-                if alias_doc:
-                    resolved_name = alias_doc.get("resolvedLedger") or alias_doc.get("ledgerName")
-                    if resolved_name:
-                        return {
-                            "resolvedLedger": resolved_name,
-                            "resolvedLedgerId": str(alias_doc.get("ledgerId", "")),
-                            "confidence": alias_doc.get("confidence", 98.0),
-                            "matchMethod": "alias_db",
-                            "isAmbiguous": False,
-                            "candidates": [resolved_name],
-                            "unmappedReason": None
-                        }
-            except Exception as e:
-                logger.warning(f"Error querying bank_party_aliases: {e}")
+        if target_lower:
+            if known_aliases is not None:
+                if target_lower in known_aliases:
+                    resolved_name = known_aliases[target_lower]
+                    return {
+                        "resolvedLedger": resolved_name,
+                        "resolvedLedgerId": None,
+                        "confidence": 98.0,
+                        "matchMethod": "alias_cache",
+                        "isAmbiguous": False,
+                        "candidates": [resolved_name],
+                        "unmappedReason": None
+                    }
+            elif company_id and self.db is not None:
+                try:
+                    # Lookup by partyName (new format from approve flow) OR legacy alias field
+                    alias_doc = self.db["bank_party_aliases"].find_one({
+                        "$and": [
+                            {"$or": [{"companyId": company_id}, {"company_id": company_id}]},
+                            {"$or": [
+                                {"partyName": {"$regex": f"^{re.escape(target_text)}$", "$options": "i"}},
+                                {"alias": target_lower}
+                            ]}
+                        ]
+                    })
+                    if alias_doc:
+                        resolved_name = alias_doc.get("resolvedLedger") or alias_doc.get("ledgerName")
+                        if resolved_name:
+                            return {
+                                "resolvedLedger": resolved_name,
+                                "resolvedLedgerId": str(alias_doc.get("ledgerId", "")),
+                                "confidence": alias_doc.get("confidence", 98.0),
+                                "matchMethod": "alias_db",
+                                "isAmbiguous": False,
+                                "candidates": [resolved_name],
+                                "unmappedReason": None
+                            }
+                except Exception as e:
+                    logger.warning(f"Error querying bank_party_aliases: {e}")
 
         # Step 2b: Cross-reference Tenant Historical Confirmed Vouchers (15,000+ entries)
         if self.history_matcher:
@@ -2027,13 +2578,15 @@ class PartyLedgerResolutionService:
             except Exception as e:
                 logger.debug(f"Error checking voucher history matcher: {e}")
 
-        # Step 3: Ledger Master Aliases & Alternate Names
+        # Step 3: Ledger Master Aliases & Alternate Names via index
         if target_lower:
-            alias_matches = []
-            for m in company_masters:
-                alt = (m.get("alias") or "").strip().lower()
-                if alt and (alt == target_lower or target_lower in alt):
-                    alias_matches.append(m)
+            alias_matches = master_index.alias_map.get(target_lower, [])
+            if not alias_matches:
+                cand_pool_alias = master_index.find_candidates(target_lower, max_candidates=30) if len(company_masters) > 100 else company_masters
+                for m in cand_pool_alias:
+                    alt = (m.get("alias") or "").strip().lower()
+                    if alt and (alt == target_lower or target_lower in alt):
+                        alias_matches.append(m)
 
             if len(alias_matches) == 1:
                 matched = alias_matches[0]
@@ -2098,8 +2651,9 @@ class PartyLedgerResolutionService:
         target_words = [w for w in re.findall(r'[A-Za-z]{3,}', target_lower or narration_lower)]
         target_brand = [w for w in target_words if w.upper() not in GENERIC_BUSINESS_WORDS]
 
+        cand_pool_brand = master_index.find_candidates(norm_target or target_lower, max_candidates=60) if len(company_masters) > 100 else company_masters
         scored_candidates = []
-        for m in company_masters:
+        for m in cand_pool_brand:
             m_name = m.get("name", "").strip()
             m_words = [w for w in re.findall(r'[A-Za-z]{3,}', m_name.lower())]
             m_brand = [w for w in m_words if w.upper() not in GENERIC_BUSINESS_WORDS]
@@ -2123,59 +2677,98 @@ class PartyLedgerResolutionService:
         if scored_candidates:
             scored_candidates.sort(key=lambda x: (x[0], x[1]), reverse=True)
             best_score, brand_cnt, best_master = scored_candidates[0]
+            sec_score = scored_candidates[1][0] if len(scored_candidates) > 1 else 0.0
             candidate_names = [c[2]["name"] for c in scored_candidates[:5]]
 
-            # Check for ambiguity among candidates with similar high score
-            top_ties = [c for c in scored_candidates if c[0] >= best_score * 0.95]
-            if len(top_ties) > 1 and (best_score < 0.98 or (len(scored_candidates) > 1 and abs(scored_candidates[0][0] - scored_candidates[1][0]) < 0.05)):
+            # True tie only if both candidates have high score (>= 0.85) and difference is negligible (< 0.03)
+            is_brand_tie = len(scored_candidates) > 1 and best_score >= 0.85 and sec_score >= 0.85 and (best_score - sec_score < 0.03)
+            if is_brand_tie:
                 return {
                     "resolvedLedger": None,
                     "resolvedLedgerId": None,
-                    "confidence": 60.0,
-                    "matchMethod": "brand_match",
+                    "confidence": 65.0,
+                    "matchMethod": "brand_ambiguous",
                     "isAmbiguous": True,
                     "candidates": candidate_names,
-                    "unmappedReason": f"Ambiguous matches in Tally master: {', '.join(candidate_names[:3])}"
+                    "unmappedReason": f"Multiple matching ledgers found in Tally master: {', '.join(candidate_names[:3])}"
                 }
 
-            return {
+            # Exactly 1 unique match or clearly dominant match -> auto-select directly with high confidence >= 90%
+            res = {
                 "resolvedLedger": best_master["name"],
                 "resolvedLedgerId": best_master.get("id"),
-                "confidence": round(min(95.0, max(75.0, best_score * 100)), 1),
+                "confidence": round(min(95.0, max(90.0, best_score * 100)), 1),
                 "matchMethod": "brand_match",
                 "isAmbiguous": False,
                 "candidates": candidate_names,
                 "unmappedReason": None
             }
+            self._party_resolution_cache[res_cache_key] = res
+            return res
 
-        # Step 4c: Jaro-Winkler String Similarity (handles OCR typos, singular/plural, e.g. AMRAPUR MEDICAL AGENCIE vs AMRAPUR MEDICAL AGENCIES)
-        if target_lower and len(target_lower) >= 4:
-            jw_candidates = []
-            for m in company_masters:
-                m_low = m.get("name", "").strip().lower()
-                score_raw = jaro_winkler_similarity(target_lower, m_low)
-                m_alnum_val = re.sub(r'[^a-z0-9]', '', m_low)
-                t_alnum_val = re.sub(r'[^a-z0-9]', '', target_lower)
-                score_alnum = jaro_winkler_similarity(t_alnum_val, m_alnum_val) if t_alnum_val and m_alnum_val else 0.0
-                best_jw = max(score_raw, score_alnum)
+        # Step 4c: Candidate-filtered Jaro-Winkler String Similarity (Requirement 8 & 9)
+        # Search candidate set instead of comparing all 3,000+ masters
+        search_key = norm_target or target_lower
+        if search_key and len(search_key) >= 4:
+            jw_pool = master_index.find_candidates(search_key)
+            if not jw_pool and search_key != target_lower:
+                jw_pool = master_index.find_candidates(target_lower)
+            if not jw_pool and len(company_masters) <= 300:
+                jw_pool = company_masters
 
-                if best_jw >= 0.88 and abs(len(t_alnum_val) - len(m_alnum_val)) <= 5:
-                    jw_candidates.append((best_jw, m))
+            if jw_pool:
+                jw_candidates = []
+                for m in jw_pool:
+                    m_low = m.get("name", "").strip().lower()
+                    m_norm = PartyNormalizationService.normalize_party_for_matching(m.get("name", ""))
+                    score_raw = jaro_winkler_similarity(target_lower, m_low)
+                    score_norm = jaro_winkler_similarity(search_key, m_norm)
+                    m_alnum_val = re.sub(r'[^a-z0-9]', '', m_low)
+                    t_alnum_val = re.sub(r'[^a-z0-9]', '', target_lower)
+                    score_alnum = jaro_winkler_similarity(t_alnum_val, m_alnum_val) if t_alnum_val and m_alnum_val else 0.0
+                    best_jw = max(score_raw, score_norm, score_alnum)
 
-            if jw_candidates:
-                jw_candidates.sort(key=lambda x: x[0], reverse=True)
-                top_jw, top_master = jw_candidates[0]
-                if top_jw >= 0.92:
-                    if len(jw_candidates) == 1 or (top_jw - jw_candidates[1][0] >= 0.04):
+                    # 0.72 threshold for fuzzy matching candidates
+                    if best_jw >= 0.72:
+                        jw_candidates.append((best_jw, m))
+
+                if jw_candidates:
+                    jw_candidates.sort(key=lambda x: x[0], reverse=True)
+                    top_jw, top_master = jw_candidates[0]
+                    sec_jw = jw_candidates[1][0] if len(jw_candidates) > 1 else 0.0
+                    candidate_names = [c[1]["name"] for c in jw_candidates[:5]]
+
+                    # Dominant Winner Logic:
+                    # True Ambiguity ONLY occurs when:
+                    # 1. len(jw_candidates) > 1
+                    # 2. Both top and second candidate have strong scores (>= 0.85)
+                    # 3. The difference between top and second is tiny (< 0.03)
+                    is_true_tie = len(jw_candidates) > 1 and top_jw >= 0.85 and sec_jw >= 0.85 and (top_jw - sec_jw < 0.03)
+
+                    if is_true_tie:
+                        # True tie between nearly identical ledgers -> Review Required
                         return {
+                            "resolvedLedger": None,
+                            "resolvedLedgerId": None,
+                            "confidence": 65.0,
+                            "matchMethod": "fuzzy_ambiguous",
+                            "isAmbiguous": True,
+                            "candidates": candidate_names,
+                            "unmappedReason": f"Multiple matching ledgers found in Tally master: {', '.join(candidate_names[:3])}"
+                        }
+                    elif top_jw >= 0.72:
+                        # Dominant Winner or Unique Match -> auto-select with solid confidence (>= 90%)
+                        res = {
                             "resolvedLedger": top_master["name"],
                             "resolvedLedgerId": top_master.get("id"),
-                            "confidence": round(min(96.0, max(85.0, top_jw * 100)), 1),
-                            "matchMethod": "jaro_winkler",
+                            "confidence": round(min(96.0, max(90.0, top_jw * 100)), 1),
+                            "matchMethod": "fuzzy_dominant" if len(jw_candidates) > 1 else "fuzzy_unique",
                             "isAmbiguous": False,
-                            "candidates": [c[1]["name"] for c in jw_candidates[:5]],
+                            "candidates": candidate_names,
                             "unmappedReason": None
                         }
+                        self._party_resolution_cache[res_cache_key] = res
+                        return res
 
         # Step 5: Heuristic Ledger Classifications (Bank Charges, Interest, Cash)
         # Only resolves if the matched ledger keyword actually exists in Tally master — no hardcoded fallback names.
@@ -2186,7 +2779,7 @@ class PartyLedgerResolutionService:
                     return {
                         "resolvedLedger": matched_m["name"],
                         "resolvedLedgerId": matched_m.get("id"),
-                        "confidence": 85.0,
+                        "confidence": 92.0,
                         "matchMethod": "heuristic",
                         "isAmbiguous": False,
                         "candidates": [matched_m["name"]],
@@ -2364,7 +2957,35 @@ class RulesBasedMatchingService:
         if scope_queries:
             query["$or"] = scope_queries
 
-        rules = list(self.db["bank_mapping_rules"].find(query))
+        rules = []
+        if self.db is not None:
+            try:
+                rules = list(self.db["bank_mapping_rules"].find(query))
+            except Exception as e:
+                logger.warning(f"Error querying bank_mapping_rules from db: {e}")
+
+        # Fallback to bank.json taxonomy profiles as compatibility hints (Requirement 4)
+        if not rules:
+            try:
+                tax_cache = get_bank_taxonomy_cache()
+                profiles = tax_cache.get("profiles", {})
+                for b_key, prof in profiles.items():
+                    if not bank_ledger or b_key.upper() in (bank_ledger or "").upper() or (bank_ledger or "").upper() in b_key.upper():
+                        for pat in prof.get("narration_patterns", []):
+                            rules.append({
+                                "pattern": pat,
+                                "matchType": "contains",
+                                "scope": "bank_specific",
+                                "partyLedger": b_key,
+                                "voucherType": "Payment"
+                            })
+                rules.extend([
+                    {"pattern": "SMS CHARGES", "matchType": "contains", "scope": "system", "partyLedger": "Bank Charges", "voucherType": "Payment"},
+                    {"pattern": "CHG", "matchType": "contains", "scope": "system", "partyLedger": "Bank Charges", "voucherType": "Payment"},
+                    {"pattern": "INT.COLL", "matchType": "contains", "scope": "system", "partyLedger": "Interest Received", "voucherType": "Receipt"},
+                ])
+            except Exception as e:
+                logger.warning(f"Error loading fallback bank.json rules: {e}")
 
         def rule_priority(r: Dict[str, Any]) -> Tuple[int, int, int]:
             scope = (r.get("scope") or "").lower()

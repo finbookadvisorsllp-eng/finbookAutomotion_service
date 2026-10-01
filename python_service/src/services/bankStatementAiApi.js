@@ -42,6 +42,12 @@ export const bankStatementAiApi = {
     apiClient.put(`${BASE_URL}/transaction/${batchId}/${itemId}`, payload).then((r) => r.data),
 
   /**
+   * Bulk accept auto-suggested or accountant-confirmed ledgers for multiple items in 1 request
+   */
+  bulkAcceptSuggested: (batchId, items) =>
+    apiClient.post(`${BASE_URL}/batch-accept-suggested`, { batch_id: batchId, items }).then((r) => r.data),
+
+  /**
    * Save approved vouchers into accounting system with source='bank_statement'
    */
   saveVouchers: (batchId, itemIds) =>

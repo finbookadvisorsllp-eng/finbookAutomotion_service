@@ -358,7 +358,7 @@ const LedgerMappingRow = React.memo(function LedgerMappingRow({
       </td>
 
       {/* Column 3: LEDGER SELECTION (Smart Dropdown) */}
-      <td className="py-1.5 px-2.5 align-middle overflow-hidden">
+      <td className="py-1.5 px-2.5 align-middle">
         <div className="w-full min-w-0">
           <SmartLedgerDropdown
             value={row.suggestedLedger || ''}
@@ -452,7 +452,7 @@ export default function BankRuleMappingModal({
     const arr = Array.from(list).filter(Boolean);
     arr.sort((a, b) => a.localeCompare(b));
     return arr;
-  }, [availableBankLedgers, fundFlowMasterData?.cashBankLedgers, allLedgersList, selectedBankLedger, currentBankLedger]);
+  }, [availableBankLedgers, fundFlowMasterData?.cashBankLedgers, allLedgersList, currentBankLedger]);
 
   // Main navigation: exactly TWO tabs
   const [activeTab, setActiveTab] = useState('ledger_mapping'); // 'ledger_mapping' | 'pattern_mapping'
@@ -763,8 +763,13 @@ export default function BankRuleMappingModal({
               initialLedger = 'Unmapped';
               initialConf = 0;
             } else if (match && match.score >= 70) {
-              initialLedger = match.ledger;
-              initialConf = match.score;
+              if (!match.isAmbiguous) {
+                initialLedger = match.ledger;
+                initialConf = match.score;
+              } else {
+                initialLedger = 'Unmapped';
+                initialConf = 0;
+              }
             } else if (validTxMapped && /[a-z]/i.test(pCand)) {
               const pLow = pCand.toLowerCase().replace(/[^a-z0-9]/g, '');
               const txLow = validTxMapped.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -812,7 +817,9 @@ export default function BankRuleMappingModal({
         if (!isStopPhrase(p.party) && /[a-z]/i.test(p.party)) {
           const match = findBestLedgerMatch(p.party, normalizedAllLedgers);
           if (match && match.score >= 70) {
-            return { ...p, mappedLedger: match.ledger, confidence: match.score };
+            if (!match.isAmbiguous) {
+              return { ...p, mappedLedger: match.ledger, confidence: match.score };
+            }
           }
         }
       }
@@ -1126,13 +1133,19 @@ export default function BankRuleMappingModal({
     }
   };
 
-  // Keep selectedBankLedger in sync if props update
+  // Keep selectedBankLedger in sync if props update.
+  // IMPORTANT: Use a ref to read selectedBankLedger without adding it as a dep,
+  // so this effect only fires when currentBankLedger or combinedBankLedgers ACTUALLY change,
+  // not on every selectedBankLedger state update (which was causing the infinite loop).
+  const selectedBankLedgerRef = useRef(selectedBankLedger);
+  selectedBankLedgerRef.current = selectedBankLedger;
   useEffect(() => {
-    if (currentBankLedger && currentBankLedger !== selectedBankLedger) {
+    const curr = selectedBankLedgerRef.current;
+    if (currentBankLedger && currentBankLedger !== curr) {
       setSelectedBankLedger(currentBankLedger);
-    } else if ((!selectedBankLedger || selectedBankLedger === 'BANK AC') && combinedBankLedgers?.length > 0) {
+    } else if ((!curr || curr === 'BANK AC') && combinedBankLedgers?.length > 0) {
       const preferred = combinedBankLedgers.find(bl => bl !== 'BANK AC') || combinedBankLedgers[0];
-      if (preferred) setSelectedBankLedger(preferred);
+      if (preferred && preferred !== curr) setSelectedBankLedger(preferred);
     }
   }, [currentBankLedger, combinedBankLedgers]);
 
@@ -1401,9 +1414,15 @@ export default function BankRuleMappingModal({
       if (pCand && pCand.length >= 2 && !isStopPhrase(pCand) && /[A-Za-z]/.test(pCand)) {
         const match = findBestLedgerMatch(pCand, normalizedAllLedgers);
         if (match && match.score >= 70) {
-          resLedger = match.ledger;
-          resConf = match.score;
-          resMethod = match.score >= 90 ? 'System • Exact Match' : 'AI Suggested';
+          if (!match.isAmbiguous) {
+            resLedger = match.ledger;
+            resConf = match.score;
+            resMethod = match.isUnique ? 'System (Auto)' : 'AI Suggested';
+          } else {
+            resLedger = '';
+            resConf = 50;
+            resMethod = 'Unmapped';
+          }
         }
       }
 
@@ -1527,8 +1546,13 @@ export default function BankRuleMappingModal({
               initialLedger = 'Unmapped';
               initialConf = 0;
             } else if (match && match.score >= 70) {
-              initialLedger = match.ledger;
-              initialConf = match.score;
+              if (!match.isAmbiguous) {
+                initialLedger = match.ledger;
+                initialConf = match.score;
+              } else {
+                initialLedger = 'Unmapped';
+                initialConf = 0;
+              }
             } else if (mPartyLedger && /[a-z]/i.test(pCand)) {
               const pLow = pCand.toLowerCase().replace(/[^a-z0-9]/g, '');
               const mLow = mPartyLedger.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -1609,11 +1633,12 @@ export default function BankRuleMappingModal({
               if (pCand && pCand.length >= 2 && !isStopPhrase(pCand)) {
                 if (!dPartiesMap[pCand]) {
                   const match = findBestLedgerMatch(pCand, normalizedAllLedgers);
+                  const isGoodMatch = match && match.score >= 70 && !match.isAmbiguous;
                   dPartiesMap[pCand] = {
                     party: pCand,
-                    mappedLedger: (match && match.score >= 70) ? match.ledger : 'Unmapped',
+                    mappedLedger: isGoodMatch ? match.ledger : 'Unmapped',
                     count: 1,
-                    confidence: (match && match.score >= 70) ? match.score : 0,
+                    confidence: isGoodMatch ? match.score : 0,
                     sampleTransactions: [tx]
                   };
                 } else {
@@ -2070,7 +2095,7 @@ export default function BankRuleMappingModal({
             </div>
 
             {/* ── Table with 5 Columns: Extracted Party alone, Description/Narration separate column ── */}
-            <div className="flex-1 overflow-x-hidden overflow-y-auto min-h-0">
+            <div className="flex-1 overflow-auto min-h-0">
               <table className="w-full table-fixed text-left border-collapse">
                 <thead className="sticky top-0 bg-slate-50 border-b z-10" style={{ borderColor: 'var(--app-border)' }}>
                   <tr className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
@@ -2616,7 +2641,7 @@ export default function BankRuleMappingModal({
                                             </div>
 
                                             {/* Scrollable Box Container */}
-                                            <div className="rounded-xl border border-slate-200 bg-white shadow-2xs overflow-hidden">
+                                            <div className="rounded-xl border border-slate-200 bg-white shadow-2xs">
                                               <div className="max-h-[300px] overflow-y-auto divide-y divide-slate-100">
                                                 <table className="w-full text-left text-xs border-collapse">
                                                   <thead className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur-xs border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wider">

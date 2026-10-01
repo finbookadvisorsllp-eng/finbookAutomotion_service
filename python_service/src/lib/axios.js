@@ -5,7 +5,7 @@ import { useAppStore } from '../stores/useAppStore'
 // Central axios instance. All feature `api.js` files import from here.
 const api = axios.create({
   baseURL: env.VITE_API_BASE_URL,
-  timeout: 15000,
+  timeout: 120000,
   headers: { 'Content-Type': 'application/json' },
 })
 

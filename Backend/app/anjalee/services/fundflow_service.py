@@ -46,7 +46,7 @@ class FundFlowService:
         status: Optional[str] = None, 
         search: Optional[str] = None, 
         page: int = 1, 
-        limit: int = 50,
+        limit: Optional[int] = None,
         company_id: Optional[str] = None
     ) -> Dict[str, Any]:
         query = {}
@@ -77,7 +77,8 @@ class FundFlowService:
             })
             
         total = self.repo.count_transactions(query)
-        cursor = self.repo.find_transactions(query, skip=(page - 1) * limit, limit=limit)
+        eff_limit = limit if (limit and limit > 0) else 2000
+        cursor = self.repo.find_transactions(query, skip=(page - 1) * eff_limit, limit=eff_limit)
         
         results = [serialize_doc(doc) for doc in cursor]
             
@@ -792,7 +793,7 @@ class FundFlowService:
                 {"againstLedger": regex_bank}
             ]
         }
-        v_docs = list(db["vouchers"].find(v_query).sort("createdAt", -1).limit(500))
+        v_docs = list(db["vouchers"].find(v_query).sort("createdAt", -1).limit(10000))
 
         for doc in v_docs:
             doc_id = str(doc["_id"])
@@ -875,9 +876,9 @@ class FundFlowService:
                 {"ledgerRows.ledgerName": regex_bank}
             ]
         }
-        ff_docs = list(db["fund_flow_vouchers"].find(ff_query).sort("createdAt", -1).limit(500))
+        ff_docs = list(db["fund_flow_vouchers"].find(ff_query).sort("createdAt", -1).limit(10000))
         if not ff_docs:
-            ff_docs = list(db["fundflow"].find(ff_query).sort("createdAt", -1).limit(500))
+            ff_docs = list(db["fundflow"].find(ff_query).sort("createdAt", -1).limit(10000))
 
         for doc in ff_docs:
             doc_id = str(doc["_id"])

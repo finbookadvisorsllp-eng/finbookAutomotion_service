@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { createPortal } from 'react-dom';
+
 import { Search, ChevronDown, Check, Sparkles, X, Plus, AlertCircle } from 'lucide-react';
 
 /**
@@ -93,8 +93,7 @@ export function findBestLedgerMatch(target, ledgersList) {
 
   const coreBrandWords = targetWords.slice(0, 2);
 
-  let bestMatch = null;
-  let bestScore = 0;
+  const matchedCandidates = [];
 
   for (const rawLedger of ledgersList) {
     const ledger = typeof rawLedger === 'object' ? (rawLedger.name || rawLedger.ledgerName || '') : String(rawLedger || '');
@@ -118,17 +117,17 @@ export function findBestLedgerMatch(target, ledgersList) {
       tag = 'Clean Match';
     }
     // 3. Prefix match
-    else if (targetAlnum.length >= 5 && lAlnum.length >= 5 && (lAlnum.startsWith(targetAlnum) || targetAlnum.startsWith(lAlnum))) {
+    else if (targetAlnum.length >= 4 && lAlnum.length >= 4 && (lAlnum.startsWith(targetAlnum) || targetAlnum.startsWith(lAlnum))) {
       const lenRatio = Math.min(targetAlnum.length, lAlnum.length) / Math.max(targetAlnum.length, lAlnum.length);
-      if (lenRatio >= 0.5) {
+      if (lenRatio >= 0.4) {
         score = 96;
         tag = 'Prefix Match';
       }
     }
     // 4. Substring containment with sufficient length coverage
-    else if (targetAlnum.length >= 5 && lAlnum.length >= 5 && (lAlnum.includes(targetAlnum) || targetAlnum.includes(lAlnum))) {
+    else if (targetAlnum.length >= 4 && lAlnum.length >= 4 && (lAlnum.includes(targetAlnum) || targetAlnum.includes(lAlnum))) {
       const lenRatio = Math.min(targetAlnum.length, lAlnum.length) / Math.max(targetAlnum.length, lAlnum.length);
-      if (lenRatio >= 0.5) {
+      if (lenRatio >= 0.4) {
         score = 94;
         tag = 'Substring Match';
       }
@@ -143,7 +142,7 @@ export function findBestLedgerMatch(target, ledgersList) {
         score = Math.round(90 + Math.min(6, coverage * 6));
         tag = 'Word Match';
       } else {
-        const coreMatch = coreBrandWords.length >= 2 && coreBrandWords.every(cw =>
+        const coreMatch = coreBrandWords.length >= 1 && coreBrandWords.some(cw =>
           lLower.includes(cw) || lWords.some(lw => lw.startsWith(cw) || cw.startsWith(lw))
         );
         if (coreMatch) {
@@ -154,12 +153,12 @@ export function findBestLedgerMatch(target, ledgersList) {
     }
 
     // 6. Fuzzy Jaro-Winkler
-    if (score < 85 && targetLower.length >= 5 && lLower.length >= 5) {
+    if (score < 85 && targetLower.length >= 4 && lLower.length >= 4) {
       const jwRaw = jaroWinkler(targetLower, lLower);
-      const jwAlnum = targetAlnum.length >= 5 && lAlnum.length >= 5
+      const jwAlnum = targetAlnum.length >= 4 && lAlnum.length >= 4
         ? jaroWinkler(targetAlnum, lAlnum) : 0;
       const bestJw = Math.max(jwRaw, jwAlnum);
-      if (bestJw >= 0.78) {
+      if (bestJw >= 0.70) {
         const jwScore = Math.round(bestJw * 100);
         if (jwScore > score) {
           score = jwScore;
@@ -168,15 +167,71 @@ export function findBestLedgerMatch(target, ledgersList) {
       }
     }
 
-    if (score > bestScore) {
-      bestScore = score;
-      bestMatch = { ledger, score, tag };
-      if (score === 100) break;
+    if (score >= 70) {
+      matchedCandidates.push({ ledger, score, tag });
     }
   }
 
-  ledgerMatchCache.set(cacheKey, bestMatch);
-  return bestMatch;
+  if (matchedCandidates.length === 0) {
+    ledgerMatchCache.set(cacheKey, null);
+    return null;
+  }
+
+  matchedCandidates.sort((a, b) => b.score - a.score);
+
+  // Exact 100% match
+  if (matchedCandidates[0].score === 100) {
+    const exactMatches = matchedCandidates.filter(c => c.score === 100);
+    const result = {
+      ...matchedCandidates[0],
+      isAmbiguous: exactMatches.length > 1,
+      isUnique: exactMatches.length === 1,
+      matchCount: exactMatches.length,
+      candidates: matchedCandidates.map(c => c.ledger)
+    };
+    ledgerMatchCache.set(cacheKey, result);
+    return result;
+  }
+
+  const top = matchedCandidates[0];
+  const second = matchedCandidates.length > 1 ? matchedCandidates[1] : null;
+
+  // Dominant Winner Logic:
+  // True Ambiguity ONLY occurs when:
+  // 1. There is a second candidate
+  // 2. Both top and second candidate have high scores (>= 85)
+  // 3. The score difference between top and second candidate is tiny (< 3 points)
+  const isTrueTie = second && top.score >= 85 && second.score >= 85 && (top.score - second.score < 3);
+
+  if (isTrueTie) {
+    // True tie between nearly identical ledgers -> Review Required
+    const tieCandidates = matchedCandidates.filter(c => c.score >= top.score - 3);
+    const result = {
+      ledger: top.ledger,
+      score: 75,
+      tag: 'Ambiguous Match',
+      isAmbiguous: true,
+      isUnique: false,
+      matchCount: tieCandidates.length,
+      candidates: tieCandidates.map(c => c.ledger)
+    };
+    ledgerMatchCache.set(cacheKey, result);
+    return result;
+  }
+
+  // Clear Winner or Unique Match:
+  // Automatically select with solid confidence (>= 90%) -> Status: READY
+  const result = {
+    ledger: top.ledger,
+    score: Math.max(90, top.score),
+    tag: top.tag || 'AI Match',
+    isAmbiguous: false,
+    isUnique: matchedCandidates.length === 1 || (second && top.score - second.score >= 4),
+    matchCount: 1,
+    candidates: matchedCandidates.slice(0, 5).map(c => c.ledger)
+  };
+  ledgerMatchCache.set(cacheKey, result);
+  return result;
 }
 
 /**
@@ -347,21 +402,10 @@ function SmartLedgerDropdown({
     return items;
   }, [isOpen, onAddRule, recommendations, filteredLedgers]);
 
-  // Open & calculate popover position relative to trigger button
+  // Open dropdown — position is handled via CSS (position:absolute top-full)
+  // Opens directly below trigger button exactly like in Review screen
   const handleOpen = () => {
     if (disabled) return;
-    if (triggerRef.current) {
-      const rect = triggerRef.current.getBoundingClientRect();
-      const spaceBelow = window.innerHeight - rect.bottom;
-      const dropdownHeight = 320; // approximate max dropdown height
-      const openUpwards = spaceBelow < dropdownHeight && rect.top > dropdownHeight;
-
-      setDropdownPos({
-        top: openUpwards ? Math.max(10, rect.top - dropdownHeight - 4) : rect.bottom + 4,
-        left: Math.max(10, Math.min(rect.left, window.innerWidth - 360)),
-        width: Math.max(320, rect.width)
-      });
-    }
     setSearchQuery('');
     setHighlightedIndex(0);
     setIsOpen(true);
@@ -408,14 +452,14 @@ function SmartLedgerDropdown({
     }
   };
 
-  // Focus input automatically when opened
+  // Focus input automatically when opened without causing parent scroll jumps
   useEffect(() => {
     if (isOpen && searchInputRef.current) {
-      searchInputRef.current.focus();
+      searchInputRef.current.focus({ preventScroll: true });
     }
   }, [isOpen]);
 
-  // Close dropdown on outside click or window resize only (NOT on scroll inside the dropdown)
+  // Close dropdown on outside click or window resize only
   useEffect(() => {
     if (!isOpen) return;
 
@@ -425,20 +469,12 @@ function SmartLedgerDropdown({
       handleClose();
     };
 
-    const handleScroll = (e) => {
-      // Only close if the scroll happened OUTSIDE the dropdown panel itself
-      if (listRef.current && listRef.current.contains(e.target)) return;
-      handleClose();
-    };
-
     const handleWindowResize = () => handleClose();
 
     window.addEventListener('mousedown', handleOutsideClick);
-    window.addEventListener('scroll', handleScroll, true);
     window.addEventListener('resize', handleWindowResize);
     return () => {
       window.removeEventListener('mousedown', handleOutsideClick);
-      window.removeEventListener('scroll', handleWindowResize, true);
       window.removeEventListener('resize', handleWindowResize);
     };
   }, [isOpen]);
@@ -446,7 +482,7 @@ function SmartLedgerDropdown({
   const isHighConfidence = Number(confidence) >= 90;
 
   return (
-    <div className={`relative w-full ${className}`}>
+    <div className={`relative w-full ${className}`} style={{ zIndex: isOpen ? 9999 : 'auto' }}>
       {/* Trigger Button */}
       <div
         ref={triggerRef}
@@ -456,7 +492,7 @@ function SmartLedgerDropdown({
         role="button"
         aria-haspopup="listbox"
         aria-expanded={isOpen}
-        className={`group w-full h-7 px-2 rounded-md text-[11px] font-bold border flex items-center justify-between gap-1 transition-all outline-none cursor-pointer ${
+        className={`group w-full min-h-7 px-2 py-1 rounded-md text-[11px] font-bold border flex items-center justify-between gap-1 transition-all outline-none cursor-pointer ${
           disabled
             ? 'opacity-50 cursor-not-allowed bg-slate-100 dark:bg-slate-800'
             : hasSelected
@@ -466,11 +502,11 @@ function SmartLedgerDropdown({
       >
         <div className="flex items-center gap-1 min-w-0 flex-1">
           {hasSelected ? (
-            <span className="truncate font-black tracking-tight block text-[var(--app-heading)]">
+            <span className="break-words whitespace-normal font-black tracking-tight block text-[var(--app-heading)] leading-snug">
               {value}
             </span>
           ) : (
-            <span className="text-amber-600 dark:text-amber-400 font-bold truncate block text-[10.5px]">
+            <span className="text-amber-600 dark:text-amber-400 font-bold break-words whitespace-normal block text-[10.5px] leading-snug">
               {placeholder || '-- Select Master Party Ledger --'}
             </span>
           )}
@@ -492,20 +528,13 @@ function SmartLedgerDropdown({
         </div>
       )}
 
-      {/* Floating Dropdown Menu rendered via Portal into body to escape overflow clipping */}
-      {isOpen &&
-        createPortal(
-          <div
-            ref={listRef}
-            style={{
-              position: 'fixed',
-              top: `${dropdownPos.top}px`,
-              left: `${dropdownPos.left}px`,
-              width: `${dropdownPos.width}px`,
-              zIndex: 9999
-            }}
-            className="bg-[var(--app-panel-bg)] border rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-80 border-slate-300 dark:border-slate-700 animate-in fade-in zoom-in-95 duration-100"
-          >
+      {/* Floating Dropdown Menu — position:absolute top-full so it always opens
+          directly below the trigger button, exactly like in Review screen */}
+      {isOpen && (
+        <div
+          ref={listRef}
+          className="absolute left-0 top-full mt-1 z-[9999] w-full bg-[var(--app-panel-bg)] border rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-80 border-slate-300 dark:border-slate-700 animate-in fade-in zoom-in-95 duration-100"
+        >
             {/* Search Input Header */}
             <div className="p-2 border-b bg-[var(--app-content-bg)]/60" style={{ borderColor: 'var(--app-border)' }}>
               <div className="relative flex items-center">
@@ -566,14 +595,14 @@ function SmartLedgerDropdown({
                         key={`rec-${rec.ledger}`}
                         type="button"
                         onClick={() => handleSelect(rec.ledger)}
-                        className={`w-full px-2.5 py-1.5 rounded-lg text-left text-xs font-bold transition-all flex items-center justify-between group cursor-pointer ${
+                        className={`w-full px-2.5 py-1.5 rounded-lg text-left text-xs font-bold transition-all flex items-start justify-between group cursor-pointer ${
                           isSelected
                             ? 'bg-[#2563EB] text-white shadow-xs'
                             : 'hover:bg-emerald-500/10 text-[var(--app-heading)]'
                         }`}
                       >
-                        <div className="flex items-center gap-2 min-w-0 flex-1">
-                          <span className="truncate">{rec.ledger}</span>
+                        <div className="flex items-start gap-2 min-w-0 flex-1">
+                          <span className="break-words whitespace-normal leading-snug">{rec.ledger}</span>
                           <span
                             className={`px-1.5 py-0.2 rounded text-[9px] font-black uppercase tracking-wider shrink-0 ${
                               isSelected
@@ -614,13 +643,13 @@ function SmartLedgerDropdown({
                         key={ledger}
                         type="button"
                         onClick={() => handleSelect(ledger)}
-                        className={`w-full px-2.5 py-1.5 rounded-lg text-left text-xs font-bold transition-colors flex items-center justify-between group cursor-pointer ${
+                        className={`w-full px-2.5 py-1.5 rounded-lg text-left text-xs font-bold transition-colors flex items-start justify-between group cursor-pointer ${
                           isSelected
                             ? 'bg-[#2563EB] text-white shadow-xs'
                             : 'hover:bg-[var(--app-control-hover)] text-[var(--app-heading)]'
                         }`}
                       >
-                        <span className="truncate flex-1">{ledger}</span>
+                        <span className="break-words whitespace-normal leading-snug flex-1">{ledger}</span>
                         {isSelected && <Check size={14} className="shrink-0 text-white" />}
                       </button>
                     );
@@ -633,9 +662,9 @@ function SmartLedgerDropdown({
                 )}
               </div>
             </div>
-          </div>,
-          document.body
-        )}
+        </div>
+      )}
+
     </div>
   );
 }

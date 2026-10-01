@@ -56,7 +56,7 @@ async def list_transactions(
     search: Optional[str] = None,
     companyId: Optional[str] = Query(None),
     page: int = 1,
-    limit: int = 50,
+    limit: Optional[int] = Query(None),
     service: FundFlowService = Depends(get_fundflow_service)
 ):
     company_header = companyId or request.headers.get("x-company-id") or request.headers.get("x-company")
@@ -71,12 +71,13 @@ async def list_transactions(
             except Exception:
                 pass
 
+    eff_limit = limit if (limit is not None and limit > 0) else 2000
     result = service.list_transactions(
         voucher_type=voucherType,
         status=status,
         search=search,
         page=page,
-        limit=limit,
+        limit=eff_limit,
         company_id=company_header
     )
     return {
@@ -85,7 +86,7 @@ async def list_transactions(
         "pagination": {
             "total": result["total"],
             "page": page,
-            "limit": limit
+            "limit": eff_limit
         }
     }
 

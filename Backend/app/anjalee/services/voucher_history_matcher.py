@@ -4,6 +4,8 @@ from typing import Optional, Dict, Any, List
 
 logger = logging.getLogger("voucher_history_matcher")
 
+_INDEXED_DBS = set()
+
 class VoucherHistoryMatcher:
     """
     Cross-references bank transaction narrations and reference numbers against
@@ -14,6 +16,21 @@ class VoucherHistoryMatcher:
     def __init__(self, db: Any):
         self.db = db
         self._cache: Dict[str, Any] = {}
+        self._ref_cache: Dict[str, Optional[Dict[str, Any]]] = {}
+        self._aliases_cache: Optional[Dict[str, str]] = None
+
+        if self.db is not None:
+            db_name = getattr(self.db, "name", str(id(self.db)))
+            if db_name not in _INDEXED_DBS:
+                _INDEXED_DBS.add(db_name)
+                try:
+                    self.db["vouchers"].create_index("reference.reference", background=True)
+                    self.db["vouchers"].create_index("voucherNumber", background=True)
+                    self.db["vouchers"].create_index("ledgerEntries.billAllocations.name", background=True)
+                    self.db["bank_party_aliases"].create_index("alias", background=True)
+                    self.db["bank_party_aliases"].create_index("partyName", background=True)
+                except Exception:
+                    pass
 
     def match_from_history(
         self,
@@ -46,57 +63,75 @@ class VoucherHistoryMatcher:
                         ref_candidates.append(fr)
 
         for ref_val in ref_candidates[:2]:
-            try:
-                query = {"$or": [
-                    {"reference.reference": ref_val},
-                    {"voucherNumber": ref_val}
-                ]}
-                vch = self.db["vouchers"].find_one(
-                    query,
-                    {"partyLedgerName": 1, "ledgerEntries.ledgerName": 1, "voucherTypeName": 1}
-                )
-                if vch:
-                    party = vch.get("partyLedgerName")
-                    if not party and vch.get("ledgerEntries"):
-                        for entry in vch.get("ledgerEntries", []):
-                            l_name = entry.get("ledgerName", "")
-                            if l_name and not re.search(r'(GST|TAX|DUTY|BANK|CASH)', l_name, re.I):
-                                party = l_name
-                                break
+            if ref_val in self._ref_cache:
+                vch = self._ref_cache[ref_val]
+            else:
+                try:
+                    query = {"$or": [
+                        {"reference.reference": ref_val},
+                        {"voucherNumber": ref_val}
+                    ]}
+                    vch = self.db["vouchers"].find_one(
+                        query,
+                        {"partyLedgerName": 1, "ledgerEntries.ledgerName": 1, "voucherTypeName": 1, "voucherNumber": 1}
+                    )
+                    self._ref_cache[ref_val] = vch
+                except Exception as e:
+                    logger.debug(f"Error querying vouchers for ref '{ref_val}': {e}")
+                    vch = None
+                    self._ref_cache[ref_val] = None
 
-                    if party:
-                        res = {
-                            "resolvedLedger": party,
-                            "confidence": 99.0,
-                            "matchMethod": "history_voucher_ref",
-                            "isAmbiguous": False,
-                            "reasoning": f"Matched past confirmed voucher #{vch.get('voucherNumber', '')} with reference '{ref_val}'."
-                        }
-                        self._cache[cache_key] = res
-                        return res
-            except Exception as e:
-                logger.debug(f"Error querying vouchers for ref '{ref_val}': {e}")
+            if vch:
+                party = vch.get("partyLedgerName")
+                if not party and vch.get("ledgerEntries"):
+                    for entry in vch.get("ledgerEntries", []):
+                        l_name = entry.get("ledgerName", "")
+                        if l_name and not re.search(r'(GST|TAX|DUTY|BANK|CASH)', l_name, re.I):
+                            party = l_name
+                            break
 
-        # 2. Match by exact party alias in bank_party_aliases
-        unique_handle = (extracted_party or "").strip().lower()
-        if unique_handle and len(unique_handle) >= 4 and not re.match(r'^(MMT|TRF|INF|CLG|NEFT|RTGS|UPI|\d+)$', unique_handle, re.I):
-            try:
-                q = {"alias": unique_handle}
-                if company_id and company_id != "default":
-                    q["$or"] = [{"companyId": company_id}, {"company_id": company_id}]
-                alias_doc = self.db["bank_party_aliases"].find_one(q)
-                if alias_doc and alias_doc.get("ledgerName"):
+                if party:
                     res = {
-                        "resolvedLedger": alias_doc["ledgerName"],
-                        "confidence": 98.0,
-                        "matchMethod": "history_voucher_handle",
+                        "resolvedLedger": party,
+                        "confidence": 99.0,
+                        "matchMethod": "history_voucher_ref",
                         "isAmbiguous": False,
-                        "reasoning": f"Matched confirmed alias '{unique_handle}' to '{alias_doc['ledgerName']}'."
+                        "reasoning": f"Matched past confirmed voucher #{vch.get('voucherNumber', '')} with reference '{ref_val}'."
                     }
                     self._cache[cache_key] = res
                     return res
-            except Exception as e:
-                logger.debug(f"Error querying bank_party_aliases for handle '{unique_handle}': {e}")
+
+        # 2. Match by exact party alias using batch pre-cached aliases
+        unique_handle = (extracted_party or "").strip().lower()
+        if unique_handle and len(unique_handle) >= 4 and not re.match(r'^(MMT|TRF|INF|CLG|NEFT|RTGS|UPI|\d+)$', unique_handle, re.I):
+            if self._aliases_cache is None:
+                self._aliases_cache = {}
+                try:
+                    q = {}
+                    if company_id and company_id != "default":
+                        q["$or"] = [{"companyId": company_id}, {"company_id": company_id}]
+                    for alias_doc in self.db["bank_party_aliases"].find(q):
+                        al = (alias_doc.get("alias") or "").strip().lower()
+                        pn = (alias_doc.get("partyName") or "").strip().lower()
+                        led = alias_doc.get("ledgerName") or alias_doc.get("resolvedLedger")
+                        if al and led:
+                            self._aliases_cache[al] = led
+                        if pn and led:
+                            self._aliases_cache[pn] = led
+                except Exception as e:
+                    logger.debug(f"Error prefetching bank_party_aliases: {e}")
+
+            if unique_handle in self._aliases_cache:
+                resolved_ledger = self._aliases_cache[unique_handle]
+                res = {
+                    "resolvedLedger": resolved_ledger,
+                    "confidence": 98.0,
+                    "matchMethod": "history_voucher_handle",
+                    "isAmbiguous": False,
+                    "reasoning": f"Matched confirmed alias '{unique_handle}' to '{resolved_ledger}'."
+                }
+                self._cache[cache_key] = res
+                return res
 
         self._cache[cache_key] = None
         return None

@@ -88,7 +88,7 @@ export const useFundFlowStore = create((set, get) => ({
   transactions:  [],
   totalCount:    0,
   currentPage:   1,
-  pageLimit:     500,
+  isCached:      false,
   filters: {
     voucherType: 'cash_payment',
     status:      '',
@@ -135,29 +135,43 @@ export const useFundFlowStore = create((set, get) => ({
   error: null,
 
   // ─────────────────────────────────────────────────────────────────────────
-  //  Actions: List + Filters
+  //  Actions: List + Filters + In-Memory Cache
   // ─────────────────────────────────────────────────────────────────────────
 
-  setPageLimit: (limit) => set({ pageLimit: limit, currentPage: 1 }),
+  setPageLimit: (limit) => set({ pageLimit: limit, currentPage: 1, isCached: false }),
 
-  setFilter: (key, value) => set((s) => ({
-    filters: { ...s.filters, [key]: value },
-    currentPage: 1,
-  })),
+  setFilter: (key, value) => {
+    const prev = get().filters[key];
+    if (prev === value) return;
+    set((s) => ({
+      filters: { ...s.filters, [key]: value },
+      isCached: false,
+    }));
+  },
 
   setPage: (page) => set({ currentPage: page }),
 
-  fetchTransactions: async () => {
-    const { filters, currentPage, pageLimit } = get();
+  invalidateCache: () => set({ isCached: false }),
+
+  fetchTransactions: async (force = false) => {
+    const { filters, isCached, transactions } = get();
+    // Cache memory: if already loaded and not forced, reuse in-memory data without showing loading
+    if (!force && isCached && transactions && transactions.length > 0) {
+      return;
+    }
+
     set((s) => ({ loading: { ...s.loading, list: true }, error: null }));
     try {
-      const params = { ...filters, page: currentPage, limit: pageLimit };
+      const params = { ...filters, limit: 2000 };
       // Remove empty filters
       Object.keys(params).forEach((k) => { if (!params[k]) delete params[k]; });
       const res = await fundflowApi.list(params);
+      const items = res.data || [];
+      const total = res.pagination?.total ?? res.meta?.total ?? items.length;
       set({
-        transactions: res.data || [],
-        totalCount:   res.meta?.total || 0,
+        transactions: items,
+        totalCount:   total,
+        isCached:     true,
       });
     } catch (err) {
       set({ error: err.response?.data?.message || 'Failed to load transactions' });

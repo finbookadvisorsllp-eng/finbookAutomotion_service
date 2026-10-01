@@ -28,7 +28,8 @@ import {
   Sparkles,
   SlidersHorizontal,
   ShieldAlert,
-  Send
+  Send,
+  Save
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
@@ -42,6 +43,7 @@ import bankStatementAiApi from '../../services/bankStatementAiApi';
 import BulkUploadPanel from '../bulk-upload/BulkUploadPanel';
 import BankAiReviewPanel from './BankAiReviewPanel';
 import BankRuleMappingModal from './BankRuleMappingModal';
+import { calculateBatchSummary } from './bankSummaryHelper';
 
 // All dropdown data is fetched dynamically from the database via useFundFlowStore.
 // No hardcoded arrays — see BankPanel component body for dynamic derivations.
@@ -108,7 +110,7 @@ const BankPanel = ({ mode: propMode, isDark }) => {
       if (res && res.success) {
         toast.success(`Voucher ${voucher.voucherNumber || ''} deleted from database successfully`);
         setSelectedRows(prev => prev.filter(k => k !== vId));
-        await fundFlowStore.fetchTransactions();
+        await fundFlowStore.fetchTransactions(true);
         fetchAiBatches(false);
       } else {
         toast.error(res?.message || 'Failed to delete voucher');
@@ -134,7 +136,7 @@ const BankPanel = ({ mode: propMode, isDark }) => {
       }
     }
     toast.success(`Deleted ${deletedCount} vouchers from database successfully`);
-    await fundFlowStore.fetchTransactions();
+    await fundFlowStore.fetchTransactions(true);
     fetchAiBatches(false);
     setSelectedRows([]);
   };
@@ -695,7 +697,7 @@ const BankPanel = ({ mode: propMode, isDark }) => {
         ];
 
       case 'Inbox': {
-        const total = baseInboxData.length;
+        const total = fundFlowStore.totalCount || baseInboxData.length;
         const pushed = baseInboxData.filter((r) => r.statusCode === 'pushed').length;
         const pending = baseInboxData.filter((r) => r.statusCode === 'pending').length;
         const failed = baseInboxData.filter((r) => r.statusCode === 'failed').length;
@@ -912,13 +914,17 @@ const BankPanel = ({ mode: propMode, isDark }) => {
         return (
           <BankAiReviewPanel
             batchData={activeBatchData}
-            onClose={() => {
+            onClose={(updatedBatch) => {
+              if (updatedBatch) {
+                const bId = updatedBatch.batch_id || updatedBatch._id;
+                setAiBatches(prev => prev.map(b => ((b.batch_id || b._id) === bId ? { ...b, ...updatedBatch } : b)));
+              }
               activeBatchDataRef.current = null;
               setActiveBatchData(null);
               fetchAiBatches(false);
             }}
             onRefreshList={() => {
-              fundFlowStore.fetchTransactions();
+              fundFlowStore.fetchTransactions(true);
               fetchAiBatches(true);
             }}
             onNavigateToAddRule={() => setActiveTab('Add Bank Rule')}
@@ -976,10 +982,16 @@ const BankPanel = ({ mode: propMode, isDark }) => {
         return true;
       });
 
+      const getBatchSummary = (batch) => calculateBatchSummary(batch, allLedgers);
+
       const totalDocs = aiBatches.length;
-      const totalTxnsCount = aiBatches.reduce((acc, b) => acc + (b.summary?.total_count || (b.items || []).length || 0), 0);
-      const totalReadyCount = aiBatches.reduce((acc, b) => acc + (b.summary?.ready_count || 0), 0);
-      const totalReviewCount = aiBatches.reduce((acc, b) => acc + (b.summary?.review_required_count || 0), 0);
+      const batchSummaries = aiBatches.map(b => getBatchSummary(b));
+      const totalTxnsCount = batchSummaries.reduce((acc, s) => acc + (s.total_count || 0), 0);
+      const totalReadyCount = batchSummaries.reduce((acc, s) => acc + (s.ready_count || 0), 0);
+      const totalReviewCount = batchSummaries.reduce((acc, s) => acc + (s.review_required_count || 0), 0);
+      const totalSavedCount = batchSummaries.reduce((acc, s) => acc + (s.saved_count || 0), 0);
+      const totalPushedCount = batchSummaries.reduce((acc, s) => acc + (s.tally_pushed_count || 0), 0);
+      const totalPendingPushCount = batchSummaries.reduce((acc, s) => acc + (s.tally_pending_count || 0), 0);
 
       return (
         <div className="flex flex-col gap-3.5 h-full overflow-hidden">
@@ -1053,24 +1065,15 @@ const BankPanel = ({ mode: propMode, isDark }) => {
             </div>
           </div>
 
-          {/* Micro Overview Stat Chips */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 shrink-0">
+          {/* Micro Overview Stat Chips - Dynamically Synchronized with AI Review Panel */}
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 shrink-0">
             <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl border bg-[var(--app-panel-bg)] shadow-xs" style={{ borderColor: 'var(--app-border)' }}>
               <div className="w-7 h-7 rounded-lg bg-indigo-500/10 text-indigo-600 flex items-center justify-center font-bold shrink-0">
                 <FileText size={14} />
               </div>
               <div className="truncate">
                 <span className="text-[9.5px] font-bold text-[var(--app-muted)] uppercase tracking-wider block truncate">Total Statements</span>
-                <span className="text-[13.5px] font-black text-[var(--app-heading)] leading-tight">{totalDocs}</span>
-              </div>
-            </div>
-            <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl border bg-[var(--app-panel-bg)] shadow-xs" style={{ borderColor: 'var(--app-border)' }}>
-              <div className="w-7 h-7 rounded-lg bg-purple-500/10 text-purple-600 flex items-center justify-center font-bold shrink-0">
-                <Sparkles size={14} />
-              </div>
-              <div className="truncate">
-                <span className="text-[9.5px] font-bold text-[var(--app-muted)] uppercase tracking-wider block truncate">Total Extracted</span>
-                <span className="text-[13.5px] font-black text-[var(--app-heading)] leading-tight">{totalTxnsCount} Items</span>
+                <span className="text-[13.5px] font-black text-[var(--app-heading)] leading-tight">{totalDocs} <span className="text-[10px] font-normal text-[var(--app-muted)]">({totalTxnsCount} txns)</span></span>
               </div>
             </div>
             <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl border bg-[var(--app-panel-bg)] shadow-xs" style={{ borderColor: 'var(--app-border)' }}>
@@ -1078,7 +1081,7 @@ const BankPanel = ({ mode: propMode, isDark }) => {
                 <CheckCircle2 size={14} />
               </div>
               <div className="truncate">
-                <span className="text-[9.5px] font-bold text-[var(--app-muted)] uppercase tracking-wider block truncate">Mapped & Ready</span>
+                <span className="text-[9.5px] font-bold text-[var(--app-muted)] uppercase tracking-wider block truncate">Ready to Save</span>
                 <span className="text-[13.5px] font-black text-emerald-600 leading-tight">{totalReadyCount}</span>
               </div>
             </div>
@@ -1089,6 +1092,26 @@ const BankPanel = ({ mode: propMode, isDark }) => {
               <div className="truncate">
                 <span className="text-[9.5px] font-bold text-[var(--app-muted)] uppercase tracking-wider block truncate">Review Needed</span>
                 <span className="text-[13.5px] font-black text-amber-600 leading-tight">{totalReviewCount}</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl border bg-[var(--app-panel-bg)] shadow-xs" style={{ borderColor: 'var(--app-border)' }}>
+              <div className="w-7 h-7 rounded-lg bg-purple-500/10 text-purple-600 flex items-center justify-center font-bold shrink-0">
+                <Save size={14} />
+              </div>
+              <div className="truncate">
+                <span className="text-[9.5px] font-bold text-[var(--app-muted)] uppercase tracking-wider block truncate">Saved Vouchers</span>
+                <span className="text-[13.5px] font-black text-purple-600 leading-tight">{totalSavedCount}</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl border bg-[var(--app-panel-bg)] shadow-xs" style={{ borderColor: 'var(--app-border)' }}>
+              <div className="w-7 h-7 rounded-lg bg-teal-500/10 text-teal-600 flex items-center justify-center font-bold shrink-0">
+                <Send size={14} />
+              </div>
+              <div className="truncate">
+                <span className="text-[9.5px] font-bold text-[var(--app-muted)] uppercase tracking-wider block truncate">Ready To Push</span>
+                <span className="text-[13.5px] font-black text-teal-600 leading-tight">
+                  {totalPendingPushCount} <span className="text-[10px] font-normal text-[var(--app-muted)]">({totalPushedCount} pushed)</span>
+                </span>
               </div>
             </div>
           </div>
@@ -1119,11 +1142,13 @@ const BankPanel = ({ mode: propMode, isDark }) => {
                     const dateObj = batch.created_at ? new Date(batch.created_at) : null;
                     const dateStr = dateObj ? dateObj.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
                     const timeStr = dateObj ? dateObj.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) : '';
-                    const summary = batch.summary || {};
-                    const total = summary.total_count || (batch.items || []).length || 0;
+                    const summary = getBatchSummary(batch);
+                    const total = summary.total_count || 0;
                     const ready = summary.ready_count || 0;
                     const reviewReq = summary.review_required_count || 0;
                     const saved = summary.saved_count || 0;
+                    const pushed = summary.tally_pushed_count || 0;
+                    const pendingPush = summary.tally_pending_count || 0;
                     const isPdf = (batch.file_name || '').toLowerCase().endsWith('.pdf');
 
                     return (
@@ -1166,8 +1191,14 @@ const BankPanel = ({ mode: propMode, isDark }) => {
                           <div className="flex flex-col items-center gap-1">
                             <div className="flex items-center justify-center gap-1.5 flex-wrap">
                               <span className="font-black text-[11.5px] text-[var(--app-heading)]">{total} Items</span>
-                              {saved > 0 && saved === total ? (
-                                <span className="px-1.5 py-0.5 rounded text-[9.5px] font-extrabold bg-purple-500/10 text-purple-600 border border-purple-500/20">Saved</span>
+                              {pushed > 0 && pushed === total ? (
+                                <span className="px-1.5 py-0.5 rounded text-[9.5px] font-extrabold bg-teal-500/10 text-teal-600 border border-teal-500/20">Tally Pushed</span>
+                              ) : saved > 0 && saved === total ? (
+                                <span className="px-1.5 py-0.5 rounded text-[9.5px] font-extrabold bg-purple-500/10 text-purple-600 border border-purple-500/20">Saved ({pendingPush} To Push)</span>
+                              ) : saved > 0 ? (
+                                <span className="px-1.5 py-0.5 rounded text-[9.5px] font-extrabold bg-purple-500/10 text-purple-600 border border-purple-500/20">Partially Saved</span>
+                              ) : reviewReq === 0 && ready > 0 ? (
+                                <span className="px-1.5 py-0.5 rounded text-[9.5px] font-extrabold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">Ready to Save</span>
                               ) : (
                                 <span className="px-1.5 py-0.5 rounded text-[9.5px] font-extrabold bg-indigo-500/10 text-indigo-600 border border-indigo-500/20">Draft</span>
                               )}
@@ -1175,6 +1206,9 @@ const BankPanel = ({ mode: propMode, isDark }) => {
                             <div className="flex items-center justify-center gap-1 flex-wrap">
                               {ready > 0 && <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">{ready} Ready</span>}
                               {reviewReq > 0 && <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-amber-500/10 text-amber-600 border border-amber-500/20">{reviewReq} Review</span>}
+                              {saved > 0 && <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-purple-500/10 text-purple-600 border border-purple-500/20">{saved} Saved</span>}
+                              {pushed > 0 && <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-teal-500/10 text-teal-600 border border-teal-500/20">{pushed} Pushed</span>}
+                              {pendingPush > 0 && <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-sky-500/10 text-sky-600 border border-sky-500/20">{pendingPush} Ready To Push</span>}
                             </div>
                           </div>
                         </td>

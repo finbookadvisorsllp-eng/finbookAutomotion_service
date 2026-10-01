@@ -15,13 +15,19 @@ class FundFlowRepository(BaseRepository):
         return self.db[FUNDFLOW_COLLECTION].count_documents(query)
 
     def find_transactions(self, query: Dict[str, Any], skip: int, limit: int) -> List[Dict[str, Any]]:
-        return list(
+        projection = {"tallyXml": 0, "tally_xml": 0}
+        docs = list(
             self.db[FUNDFLOW_COLLECTION]
-            .find(query)
+            .find(query, projection)
             .sort([("createdAt", -1), ("_id", -1)])
             .skip(skip)
             .limit(limit)
         )
+        for doc in docs:
+            t_status = str(doc.get("tallyPushStatus") or "").upper()
+            raw_s = str(doc.get("status") or "").lower()
+            doc["hasTallyXml"] = t_status in ["POSTED_TO_TALLY", "PUSHED"] or raw_s in ["posted_to_tally", "pushed"]
+        return docs
 
     def get_next_sequence_value(self, sequence_id: str) -> int:
         counter = self.db[COUNTERS_COLLECTION].find_one_and_update(
