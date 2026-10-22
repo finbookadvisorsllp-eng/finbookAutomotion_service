@@ -95,7 +95,7 @@ def _warm_up_worker():
     global _cache_warmed
     try:
         # Dynamically warm up tenant cache from IAM organizations collection
-        orgs = client["iam"]["organizations"].find({}, {"_id": 1, "slug": 1, "name": 1, "displayName": 1, "dbName": 1})
+        orgs = client[settings.IAM_DB_NAME]["organizations"].find({}, {"_id": 1, "slug": 1, "name": 1, "displayName": 1, "dbName": 1})
         for org in orgs:
             org_id_str = str(org["_id"])
             db_name = org.get("dbName") or f"finbook_tenant_{org_id_str}"
@@ -165,7 +165,7 @@ def resolve_db_name(company_ref: str) -> str:
 
     # 1. Directly query MongoDB 'iam.organizations' for latest 'dbName' mapping
     try:
-        iam_db = client["iam"]
+        iam_db = client[settings.IAM_DB_NAME]
         query_conditions = [
             {"slug": company_ref},
             {"name": company_ref},

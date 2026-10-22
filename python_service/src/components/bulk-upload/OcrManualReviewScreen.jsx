@@ -10,13 +10,13 @@ import apiClient from '../../lib/apiClient';
 
 // ── Progress Steps Configuration ──────────────────────────────────────────────
 const PIPELINE_STEPS = [
-  { stage: 'processing',      label: 'Upload Complete',              icon: CheckCircle2 },
-  { stage: 'ocr_running',     label: 'Reading Document with OCR',    icon: Loader2 },
-  { stage: 'ocr_complete',    label: 'OCR Complete',                 icon: CheckCircle2 },
-  { stage: 'layout_running',  label: 'Analyzing Document Layout',    icon: Loader2 },
-  { stage: 'layout_complete', label: 'Layout Analysis Done',         icon: CheckCircle2 },
-  { stage: 'ai_running',      label: 'AI Extracting Accounting Data',icon: Brain },
-  { stage: 'ai_complete',     label: 'Extraction Complete',          icon: CheckCircle2 },
+  { stage: 'processing', label: 'Upload Complete', icon: CheckCircle2 },
+  { stage: 'ocr_running', label: 'Reading Document with OCR', icon: Loader2 },
+  { stage: 'ocr_complete', label: 'OCR Complete', icon: CheckCircle2 },
+  { stage: 'layout_running', label: 'Analyzing Document Layout', icon: Loader2 },
+  { stage: 'layout_complete', label: 'Layout Analysis Done', icon: CheckCircle2 },
+  { stage: 'ai_running', label: 'AI Extracting Accounting Data', icon: Brain },
+  { stage: 'ai_complete', label: 'Extraction Complete', icon: CheckCircle2 },
 ];
 
 const STAGE_ORDER = ['processing', 'ocr_running', 'ocr_complete', 'layout_running', 'layout_complete', 'ai_running', 'ai_complete'];
@@ -62,9 +62,9 @@ function ProgressPanel({ stage, progress, stageLabel, error }) {
           const Icon = status === 'active' && step.stage.includes('running') ? Loader2 : step.icon;
           return (
             <div key={step.stage} className={`flex items-center gap-3 text-[11px] font-bold transition-all duration-300 ${status === 'done' ? 'text-emerald-600 dark:text-emerald-450' :
-                status === 'active' ? 'text-indigo-700 dark:text-indigo-400' :
-                  status === 'error' ? 'text-red-500 dark:text-red-400' :
-                    'text-slate-300 dark:text-slate-700'
+              status === 'active' ? 'text-indigo-700 dark:text-indigo-400' :
+                status === 'error' ? 'text-red-500 dark:text-red-400' :
+                  'text-slate-300 dark:text-slate-700'
               }`}>
               <Icon size={13} className={status === 'active' && step.stage.includes('running') ? 'animate-spin' : ''} />
               <span>{step.label}</span>
@@ -118,7 +118,7 @@ export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSucc
         const fullRes = await bulkUploadApi.getDocument(doc.id);
         if (fullRes.success && fullRes.document) {
           const d = fullRes.document;
-          const base = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5000/api/v2';
+          const base = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api/v2';
           if (d.fileUrl && d.fileUrl.startsWith('/')) d.fileUrl = `${base}${d.fileUrl}`;
           setCurrentDoc(d);
           setPipelineStage('ai_complete');
@@ -164,7 +164,7 @@ export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSucc
   // ── Resolve file URL ──────────────────────────────────────────────────────
   let fileUrl = currentDoc?.fileUrl || doc?.fileUrl || doc?.previewUrl || null;
   if (fileUrl && fileUrl.startsWith('/')) {
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5000/api/v2';
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api/v2';
     fileUrl = `${baseUrl}${fileUrl}`;
   }
 
@@ -218,7 +218,7 @@ export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSucc
   const isSales = docTypeLower.includes('sales') || docTypeLower.includes('credit');
   const isPurchase = docTypeLower.includes('purchase') || docTypeLower.includes('debit');
   const isInvoice = isSales || isPurchase;
-  
+
   const getVoucherType = () => {
     if (isSales) {
       return docTypeLower.includes('credit') ? 'credit_note' : 'sales_invoice';
@@ -232,7 +232,7 @@ export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSucc
     if (docTypeLower.includes('receipt')) {
       return 'bank_payment';
     }
-    
+
     // For Payment: check if payment mode or account represents a bank/credit card
     const schema = currentDoc?.dynamic_schema || doc?.dynamic_schema;
     if (schema) {
@@ -271,7 +271,7 @@ export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSucc
   const purchaseForm = usePurchaseStore(s => s.form);
   const fundFlowForm = useFundFlowStore(s => s.form);
   const form = isInvoice ? (isSales ? salesForm : purchaseForm) : fundFlowForm;
-  
+
   const salesMasterData = useSalesStore(s => s.masterData);
   const purchaseMasterData = usePurchaseStore(s => s.masterData);
   const fundFlowMasterData = useFundFlowStore(s => s.masterData);
@@ -500,7 +500,7 @@ export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSucc
     }
     // Determine entry tab: prioritizing backend dynamic schema entry_tab
     let entryTab = schema?.entry_tab || schema?.entryTab || '';
-    
+
     // Fallback or override: if we have actual items with quantities/names/amounts, force with_item mode
     const hasActualStockItems = productLines.some(l => l.stockItem && l.stockItem.trim() !== '' && (l.billQuantity > 0 || l.amount > 0));
     if (hasActualStockItems) {
@@ -527,11 +527,11 @@ export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSucc
 
     // If consignee is same as party, clear it so "Same as Party" placeholder shows
     if (fields.consigneeLedger && fields.partyLedger &&
-        fields.consigneeLedger.trim().toLowerCase() === fields.partyLedger.trim().toLowerCase()) {
+      fields.consigneeLedger.trim().toLowerCase() === fields.partyLedger.trim().toLowerCase()) {
       fields.consigneeLedger = '';
     }
     if (fields.consigneeGstin && fields.partyGstin &&
-        fields.consigneeGstin.trim() === fields.partyGstin.trim()) {
+      fields.consigneeGstin.trim() === fields.partyGstin.trim()) {
       fields.consigneeGstin = '';
     }
 
@@ -696,10 +696,10 @@ export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSucc
     if (ffVoucherType && ffVoucherType.toLowerCase().includes('contra')) {
       const fromLedgerRaw = getAnyFieldValue('from_ledger', 'bank_cash_ledger', 'source_ledger');
       const toLedgerRaw = getAnyFieldValue('to_ledger', 'party_ledger', 'destination_ledger');
-      
+
       const fromLedger = findClosestLedger(fromLedgerRaw, ['Bank Accounts', 'Bank OD A/c', 'Cash-in-Hand']);
       const toLedger = findClosestLedger(toLedgerRaw, ['Bank Accounts', 'Bank OD A/c', 'Cash-in-Hand']);
-      
+
       const amountVal = parseFloat(getAnyFieldValue('transfer_amount', 'total_amount', 'amount', 'grand_total')) || 0;
       if (fromLedger) fields.sourceLedger = fromLedger;
       if (toLedger) fields.destinationLedger = toLedger;
@@ -711,7 +711,7 @@ export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSucc
     } else {
       const partyLedgerRaw = getAnyFieldValue('party_ledger', 'party_name', 'party', 'customer_name', 'supplier_name', 'vendor_name', 'buyer_name');
       const bankCashLedgerRaw = getAnyFieldValue('bank_cash_ledger', 'bank_account', 'cash_account', 'payment_mode', 'against_ledger', 'from_ledger', 'to_ledger', 'bank_name', 'bankname');
-      
+
       // Smart swap detection: if LLM accidentally put bank name in party_ledger and party name in bank_cash_ledger, fix it
       let effectivePartyLedgerRaw = partyLedgerRaw;
       let effectiveBankCashLedgerRaw = bankCashLedgerRaw;
@@ -740,7 +740,7 @@ export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSucc
 
       const partyLedger = findClosestLedger(effectivePartyLedgerRaw, ['Sundry Debtors', 'Sundry Creditors']);
       const bankCashLedger = findClosestLedger(effectiveBankCashLedgerRaw, ['Bank Accounts', 'Bank OD A/c', 'Cash-in-Hand']);
-      
+
       let amountVal = parseFloat(getAnyFieldValue('total_amount', 'grand_total', 'amount', 'transfer_amount')) || 0;
       // Fallback: if amountVal is still 0, compute from bill_allocations sum (for older documents)
       if (!amountVal) {
@@ -800,7 +800,7 @@ export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSucc
       const lineItemsSection = sectionsList.find(s => s.id === 'line_items');
       const lineItemsField = lineItemsSection?.fields?.find(f => f.type === 'table');
       const rows = lineItemsField?.rows || lineItemsField?.value || [];
-      
+
       if (rows && rows.length > 0) {
         const tempLedgerRows = [];
         const tempBillRows = [];
@@ -896,7 +896,7 @@ export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSucc
           costCenter: ''
         }];
       }
-      
+
       // Parse bill allocations from OCR schema to populate outstanding bills table
       const billAllocsSection = sectionsList.find(s => s.id === 'bill_allocations');
       const billAllocsField = billAllocsSection?.fields?.find(f => f.type === 'table');
@@ -941,7 +941,7 @@ export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSucc
     const schema = docWithSchema?.dynamic_schema;
     const docType = customDocType || docWithSchema?.docType || docWithSchema?.dynamic_schema?.document_type || docWithSchema?.type || '';
     const docTypeLower = docType.toLowerCase();
-    
+
     const sales = docTypeLower.includes('sales') || docTypeLower.includes('credit');
     const purchase = docTypeLower.includes('purchase') || docTypeLower.includes('debit');
     const isInvoiceDoc = sales || purchase;
@@ -956,7 +956,7 @@ export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSucc
       const pGstin = schema.partyGstin || '';
       const gstReg = schema.gstRegistration || '';
       const eTab = schema.entryTab || 'without_item';
-      
+
       const prodLines = (schema.productLines || []).map((line, idx) => ({
         id: line.id || (Date.now() + idx),
         srNo: line.srNo || (idx + 1),
@@ -1042,8 +1042,8 @@ export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSucc
         // Use schema.voucherType directly (backend sets bank_payment/cash_payment/contra)
         let voucherTypeVal = schema.voucherType || (
           docTypeLower.includes('contra') ? 'contra' :
-          docTypeLower.includes('receipt') ? 'bank_payment' :
-          'cash_payment'
+            docTypeLower.includes('receipt') ? 'bank_payment' :
+              'cash_payment'
         );
         const bankCashLedgerLower = (schema.bankCashLedger || '').toLowerCase();
         if (voucherTypeVal === 'cash_payment' && (
@@ -1165,10 +1165,10 @@ export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSucc
     } else {
       const sectionsList = schema?.sections || [];
       setSections(sectionsList);
-      
+
       const store = useFundFlowStore.getState();
       const mapped = mapSchemaToFundFlow(schema, docTypeLower);
-      
+
       let voucherTypeVal = docTypeLower.includes('contra') ? 'contra' : docTypeLower.includes('receipt') ? 'bank_payment' : 'cash_payment';
       const isBankPayment = mapped.againstLedger && (
         mapped.againstLedger.toLowerCase().includes('bank') ||
@@ -1210,7 +1210,7 @@ export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSucc
         if (mapped.ledgerRows) store.setFormValue('ledgerRows', mapped.ledgerRows);
         if (mapped.billRows) store.setFormValue('billRows', mapped.billRows);
       }
-      
+
       store.fetchMasterData();
     }
     setIsStoreInitialized(true);
@@ -1250,7 +1250,7 @@ export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSucc
               const fullRes = await bulkUploadApi.getDocument(doc.id);
               if (active && fullRes.success && fullRes.document) {
                 const d = fullRes.document;
-                const base = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5000/api/v2';
+                const base = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api/v2';
                 if (d.fileUrl && d.fileUrl.startsWith('/')) d.fileUrl = `${base}${d.fileUrl}`;
                 setCurrentDoc(d);
                 initStore(d);
@@ -1604,8 +1604,8 @@ export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSucc
               {(() => {
                 const v = getDynamicValidation();
                 if (!v) return null;
-                const errCount  = v.error_count   || 0;
-                const warnCount = v.warning_count  || 0;
+                const errCount = v.error_count || 0;
+                const warnCount = v.warning_count || 0;
                 if (errCount === 0 && warnCount === 0) return (
                   <div className="p-2.5 bg-emerald-50/80 dark:bg-emerald-950/20 border border-emerald-200/40 dark:border-emerald-900/30 rounded-xl text-[10.5px] font-bold text-emerald-700 dark:text-emerald-450 flex items-center gap-2 shadow-sm shrink-0 mb-1">
                     <CheckCircle2 size={13} className="text-emerald-500" />
@@ -1613,9 +1613,8 @@ export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSucc
                   </div>
                 );
                 return (
-                  <div className={`p-3 border rounded-xl text-[10.5px] font-bold shadow-sm shrink-0 mb-1 ${
-                    errCount > 0 ? 'bg-red-50/80 dark:bg-red-955/20 border-red-200/40 dark:border-red-900/30 text-red-700 dark:text-red-400' : 'bg-amber-50/80 dark:bg-amber-955/20 border-amber-200/40 dark:border-amber-900/30 text-amber-800 dark:text-amber-450'
-                  }`}>
+                  <div className={`p-3 border rounded-xl text-[10.5px] font-bold shadow-sm shrink-0 mb-1 ${errCount > 0 ? 'bg-red-50/80 dark:bg-red-955/20 border-red-200/40 dark:border-red-900/30 text-red-700 dark:text-red-400' : 'bg-amber-50/80 dark:bg-amber-955/20 border-amber-200/40 dark:border-amber-900/30 text-amber-800 dark:text-amber-450'
+                    }`}>
                     <div className="flex items-center gap-2 mb-1">
                       <AlertCircle size={13} className={errCount > 0 ? 'text-red-500' : 'text-amber-500'} />
                       <span>{errCount > 0 ? `Validation: ${errCount} error${errCount !== 1 ? 's' : ''}` : 'Validation'}{warnCount > 0 ? `, ${warnCount} warning${warnCount !== 1 ? 's' : ''}` : ''}</span>

@@ -31,6 +31,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from fastapi.responses import JSONResponse
+from fastapi import Request
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    import traceback
+    traceback.print_exc()
+    return JSONResponse(
+        status_code=500,
+        content={"detail": str(exc) or "Internal Server Error"}
+    )
+
 # ─── Health Check ───
 @app.get("/health")
 @app.get("/api/health")
@@ -55,4 +67,4 @@ app.include_router(auth_router)
 from app.aman.routes.routes import aman_api_router
 app.include_router(aman_api_router)
 # ─────────────────────────────────────────────────────────────────
-# Trigger reload comment 28
+# Trigger reload comment 31

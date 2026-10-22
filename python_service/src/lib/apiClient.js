@@ -1,8 +1,7 @@
 import axios from 'axios';
 import { useAppStore } from '../stores/useAppStore';
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5000/api/v2';
-
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api/v2';
 /**
  * Parses the base64 URL encoded JWT payload.
  * @param {string} token 
@@ -45,7 +44,12 @@ function subscribeTokenRefresh(cb) {
 }
 
 function onRefreshed(token) {
-  refreshSubscribers.map((cb) => cb(token));
+  refreshSubscribers.map((cb) => cb(token, null));
+  refreshSubscribers = [];
+}
+
+function onRefreshFailed(err) {
+  refreshSubscribers.map((cb) => cb(null, err));
   refreshSubscribers = [];
 }
 
@@ -54,7 +58,10 @@ apiClient.interceptors.request.use(
   (config) => {
     // Dynamically adjust prefix for central shared auth endpoints
     if (config.url && config.url.startsWith('/auth/')) {
-      config.baseURL = config.baseURL.replace('/api/v2', '/api').replace('/v2', '');
+      const base = config.baseURL || BASE_URL;
+      config.baseURL = base.replace('/api/v2', '/api').replace('/v2', '');
+    } else {
+      config.baseURL = BASE_URL;
     }
 
     const token = useAppStore.getState().token;
@@ -63,7 +70,6 @@ apiClient.interceptors.request.use(
     }
 
     // Attach selected company as header for multi-tenant scoping
-
     const company = useAppStore.getState().selectedCompany;
     if (company) {
       config.headers['X-Company-Id'] = company;
@@ -101,9 +107,10 @@ apiClient.interceptors.response.use(
       if (!isRefreshing) {
         isRefreshing = true;
 
+        const baseAuthUrl = BASE_URL.replace('/api/v2', '/api').replace('/v2', '');
         // Perform token refresh using a clean axios instance to bypass interceptors
         axios
-          .post(`${BASE_URL}/auth/refresh-token`, { refreshToken })
+          .post(`${baseAuthUrl}/auth/refresh-token`, { refreshToken })
           .then((res) => {
             const { token: newAccessToken } = res.data.data;
             const claims = parseJwt(newAccessToken);
@@ -124,6 +131,7 @@ apiClient.interceptors.response.use(
           })
           .catch((err) => {
             isRefreshing = false;
+            onRefreshFailed(err);
             useAppStore.getState().logout();
             window.location.href = '/login';
             return Promise.reject(err);
@@ -131,10 +139,14 @@ apiClient.interceptors.response.use(
       }
 
       // Return a promise that resolves once the refresh is done
-      return new Promise((resolve) => {
-        subscribeTokenRefresh((token) => {
-          originalRequest.headers.Authorization = `Bearer ${token}`;
-          resolve(apiClient(originalRequest));
+      return new Promise((resolve, reject) => {
+        subscribeTokenRefresh((token, err) => {
+          if (err) {
+            reject(err);
+          } else {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            resolve(apiClient(originalRequest));
+          }
         });
       });
     }

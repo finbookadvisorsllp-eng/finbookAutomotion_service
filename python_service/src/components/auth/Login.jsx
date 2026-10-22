@@ -43,8 +43,8 @@ export default function Login() {
       }
 
       const targetOrg = organizations[0]
-      const rawBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5000/api/v2'
-      const baseAuthUrl = rawBaseUrl.replace('/api/v2', '/api').replace('/v2', '')
+      const rawBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api/v2';
+      const baseAuthUrl = rawBaseUrl.replace('/api/v2', '/api').replace('/v2', '');
       
       const orgSelectRes = await axios.post(
         `${baseAuthUrl}/auth/switch-organization`,

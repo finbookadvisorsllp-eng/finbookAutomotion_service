@@ -41,16 +41,16 @@ def require_authenticated(claims: dict = Depends(get_current_user)) -> SessionCo
     """Ensure the user is authenticated and return a structured SessionContext."""
     # Build SessionContext from claims
     return SessionContext(
-        user_id=claims.get("sub"),
-        email=claims.get("email"),
-        name=claims.get("name"),
-        role=claims.get("role", "viewer"),
+        user_id=str(claims.get("sub") or claims.get("user_id") or ""),
+        email=str(claims.get("email") or ""),
+        name=str(claims.get("name") or ""),
+        role=str(claims.get("role") or "viewer"),
         org_id=claims.get("orgId"),
         org_db_name=claims.get("orgDbName"),
         org_name=claims.get("orgName"),
         permissions=claims.get("permissions", []),
         apps=claims.get("apps", []),
-        raw_claims=claims,
+        raw_claims=claims or {},
     )
 
 

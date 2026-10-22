@@ -61,13 +61,13 @@ class TokenClaims(BaseModel):
 
 
 class SessionContext(BaseModel):
-    user_id: str
-    email: str
-    name: str
-    role: str
+    user_id: Optional[str] = ""
+    email: Optional[str] = ""
+    name: Optional[str] = ""
+    role: str = "viewer"
     org_id: Optional[str] = None
     org_db_name: Optional[str] = None
     org_name: Optional[str] = None
     permissions: Union[List[str], Dict[str, Any]] = Field(default_factory=list)
     apps: List[str] = Field(default_factory=list)
-    raw_claims: dict
+    raw_claims: dict = Field(default_factory=dict)

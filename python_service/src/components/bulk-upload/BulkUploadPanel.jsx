@@ -71,7 +71,7 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
       try {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5000/api/v2';
+          const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api/v2';
           return parsed.map(doc => {
             const idVal = doc.uploadId || doc.id;
             let fileUrl = doc.fileUrl;
@@ -201,7 +201,7 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
     try {
       const res = await bulkUploadApi.listUploads();
       if (res.success && res.documents) {
-        const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5000/api/v2';
+        const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api/v2';
         setDocuments(prevDocs => {
           const backendDocs = res.documents.map(doc => {
             const mappedUrl = doc.fileUrl.startsWith('/') ? `${baseUrl}${doc.fileUrl}` : doc.fileUrl;
@@ -218,7 +218,7 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
           });
 
           // Keep local-only excel files
-          const localOnlyDocs = prevDocs.filter(localDoc => 
+          const localOnlyDocs = prevDocs.filter(localDoc =>
             !backendDocs.some(bDoc => bDoc.id === localDoc.id || (localDoc.uploadId && bDoc.id === localDoc.uploadId))
           );
 
@@ -237,7 +237,7 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
 
   // Polling for processing uploads
   useEffect(() => {
-    const hasProcessing = documents.some(d => 
+    const hasProcessing = documents.some(d =>
       d.status && ['processing', 'uploading', 'ocr_running', 'ocr done', 'ai_running', 'layout_running', 'layout_complete', 'processing...'].includes(d.status.toLowerCase())
     );
 
@@ -436,14 +436,14 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
 
       if (!activeUploadsRef.current[tempId]) {
         if (res.success && res.upload_id) {
-          bulkUploadApi.deleteDocument(res.upload_id).catch(() => {});
+          bulkUploadApi.deleteDocument(res.upload_id).catch(() => { });
         }
         return;
       }
       delete activeUploadsRef.current[tempId];
 
       if (res.success) {
-        const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5000/api/v2';
+        const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api/v2';
         const persistentFileUrl = `${baseUrl}/bulk-upload/file/${res.upload_id}`;
         setDocuments(prev => prev.map(d => {
           if (d.id === tempId) {
@@ -588,7 +588,7 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
 
           if (!activeUploadsRef.current[tempId]) {
             if (res.success && res.upload_id) {
-              bulkUploadApi.deleteDocument(res.upload_id).catch(() => {});
+              bulkUploadApi.deleteDocument(res.upload_id).catch(() => { });
             }
             return;
           }
@@ -605,7 +605,7 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
           }
 
           if (res.success) {
-            const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5000/api/v2';
+            const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api/v2';
             const persistentFileUrl = `${baseUrl}/bulk-upload/file/${res.upload_id}`;
 
             setDocuments(prev => prev.map(d => {
@@ -900,7 +900,7 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
 
       // Open review screen IMMEDIATELY regardless of pipeline stage.
       // OcrManualReviewScreen handles progressive loading via /ocr/progress polling.
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5000/api/v2';
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api/v2';
       const docWithUrl = {
         ...doc,
         fileUrl: doc.fileUrl && doc.fileUrl.startsWith('/') ? `${baseUrl}${doc.fileUrl}` : (doc.fileUrl || `${baseUrl}/bulk-upload/file/${doc.id}`)
@@ -2306,8 +2306,8 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
                 <button
                   onClick={() => setShowAiRecs(prev => !prev)}
                   className={`h-8 px-3 rounded-lg font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-2xs border ${showAiRecs
-                      ? 'bg-[var(--app-accent-soft)] text-[var(--app-accent)] border-[var(--app-accent)]/30'
-                      : 'bg-[var(--app-panel-bg)] text-[var(--app-text)] border-[var(--app-border)] hover:bg-[var(--app-row-hover)]'
+                    ? 'bg-[var(--app-accent-soft)] text-[var(--app-accent)] border-[var(--app-accent)]/30'
+                    : 'bg-[var(--app-panel-bg)] text-[var(--app-text)] border-[var(--app-border)] hover:bg-[var(--app-row-hover)]'
                     }`}
                 >
                   <Sparkles size={12} className={showAiRecs ? 'animate-pulse' : ''} />
@@ -2337,8 +2337,8 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
                               toast.info(`Switched to ${tab} (Editable Mode)`);
                             }}
                             className={`h-full px-3 font-bold text-xs transition-colors cursor-pointer border-b-2 bg-transparent outline-none ${isActive
-                                ? 'border-indigo-600 text-indigo-600 dark:border-indigo-500 dark:text-indigo-400 font-bold'
-                                : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+                              ? 'border-indigo-600 text-indigo-600 dark:border-indigo-500 dark:text-indigo-400 font-bold'
+                              : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
                               }`}
                           >
                             {tab}
@@ -2615,10 +2615,10 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
                         ].map((item, idx) => (
                           <div key={idx} className="flex items-center gap-2 text-xs">
                             <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] shrink-0 font-bold ${item.ok
-                                ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400'
-                                : item.warning
-                                  ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400'
-                                  : 'bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400'
+                              ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400'
+                              : item.warning
+                                ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400'
+                                : 'bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400'
                               }`}>
                               ✓
                             </span>
@@ -2890,8 +2890,8 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
                     <span className="text-[13px] font-semibold whitespace-nowrap">{tab.label}</span>
                     {tab.count !== null && (
                       <span className={`text-[11px] px-1.5 py-0.5 rounded-full font-bold transition-all ${isActive
-                          ? 'bg-[var(--app-accent)] text-white'
-                          : 'bg-slate-200/60 dark:bg-slate-700 text-[var(--app-text)]/85'
+                        ? 'bg-[var(--app-accent)] text-white'
+                        : 'bg-slate-200/60 dark:bg-slate-700 text-[var(--app-text)]/85'
                         }`}>
                         {tab.count}
                       </span>
@@ -3129,8 +3129,8 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
                       <button
                         onClick={() => setShowInsightsPanel(!showInsightsPanel)}
                         className={`h-8 px-2.5 rounded-md border text-[12px] font-semibold transition flex items-center gap-1.5 cursor-pointer ${showInsightsPanel
-                            ? 'bg-[var(--app-accent-soft)] border-[var(--app-accent)]/30 text-[var(--app-accent)]'
-                            : 'bg-[var(--app-panel-bg)] border-[var(--app-border)] text-[var(--app-text)] hover:bg-[var(--app-row-hover)]'
+                          ? 'bg-[var(--app-accent-soft)] border-[var(--app-accent)]/30 text-[var(--app-accent)]'
+                          : 'bg-[var(--app-panel-bg)] border-[var(--app-border)] text-[var(--app-text)] hover:bg-[var(--app-row-hover)]'
                           }`}
                       >
                         <SlidersHorizontal size={12} />
@@ -3334,8 +3334,8 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
                             key={idx}
                             onClick={() => setCurrentPage(idx + 1)}
                             className={`h-7 w-7 text-xs rounded-lg font-bold border transition ${currentPage === idx + 1
-                                ? 'bg-[var(--app-accent)] border-[var(--app-accent)] text-[var(--app-on-accent)] shadow-2xs'
-                                : 'border-[var(--app-border)] bg-[var(--app-panel-bg)] text-[var(--app-text)] hover:bg-[var(--app-row-hover)]'
+                              ? 'bg-[var(--app-accent)] border-[var(--app-accent)] text-[var(--app-on-accent)] shadow-2xs'
+                              : 'border-[var(--app-border)] bg-[var(--app-panel-bg)] text-[var(--app-text)] hover:bg-[var(--app-row-hover)]'
                               }`}
                           >
                             {idx + 1}
