@@ -381,9 +381,6 @@ export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSucc
             if (rate <= 0 && amount > 0 && qty > 0) rate = parseFloat((amount / qty).toFixed(2));
             if (amount === 0) continue;
 
-            const runningSum = productLines.reduce((sum, l) => sum + l.amount, 0);
-            if (productLines.length > 0 && Math.abs(amount - runningSum) < 1.0) continue;
-
             let correctedRate = rate;
             if (qty > 0 && amount > 0 && Math.abs(qty * rate * (1 - disc / 100) - amount) > 1.0) {
               correctedRate = parseFloat((amount / (qty * (1 - disc / 100))).toFixed(2));
@@ -515,21 +512,36 @@ export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSucc
       entryTab = 'without_item';
     }
 
-    // In with_item mode: Ledger Details should show ONE consolidated row (total taxable amount)
-    // representing the purchase/sales account — items are already shown in the Items card.
-    // In without_item mode: each productLine IS a ledger distribution row — keep them all.
-    const totalTaxableAmt = productLines.reduce((s, l) => s + (l.amount || 0), 0);
-    const dominantGstRate = productLines.length > 0
-      ? productLines.reduce((acc, l) => (l.amount > acc.amt ? { rate: l.gstRate, amt: l.amount } : acc), { rate: 0, amt: 0 }).rate
-      : 0;
+    // Extract any additional charges (Freight, Packing, Delivery, etc.)
+    const rawAdditionalCharges = schema?.additional_charges || schema?.additionalCharges || schema?.standardized_payload?.Charges || [];
+    const formattedCharges = rawAdditionalCharges
+      .filter(c => parseFloat(c.amount || c.value || 0) > 0)
+      .map((c, i) => ({
+        id: Date.now() + 100 + i,
+        srNo: i + 1,
+        salesLedger: c.ledger_name || c.ledgerName || 'Freight on Sales',
+        purchaseLedger: c.ledger_name || c.ledgerName || 'Freight on Purchases',
+        description: '',
+        hsnSacCode: c.hsn_code || '',
+        amount: parseFloat(c.amount || c.value || 0),
+        gstRate: parseFloat(c.gst_rate || c.gstRate || 0)
+      }));
 
+    // In with_item mode: Items are in productLines. Ledger Details is ONLY for extra charges (e.g. Freight).
+    // In without_item mode: each productLine is mapped to a ledger distribution row + any extra charges.
     const salesLines = entryTab === 'with_item'
-      ? [{ id: Date.now() + 100, srNo: 1, salesLedger: 'Sales Account', description: '', hsnSacCode: '', amount: totalTaxableAmt, gstRate: dominantGstRate }]
-      : productLines.map((l, i) => ({ id: Date.now() + 100 + i, srNo: i + 1, salesLedger: l.stockItem || '', description: l.description || '', hsnSacCode: l.hsnSacCode || '', amount: l.amount || 0, gstRate: l.gstRate || 0 }));
+      ? formattedCharges
+      : [
+          ...productLines.map((l, i) => ({ id: Date.now() + 100 + i, srNo: i + 1, salesLedger: l.stockItem || '', description: l.description || '', hsnSacCode: l.hsnSacCode || '', amount: l.amount || 0, gstRate: l.gstRate || 0 })),
+          ...formattedCharges.map((c, i) => ({ ...c, id: Date.now() + 500 + i, srNo: productLines.length + i + 1 }))
+        ];
 
     const purchaseLines = entryTab === 'with_item'
-      ? [{ id: Date.now() + 200, srNo: 1, purchaseLedger: 'Purchase Account', description: '', hsnSacCode: '', amount: totalTaxableAmt, gstRate: dominantGstRate }]
-      : productLines.map((l, i) => ({ id: Date.now() + 200 + i, srNo: i + 1, purchaseLedger: l.stockItem || '', description: l.description || '', hsnSacCode: l.hsnSacCode || '', amount: l.amount || 0, gstRate: l.gstRate || 0 }));
+      ? formattedCharges
+      : [
+          ...productLines.map((l, i) => ({ id: Date.now() + 200 + i, srNo: i + 1, purchaseLedger: l.stockItem || '', description: l.description || '', hsnSacCode: l.hsnSacCode || '', amount: l.amount || 0, gstRate: l.gstRate || 0 })),
+          ...formattedCharges.map((c, i) => ({ ...c, id: Date.now() + 600 + i, srNo: productLines.length + i + 1 }))
+        ];
 
     // If consignee is same as party, clear it so "Same as Party" placeholder shows
     if (fields.consigneeLedger && fields.partyLedger &&
@@ -1004,6 +1016,20 @@ export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSucc
         ledgerName: pLedger || ''
       }));
 
+      const rawFlatCharges = schema.additional_charges || schema.additionalCharges || schema.standardized_payload?.Charges || [];
+      const flatExtraCharges = rawFlatCharges
+        .filter(c => parseFloat(c.amount || c.value || 0) > 0)
+        .map((c, idx) => ({
+          id: Date.now() + 100 + idx,
+          srNo: idx + 1,
+          salesLedger: c.ledger_name || c.ledgerName || 'Freight on Sales',
+          purchaseLedger: c.ledger_name || c.ledgerName || 'Freight on Purchases',
+          description: '',
+          hsnSacCode: c.hsn_code || '',
+          amount: parseFloat(c.amount || c.value || 0),
+          gstRate: parseFloat(c.gst_rate || c.gstRate || 0),
+        }));
+
       if (isInvoiceDoc) {
         if (sales) {
           const s = useSalesStore.getState();
@@ -1019,7 +1045,7 @@ export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSucc
             gstRegistration: gstReg,
             entryTab: eTab,
             productLines: prodLines,
-            salesLines: serviceLines,
+            salesLines: eTab === 'with_item' ? flatExtraCharges : [...serviceLines, ...flatExtraCharges],
             billRows: bRows,
             narration: schema.narration || '',
             entryMode: 'ocr'
@@ -1039,7 +1065,7 @@ export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSucc
             gstRegistration: gstReg,
             entryTab: eTab,
             productLines: prodLines,
-            purchaseLines: serviceLines,
+            purchaseLines: eTab === 'with_item' ? flatExtraCharges : [...serviceLines, ...flatExtraCharges],
             billRows: bRows,
             narration: schema.narration || '',
             entryMode: 'ocr'

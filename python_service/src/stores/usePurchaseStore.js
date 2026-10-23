@@ -162,6 +162,19 @@ const calculateFormTotals = (form) => {
       cessTotal = form.productLines.reduce((sum, l) => sum + (l.cess || 0), 0);
       baseTotal = form.productLines.reduce((sum, l) => sum + (parseFloat(l.amount) || parseFloat(l.taxableAmount) || 0), 0);
     }
+
+    // In with_item mode: purchaseLines represent extra/additional charges (like freight, packing)
+    if (Array.isArray(form.purchaseLines)) {
+      form.purchaseLines.forEach((line) => {
+        const nameUpper = (line.purchaseLedger || '').toUpperCase();
+        const isTaxLedger = nameUpper.includes('CGST') || nameUpper.includes('SGST') || nameUpper.includes('IGST') || nameUpper.includes('UTGST') || nameUpper.includes('CESS');
+        if (!isTaxLedger) {
+          const amt = parseFloat(line.amount) || 0;
+          ledgerAmount += amt;
+        }
+      });
+      baseTotal += ledgerAmount;
+    }
   }
 
   if (form.entryTab === 'without_item' && Array.isArray(form.purchaseLines)) {

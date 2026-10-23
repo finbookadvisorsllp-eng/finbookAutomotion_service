@@ -596,7 +596,38 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
 
   const handleTabChange = (tabName) => {
     setActiveTab(tabName);
-    setFormField('entryTab', tabName === 'With Item' ? 'with_item' : 'without_item');
+    const targetTab = tabName === 'With Item' ? 'with_item' : 'without_item';
+    if (targetTab === 'without_item') {
+      const hasLines = (form.salesLines || []).some(l => (parseFloat(l.amount) || 0) > 0);
+      if (!hasLines && (form.productLines || []).some(l => (parseFloat(l.amount) || 0) > 0)) {
+        const lines = form.productLines
+          .filter(l => (l.stockItem && l.stockItem.trim() !== '') || (parseFloat(l.amount) || 0) > 0)
+          .map((l, i) => ({
+            id: Date.now() + 100 + i,
+            srNo: i + 1,
+            salesLedger: l.stockItem || form.salesLedger || 'Sales Account',
+            description: l.description || '',
+            hsnSacCode: l.hsnSacCode || '',
+            amount: parseFloat(l.amount) || 0,
+            gstRate: parseFloat(l.gstRate) || 0,
+          }));
+        setForm({
+          ...form,
+          entryTab: targetTab,
+          salesLines: lines.length > 0 ? lines : form.salesLines,
+        });
+        return;
+      }
+    } else {
+      // Switching to with_item: items are in productLines, so clear any item rows from salesLines
+      setForm({
+        ...form,
+        entryTab: targetTab,
+        salesLines: [],
+      });
+      return;
+    }
+    setFormField('entryTab', targetTab);
   };
 
   const [showTcs, setShowTcs] = useState(false);

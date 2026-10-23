@@ -518,7 +518,36 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
 
   const handleTabChange = (tabName) => {
     setActiveTab(tabName);
-    updateForm({ entryTab: tabName === 'With Item Invoice' ? 'with_item' : 'without_item' });
+    const targetTab = tabName === 'With Item Invoice' ? 'with_item' : 'without_item';
+    if (targetTab === 'without_item') {
+      const hasLines = (form.purchaseLines || []).some(l => (parseFloat(l.amount) || 0) > 0);
+      if (!hasLines && (form.productLines || []).some(l => (parseFloat(l.amount) || 0) > 0)) {
+        const lines = form.productLines
+          .filter(l => (l.stockItem && l.stockItem.trim() !== '') || (parseFloat(l.amount) || 0) > 0)
+          .map((l, i) => ({
+            id: Date.now() + 200 + i,
+            srNo: i + 1,
+            purchaseLedger: l.stockItem || form.purchaseLedger || 'Purchase Account',
+            description: l.description || '',
+            hsnSacCode: l.hsnSacCode || '',
+            amount: parseFloat(l.amount) || 0,
+            gstRate: parseFloat(l.gstRate) || 0,
+          }));
+        updateForm({
+          entryTab: targetTab,
+          purchaseLines: lines.length > 0 ? lines : form.purchaseLines,
+        });
+        return;
+      }
+    } else {
+      // Switching to with_item: items are in productLines, so clear any item rows from purchaseLines
+      updateForm({
+        entryTab: targetTab,
+        purchaseLines: [],
+      });
+      return;
+    }
+    updateForm({ entryTab: targetTab });
   };
 
   const getGstRegistrationOptions = () => {

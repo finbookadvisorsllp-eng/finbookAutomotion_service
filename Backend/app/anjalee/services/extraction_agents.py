@@ -123,6 +123,13 @@ Required JSON structure:
       "total_amount": 0.0
     }}
   ],
+  "additional_charges": [
+    {{
+      "ledger_name": "Freight on Sales / Delivery Charges / Packing / Discount / etc.",
+      "amount": 0.0,
+      "gst_rate_percent": 0.0
+    }}
+  ],
   "summary": {{
     "subtotal": 0.0,
     "total_discount": 0.0,
@@ -1454,7 +1461,23 @@ class AgentOrchestrator:
 
                 flat_json["line_items"] = parsed_items
                 flat_json["is_item_wise"] = True
-                calc_grand = round(taxable_value + total_tax + round_off, 2)
+                parsed_charges = []
+                for ch_m in re.finditer(
+                    r'(?:^|\n)\s*(Freight(?:\s+on\s+Sales(?:\s*\(Out\))?)?|Transportation(?:\s+Charges)?|Loading(?:\s+Charges)?|Packing(?:\s+Charges)?|Delivery(?:\s+Charges)?)[^\n\d]*\n\s*([\d,]+\.?\d*)',
+                    txt, re.I
+                ):
+                    ch_name = ch_m.group(1).strip()
+                    ch_amt = float(ch_m.group(2).replace(',', ''))
+                    if ch_amt > 0 and ch_amt != grand_total:
+                        parsed_charges.append({
+                            "ledger_name": ch_name,
+                            "amount": ch_amt,
+                            "gst_rate_percent": 0.0
+                        })
+                if parsed_charges:
+                    flat_json["additional_charges"] = parsed_charges
+
+                calc_grand = round(taxable_value + total_tax + round_off + sum(c["amount"] for c in parsed_charges), 2)
                 flat_json["grand_total"] = grand_total or calc_grand
                 flat_json["summary"] = {
                     "subtotal": taxable_value,
@@ -1812,7 +1835,7 @@ class AgentOrchestrator:
             },
             "Items": line_items_list,
             "Taxes": tax_res.get("taxes", []),
-            "Charges": [],
+            "Charges": flat_json.get("additional_charges", []),
             "Totals": {
                 "subtotal":        subtotal_val,
                 "taxable_value":   taxable_val,
@@ -2119,6 +2142,7 @@ class AgentOrchestrator:
             "igstTotal": igst_total,
             "roundOff": round_off_val,
             "grandTotal": invoice_total_val,
+            "additional_charges": flat_json.get("additional_charges", []),
             "entryTab": entry_tab,
             "bankCashLedger": contra_dest if "contra" in doc_type_lower else bank_cash_ledger,
             "amount": invoice_total_val,
