@@ -131,17 +131,7 @@ const calculateFormTotals = (form) => {
     });
   }
 
-  if (form.entryTab !== 'with_item' && Array.isArray(form.salesLines)) {
-    form.salesLines.forEach((c) => {
-      const nameUpper = (c.ledgerName || c.salesLedger || '').toUpperCase();
-      const isTaxLedger = nameUpper.includes('CGST') || nameUpper.includes('SGST') || nameUpper.includes('IGST') || nameUpper.includes('UTGST') || nameUpper.includes('CESS');
-      if (!isTaxLedger) {
-        const amt = parseFloat(c.amount) || 0;
-        ledgerAmount += amt;
-        totalAdditionalCharges += amt;
-      }
-    });
-  }
+
 
   if (form.entryTab === 'with_item') {
     if (Array.isArray(form.productLines)) {
@@ -289,8 +279,8 @@ const calculateFormTotals = (form) => {
         }
       } else {
         c.taxableValue = "0.00";
+        additionalTotal += parseFloat(c.amount) || 0;
       }
-      additionalTotal += parseFloat(c.amount) || 0;
     });
   }
 
