@@ -103,7 +103,7 @@ export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSucc
   const [pipelineError, setPipelineError] = useState(null);
   const [isStoreInitialized, setIsStoreInitialized] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [showAiPanel, setShowAiPanel] = useState(true);
+  const [showAiPanel, setShowAiPanel] = useState(false);
   const [sections, setSections] = useState([]);
   const [overrideDocType, setOverrideDocType] = useState(null);
   const [isReRunning, setIsReRunning] = useState(false);
@@ -1536,13 +1536,6 @@ export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSucc
           >
             {isReRunning ? <Loader2 size={13} className="animate-spin mr-1" /> : <RefreshCw size={13} className="mr-1" />}
             Re-run AI
-          </button>
-          <button
-            onClick={() => setShowAiPanel(!showAiPanel)}
-            className="m3-btn m3-btn--tonal cursor-pointer"
-          >
-            <Sparkles size={13} className="mr-1" />
-            {showAiPanel ? 'Hide AI Review' : 'Show AI Review'}
           </button>
           <button onClick={handleDownloadJson} disabled={!isPipelineDone} className="m3-btn m3-btn--outlined disabled:opacity-40 cursor-pointer">
             <Download size={13} className="mr-1" /> Download

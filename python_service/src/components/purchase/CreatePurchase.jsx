@@ -1430,17 +1430,6 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                     </div>
                     )}
                   </div>
-
-                  <div className="flex justify-end pt-2 border-t" style={{ borderColor: theme.border }}>
-                    <button
-                      onClick={handleAiAutofill}
-                      disabled={isAiAutofillLoading}
-                      className="px-4 py-1.5 rounded-lg border border-[var(--app-border)] bg-[var(--app-accent-soft)] dark:bg-[var(--app-accent-soft)] text-[var(--app-accent)] dark:text-[var(--app-accent)] text-[11px] font-black flex items-center gap-1.5 hover:bg-[var(--app-accent-soft)] shadow-sm disabled:opacity-50"
-                    >
-                      {isAiAutofillLoading ? <Loader2 size={13} className="animate-spin" /> : <Bot size={13} />}
-                      AI-Auto Fill Remaining
-                    </button>
-                  </div>
                 </div>
               )}
 
