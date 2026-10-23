@@ -120,11 +120,10 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
   const [aiReviewDoc, setAiReviewDoc] = useState(null);
   const [duplicateUploadInfo, setDuplicateUploadInfo] = useState(null); // { file, tempId, existingDoc }
 
-  const isExcelFile = previewDoc && (
+  const isExcelFile = previewDoc && !ocrOnly && (
     ['xlsx', 'xls', 'csv'].includes((previewDoc.name || '').split('.').pop().toLowerCase()) ||
     previewDoc.document_type === 'Bank Statement' ||
-    previewDoc.type === 'Bank Statement' ||
-    Boolean(previewDoc.excelData || previewDoc.excel_grid)
+    previewDoc.type === 'Bank Statement'
   );
 
 
@@ -940,19 +939,23 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
       }
     } catch (e) {}
 
-    const isBankStatement = doc.document_type === 'Bank Statement' ||
-                            doc.type === 'Bank Statement' ||
-                            doc.category === 'Bank Statement' ||
-                            (doc.name || '').toLowerCase().includes('statement') ||
-                            (doc.name || '').toLowerCase().includes('optransactionhistory') ||
-                            Boolean(doc.excel_grid || doc.excelData);
+    const isBankStatement = !ocrOnly && (
+      doc.document_type === 'Bank Statement' ||
+      doc.type === 'Bank Statement' ||
+      doc.category === 'Bank Statement' ||
+      (doc.name || '').toLowerCase().includes('statement') ||
+      (doc.name || '').toLowerCase().includes('optransactionhistory') ||
+      (doc.name || '').toLowerCase().includes('passbook')
+    );
 
-    if (['pdf', 'png', 'jpg', 'jpeg', 'webp', 'tiff'].includes(ext) && !isBankStatement) {
+    if (ocrOnly || (['pdf', 'png', 'jpg', 'jpeg', 'webp', 'tiff'].includes(ext) && !isBankStatement)) {
+      setPreviewDoc(null);
       setAiReviewDoc(docWithUrl);
       return;
     }
 
     // For Excel, CSV, or PDF Bank Statements -> Open Excel Grid View!
+    setAiReviewDoc(null);
     setOcrResult(null);
     setTableSearchQuery('');
     setStatusFilter('All Rows');
