@@ -83,6 +83,16 @@ function ProgressPanel({ stage, progress, stageLabel, error }) {
   );
 }
 
+function resolveFullFileUrl(url) {
+  if (!url || typeof url !== 'string' || !url.startsWith('/')) return url || '';
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api/v2';
+  const rootOrigin = baseUrl.replace(/\/api\/v2\/?$/, '');
+  if (url.startsWith('/api/v2') || url.startsWith('/uploads')) {
+    return `${rootOrigin}${url}`;
+  }
+  return `${baseUrl}${url}`;
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSuccess }) {
   const [currentDoc, setCurrentDoc] = useState(doc);
@@ -118,8 +128,7 @@ export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSucc
         const fullRes = await bulkUploadApi.getDocument(doc.id);
         if (fullRes.success && fullRes.document) {
           const d = fullRes.document;
-          const base = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api/v2';
-          if (d.fileUrl && d.fileUrl.startsWith('/')) d.fileUrl = `${base}${d.fileUrl}`;
+          if (d.fileUrl && d.fileUrl.startsWith('/')) d.fileUrl = resolveFullFileUrl(d.fileUrl);
           setCurrentDoc(d);
           setPipelineStage('ai_complete');
           setPipelineProgress(100);
@@ -162,11 +171,7 @@ export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSucc
   };
 
   // ── Resolve file URL ──────────────────────────────────────────────────────
-  let fileUrl = currentDoc?.fileUrl || doc?.fileUrl || doc?.previewUrl || null;
-  if (fileUrl && fileUrl.startsWith('/')) {
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api/v2';
-    fileUrl = `${baseUrl}${fileUrl}`;
-  }
+  let fileUrl = resolveFullFileUrl(currentDoc?.fileUrl || doc?.fileUrl || doc?.previewUrl || null);
 
   // ── Fetch file as blob with Auth Token ────────────────────────────────────
   useEffect(() => {
@@ -1254,8 +1259,7 @@ export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSucc
               const fullRes = await bulkUploadApi.getDocument(doc.id);
               if (active && fullRes.success && fullRes.document) {
                 const d = fullRes.document;
-                const base = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api/v2';
-                if (d.fileUrl && d.fileUrl.startsWith('/')) d.fileUrl = `${base}${d.fileUrl}`;
+                if (d.fileUrl && d.fileUrl.startsWith('/')) d.fileUrl = resolveFullFileUrl(d.fileUrl);
                 setCurrentDoc(d);
                 initStore(d);
               }

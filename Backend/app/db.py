@@ -91,11 +91,26 @@ def ensure_tenant_db_structure(db):
 def ensure_db_indexes(db):
     ensure_tenant_db_structure(db)
 
+def _get_iam_db_name() -> str:
+    db_name = settings.IAM_DB_NAME or "IAM"
+    try:
+        existing = client.list_database_names()
+        if db_name in existing:
+            return db_name
+        if "IAM" in existing:
+            return "IAM"
+        if "iam" in existing:
+            return "iam"
+    except Exception:
+        pass
+    return db_name
+
 def _warm_up_worker():
     global _cache_warmed
     try:
         # Dynamically warm up tenant cache from IAM organizations collection
-        orgs = client["iam"]["organizations"].find({}, {"_id": 1, "slug": 1, "name": 1, "displayName": 1, "dbName": 1})
+        iam_name = _get_iam_db_name()
+        orgs = client[iam_name]["organizations"].find({}, {"_id": 1, "slug": 1, "name": 1, "displayName": 1, "dbName": 1})
         for org in orgs:
             org_id_str = str(org["_id"])
             db_name = org.get("dbName") or f"finbook_tenant_{org_id_str}"
@@ -168,9 +183,9 @@ def resolve_db_name(company_ref: str) -> str:
 
     from bson import ObjectId
 
-    # 1. Directly query MongoDB 'iam.organizations' and 'iam.users' for latest 'dbName' mapping
+    # 1. Directly query MongoDB IAM organizations and users for latest 'dbName' mapping
     try:
-        iam_db = client["iam"]
+        iam_db = client[_get_iam_db_name()]
         query_conditions = [
             {"slug": company_ref},
             {"name": company_ref},

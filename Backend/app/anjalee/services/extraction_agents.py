@@ -1042,25 +1042,31 @@ class AgentOrchestrator:
                     # Invoice type: check if our company is supplier (Sales) or buyer (Purchase)
                     is_sales_by_gstin = False
                     if our_company_gstin:
-                        # Find where our GSTIN appears in OCR text
                         idx = txt.find(our_company_gstin)
                         if idx != -1 and idx < 1000:  # Top part of document
                             is_sales_by_gstin = True
                     
                     is_sales_by_name = False
                     if our_company_name:
-                        # Clean company name
-                        clean_our_name = re.sub(r"[^a-z0-9]", "", our_company_name.lower())
-                        if clean_our_name:
-                            # Search first 1000 chars for our company name
-                            top_text = re.sub(r"[^a-z0-9]", "", txt[:1000].lower())
-                            if clean_our_name in top_text:
+                        # Clean company name: strip FY / financial year suffixes like FY 2024-25, etc.
+                        base_comp_name = re.sub(r'(?i)\b(?:FY|F\.Y\.)?\s*20\d{2}[-\s/]?\d{2,4}\b', '', our_company_name).strip()
+                        clean_our_name = re.sub(r"[^a-z0-9]", "", base_comp_name.lower())
+                        top_text = re.sub(r"[^a-z0-9]", "", txt[:1200].lower())
+                        if clean_our_name and clean_our_name in top_text:
+                            is_sales_by_name = True
+                        else:
+                            words = [w for w in re.split(r'[^a-zA-Z0-9]+', base_comp_name.lower()) if len(w) >= 3]
+                            if words and all(w in txt[:1200].lower() for w in words):
                                 is_sales_by_name = True
-                    
+
                     if is_sales_by_gstin or is_sales_by_name:
                         flat_json["voucher_type"] = "Sales"
                     else:
-                        flat_json["voucher_type"] = "Purchase"
+                        # Check if top part has distinct header party followed by Buyer / Consignee / Bill to
+                        if re.search(r'(?:Buyer\s*\(|Consignee\s*\(|Billed?\s+to|Customer\s*[:\-])', txt[:1500], re.I):
+                            flat_json["voucher_type"] = "Sales"
+                        else:
+                            flat_json["voucher_type"] = "Purchase"
 
             # Voucher date — fallback regex only if not already extracted by AI
             if not flat_json.get("voucher_date"):
@@ -1069,46 +1075,72 @@ class AgentOrchestrator:
                     'jul': '07', 'aug': '08', 'sep': '09', 'oct': '10', 'nov': '11', 'dec': '12'
                 }
                 vdate_raw = None
-                numeric_dates = re.findall(r'\b(\d{1,2})[\-/](\d{1,2})[\-/](\d{2,4})\b', txt)
-                if numeric_dates:
-                    d, mo, y = numeric_dates[0]
+                # Check near Dated / Date label
+                dated_m = re.search(r'(?:Dated|Date|Inv\s+Date|Invoice\s+Date)\s*[:\-]?\s*[\n\r]*\s*(\d{1,2})[\-/\s]([A-Za-z]{3,9})[\-/\s](\d{2,4})', txt, re.I)
+                if dated_m:
+                    d, mo_str, y = dated_m.groups()
+                    mo = MONTH_MAP.get(mo_str.lower()[:3], '01')
                     y = '20' + y if len(y) == 2 else y
-                    vdate_raw = f"{d.zfill(2)}-{mo.zfill(2)}-{y}"
-                else:
+                    vdate_raw = f"{y}-{mo}-{d.zfill(2)}"
+                if not vdate_raw:
+                    dated_num = re.search(r'(?:Dated|Date|Inv\s+Date|Invoice\s+Date)\s*[:\-]?\s*[\n\r]*\s*(\d{1,2})[\-/](\d{1,2})[\-/](\d{2,4})', txt, re.I)
+                    if dated_num:
+                        d, mo, y = dated_num.groups()
+                        y = '20' + y if len(y) == 2 else y
+                        vdate_raw = f"{y}-{mo.zfill(2)}-{d.zfill(2)}"
+                if not vdate_raw:
                     month_name_dates = re.findall(r'\b(\d{1,2})[\-/\s]([A-Za-z]{3,9})[\-/\s](\d{2,4})\b', txt)
-                    valid_dates = []
                     for d, mo_str, y in month_name_dates:
                         mo_key = mo_str.lower()[:3]
                         if mo_key in MONTH_MAP:
                             mo = MONTH_MAP[mo_key]
                             y = '20' + y if len(y) == 2 else y
-                            valid_dates.append(f"{d.zfill(2)}-{mo}-{y}")
-                    if valid_dates:
-                        vdate_raw = valid_dates[0]
+                            vdate_raw = f"{y}-{mo}-{d.zfill(2)}"
+                            break
+                if not vdate_raw:
+                    numeric_dates = re.findall(r'\b(\d{1,2})[\-/](\d{1,2})[\-/](\d{2,4})\b', txt)
+                    if numeric_dates:
+                        d, mo, y = numeric_dates[0]
+                        y = '20' + y if len(y) == 2 else y
+                        vdate_raw = f"{y}-{mo.zfill(2)}-{d.zfill(2)}"
                 if vdate_raw:
                     flat_json["voucher_date"] = vdate_raw
 
             # Extract invoice number — fallback regex only if not already extracted by AI
             if not flat_json.get("voucher_number"):
                 vno_val = None
-                vno_m2 = re.search(r'Invoice\s+No\.?\s+Dated\s*[\n\r]+\s*([A-Za-z0-9][A-Za-z0-9\-/\.]+)', txt, re.I)
-                if vno_m2:
-                    candidate = vno_m2.group(1).strip()
-                    if candidate.lower() not in ["dated", "date", "mode", "terms"]:
-                        vno_val = candidate
+                # Check lines under Invoice No.
+                inv_block_m = re.search(r'(?:Invoice\s+No\.?|Inv\s+No\.?|Bill\s+No\.?|Voucher\s+No\.?)\s*[:\-]?\s*[\n\r]+((?:[^\n]+\n){1,5})', txt, re.I)
+                if inv_block_m:
+                    candidate_lines = inv_block_m.group(1).splitlines()
+                    for l in candidate_lines:
+                        cand = l.strip()
+                        if any(w in cand.lower() for w in ['eway', 'e-way', 'bill no', 'dated', 'delivery note', 'mode', 'terms', 'buyer', 'order']):
+                            continue
+                        m = re.search(r'\b([A-Za-z0-9]{1,10}[-/][A-Za-z0-9\-/]+)\b', cand)
+                        if m:
+                            vno_val = m.group(1)
+                            break
+                        m2 = re.search(r'\b([A-Za-z0-9]{3,20})\b', cand)
+                        if m2 and m2.group(1).lower() not in ['bill', 'dated', 'date']:
+                            vno_val = m2.group(1)
+                            break
+
                 if not vno_val:
-                    vno_m = re.search(r'(?:Invoice\s+No\.?|Inv\s+No\.?|Bill\s+No\.?|Voucher\s+No\.?)\s*[:\-]?\s*([A-Za-z0-9][A-Za-z0-9\-/\.]+)', txt, re.I)
+                    vno_m = re.search(r'(?:Invoice\s+No\.?|Inv\s+No\.?|Bill\s+No\.?|Voucher\s+No\.?)\s*[:\-]\s*([A-Za-z0-9][A-Za-z0-9\-/\.]+)', txt, re.I)
                     if vno_m:
                         candidate = vno_m.group(1).strip()
-                        if candidate.lower() not in ["dated", "date"]:
+                        if candidate.lower() not in ["dated", "date", "eway", "e-way"]:
                             vno_val = candidate
+
                 if not vno_val:
-                    codes_m = re.findall(r'\b([A-Za-z]{1,5}[-/]\d+[A-Za-z0-9/\-]*)\b|\b(\d{4,8})\b', txt[:1000])
-                    for g1, g2 in codes_m:
-                        candidate = (g1 or g2).strip()
-                        if candidate and candidate.lower() not in ["gstin", "state", "code", "dated"]:
+                    codes_m = re.findall(r'\b([A-Za-z]{1,6}[-/]\d+[A-Za-z0-9/\-]*)\b', txt[:1500])
+                    for candidate in codes_m:
+                        candidate = candidate.strip()
+                        if candidate.lower() not in ["gstin", "state", "code", "dated", "terms"]:
                             vno_val = candidate
                             break
+
                 if vno_val:
                     flat_json["voucher_number"] = vno_val
 
@@ -1118,73 +1150,94 @@ class AgentOrchestrator:
                 if through_m:
                     flat_json["bank_cash_ledger"] = through_m.group(1).strip()
 
-            # Party name parsing — fallback regex only if not already extracted by AI
+            # Party name and GSTIN parsing
             if not flat_json.get("party_name"):
-                party_name_found = ""
-                if flat_json.get("voucher_type") == "Purchase":
-                    sup_m = re.search(r'Supplier\s*\((?:Bill\s+from|from)?\)?\s*\n\s*([^\n]+)', txt, re.I)
-                    if sup_m:
-                        party_name_found = sup_m.group(1).strip()
+                buyer_name = ""
+                consignee_name_found = ""
+                party_gstin_found = ""
+                consignee_gstin_found = ""
+
+                buyer_m = re.search(r'(?:Buyer\s*\((?:Bill\s+to|to)?\)?|Billed?\s+to|Customer\s*(?:\([^)]*\))?)\s*[:\-]?\s*[\n\r]+\s*([A-Za-z0-9][^\n\r]{2,80})', txt, re.I)
+                if buyer_m:
+                    buyer_candidate = buyer_m.group(1).strip()
+                    if buyer_candidate.lower() not in ['gstin', 'state', 'consignee', 'buyer', 'state name']:
+                        buyer_name = buyer_candidate
+                        buyer_start = buyer_m.end()
+                        buyer_chunk = txt[buyer_start:buyer_start + 400]
+                        bgst = re.search(r'\b\d{2}[A-Z]{5}\d{4}[A-Z]{1}[A-Z\d]{1}[Z]{1}[A-Z\d]{1}\b', buyer_chunk)
+                        if bgst:
+                            party_gstin_found = bgst.group(0)
+
+                consignee_m = re.search(r'Consignee\s*\((?:Ship\s+to|to)?\)?\s*[:\-]?\s*[\n\r]+\s*([A-Za-z0-9][^\n\r]{2,80})', txt, re.I)
+                if consignee_m:
+                    c_candidate = consignee_m.group(1).strip()
+                    if c_candidate.lower() not in ['gstin', 'state', 'buyer', 'consignee', 'state name']:
+                        consignee_name_found = c_candidate
+                        c_start = consignee_m.end()
+                        c_chunk = txt[c_start:c_start + 400]
+                        cgst = re.search(r'\b\d{2}[A-Z]{5}\d{4}[A-Z]{1}[A-Z\d]{1}[Z]{1}[A-Z\d]{1}\b', c_chunk)
+                        if cgst:
+                            consignee_gstin_found = cgst.group(0)
+
+                supplier_m = re.search(r'(?:Supplier\s*\((?:Bill\s+from|from)?\)?|Seller\s*(?:\([^)]*\))?)\s*[:\-]?\s*[\n\r]+\s*([A-Za-z0-9][^\n\r]{2,80})', txt, re.I)
+                supplier_name_found = ""
+                if supplier_m:
+                    s_candidate = supplier_m.group(1).strip()
+                    if s_candidate.lower() not in ['gstin', 'state', 'state name']:
+                        supplier_name_found = s_candidate
+                        s_start = supplier_m.end()
+                        s_chunk = txt[s_start:s_start + 400]
+                        sgst_cand = re.search(r'\b\d{2}[A-Z]{5}\d{4}[A-Z]{1}[A-Z\d]{1}[Z]{1}[A-Z\d]{1}\b', s_chunk)
+                        if sgst_cand and not party_gstin_found:
+                            party_gstin_found = sgst_cand.group(0)
+
+                is_sales_doc = flat_json.get("voucher_type") == "Sales"
+                if is_sales_doc:
+                    party_name_found = buyer_name or consignee_name_found
                 else:
-                    cust_m = re.search(r'(?:Customer|Consignee)\s*\((?:Ship\s+to|to)?\)?\s*\n\s*([^\n]+)', txt, re.I)
-                    if cust_m:
-                        party_name_found = cust_m.group(1).strip()
-                        
+                    party_name_found = supplier_name_found
+
                 if not party_name_found:
-                    acct_m = re.search(r'(?:Account|Particulars)\s*[:\-]?\s*\n([ \t]*([A-Z][^\n]{2,80}))', txt, re.MULTILINE)
-                    if acct_m:
-                        party_name_found = re.sub(r'\s+[\d,]+\.\d+.*$', '', acct_m.group(2)).strip()
+                    if buyer_name:
+                        party_name_found = buyer_name
+                    elif consignee_name_found:
+                        party_name_found = consignee_name_found
+                    else:
+                        acct_m = re.search(r'(?:Account|Particulars|M/s\.?)\s*[:\-]?\s*\n([ \t]*([A-Z][^\n]{2,80}))', txt, re.MULTILINE)
+                        if acct_m:
+                            party_name_found = re.sub(r'\s+[\d,]+\.\d+.*$', '', acct_m.group(2)).strip()
+
                 if party_name_found:
                     flat_json["party_name"] = party_name_found
+                if consignee_name_found:
+                    flat_json["consignee_name"] = consignee_name_found
+                elif party_name_found:
+                    flat_json["consignee_name"] = party_name_found
 
-            # Extract GSTIN of the party — fallback regex only if not already extracted by AI
+                if party_gstin_found:
+                    flat_json["party_gstin"] = party_gstin_found
+                if consignee_gstin_found:
+                    flat_json["consignee_gstin"] = consignee_gstin_found
+                elif party_gstin_found:
+                    flat_json["consignee_gstin"] = party_gstin_found
+
             if not flat_json.get("party_gstin"):
-                party_gstin_found = ""
                 gst_m = re.findall(r'\b\d{2}[A-Z]{5}\d{4}[A-Z]{1}[A-Z\d]{1}[Z]{1}[A-Z\d]{1}\b', txt)
                 if gst_m:
                     our_gst = our_company_gstin.upper() if our_company_gstin else ""
-                    filtered_gst = [g for g in gst_m if g.upper() != our_gst]
+                    header_gst_m = re.search(r'(?:GSTIN|UIN)\s*[:\-]?\s*(\b\d{2}[A-Z]{5}\d{4}[A-Z]{1}[A-Z\d]{1}[Z]{1}[A-Z\d]{1}\b)', txt[:1000], re.I)
+                    header_gst = header_gst_m.group(1).upper() if header_gst_m else ""
+                    filtered_gst = [g for g in gst_m if g.upper() not in [our_gst, header_gst]]
                     if filtered_gst:
-                        party_gstin_found = filtered_gst[0]
-                if party_gstin_found:
-                    flat_json["party_gstin"] = party_gstin_found
+                        flat_json["party_gstin"] = filtered_gst[0]
+                    else:
+                        flat_json["party_gstin"] = gst_m[0]
 
-            # Grand total — multiple patterns across whole document
-            grand_total = 0.0
-            # Pattern 1: Tally totals row — "Total ... Rs/₹ amount"
-            gt_m = re.search(
-                r'(?:^|\n)\s*Total\b[^\n]*?([\d]{1,3}(?:,\d{2,3})*(?:\.\d{1,2})?)\s*(?:Cr|Dr)?\s*$',
-                txt, re.I | re.MULTILINE
-            )
-            if gt_m:
-                try:
-                    grand_total = float(gt_m.group(1).replace(',', ''))
-                except Exception:
-                    pass
-            # Pattern 2: explicit "Grand Total" label
-            if not grand_total:
-                ggt_m = re.search(r'(?:Grand\s+Total|Invoice\s+Total|Amount\s+Payable)[^\n]*?([\d]{1,3}(?:,\d{2,3})*(?:\.\d{1,2})?)', txt, re.I)
-                if ggt_m:
-                    try:
-                        grand_total = float(ggt_m.group(1).replace(',', ''))
-                    except Exception:
-                        pass
-            # Pattern 3: "Amount Chargeable (in words) INR Twenty Thousand..."
-            if not grand_total:
-                words_m = re.search(r'Amount\s+Chargeable.*?INR\s+([A-Z][a-z]+\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s+Only)', txt, re.I)
-                if words_m:
-                    pass  # words-to-number conversion not implemented; rely on other patterns
-            # Pattern 4: last large number in document (fallback)
-            if not grand_total:
-                all_amounts = re.findall(r'\b(\d{1,3}(?:,\d{2,3})*\.\d{2})\b', txt)
-                if all_amounts:
-                    try:
-                        grand_total = max(float(a.replace(',', '')) for a in all_amounts)
-                    except Exception:
-                        pass
-            flat_json["grand_total"] = grand_total
+            state_m = re.search(r'State\s+Name\s*[:\-]?\s*([A-Za-z\s]+?)(?:,?\s*Code|\n|$)', txt, re.I)
+            if state_m:
+                flat_json["state"] = state_m.group(1).strip()
 
-            # Bill allocations — find all Tally bill rows:
+            # Bill allocations
             bill_allocs = []
             for m in re.finditer(
                 r'(?:Agst\s*Ref|Against\s*Ref)\s+([\w\-/.]+)\s+([\d,]+\.?\d*)\s*(?:Cr|Dr)?',
@@ -1215,11 +1268,7 @@ class AgentOrchestrator:
                 })
             flat_json["bill_allocations"] = bill_allocs
 
-            if not grand_total and bill_allocs:
-                grand_total = sum(b.get("allocation_amount", 0) for b in bill_allocs)
-                flat_json["grand_total"] = grand_total
-
-            # Determine if this is an invoice/challan type (Sales, Purchase, Delivery Challan)
+            # Determine if this is an invoice/challan type
             vtype_str = (flat_json.get("voucher_type") or "").lower()
             is_invoice_type = not vtype_str or any(w in vtype_str for w in ["sales", "purchase", "challan", "delivery", "invoice"])
             parsed_items = []
@@ -1227,6 +1276,7 @@ class AgentOrchestrator:
             total_sgst = 0.0
             total_igst = 0.0
             round_off = 0.0
+            grand_total = 0.0
 
             def is_valid_item_row(name_str):
                 name_lower = name_str.lower().strip()
@@ -1236,136 +1286,154 @@ class AgentOrchestrator:
                               'tcs', 'tds', 'cid'}
                 if not name_lower or len(name_lower) < 2:
                     return False
-                # Reject rows whose 'name' actually starts with a number or comma (tax/subtotal rows)
                 if re.match(r'^[\d,]', name_str.strip()):
                     return False
-                # Reject names that are >50% numeric/punctuation (catches garbled tax rows)
                 alpha_count = sum(1 for c in name_str if c.isalpha())
                 if len(name_str) > 5 and alpha_count < len(name_str) * 0.3:
                     return False
                 return not any(w in name_lower for w in skip_words)
 
             if is_invoice_type:
-                lines = txt.split('\n')
-                # Multi-line GST invoice item parsing
-                # Pattern: sl# description HSN qty unit rate amount (Tally/standard GST invoice layout)
+                lines = [l.strip() for l in txt.split('\n') if l.strip()]
+
+                # ── Phase 1: Robust Multi-Line Item Parser (Tally / Standard GST format) ────────
                 i = 0
                 while i < len(lines):
-                    line = lines[i].strip()
-
-                    # 1. Serial-number row with HSN: "1 Description HSN qty unit rate amount"
-                    m = re.match(
-                        r'^(\d{1,3})\s+([A-Za-z0-9@%][A-Za-z0-9\s\(\)\-\/\&@#%\.]+?)\s+(\d{4,8})\s+(\d+[\d,]*\.?\d*)\s+([A-Za-z]+)\s+(\d+[\d,]*\.?\d*)\s+(?:[A-Za-z]+\s+)?([\d,]+\.\d{2})\s*$',
-                        line
-                    )
-                    if m:
-                        _, name, hsn, qty, unit, rate, amount = m.groups()
-                        if is_valid_item_row(name):
-                            # Collect continuation description lines (pure-text, no numbers)
+                    line = lines[i]
+                    sl_m = re.match(r'^(\d{1,3})[\.\s]+([A-Za-z][A-Za-z0-9\s\.\-_&/\(\)]+)$', line)
+                    if sl_m:
+                        raw_name = sl_m.group(2).strip()
+                        if is_valid_item_row(raw_name) and raw_name.lower() not in ['description of goods', 'particulars', 'item']:
+                            desc_parts = [raw_name]
+                            qty, rate, amount, hsn, unit = 0.0, 0.0, 0.0, '', ''
                             j = i + 1
-                            while j < len(lines) and j < i + 4:
-                                nxt = lines[j].strip()
-                                if nxt and not re.search(r'\d', nxt) and not re.match(r'^(CGST|SGST|IGST|Round|Total|Amount)', nxt, re.I):
-                                    name = name + ' ' + nxt
-                                    j += 1
-                                else:
+                            while j < len(lines):
+                                sub = lines[j]
+                                sub_lower = sub.lower()
+                                if any(w in sub_lower for w in ['cgst', 'sgst', 'igst', 'rounded off', 'round off', 'total', 'amount chargeable']):
                                     break
+                                if re.match(r'^(\d{1,3})[\.\s]+[A-Za-z]', sub):
+                                    break
+                                q_m = re.match(r'^([\d,]+\.?\d*)\s*([A-Za-z]+)$', sub)
+                                if q_m and not qty:
+                                    q_val = float(q_m.group(1).replace(',', ''))
+                                    unit_cand = q_m.group(2).strip()
+                                    if unit_cand.upper() in ['PCS', 'NOS', 'KGS', 'BOX', 'BAG', 'MTR', 'SET', 'PAC', 'UNT', 'ROL', 'BTL']:
+                                        qty = q_val; unit = unit_cand
+                                        j += 1; continue
+                                if sub.upper() in ['PCS', 'NOS', 'KGS', 'BOX', 'BAG', 'MTR', 'SET', 'PAC', 'UNT', 'ROL', 'BTL'] and not unit:
+                                    unit = sub.upper()
+                                    j += 1; continue
+                                if re.match(r'^\d{4,8}$', sub) and not hsn:
+                                    hsn = sub
+                                    j += 1; continue
+                                num_m = re.match(r'^([\d,]+\.\d{2})$', sub)
+                                if num_m:
+                                    val = float(num_m.group(1).replace(',', ''))
+                                    if val > amount:
+                                        if amount > 0:
+                                            rate = val if val < amount else rate
+                                        else:
+                                            amount = val
+                                    else:
+                                        if not rate:
+                                            rate = val
+                                    j += 1; continue
+                                if not re.search(r'[\d,]+\.\d{2}', sub) and len(sub) > 1:
+                                    desc_parts.append(sub)
+                                j += 1
+                            if qty > 0 and amount > 0 and (rate == 0 or abs(qty * rate - amount) > 2.0):
+                                rate = round(amount / qty, 2)
+                            elif rate > 0 and qty > 0 and amount == 0:
+                                amount = round(qty * rate, 2)
+                            elif amount > 0 and rate > 0 and qty == 0:
+                                qty = round(amount / rate, 2)
+                            parsed_items.append({
+                                'item_name': desc_parts[0],
+                                'description': ' '.join(desc_parts[1:]) if len(desc_parts) > 1 else '',
+                                'qty': qty,
+                                'quantity': qty,
+                                'unit': unit or 'PCS',
+                                'rate': rate,
+                                'amount': amount,
+                                'hsn_code': hsn,
+                                'discount_percent': 0.0
+                            })
                             i = j
-                            parsed_items.append({
-                                "item_name": name.strip(),
-                                "qty": float(qty.replace(',', '')),
-                                "quantity": float(qty.replace(',', '')),
-                                "unit": unit.strip(),
-                                "rate": float(rate.replace(',', '')),
-                                "amount": float(amount.replace(',', '')),
-                                "hsn_code": hsn,
-                                "discount_percent": 0.0
-                            })
                             continue
-
-                    # 2. No serial number — name HSN qty unit rate amount
-                    m2 = re.match(
-                        r'^([A-Za-z][A-Za-z0-9\s\(\)\-\/\&@#%\.]+?)\s+(\d{4,8})\s+(\d+[\d,]*\.?\d*)\s+([A-Za-z]+)\s+(\d+[\d,]*\.?\d*)\s+([\d,]+\.\d{2})\s*$',
-                        line
-                    )
-                    if m2:
-                        name, hsn, qty, unit, rate, amount = m2.groups()
-                        if is_valid_item_row(name):
-                            parsed_items.append({
-                                "item_name": name.strip(),
-                                "qty": float(qty.replace(',', '')),
-                                "quantity": float(qty.replace(',', '')),
-                                "unit": unit.strip(),
-                                "rate": float(rate.replace(',', '')),
-                                "amount": float(amount.replace(',', '')),
-                                "hsn_code": hsn,
-                                "discount_percent": 0.0
-                            })
-                            i += 1
-                            continue
-
-                    # 3. Serial# + name + qty + rate + amount (no HSN column)
-                    m3 = re.match(
-                        r'^(\d{1,3})\s+([A-Za-z0-9][A-Za-z0-9\s\(\)\-\/\&@#%\.]+?)\s+(\d+[\d,]*\.?\d*)\s*([a-zA-Z\.]+)?\s+(\d+[\d,]*\.?\d*)\s*(?:[a-zA-Z\.]+)?\s+([\d,]+\.\d{2})\s*$',
-                        line
-                    )
-                    if m3:
-                        _, name, qty, unit, rate, amount = m3.groups()
-                        if is_valid_item_row(name):
-                            parsed_items.append({
-                                "item_name": name.strip(),
-                                "qty": float(qty.replace(',', '')),
-                                "quantity": float(qty.replace(',', '')),
-                                "unit": unit.strip() if unit else None,
-                                "rate": float(rate.replace(',', '')),
-                                "amount": float(amount.replace(',', '')),
-                                "hsn_code": "",
-                                "discount_percent": 0.0
-                            })
-                            i += 1
-                            continue
-
-                    # 4. Name and amount only (services / ledger / no qty)
-                    m4 = re.match(
-                        r'^\s*(?:\d+\s+)?([A-Za-z0-9][A-Za-z0-9\s\(\)\-\/\&@#\.\,\+%]+?)\s+([\d,]+\.\d{2})\s*$',
-                        line
-                    )
-                    if m4:
-                        name, amount = m4.groups()
-                        if is_valid_item_row(name):
-                            parsed_items.append({
-                                "item_name": name.strip(),
-                                "qty": 0.0,
-                                "quantity": 0.0,
-                                "unit": None,
-                                "rate": 0.0,
-                                "amount": float(amount.replace(',', '')),
-                                "hsn_code": "",
-                                "discount_percent": 0.0
-                            })
                     i += 1
 
-                # Parse taxes and round off from lines
-                for line in lines:
-                    line_lower = line.lower()
-                    if "cgst" in line_lower:
-                        mt = re.search(r'([\d,]+\.\d{2})', line)
-                        if mt:
-                            total_cgst = float(mt.group(1).replace(',', ''))
-                    elif "sgst" in line_lower:
-                        mt = re.search(r'([\d,]+\.\d{2})', line)
-                        if mt:
-                            total_sgst = float(mt.group(1).replace(',', ''))
-                    elif "igst" in line_lower:
-                        mt = re.search(r'([\d,]+\.\d{2})', line)
-                        if mt:
-                            total_igst = float(mt.group(1).replace(',', ''))
-                    elif "round off" in line_lower or "rounded off" in line_lower:
-                        mt = re.search(r'(-?[\d,]+\.\d{1,2})', line)
-                        if mt:
-                            round_off = float(mt.group(1).replace(',', ''))
+                # ── Phase 2: Single-line regex parsers if multi-line returned no items ──────
+                if not parsed_items:
+                    i = 0
+                    while i < len(lines):
+                        line = lines[i]
+                        m = re.match(
+                            r'^(\d{1,3})\s+([A-Za-z0-9@%][A-Za-z0-9\s\(\)\-\/\&@#%\.]+?)\s+(\d{4,8})\s+(\d+[\d,]*\.?\d*)\s+([A-Za-z]+)\s+(\d+[\d,]*\.?\d*)\s+(?:[A-Za-z]+\s+)?([\d,]+\.\d{2})\s*$',
+                            line
+                        )
+                        if m:
+                            _, name, hsn, qty, unit, rate, amount = m.groups()
+                            if is_valid_item_row(name):
+                                parsed_items.append({
+                                    "item_name": name.strip(),
+                                    "qty": float(qty.replace(',', '')),
+                                    "quantity": float(qty.replace(',', '')),
+                                    "unit": unit.strip(),
+                                    "rate": float(rate.replace(',', '')),
+                                    "amount": float(amount.replace(',', '')),
+                                    "hsn_code": hsn,
+                                    "discount_percent": 0.0
+                                })
+                                i += 1
+                                continue
 
+                        m2 = re.match(
+                            r'^([A-Za-z][A-Za-z0-9\s\(\)\-\/\&@#%\.]+?)\s+(\d{4,8})\s+(\d+[\d,]*\.?\d*)\s+([A-Za-z]+)\s+(\d+[\d,]*\.?\d*)\s+([\d,]+\.\d{2})\s*$',
+                            line
+                        )
+                        if m2:
+                            name, hsn, qty, unit, rate, amount = m2.groups()
+                            if is_valid_item_row(name):
+                                parsed_items.append({
+                                    "item_name": name.strip(),
+                                    "qty": float(qty.replace(',', '')),
+                                    "quantity": float(qty.replace(',', '')),
+                                    "unit": unit.strip(),
+                                    "rate": float(rate.replace(',', '')),
+                                    "amount": float(amount.replace(',', '')),
+                                    "hsn_code": hsn,
+                                    "discount_percent": 0.0
+                                })
+                                i += 1
+                                continue
+                        i += 1
 
+                # ── Phase 3: Taxes, Round-off, and Totals (Multi-line + Same-line) ───────────
+                m_cgst = re.search(r'CGST(?:[^\n\d]*)\n\s*([\d,]+\.\d{2})|CGST(?:[^\n\d]*?)([\d,]+\.\d{2})', txt, re.I)
+                if m_cgst:
+                    total_cgst = float((m_cgst.group(1) or m_cgst.group(2)).replace(',', ''))
+
+                m_sgst = re.search(r'SGST(?:[^\n\d]*)\n\s*([\d,]+\.\d{2})|SGST(?:[^\n\d]*?)([\d,]+\.\d{2})', txt, re.I)
+                if m_sgst:
+                    total_sgst = float((m_sgst.group(1) or m_sgst.group(2)).replace(',', ''))
+
+                m_igst = re.search(r'IGST(?:[^\n\d]*)\n\s*([\d,]+\.\d{2})|IGST(?:[^\n\d]*?)([\d,]+\.\d{2})', txt, re.I)
+                if m_igst:
+                    total_igst = float((m_igst.group(1) or m_igst.group(2)).replace(',', ''))
+
+                m_round = re.search(r'Round(?:ed)?\s*Off[^\n\d\-]*\n\s*(-?[\d,]+\.\d{1,2})|Round(?:ed)?\s*Off[^\n\d\-]*?(-?[\d,]+\.\d{1,2})', txt, re.I)
+                if m_round:
+                    round_off = float((m_round.group(1) or m_round.group(2)).replace(',', ''))
+
+                # Multi-line Total:
+                m_tot = re.search(r'(?:^|\n)\s*Total[^\n\d]*\n\s*[₹Rs\.]*\s*([\d,]+\.\d{2})', txt, re.I)
+                if m_tot:
+                    grand_total = float(m_tot.group(1).replace(',', ''))
+                elif not grand_total:
+                    ggt_m = re.search(r'(?:Grand\s+Total|Invoice\s+Total|Amount\s+Payable)[^\n]*?([\d]{1,3}(?:,\d{2,3})*(?:\.\d{1,2})?)', txt, re.I)
+                    if ggt_m:
+                        grand_total = float(ggt_m.group(1).replace(',', ''))
 
             if is_invoice_type and parsed_items:
                 taxable_value = sum(item["amount"] for item in parsed_items)
@@ -1386,6 +1454,8 @@ class AgentOrchestrator:
 
                 flat_json["line_items"] = parsed_items
                 flat_json["is_item_wise"] = True
+                calc_grand = round(taxable_value + total_tax + round_off, 2)
+                flat_json["grand_total"] = grand_total or calc_grand
                 flat_json["summary"] = {
                     "subtotal": taxable_value,
                     "total_taxable_value": taxable_value,
@@ -1394,12 +1464,9 @@ class AgentOrchestrator:
                     "total_igst": total_igst,
                     "gst_rate_percent": inferred_gst_percent,
                     "round_off": round_off,
-                    "grand_total": taxable_value + total_tax + round_off,
+                    "grand_total": flat_json["grand_total"],
                     "amount_in_words": ""
                 }
-                # Only use computed total if document total was not already extracted
-                if not flat_json.get("grand_total"):
-                    flat_json["grand_total"] = taxable_value + total_tax + round_off
             else:
                 flat_json["line_items"] = [{
                     "item_name": flat_json.get("party_name") or "",
@@ -1408,19 +1475,20 @@ class AgentOrchestrator:
                     "gst_rate_percent": 0
                 }] if flat_json.get("party_name") else []
                 flat_json["is_item_wise"] = False
+                flat_json["grand_total"] = grand_total
 
             flat_json["party_address"] = None
-            flat_json["consignee_name"] = None
+            flat_json["consignee_name"] = flat_json.get("consignee_name") or flat_json.get("party_name")
             flat_json["consignee_address"] = None
             flat_json["narration"] = ""
-
-
 
         # Re-run flat_json mapping path if regex fallback populated it (cls_res may be unset)
         if flat_json and not _cls_res_set:
             logger.info("[AgentOrchestrator] Mapping regex-fallback flat_json to specialized structures")
             party_name = flat_json.get("party_name") or ""
             party_gstin = flat_json.get("party_gstin") or ""
+            consignee_name = flat_json.get("consignee_name") or party_name
+            consignee_gstin = flat_json.get("consignee_gstin") or party_gstin
             voucher_type = flat_json.get("voucher_type") or "Purchase"
             voucher_type_lower = voucher_type.lower()
             is_payment = "payment" in voucher_type_lower
@@ -1443,35 +1511,66 @@ class AgentOrchestrator:
             hdr_res = {
                 "invoice_number": {"value": vno, "confidence": 95 if vno else 0},
                 "invoice_date": {"value": vdt, "confidence": 95 if vdt else 0},
-                "state": {"value": None, "confidence": 0},
+                "state": {"value": flat_json.get("state"), "confidence": 95 if flat_json.get("state") else 0},
                 "reference_number": {"value": vno, "confidence": 95 if vno else 0},
-                "place_of_supply": {"value": None, "confidence": 0},
+                "place_of_supply": {"value": flat_json.get("state"), "confidence": 95 if flat_json.get("state") else 0},
                 "payment_terms": {"value": None, "confidence": 0},
             }
             party_res = {
-                "supplier_name": {"value": party_name, "confidence": 95 if party_name else 0},
-                "supplier_gstin": {"value": party_gstin, "confidence": 95 if party_gstin else 0},
+                "supplier_name": {"value": our_company_name if is_sales else party_name, "confidence": 95 if (our_company_name if is_sales else party_name) else 0},
+                "supplier_gstin": {"value": our_company_gstin if is_sales else party_gstin, "confidence": 95 if (our_company_gstin if is_sales else party_gstin) else 0},
                 "supplier_address": {"value": None, "confidence": 0},
-                "customer_name": {"value": party_name, "confidence": 95 if party_name else 0},
-                "customer_gstin": {"value": party_gstin, "confidence": 95 if party_gstin else 0},
+                "customer_name": {"value": party_name if is_sales else our_company_name, "confidence": 95 if (party_name if is_sales else our_company_name) else 0},
+                "customer_gstin": {"value": party_gstin if is_sales else our_company_gstin, "confidence": 95 if (party_gstin if is_sales else our_company_gstin) else 0},
                 "customer_address": {"value": None, "confidence": 0},
-                "consignee_name": {"value": None, "confidence": 0},
-                "consignee_gstin": {"value": None, "confidence": 0},
+                "consignee_name": {"value": consignee_name, "confidence": 95 if consignee_name else 0},
+                "consignee_gstin": {"value": consignee_gstin, "confidence": 95 if consignee_gstin else 0},
             }
             items_res = {"line_items": [
                 {k: {"value": v, "confidence": 95} if not isinstance(v, dict) else v
                  for k, v in item.items()}
                 for item in flat_json.get("line_items", [])
             ]}
-            tax_res = {"taxes": []}
-            grand_total = flat_json.get("grand_total") or 0.0
+            summary_info = flat_json.get("summary") or {}
+            subtot = summary_info.get("subtotal") or flat_json.get("grand_total") or 0.0
+            tax_val = summary_info.get("total_taxable_value") or subtot
+            cgst_val = summary_info.get("total_cgst") or 0.0
+            sgst_val = summary_info.get("total_sgst") or 0.0
+            igst_val = summary_info.get("total_igst") or 0.0
+            round_val = summary_info.get("round_off") or 0.0
+            tot_val = summary_info.get("grand_total") or flat_json.get("grand_total") or (tax_val + cgst_val + sgst_val + igst_val + round_val)
+            gst_pct = summary_info.get("gst_rate_percent") or 18.0
+
+            taxes_list = []
+            if cgst_val > 0:
+                taxes_list.append({
+                    "tax_ledger": "CGST",
+                    "taxable_value": {"value": tax_val, "confidence": 95},
+                    "rate": {"value": gst_pct / 2.0, "confidence": 95},
+                    "amount": {"value": cgst_val, "confidence": 95}
+                })
+            if sgst_val > 0:
+                taxes_list.append({
+                    "tax_ledger": "SGST",
+                    "taxable_value": {"value": tax_val, "confidence": 95},
+                    "rate": {"value": gst_pct / 2.0, "confidence": 95},
+                    "amount": {"value": sgst_val, "confidence": 95}
+                })
+            if igst_val > 0:
+                taxes_list.append({
+                    "tax_ledger": "IGST",
+                    "taxable_value": {"value": tax_val, "confidence": 95},
+                    "rate": {"value": gst_pct, "confidence": 95},
+                    "amount": {"value": igst_val, "confidence": 95}
+                })
+            tax_res = {"taxes": taxes_list}
             totals_res = {
                 "totals": {
-                    "subtotal": {"value": grand_total, "confidence": 95 if grand_total else 0},
-                    "taxable_value": {"value": grand_total, "confidence": 95 if grand_total else 0},
-                    "round_off": {"value": 0, "confidence": 95},
-                    "invoice_total": {"value": grand_total, "confidence": 95 if grand_total else 0},
-                    "total_amount": {"value": grand_total, "confidence": 95 if grand_total else 0},
+                    "subtotal": {"value": subtot, "confidence": 95 if subtot else 0},
+                    "taxable_value": {"value": tax_val, "confidence": 95 if tax_val else 0},
+                    "round_off": {"value": round_val, "confidence": 95},
+                    "invoice_total": {"value": tot_val, "confidence": 95 if tot_val else 0},
+                    "total_amount": {"value": tot_val, "confidence": 95 if tot_val else 0},
                     "amount_in_words": {"value": None, "confidence": 0}
                 },
                 "payment_details": {

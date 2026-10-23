@@ -15,7 +15,8 @@ class LLMService:
         else:
             self.client = OpenAI(
                 base_url=settings.NVIDIA_BASE_URL,
-                api_key=settings.NVIDIA_API_KEY
+                api_key=settings.NVIDIA_API_KEY,
+                timeout=10.0
             )
         self.model = settings.LLM_MODEL
 
@@ -440,6 +441,27 @@ Rules:
                 "reasoning": "Fallback default category for empty content."
             }
 
+        lower_txt = text_content.lower()
+        if any(k in lower_txt for k in ["statement of account", "transactions list", "available balance", "optransactionhistory", "bank statement", "transaction history"]):
+            return {
+                "voucher_category": "Bank Statement",
+                "confidence": 98,
+                "reasoning": "Detected bank statement transaction keywords."
+            }
+        if any(k in lower_txt for k in ["tax invoice", "sales invoice", "bill of supply", "taxable invoice", "original for recipient"]):
+            return {
+                "voucher_category": "Sales Invoice",
+                "confidence": 95,
+                "reasoning": "Detected invoice header."
+            }
+
+        if not self.client:
+            return {
+                "voucher_category": "Sales Invoice",
+                "confidence": 75,
+                "reasoning": "Defaulted to Sales Invoice (LLM not configured)."
+            }
+
         system_prompt = """You are an expert AI Financial Document Classifier for Indian ERP systems.
 Your job is to read raw text/rows extracted from an uploaded business file (Excel, CSV, PDF, or image OCR) and classify it into EXACTLY ONE of these voucher categories:
 
@@ -469,7 +491,8 @@ Output ONLY a valid JSON object matching this schema:
                     {"role": "user", "content": user_prompt}
                 ],
                 temperature=0.0,
-                max_tokens=200
+                max_tokens=200,
+                timeout=8.0
             )
             raw = completion.choices[0].message.content
             cleaned = self._clean_json_string(raw)

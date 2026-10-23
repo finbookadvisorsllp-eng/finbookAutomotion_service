@@ -398,17 +398,20 @@ def _run_ocr_background(file_path: str, file_type: str, upload_id: str, mongo_ur
                             logger.info(f"Merged successfully. Main items count={len(main_table['rows'])}")
                             return
 
-            # Compute AI Auto-Classification across 6 accounting categories
-            sample_text = full_text[:4000] if full_text else filename
-            ai_classification = llm_service.classify_bulk_upload_content(sample_text)
-
             if is_bank_statement:
                 doc_type_val = "Bank Statement"
-                ai_classification["voucher_category"] = "Bank Statement"
-                ai_classification["confidence"] = 98
-                ai_classification["reasoning"] = "PDF Bank Statement Transaction History"
+                ai_classification = {
+                    "voucher_category": "Bank Statement",
+                    "confidence": 98,
+                    "reasoning": "PDF Bank Statement Transaction History"
+                }
             else:
-                doc_type_val = schema.get("document_type") or ai_classification.get("voucher_category") or "Unknown"
+                doc_type_val = schema.get("document_type") or "Unknown"
+                ai_classification = {
+                    "voucher_category": doc_type_val,
+                    "confidence": schema.get("overall_confidence", 95),
+                    "reasoning": "Specialized accounting extraction"
+                }
 
             cat_val = "Financial" if is_bank_statement or doc_type_val != "Unknown" else "Unknown"
 
@@ -1399,9 +1402,12 @@ def build_synthesized_grid_and_vouchers(r: dict) -> tuple[list, list]:
     grouped_vouchers = list(existing_vouchers) if (existing_vouchers and isinstance(existing_vouchers, list)) else []
 
     dyn_schema = r.get("dynamic_schema") or {}
+    doc_type_str = str(r.get("document_type") or dyn_schema.get("document_type") or "").lower()
+    is_bs_doc = "bank" in doc_type_str or "statement" in doc_type_str or "statement" in str(r.get("filename", "")).lower()
+
     items = dyn_schema.get("bank_statement_items") or r.get("bank_statement_items") or []
 
-    if not items and isinstance(dyn_schema.get("sections"), list):
+    if is_bs_doc and not items and isinstance(dyn_schema.get("sections"), list):
         for sec in dyn_schema.get("sections", []):
             if isinstance(sec, dict) and "fields" in sec:
                 for field in sec.get("fields", []):
@@ -1455,8 +1461,15 @@ def build_synthesized_grid_and_vouchers(r: dict) -> tuple[list, list]:
             st = v.get("status", "Ready")
             grid.append([tx_date, v_type, narr, ref_no, debit_str, credit_str, party, amt_str, st])
 
-    final_grid = existing_grid if (existing_grid and isinstance(existing_grid, list) and len(existing_grid) >= 3) else grid
-    final_vouchers = grouped_vouchers if (grouped_vouchers and isinstance(grouped_vouchers, list) and len(grouped_vouchers) > 0) else (existing_vouchers or [])
+    if grouped_vouchers and len(grouped_vouchers) > 0:
+        final_grid = grid
+        final_vouchers = grouped_vouchers
+    elif existing_grid and isinstance(existing_grid, list) and len(existing_grid) >= 3:
+        final_grid = existing_grid
+        final_vouchers = existing_vouchers or []
+    else:
+        final_grid = []
+        final_vouchers = []
     return final_grid, final_vouchers
 
 
@@ -1486,7 +1499,7 @@ async def list_uploads(
         uploads = []
         for r in records:
             file_path = r.get("file_path")
-            file_url = f"/bulk-upload/file/{str(r['_id'])}"
+            file_url = r.get("file_url") or f"/api/v2/bulk-upload/file/{str(r['_id'])}"
 
             # Handle size conversion safely
             file_size = r.get("file_size", "2.4 MB")
@@ -1688,7 +1701,7 @@ async def get_upload_detail(
         "status": record.get("status", "Uploaded"),
         "confidence": record.get("confidence_score") or record.get("confidence") or (dynamic_schema or {}).get("confidence") or 98,
         "confidence_score": record.get("confidence_score") or record.get("import_readiness_score") or 98,
-        "fileUrl": record.get("file_url") or f"/bulk-upload/file/{str(record['_id'])}",
+        "fileUrl": record.get("file_url") or f"/api/v2/bulk-upload/file/{str(record['_id'])}",
         "dynamic_schema": dynamic_schema,
         "excel_grid": syn_grid,
         "excelData": syn_grid,

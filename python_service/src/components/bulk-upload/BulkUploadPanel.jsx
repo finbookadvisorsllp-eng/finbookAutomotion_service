@@ -122,9 +122,10 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
 
   const isExcelFile = previewDoc && (
     ['xlsx', 'xls', 'csv'].includes((previewDoc.name || '').split('.').pop().toLowerCase()) ||
-    previewDoc.document_type === 'Bank Statement' ||
-    previewDoc.type === 'Bank Statement' ||
-    Boolean(previewDoc.excelData || previewDoc.excel_grid)
+    (previewDoc.document_type || previewDoc.type || '').toLowerCase().includes('bank statement') ||
+    (previewDoc.category || '').toLowerCase().includes('bank statement') ||
+    (previewDoc.name || '').toLowerCase().includes('statement') ||
+    (previewDoc.name || '').toLowerCase().includes('optransactionhistory')
   );
 
 
@@ -940,15 +941,17 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
       }
     } catch (e) {}
 
-    const isBankStatement = doc.document_type === 'Bank Statement' ||
-                            doc.type === 'Bank Statement' ||
-                            doc.category === 'Bank Statement' ||
-                            (doc.name || '').toLowerCase().includes('statement') ||
-                            (doc.name || '').toLowerCase().includes('optransactionhistory') ||
-                            Boolean(doc.excel_grid || doc.excelData);
+    const docTypeLower = (doc.document_type || doc.type || '').toLowerCase();
+    const docCatLower = (doc.category || '').toLowerCase();
+    const docNameLower = (doc.name || '').toLowerCase();
+    const isBankStatement = docTypeLower.includes('bank statement') ||
+                            docCatLower.includes('bank statement') ||
+                            docNameLower.includes('statement') ||
+                            docNameLower.includes('optransactionhistory');
 
     if (['pdf', 'png', 'jpg', 'jpeg', 'webp', 'tiff'].includes(ext) && !isBankStatement) {
       setAiReviewDoc(docWithUrl);
+      setPreviewDoc(null);
       return;
     }
 
@@ -989,6 +992,7 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
       ['Voucher Date', 'Voucher Type', 'Particulars / Narration', 'Reference No', 'Debit (Dr)', 'Credit (Cr)', 'Party / Counterpart Ledger', 'Amount', 'Status']
     ];
 
+    setAiReviewDoc(null);
     setPreviewDoc(finalDoc);
     setExcelGridData(grid && grid.length >= 2 ? grid : defaultGrid);
   };
@@ -2401,7 +2405,7 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
   return (
     <div className="relative flex flex-col h-full w-full overflow-hidden text-[var(--app-text)] font-sans text-xs select-none">
       {/* ── OCR Review Mode with Existing Manual Entry Forms ───────────────────────── */}
-      {aiReviewDoc && (
+      {aiReviewDoc ? (
         <OcrManualReviewScreen
           doc={aiReviewDoc}
           isDark={isDark}
@@ -2420,9 +2424,7 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
             handleCloseReview();
           }}
         />
-      )}
-
-      {previewDoc ? (
+      ) : previewDoc ? (
         isExcelFile ? (
           <ExcelBulkUploadReview
             previewDoc={previewDoc}
