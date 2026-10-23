@@ -120,7 +120,7 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
   const [aiReviewDoc, setAiReviewDoc] = useState(null);
   const [duplicateUploadInfo, setDuplicateUploadInfo] = useState(null); // { file, tempId, existingDoc }
 
-  const isExcelFile = previewDoc && (
+  const isExcelFile = previewDoc && !ocrOnly && (
     ['xlsx', 'xls', 'csv'].includes((previewDoc.name || '').split('.').pop().toLowerCase()) ||
     (previewDoc.document_type || previewDoc.type || '').toLowerCase().includes('bank statement') ||
     (previewDoc.category || '').toLowerCase().includes('bank statement') ||
@@ -949,13 +949,15 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
                             docNameLower.includes('statement') ||
                             docNameLower.includes('optransactionhistory');
 
-    if (['pdf', 'png', 'jpg', 'jpeg', 'webp', 'tiff'].includes(ext) && !isBankStatement) {
+    if (ocrOnly || (['pdf', 'png', 'jpg', 'jpeg', 'webp', 'tiff'].includes(ext) && !isBankStatement)) {
+      setPreviewDoc(null);
       setAiReviewDoc(docWithUrl);
       setPreviewDoc(null);
       return;
     }
 
     // For Excel, CSV, or PDF Bank Statements -> Open Excel Grid View!
+    setAiReviewDoc(null);
     setOcrResult(null);
     setTableSearchQuery('');
     setStatusFilter('All Rows');
