@@ -341,9 +341,32 @@ export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSucc
     const documentTypeVal = (schema?.document_type || '').toLowerCase();
     const isPurchaseDoc = documentTypeVal.includes('purchase') || documentTypeVal.includes('debit');
 
+    if (schema?.productLines && schema.productLines.length > 0) {
+      for (const line of schema.productLines) {
+        productLines.push({
+          id: line.id || (Date.now() + Math.random()),
+          srNo: productLines.length + 1,
+          stockItem: line.stockItem || line.item_name || '',
+          description: line.description || '',
+          hsnSacCode: line.hsnSacCode || line.hsn_code || '',
+          billQuantity: parseNumeric(line.billQuantity || line.qty || 1),
+          unit: normalizeUnit(line.unit || 'Nos'),
+          billRate: parseNumeric(line.billRate || line.rate || 0),
+          discountPercent: parseNumeric(line.discountPercent || line.discount || 0),
+          amount: parseNumeric(line.amount || 0),
+          gstRate: parseNumeric(line.gstRate || line.gst_rate || 0),
+          rcm: Boolean(line.rcm),
+          taxabilityType: line.taxabilityType || 'Taxable'
+        });
+      }
+    }
+
     for (const section of schema?.sections || []) {
       for (const field of section.fields || []) {
         if (field.type === 'table') {
+          if (field.id === 'line_items' && productLines.length > 0) {
+            continue;
+          }
           const rows = field.rows || field.value || [];
           for (const row of rows) {
             const itemNameLower = (getRowValue(row, 'item_name', 'stockItem', 'itemName', 'item', 'name', 'product') || '').toString().toLowerCase().trim();

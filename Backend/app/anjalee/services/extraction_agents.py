@@ -762,6 +762,11 @@ class AgentOrchestrator:
         # Try OpenRouter with upgraded TALLY_PROMPT — Gemini 2.5 Flash is priority 1
         flat_json = None
         openrouter_key = settings.OPENROUTER_API_KEY
+        prompt = TALLY_PROMPT.format(
+            our_company_name=our_company_name or "Unknown",
+            our_company_gstin=our_company_gstin or "Unknown",
+            structured_doc=structured_doc_text
+        )
 
         if openrouter_key:
             import requests
@@ -773,11 +778,6 @@ class AgentOrchestrator:
                 "deepseek/deepseek-r1-0528-qwen3-8b:free",
                 "meta-llama/llama-3.2-3b-instruct:free",
             ]
-            prompt = TALLY_PROMPT.format(
-                our_company_name=our_company_name or "Unknown",
-                our_company_gstin=our_company_gstin or "Unknown",
-                structured_doc=structured_doc_text
-            )
 
             # Multimodal Vision content payload if base64_image_url is provided
             if base64_image_url:
@@ -841,6 +841,33 @@ class AgentOrchestrator:
                         logger.warning(f"[AgentOrchestrator] OpenRouter error {response.status_code} for {model}: {response.text[:300]}")
                 except Exception as ex:
                     logger.error(f"[AgentOrchestrator] Request to {model} failed: {ex}")
+
+        # If OpenRouter is not configured or failed, try NVIDIA API LLM
+        if not flat_json and getattr(self.classifier, 'client', None):
+            logger.info(f"[AgentOrchestrator] Sending extraction task to NVIDIA API ({self.classifier.model})")
+            try:
+                user_msg = prompt
+                if base64_image_url:
+                    user_msg = [
+                        {"type": "text", "text": prompt},
+                        {"type": "image_url", "image_url": {"url": base64_image_url}}
+                    ]
+                resp = self.classifier.client.chat.completions.create(
+                    model=self.classifier.model,
+                    messages=[
+                        {"role": "system", "content": "You are an expert Tally Prime accounting data extraction assistant. Respond ONLY with valid JSON matching the schema. Extract accurate invoice_number (e.g. short bill numbers like 44, 20, 106, not dates or e-way labels), supplier, buyer, items, rates, quantities and totals."},
+                        {"role": "user", "content": user_msg}
+                    ],
+                    temperature=0.0,
+                    max_tokens=1500,
+                    timeout=90.0
+                )
+                raw_content = resp.choices[0].message.content.strip()
+                flat_json = self.classifier._parse_json(raw_content)
+                if flat_json:
+                    logger.info("[AgentOrchestrator] Successfully parsed JSON from NVIDIA API using model %s", self.classifier.model)
+            except Exception as ex:
+                logger.error(f"[AgentOrchestrator] NVIDIA API extraction failed: {ex}")
 
         # Map flat_json to individual agent structures
         _cls_res_set = False
@@ -962,15 +989,23 @@ class AgentOrchestrator:
 
             raw_items = []
             for item in flat_json.get("line_items", []):
+                i_qty = float(item.get("quantity") or 0)
+                i_rate = float(item.get("rate") or 0)
+                i_amt = float(item.get("taxable_amount") or item.get("total_amount") or 0.0)
+                if i_amt > 0 and i_rate > 0 and (i_qty <= 0 or abs(i_qty * i_rate - i_amt) > 5.0):
+                    i_qty = round(i_amt / i_rate, 2)
+                elif i_qty > 0 and i_rate > 0 and i_amt <= 0:
+                    i_amt = round(i_qty * i_rate, 2)
+
                 raw_items.append({
                     "item_name": {"value": item.get("item_name"), "confidence": 95},
                     "hsn_code": {"value": item.get("hsn_sac") or item.get("hsn_code"), "confidence": 95},
-                    "qty": {"value": item.get("quantity"), "confidence": 95},
-                    "unit": {"value": item.get("unit"), "confidence": 95},
-                    "rate": {"value": item.get("rate"), "confidence": 95},
+                    "qty": {"value": i_qty, "confidence": 95},
+                    "unit": {"value": item.get("unit") or "Nos", "confidence": 95},
+                    "rate": {"value": i_rate, "confidence": 95},
                     "discount_percent": {"value": item.get("discount_percent") or 0.0, "confidence": 95},
-                    "amount": {"value": item.get("taxable_amount") or item.get("total_amount") or 0.0, "confidence": 95},
-                    "gst_rate": {"value": item.get("gst_rate_percent") or 18.0, "confidence": 95}
+                    "amount": {"value": i_amt, "confidence": 95},
+                    "gst_rate": {"value": item.get("gst_rate_percent") or 0.0, "confidence": 95}
                 })
             items_res = {"line_items": raw_items}
 
@@ -1307,9 +1342,9 @@ class AgentOrchestrator:
                 i = 0
                 while i < len(lines):
                     line = lines[i]
-                    sl_m = re.match(r'^(\d{1,3})[\.\s]+([A-Za-z][A-Za-z0-9\s\.\-_&/\(\)]+)$', line)
+                    sl_m = re.match(r'^(\d{1,3})[\.\s]+([A-Za-z][A-Za-z0-9\s\.\-_&/\(\)\*#,%]+)$', line)
                     if sl_m:
-                        raw_name = sl_m.group(2).strip()
+                        raw_name = sl_m.group(2).strip().rstrip(',').strip()
                         if is_valid_item_row(raw_name) and raw_name.lower() not in ['description of goods', 'particulars', 'item']:
                             desc_parts = [raw_name]
                             qty, rate, amount, hsn, unit = 0.0, 0.0, 0.0, '', ''
@@ -1321,15 +1356,16 @@ class AgentOrchestrator:
                                     break
                                 if re.match(r'^(\d{1,3})[\.\s]+[A-Za-z]', sub):
                                     break
-                                q_m = re.match(r'^([\d,]+\.?\d*)\s*([A-Za-z]+)$', sub)
+                                q_m = re.match(r'^([\d,]+\.?\d*)\s*([A-Za-z\.]+)$', sub)
                                 if q_m and not qty:
                                     q_val = float(q_m.group(1).replace(',', ''))
-                                    unit_cand = q_m.group(2).strip()
-                                    if unit_cand.upper() in ['PCS', 'NOS', 'KGS', 'BOX', 'BAG', 'MTR', 'SET', 'PAC', 'UNT', 'ROL', 'BTL']:
+                                    unit_cand = re.sub(r'[^A-Za-z]', '', q_m.group(2).upper())
+                                    if unit_cand in ['PCS', 'NOS', 'KGS', 'BOX', 'BAG', 'BAGS', 'MTR', 'SET', 'PAC', 'UNT', 'ROL', 'BTL', 'PKT', 'LTR', 'QTL']:
                                         qty = q_val; unit = unit_cand
                                         j += 1; continue
-                                if sub.upper() in ['PCS', 'NOS', 'KGS', 'BOX', 'BAG', 'MTR', 'SET', 'PAC', 'UNT', 'ROL', 'BTL'] and not unit:
-                                    unit = sub.upper()
+                                clean_sub = re.sub(r'[^A-Za-z]', '', sub.upper())
+                                if clean_sub in ['PCS', 'NOS', 'KGS', 'BOX', 'BAG', 'BAGS', 'MTR', 'SET', 'PAC', 'UNT', 'ROL', 'BTL', 'PKT', 'LTR', 'QTL'] and not unit:
+                                    unit = clean_sub
                                     j += 1; continue
                                 if re.match(r'^\d{4,8}$', sub) and not hsn:
                                     hsn = sub
