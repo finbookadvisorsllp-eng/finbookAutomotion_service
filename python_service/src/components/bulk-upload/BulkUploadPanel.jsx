@@ -120,12 +120,17 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
   const [aiReviewDoc, setAiReviewDoc] = useState(null);
   const [duplicateUploadInfo, setDuplicateUploadInfo] = useState(null); // { file, tempId, existingDoc }
 
-  const isExcelFile = previewDoc && !ocrOnly && (
+  const isExcelFile = previewDoc && (
+    !ocrOnly || previewDoc.is_multi_invoice || (previewDoc.grouped_vouchers && previewDoc.grouped_vouchers.length > 1)
+  ) && (
     ['xlsx', 'xls', 'csv'].includes((previewDoc.name || '').split('.').pop().toLowerCase()) ||
     (previewDoc.document_type || previewDoc.type || '').toLowerCase().includes('bank statement') ||
     (previewDoc.category || '').toLowerCase().includes('bank statement') ||
     (previewDoc.name || '').toLowerCase().includes('statement') ||
-    (previewDoc.name || '').toLowerCase().includes('optransactionhistory')
+    (previewDoc.name || '').toLowerCase().includes('optransactionhistory') ||
+    (previewDoc.document_type || previewDoc.type || '').toLowerCase().includes('multi-invoice') ||
+    (previewDoc.grouped_vouchers && previewDoc.grouped_vouchers.length > 1) ||
+    Boolean(previewDoc.is_multi_invoice)
   );
 
 
@@ -251,20 +256,22 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
     }
   }, []);
 
-  // Polling for processing uploads
+  // Polling for processing uploads (only when not in manual review screen)
   useEffect(() => {
+    if (aiReviewDoc || previewDoc) return;
+
     const hasProcessing = documents.some(d => 
-      d.status && ['processing', 'uploading', 'ocr_running', 'ocr done', 'ai_running', 'layout_running', 'layout_complete', 'processing...'].includes(d.status.toLowerCase())
+      d.status && ['processing', 'uploading', 'ocr_running', 'ai_running', 'layout_running', 'processing...'].includes(d.status.toLowerCase())
     );
 
     if (!hasProcessing) return;
 
     const interval = setInterval(() => {
       fetchDocuments();
-    }, 3000);
+    }, 4000);
 
     return () => clearInterval(interval);
-  }, [documents, fetchDocuments]);
+  }, [documents, fetchDocuments, aiReviewDoc, previewDoc]);
 
   // Dynamic Validation Engine (0 hardcoded values)
   useEffect(() => {
@@ -593,6 +600,9 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
       activeUploadsRef.current[tempId] = true;
       setDocuments(prev => [initialDoc, ...prev]);
 
+      // Keep upload progress in the list view without premature auto-opening
+      // Once upload & AI extraction completes, document can be reviewed directly in Spreadsheet view
+
       if (isDoc) {
         // PDF/Image -> Call Real Backend Upload API!
         try {
@@ -600,7 +610,7 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
             if (activeUploadsRef.current[tempId]) {
               setDocuments(prev => prev.map(d => d.id === tempId ? { ...d, progress: progressPercent } : d));
             }
-          }, false, ocrOnly ? 'OCR Upload' : 'Manual Upload');
+          }, ocrOnly ? true : false, ocrOnly ? 'OCR Upload' : 'Manual Upload');
 
           if (!activeUploadsRef.current[tempId]) {
             if (res.success && res.upload_id) {
@@ -610,7 +620,7 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
           }
           delete activeUploadsRef.current[tempId];
 
-          if (res.success && res.duplicate_found) {
+          if (res.success && res.duplicate_found && !ocrOnly) {
             setDocuments(prev => prev.filter(d => d.id !== tempId));
             setDuplicateUploadInfo({
               file: file,
@@ -622,14 +632,15 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
 
           if (res.success) {
             const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api/v2';
-            const persistentFileUrl = `${baseUrl}/bulk-upload/file/${res.upload_id}`;
+            const realId = res.upload_id;
+            const persistentFileUrl = `${baseUrl}/bulk-upload/file/${realId}`;
 
             setDocuments(prev => prev.map(d => {
               if (d.id === tempId) {
                 return {
                   ...d,
-                  id: res.upload_id,
-                  uploadId: res.upload_id,
+                  id: realId,
+                  uploadId: realId,
                   status: 'Processing',
                   fileUrl: persistentFileUrl,
                   progress: undefined,
@@ -640,12 +651,32 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
               return d;
             }));
 
-            // Kick off OCR in the background — fire and forget.
-            // OcrManualReviewScreen will poll /ocr/progress for live status.
-            bulkUploadApi.processOcr(res.upload_id).catch((err) => {
-              console.error('Failed to start OCR process:', err);
+            // Sync open review screen with real upload ID
+            setAiReviewDoc(prev => {
+              if (prev && (prev.id === tempId || prev.uploadId === tempId)) {
+                return {
+                  ...prev,
+                  id: realId,
+                  uploadId: realId,
+                  fileUrl: persistentFileUrl,
+                  quality_check: res.quality_check,
+                  page_validation: res.page_validation
+                };
+              }
+              return prev;
             });
-            toast.success(`${file.name} uploaded! Click to review — AI extraction running in background.`);
+
+            // Update URL search param and session storage with real ID
+            try {
+              const url = new URL(window.location.href);
+              if (url.searchParams.get('docId') === tempId) {
+                url.searchParams.set('docId', realId);
+                window.history.replaceState({}, '', url.toString());
+                sessionStorage.setItem('active_bulk_upload_doc_id', realId);
+              }
+            } catch (e) {}
+
+            toast.success(`${file.name} uploaded! OCR & AI extraction running.`);
           }
         } catch (err) {
           console.error("Upload error", err);
@@ -941,22 +972,62 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
       }
     } catch (e) {}
 
-    const docTypeLower = (doc.document_type || doc.type || '').toLowerCase();
-    const docCatLower = (doc.category || '').toLowerCase();
-    const docNameLower = (doc.name || '').toLowerCase();
+    let finalDoc = docWithUrl;
+    let grid = doc.excelData || doc.excel_grid;
+    let groupedVouchers = doc.grouped_vouchers || doc.groupedVouchers || [];
+    let isMulti = Boolean(doc.is_multi_invoice);
+
+    // Fetch full document details from backend if real ID exists
+    if (doc.id && !doc.id.startsWith('DOC-')) {
+      try {
+        const res = await bulkUploadApi.getDocument(doc.id);
+        if (res.success && res.document) {
+          const fetched = res.document;
+          grid = fetched.excel_grid || fetched.excelData || grid;
+          groupedVouchers = fetched.grouped_vouchers || fetched.groupedVouchers || groupedVouchers;
+          isMulti = Boolean(fetched.is_multi_invoice) || (groupedVouchers && groupedVouchers.length > 1) || isMulti;
+          finalDoc = {
+            ...docWithUrl,
+            ...fetched,
+            is_multi_invoice: isMulti,
+            grouped_vouchers: groupedVouchers,
+            groupedVouchers: groupedVouchers,
+            excel_grid: grid,
+            excelData: grid,
+            validationResults: fetched.validation_results || fetched.validationResults || [],
+            validationSummary: fetched.validation_summary || fetched.validationSummary || {},
+            columnMapping: fetched.column_mapping || fetched.columnMapping || [],
+            type: fetched.document_type || fetched.type || (isMulti ? 'Multi-Invoice Batch' : doc.type),
+            document_type: fetched.document_type || (isMulti ? 'Multi-Invoice Batch' : doc.type)
+          };
+        }
+      } catch (e) {
+        console.error("Failed to fetch document detail from backend", e);
+      }
+    }
+
+    const docTypeLower = (finalDoc.document_type || finalDoc.type || '').toLowerCase();
+    const docCatLower = (finalDoc.category || '').toLowerCase();
+    const docNameLower = (finalDoc.name || '').toLowerCase();
+    const hasMultipleVouchers = (groupedVouchers && groupedVouchers.length > 1) ||
+                                (grid && grid.length > 2) ||
+                                Boolean(isMulti) ||
+                                docTypeLower.includes('multi-invoice');
+
     const isBankStatement = docTypeLower.includes('bank statement') ||
                             docCatLower.includes('bank statement') ||
                             docNameLower.includes('statement') ||
-                            docNameLower.includes('optransactionhistory');
+                            docNameLower.includes('optransactionhistory') ||
+                            hasMultipleVouchers;
 
-    if (ocrOnly || (['pdf', 'png', 'jpg', 'jpeg', 'webp', 'tiff'].includes(ext) && !isBankStatement)) {
+    // Single-voucher OCR documents (only if NOT multi-invoice/batch)
+    if (!hasMultipleVouchers && !isBankStatement && ['pdf', 'png', 'jpg', 'jpeg', 'webp', 'tiff'].includes(ext)) {
       setPreviewDoc(null);
-      setAiReviewDoc(docWithUrl);
-      setPreviewDoc(null);
+      setAiReviewDoc(finalDoc);
       return;
     }
 
-    // For Excel, CSV, or PDF Bank Statements -> Open Excel Grid View!
+    // For Multi-Invoice PDF batches, Excel, CSV, or Bank Statements -> Directly Open Spreadsheet Grid View!
     setAiReviewDoc(null);
     setOcrResult(null);
     setTableSearchQuery('');
@@ -966,32 +1037,9 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
     setAiIssues([]);
     setIgnoredIssueIds([]);
 
-    let finalDoc = docWithUrl;
-    let grid = doc.excelData || doc.excel_grid;
-    if ((!grid || !Array.isArray(grid) || grid.length < 2) && doc.id) {
-      try {
-        const res = await bulkUploadApi.getDocument(doc.id);
-        if (res.success && res.document) {
-          const fetched = res.document;
-          grid = fetched.excel_grid || fetched.excelData;
-          finalDoc = {
-            ...docWithUrl,
-            ...fetched,
-            validationResults: fetched.validation_results || fetched.validationResults || [],
-            validationSummary: fetched.validation_summary || fetched.validationSummary || {},
-            columnMapping: fetched.column_mapping || fetched.columnMapping || [],
-            type: fetched.document_type || fetched.type || (isBankStatement ? 'Bank Statement' : 'Accounting Spreadsheet'),
-            document_type: fetched.document_type || (isBankStatement ? 'Bank Statement' : 'Accounting Spreadsheet')
-          };
-        }
-      } catch (e) {
-        console.error("Failed to fetch document detail from backend", e);
-      }
-    }
-
     const defaultGrid = [
       ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'],
-      ['Voucher Date', 'Voucher Type', 'Particulars / Narration', 'Reference No', 'Debit (Dr)', 'Credit (Cr)', 'Party / Counterpart Ledger', 'Amount', 'Status']
+      ['Invoice Date', 'Party / Customer Name', 'Invoice Number', 'Voucher Type', 'Items Count', 'Taxable Value', 'GST Tax', 'Total Amount', 'Status']
     ];
 
     setAiReviewDoc(null);
@@ -2412,6 +2460,10 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
           doc={aiReviewDoc}
           isDark={isDark}
           onClose={handleCloseReview}
+          onOpenSpreadsheet={(docToOpen) => {
+            setAiReviewDoc(null);
+            handleOpenPreview(docToOpen || aiReviewDoc);
+          }}
           onSaveSuccess={() => {
             // Update the document in the list with the 'Validated' status
             setDocuments(prev => prev.map(d => {

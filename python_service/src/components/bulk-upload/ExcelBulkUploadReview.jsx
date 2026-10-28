@@ -4,7 +4,7 @@ import {
   Check, Edit2, SlidersHorizontal, Search, Filter, Sparkles, ChevronRight,
   CheckCircle2, AlertCircle, AlertTriangle, X, Database, Copy, ChevronDown,
   Info, Zap, FileText, Shield, BarChart2, Plus, Wand2, SkipForward, Eye,
-  Landmark, Wallet, Grid, ArrowRight, UserPlus, CheckSquare, Layers
+  Landmark, Wallet, Grid, ArrowRight, UserPlus, CheckSquare, Layers, BookOpen
 } from 'lucide-react';
 import { toast } from 'sonner';
 import useSalesStore from '../../stores/useSalesStore';
@@ -67,8 +67,41 @@ export default function ExcelBulkUploadReview({
   const isDark = useIsDark();
   const selectedCompany = useAppStore(s => s.selectedCompany);
 
-  // View state: 'grouped' (Vouchers View) vs 'all_rows' (Grid Table View)
-  const [viewTab, setViewTab] = useState('grouped');
+  // ── Document type ─────────────────────────────────────────────────────────
+  const isMultiInvoice = useMemo(() => {
+    return Boolean(
+      previewDoc.is_multi_invoice ||
+      previewDoc.document_type === 'Multi-Invoice Batch' ||
+      previewDoc.type === 'Multi-Invoice Batch'
+    );
+  }, [previewDoc]);
+
+  const docType = useMemo(() => {
+    if (previewDoc.is_multi_invoice || previewDoc.document_type === 'Multi-Invoice Batch' || previewDoc.type === 'Multi-Invoice Batch') {
+      return 'Multi-Invoice Batch';
+    }
+    if (previewDoc.type && previewDoc.type !== 'Unknown') return previewDoc.type;
+    if (previewDoc.document_type && previewDoc.document_type !== 'Unknown') return previewDoc.document_type;
+    const name = (previewDoc.name || '').toLowerCase();
+    if (name.includes('bank') || name.includes('statement') || name.includes('optransactionhistory') || name.includes('txn') || name.includes('passbook') || name.includes('history')) return 'Bank Statement';
+    if (name.includes('payment')) return 'Payment Voucher';
+    if (name.includes('receipt')) return 'Receipt Voucher';
+    if (name.includes('contra')) return 'Contra Voucher';
+    if (name.includes('purchase')) return 'Purchase Voucher';
+    if (Boolean(previewDoc.bank_statement_items || previewDoc.dynamic_schema?.bank_statement_items)) return 'Bank Statement';
+    return 'Sales Voucher';
+  }, [previewDoc]);
+
+  const isBankStatement = useMemo(() => {
+    if (isMultiInvoice) return false;
+    const dt = String(docType || '').toLowerCase();
+    const pdt = String(previewDoc.document_type || previewDoc.type || '').toLowerCase();
+    const nm = String(previewDoc.name || '').toLowerCase();
+    return dt.includes('bank') || dt.includes('statement') || pdt.includes('bank') || pdt.includes('statement') || nm.includes('statement') || nm.includes('optransactionhistory') || nm.includes('txn') || nm.includes('passbook') || Boolean(previewDoc.bank_statement_items || previewDoc.dynamic_schema?.bank_statement_items);
+  }, [docType, previewDoc, isMultiInvoice]);
+
+  // View state: 'by_ledger' (Group by Party / Ledger) vs 'grouped' (All Invoices / Transactions) vs 'all_rows' (Grid Table View)
+  const [viewTab, setViewTab] = useState(() => isBankStatement ? 'grouped' : 'by_ledger');
 
   // UI state
   const [selectedRowIndex, setSelectedRowIndex] = useState(null);
@@ -136,26 +169,7 @@ export default function ExcelBulkUploadReview({
     return buildColIdxMap(previewDoc.columnMapping || [], headers);
   }, [previewDoc.columnMapping, excelGridData]);
 
-  // ── Document type ─────────────────────────────────────────────────────────
-  const docType = useMemo(() => {
-    if (previewDoc.type && previewDoc.type !== 'Unknown') return previewDoc.type;
-    if (previewDoc.document_type && previewDoc.document_type !== 'Unknown') return previewDoc.document_type;
-    const name = (previewDoc.name || '').toLowerCase();
-    if (name.includes('bank') || name.includes('statement') || name.includes('optransactionhistory') || name.includes('txn') || name.includes('passbook') || name.includes('history')) return 'Bank Statement';
-    if (name.includes('payment')) return 'Payment Voucher';
-    if (name.includes('receipt')) return 'Receipt Voucher';
-    if (name.includes('contra')) return 'Contra Voucher';
-    if (name.includes('purchase')) return 'Purchase Voucher';
-    if ((previewDoc.grouped_vouchers && previewDoc.grouped_vouchers.length > 0) || (previewDoc.groupedVouchers && previewDoc.groupedVouchers.length > 0)) return 'Bank Statement';
-    return 'Sales Voucher';
-  }, [previewDoc]);
 
-  const isBankStatement = useMemo(() => {
-    const dt = String(docType || '').toLowerCase();
-    const pdt = String(previewDoc.document_type || previewDoc.type || '').toLowerCase();
-    const nm = String(previewDoc.name || '').toLowerCase();
-    return dt.includes('bank') || dt.includes('statement') || pdt.includes('bank') || pdt.includes('statement') || nm.includes('statement') || nm.includes('optransactionhistory') || nm.includes('txn') || nm.includes('passbook') || Boolean((previewDoc.grouped_vouchers && previewDoc.grouped_vouchers.length > 0) || (previewDoc.groupedVouchers && previewDoc.groupedVouchers.length > 0));
-  }, [docType, previewDoc]);
 
   // ── Grouped Vouchers computation ──────────────────────────────────────────
   const computedGroupedVouchers = useMemo(() => {
@@ -171,11 +185,11 @@ export default function ExcelBulkUploadReview({
 
     if (rawVouchers && Array.isArray(rawVouchers) && rawVouchers.length > 0) {
       return rawVouchers.map((v, i) => {
-        const vType = v.voucher_type || v.voucherType || (isBankStatement ? 'Payment Voucher' : docType);
+        const vType = v.voucher_type || v.voucherType || (isBankStatement ? 'Payment Voucher' : (isMultiInvoice ? 'Purchase Invoice' : docType));
         const isReceipt = vType.toLowerCase().includes('receipt') || String(v.raw_type || '').toUpperCase() === 'CR' || (v.credit > 0);
         const isPayment = vType.toLowerCase().includes('payment') || String(v.raw_type || '').toUpperCase() === 'DR' || (!isReceipt);
         const partyName = v.party_ledger || v.partyLedger || v.partyName || v.againstLedger || v.narration || 'Unspecified Party';
-        const totalAmount = v.totals?.total_amount || v.amount || v.totalAmount || (v.debit > 0 ? v.debit : v.credit) || 0;
+        const totalAmount = parseFloat(v.totalAmount || v.amount || v.totals?.total_amount || v.grand_total || (v.debit > 0 ? v.debit : v.credit) || 0) || 0;
         const refNo = v.invoice_number || v.ref_no || v.referenceNumber || v.refNo || `BS-${String(i + 1).padStart(4, '0')}`;
         const invDate = v.invoice_date || v.voucherDate || v.date || '';
 
@@ -189,9 +203,11 @@ export default function ExcelBulkUploadReview({
           isBankStatement: isBankStatement || Boolean(v.is_bank_statement),
           isReceipt,
           isPayment,
-          itemsCount: isBankStatement ? 1 : (v.items ? v.items.length : 1),
-          items: isBankStatement ? [] : (v.items || []),
+          itemsCount: (v.items && v.items.length) || (v.productLines && v.productLines.length) || 1,
+          items: v.items || v.productLines || [],
           totalAmount: totalAmount,
+          taxable_value: v.taxable_value || v.taxableAmount || totalAmount,
+          tax_amount: v.tax_amount || v.taxAmount || 0,
           status: v.status || 'Ready',
           narration: v.narration || '',
           instNumber: refNo,
@@ -202,7 +218,7 @@ export default function ExcelBulkUploadReview({
           creditAccount: isReceipt ? partyName : 'HDFC Bank Account',
           reconciliationStatus: v.reconciliation_status || (partyName && partyName !== 'Unspecified Party' ? 'Matched' : 'Needs Review'),
           confidence: v.confidence || 95,
-          aiReasoning: v.user_reasoning || v.review_reason || 'Bank Statement transaction extracted via AI'
+          aiReasoning: v.user_reasoning || v.review_reason || 'Extracted via AI'
         };
       });
     }
@@ -387,35 +403,122 @@ export default function ExcelBulkUploadReview({
 
   // Open Draft Form Modal Handler
   const handleOpenDraftModal = useCallback((vch) => {
-    if (vch.isBankStatement || isBankStatement || String(vch.voucherType).toLowerCase().includes('payment') || String(vch.voucherType).toLowerCase().includes('receipt')) {
-      const store = useFundFlowStore.getState();
-      const isReceipt = vch.isReceipt || String(vch.voucherType).toLowerCase().includes('receipt');
-      const ffVoucherType = isReceipt ? 'bank_payment' : 'cash_payment';
-      store.resetForm(ffVoucherType);
+    const isSales = String(vch.voucherType || '').toLowerCase().includes('sales');
+    const isPurchase = String(vch.voucherType || '').toLowerCase().includes('purchase');
 
-      const bankLedger = 'HDFC Bank Account';
-
-      store.setFormValue('againstLedger', bankLedger);
-      store.setFormValue('bankLedger', bankLedger);
-      store.setFormValue('transType', 'RTGS');
-      store.setFormValue('voucherDate', vch.date || '');
-      store.setFormValue('voucherNumber', vch.instNumber || vch.voucherNo || '');
-      store.setFormValue('narration', vch.narration || vch.partyName || '');
-      store.setFormValue('instNumber', vch.instNumber || '');
-      store.setFormValue('amount', vch.totalAmount || 0);
-
-      store.setFormValue('ledgerRows', [{
-        id: Date.now(),
-        ledgerName: vch.partyName || 'Suspense Account',
-        description: vch.narration || '',
-        amount: vch.totalAmount || 0,
-        costCenter: ''
-      }]);
-
-      setManualVoucherType('fundflow');
-      setManualVoucherDraft({ ...vch, isReceipt });
+    if (isSales) {
+      const store = useSalesStore.getState();
+      store.resetForm();
+      const productLines = (vch.items || vch.productLines || []).map((it, idx) => ({
+        id: Date.now() + idx,
+        srNo: idx + 1,
+        stockItem: it.stockItem || it.item_name || '',
+        description: it.description || '',
+        hsnSacCode: it.hsnSacCode || it.hsn_code || '',
+        billQuantity: parseFloat(it.billQuantity || it.quantity || it.qty || 1),
+        unit: it.unit || 'Nos',
+        billRate: parseFloat(it.billRate || it.rate || 0),
+        discountPercent: parseFloat(it.discountPercent || it.discount || 0),
+        amount: parseFloat(it.amount || it.taxable_amount || 0),
+        gstRate: parseFloat(it.gstRate || it.gst_rate || 0),
+        taxabilityType: 'Taxable'
+      }));
+      store.setForm({
+        voucherNumber: vch.voucherNo || vch.invoice_number || '',
+        voucherDate: vch.date || '',
+        partyLedger: vch.partyName || vch.matchedMaster || '',
+        totalAmount: parseFloat(vch.totalAmount || vch.amount || 0),
+        productLines: productLines.length > 0 ? productLines : [{
+          id: Date.now(),
+          srNo: 1,
+          stockItem: 'General Goods/Services',
+          billQuantity: 1,
+          unit: 'Nos',
+          billRate: parseFloat(vch.totalAmount || 0),
+          amount: parseFloat(vch.totalAmount || 0),
+          gstRate: 18
+        }],
+        voucherType: 'sales_invoice',
+        entryMode: 'ocr'
+      });
+      setManualVoucherType('sales');
+      setManualVoucherDraft(vch);
       setShowManualFormModal(true);
+      return;
     }
+    if (isPurchase) {
+      const store = usePurchaseStore.getState();
+      store.resetForm('purchase_invoice');
+      const productLines = (vch.items || vch.productLines || []).map((it, idx) => ({
+        id: Date.now() + idx,
+        srNo: idx + 1,
+        stockItem: it.stockItem || it.item_name || '',
+        description: it.description || '',
+        hsnSacCode: it.hsnSacCode || it.hsn_code || '',
+        billQuantity: parseFloat(it.billQuantity || it.quantity || it.qty || 1),
+        unit: it.unit || 'Nos',
+        billRate: parseFloat(it.billRate || it.rate || 0),
+        discountPercent: parseFloat(it.discountPercent || it.discount || 0),
+        amount: parseFloat(it.amount || it.taxable_amount || 0),
+        gstRate: parseFloat(it.gstRate || it.gst_rate || 0),
+        taxabilityType: 'Taxable'
+      }));
+      store.updateForm({
+        invoiceNumber: vch.voucherNo || vch.invoice_number || '',
+        invoiceDate: vch.date || '',
+        supplierLedger: vch.partyName || vch.matchedMaster || '',
+        totalAmount: parseFloat(vch.totalAmount || vch.amount || 0),
+        productLines: productLines.length > 0 ? productLines : [{
+          id: Date.now(),
+          srNo: 1,
+          stockItem: 'General Goods/Services',
+          billQuantity: 1,
+          unit: 'Nos',
+          billRate: parseFloat(vch.totalAmount || 0),
+          amount: parseFloat(vch.totalAmount || 0),
+          gstRate: 18
+        }],
+        voucherType: 'purchase_invoice',
+        entryMode: 'ocr'
+      });
+      setManualVoucherType('purchase');
+      setManualVoucherDraft(vch);
+      setShowManualFormModal(true);
+      return;
+    }
+
+    const store = useFundFlowStore.getState();
+    const isReceipt = vch.isReceipt || String(vch.voucherType).toLowerCase().includes('receipt') || parseFloat(vch.credit) > 0;
+    const ffVoucherType = isReceipt ? 'bank_payment' : 'cash_payment';
+    store.resetForm(ffVoucherType);
+
+    const bankLedger = (vch.debitAccount && vch.debitAccount.toLowerCase().includes('bank')) 
+      ? vch.debitAccount 
+      : (vch.creditAccount && vch.creditAccount.toLowerCase().includes('bank')) 
+        ? vch.creditAccount 
+        : 'HDFC Bank Account';
+
+    store.setFormValue('againstLedger', bankLedger);
+    store.setFormValue('bankLedger', bankLedger);
+    store.setFormValue('transType', 'RTGS');
+    store.setFormValue('voucherDate', vch.date || '');
+    store.setFormValue('voucherNumber', vch.instNumber || vch.voucherNo || '');
+    store.setFormValue('narration', vch.narration || vch.partyName || '');
+    store.setFormValue('instNumber', vch.instNumber || '');
+    const amountVal = vch.totalAmount || vch.amount || (parseFloat(vch.debit) || 0) + (parseFloat(vch.credit) || 0);
+    store.setFormValue('amount', amountVal);
+
+    store.setFormValue('ledgerRows', [{
+      id: Date.now(),
+      ledgerName: vch.partyName || vch.matchedMaster || 'Suspense Account',
+      description: vch.narration || '',
+      amount: amountVal,
+      costCenter: ''
+    }]);
+
+    setManualVoucherType('fundflow');
+    setManualVoucherDraft({ ...vch, isReceipt });
+    setShowManualFormModal(true);
   }, [isBankStatement]);
 
   const rawIssues = previewDoc.validationResults || previewDoc.validation_results || [];
@@ -465,6 +568,84 @@ export default function ExcelBulkUploadReview({
       return true;
     });
   }, [activeVouchersList, tableSearchQuery, statusFilter]);
+
+  // Ledger Grouping State & Methods
+  const [expandedLedgers, setExpandedLedgers] = useState(new Set());
+
+  const groupedByLedger = useMemo(() => {
+    const map = new Map();
+    filteredGroupedVouchers.forEach((vch, originalIdx) => {
+      const rawKey = (vch.partyName || vch.matchedMaster || 'Unspecified Ledger').trim();
+      const key = rawKey || 'Unspecified Ledger';
+      if (!map.has(key)) {
+        map.set(key, {
+          ledgerName: key,
+          vouchers: [],
+          totalDebit: 0,
+          totalCredit: 0,
+          totalAmount: 0,
+          receiptsCount: 0,
+          paymentsCount: 0,
+          contraCount: 0
+        });
+      }
+      const entry = map.get(key);
+      entry.vouchers.push({ ...vch, originalIdx });
+      const dr = parseFloat(vch.debit) || 0;
+      const cr = parseFloat(vch.credit) || 0;
+      const amt = parseFloat(vch.totalAmount || vch.amount) || (dr > 0 ? dr : cr) || 0;
+      entry.totalDebit += dr;
+      entry.totalCredit += cr;
+      entry.totalAmount += amt;
+
+      const vType = String(vch.voucherType || '').toLowerCase();
+      if (vType.includes('sales') || vType.includes('receipt') || vch.isReceipt || cr > 0) {
+        entry.receiptsCount += 1;
+      } else if (vType.includes('purchase') || vType.includes('payment') || vch.isPayment || dr > 0) {
+        entry.paymentsCount += 1;
+      } else {
+        entry.contraCount += 1;
+      }
+    });
+
+    Array.from(map.values()).forEach(entry => {
+      entry.vouchers.sort((a, b) => {
+        const da = new Date(a.date || 0).getTime() || 0;
+        const db = new Date(b.date || 0).getTime() || 0;
+        return da - db;
+      });
+    });
+
+    return Array.from(map.values()).sort((a, b) => b.totalAmount - a.totalAmount);
+  }, [filteredGroupedVouchers]);
+
+  // Invoice Items Expand/Collapse State
+  const [expandedInvoices, setExpandedInvoices] = useState(new Set());
+  const toggleExpandInvoice = useCallback((invId) => {
+    setExpandedInvoices(prev => {
+      const next = new Set(prev);
+      if (next.has(invId)) next.delete(invId);
+      else next.add(invId);
+      return next;
+    });
+  }, []);
+
+  const toggleExpandLedger = useCallback((ledgerName) => {
+    setExpandedLedgers(prev => {
+      const next = new Set(prev);
+      if (next.has(ledgerName)) next.delete(ledgerName);
+      else next.add(ledgerName);
+      return next;
+    });
+  }, []);
+
+  const handleExpandAllLedgers = useCallback(() => {
+    setExpandedLedgers(new Set(groupedByLedger.map(g => g.ledgerName)));
+  }, [groupedByLedger]);
+
+  const handleCollapseAllLedgers = useCallback(() => {
+    setExpandedLedgers(new Set());
+  }, []);
 
   return (
     <div className="flex-grow flex flex-col overflow-hidden bg-slate-50 dark:bg-[#121216] text-slate-800 dark:text-slate-200 h-full">
@@ -531,13 +712,21 @@ export default function ExcelBulkUploadReview({
         </div>
 
         <div className="bg-white dark:bg-[#191922] border border-slate-200 dark:border-slate-800/80 p-2 rounded-lg flex flex-col justify-center shadow-3xs border-l-2 border-l-indigo-500">
-          <span className="text-[8px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">Total Transactions</span>
-          <span className="text-[11px] font-black text-indigo-600 dark:text-indigo-400 font-mono">{activeVouchersList.length} Extracted</span>
+          <span className="text-[8px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">
+            {isBankStatement ? 'Total Transactions' : 'Total Invoices'}
+          </span>
+          <span className="text-[11px] font-black text-indigo-600 dark:text-indigo-400 font-mono">
+            {activeVouchersList.length} Extracted
+          </span>
         </div>
 
         <div className="bg-white dark:bg-[#191922] border border-slate-200 dark:border-slate-800/80 p-2 rounded-lg flex flex-col justify-center shadow-3xs border-l-2 border-l-emerald-500">
-          <span className="text-[8px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">Valid Vouchers</span>
-          <span className="text-[11px] font-black text-emerald-600 dark:text-emerald-400 font-mono">{activeVouchersList.length}</span>
+          <span className="text-[8px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">
+            {isBankStatement ? 'Valid Vouchers' : 'Unique Parties'}
+          </span>
+          <span className="text-[11px] font-black text-emerald-600 dark:text-emerald-400 font-mono">
+            {isBankStatement ? activeVouchersList.length : groupedByLedger.length}
+          </span>
         </div>
 
         <div className="bg-white dark:bg-[#191922] border border-slate-200 dark:border-slate-800/80 p-2 rounded-lg flex flex-col justify-center shadow-3xs border-l-2 border-l-amber-500">
@@ -547,19 +736,39 @@ export default function ExcelBulkUploadReview({
           </span>
         </div>
 
-        <div className="bg-white dark:bg-[#191922] border border-slate-200 dark:border-slate-800/80 p-2 rounded-lg flex flex-col justify-center shadow-3xs border-l-2 border-l-purple-500">
-          <span className="text-[8px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">Receipts (Money In)</span>
-          <span className="text-[11px] font-black text-purple-600 dark:text-purple-400 font-mono">
-            {activeVouchersList.filter(v => v.isReceipt).length}
-          </span>
-        </div>
+        {isBankStatement ? (
+          <>
+            <div className="bg-white dark:bg-[#191922] border border-slate-200 dark:border-slate-800/80 p-2 rounded-lg flex flex-col justify-center shadow-3xs border-l-2 border-l-purple-500">
+              <span className="text-[8px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">Receipts (Money In)</span>
+              <span className="text-[11px] font-black text-purple-600 dark:text-purple-400 font-mono">
+                {activeVouchersList.filter(v => v.isReceipt).length}
+              </span>
+            </div>
 
-        <div className="bg-white dark:bg-[#191922] border border-slate-200 dark:border-slate-800/80 p-2 rounded-lg flex flex-col justify-center shadow-3xs border-l-2 border-l-rose-500">
-          <span className="text-[8px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">Payments (Money Out)</span>
-          <span className="text-[11px] font-black text-rose-600 dark:text-rose-400 font-mono">
-            {activeVouchersList.filter(v => !v.isReceipt).length}
-          </span>
-        </div>
+            <div className="bg-white dark:bg-[#191922] border border-slate-200 dark:border-slate-800/80 p-2 rounded-lg flex flex-col justify-center shadow-3xs border-l-2 border-l-rose-500">
+              <span className="text-[8px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">Payments (Money Out)</span>
+              <span className="text-[11px] font-black text-rose-600 dark:text-rose-400 font-mono">
+                {activeVouchersList.filter(v => !v.isReceipt).length}
+              </span>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="bg-white dark:bg-[#191922] border border-slate-200 dark:border-slate-800/80 p-2 rounded-lg flex flex-col justify-center shadow-3xs border-l-2 border-l-purple-500">
+              <span className="text-[8px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">Taxable Value</span>
+              <span className="text-[11px] font-black text-purple-600 dark:text-purple-400 font-mono">
+                ₹ {activeVouchersList.reduce((acc, v) => acc + (parseFloat(v.taxable_value || v.totalAmount) || 0), 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              </span>
+            </div>
+
+            <div className="bg-white dark:bg-[#191922] border border-slate-200 dark:border-slate-800/80 p-2 rounded-lg flex flex-col justify-center shadow-3xs border-l-2 border-l-indigo-500">
+              <span className="text-[8px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">Total GST Tax</span>
+              <span className="text-[11px] font-black text-indigo-600 dark:text-indigo-400 font-mono">
+                ₹ {activeVouchersList.reduce((acc, v) => acc + (parseFloat(v.tax_amount) || 0), 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              </span>
+            </div>
+          </>
+        )}
 
         <div className="bg-white dark:bg-[#191922] border border-slate-200 dark:border-slate-800/80 p-2 rounded-lg flex flex-col justify-center shadow-3xs border-l-2 border-l-teal-500">
           <span className="text-[8px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">Total Value</span>
@@ -584,12 +793,39 @@ export default function ExcelBulkUploadReview({
           <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-2.5 border-b border-slate-200 dark:border-slate-800/80 bg-white dark:bg-[#191922] shrink-0">
             <div className="flex items-center gap-2">
               <div className="flex items-center bg-slate-100 dark:bg-slate-800/60 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700/60">
-                <button
-                  onClick={() => setViewTab('grouped')}
-                  className={`h-7 px-3 rounded-md text-[11px] font-black transition cursor-pointer border-none ${viewTab === 'grouped' ? 'bg-indigo-600 text-white shadow-2xs' : 'text-slate-600 dark:text-slate-400 bg-transparent'}`}
-                >
-                  Bank Transactions ({activeVouchersList.length})
-                </button>
+                {!isBankStatement ? (
+                  <>
+                    <button
+                      onClick={() => setViewTab('by_ledger')}
+                      className={`h-7 px-3 rounded-md text-[11px] font-black transition cursor-pointer border-none flex items-center gap-1.5 ${viewTab === 'by_ledger' ? 'bg-indigo-600 text-white shadow-2xs' : 'text-slate-600 dark:text-slate-400 bg-transparent'}`}
+                    >
+                      <Layers size={11} />
+                      <span>Group by Party / Ledger ({groupedByLedger.length})</span>
+                    </button>
+                    <button
+                      onClick={() => setViewTab('grouped')}
+                      className={`h-7 px-3 rounded-md text-[11px] font-black transition cursor-pointer border-none ${viewTab === 'grouped' ? 'bg-indigo-600 text-white shadow-2xs' : 'text-slate-600 dark:text-slate-400 bg-transparent'}`}
+                    >
+                      All Invoices ({activeVouchersList.length})
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => setViewTab('grouped')}
+                      className={`h-7 px-3 rounded-md text-[11px] font-black transition cursor-pointer border-none ${viewTab === 'grouped' ? 'bg-indigo-600 text-white shadow-2xs' : 'text-slate-600 dark:text-slate-400 bg-transparent'}`}
+                    >
+                      Bank Transactions ({activeVouchersList.length})
+                    </button>
+                    <button
+                      onClick={() => setViewTab('by_ledger')}
+                      className={`h-7 px-3 rounded-md text-[11px] font-black transition cursor-pointer border-none flex items-center gap-1.5 ${viewTab === 'by_ledger' ? 'bg-indigo-600 text-white shadow-2xs' : 'text-slate-600 dark:text-slate-400 bg-transparent'}`}
+                    >
+                      <Layers size={11} />
+                      <span>Group by Ledger ({groupedByLedger.length})</span>
+                    </button>
+                  </>
+                )}
                 <button
                   onClick={() => setViewTab('all_rows')}
                   className={`h-7 px-3 rounded-md text-[11px] font-black transition cursor-pointer border-none ${viewTab === 'all_rows' ? 'bg-indigo-600 text-white shadow-2xs' : 'text-slate-600 dark:text-slate-400 bg-transparent'}`}
@@ -637,165 +873,634 @@ export default function ExcelBulkUploadReview({
 
           {/* ── Table Grid ─────────────────────────────────────────────────── */}
           <div className="flex-1 overflow-auto bg-white dark:bg-[#121216] rounded-b-xl themed-scrollbar">
-            {viewTab === 'grouped' ? (
+            {viewTab === 'by_ledger' ? (
+              <div className="p-4 flex flex-col gap-3 min-w-[1000px]">
+                {/* Top Ledger Toolbar */}
+                <div className="flex items-center justify-between px-3 py-2 bg-slate-50 dark:bg-slate-900/60 rounded-lg border border-slate-200/80 dark:border-slate-800 text-xs shrink-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-extrabold text-slate-800 dark:text-slate-200">
+                      Showing {groupedByLedger.length} Distinct Ledgers
+                    </span>
+                    <span className="text-[10.5px] text-slate-400 font-semibold">
+                      ({filteredGroupedVouchers.length} Total Entries)
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleExpandAllLedgers}
+                      className="px-2.5 py-1 text-[10.5px] font-bold rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition cursor-pointer shadow-3xs"
+                    >
+                      Expand All
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCollapseAllLedgers}
+                      className="px-2.5 py-1 text-[10.5px] font-bold rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition cursor-pointer shadow-3xs"
+                    >
+                      Collapse All
+                    </button>
+                  </div>
+                </div>
+
+                {/* Ledger Cards Accordion */}
+                {groupedByLedger.length > 0 ? (
+                  groupedByLedger.map((group) => {
+                    const isExpanded = expandedLedgers.has(group.ledgerName);
+                    return (
+                      <div
+                        key={group.ledgerName}
+                        className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-white dark:bg-[#181824] shadow-2xs transition"
+                      >
+                        {/* Ledger Accordion Header */}
+                        <div
+                          onClick={() => toggleExpandLedger(group.ledgerName)}
+                          className="px-4 py-3 bg-slate-50/80 hover:bg-slate-100/80 dark:bg-[#1f1f2b] dark:hover:bg-[#252535] cursor-pointer flex items-center justify-between gap-4 transition select-none border-b border-slate-100 dark:border-slate-800/60"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <button
+                              type="button"
+                              className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 transition border-none bg-transparent"
+                            >
+                              {isExpanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+                            </button>
+                            <div className="flex items-center gap-2 min-w-0">
+                              <div className="w-7 h-7 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-xs shrink-0 border border-indigo-200/50">
+                                <BookOpen size={14} />
+                              </div>
+                              <div className="flex flex-col min-w-0">
+                                <span className="font-extrabold text-xs text-slate-900 dark:text-slate-100 truncate">
+                                  {group.ledgerName}
+                                </span>
+                                <span className="text-[10px] text-slate-400 font-medium">
+                                  Master Ledger
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-1.5 ml-2">
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200/70 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                                {group.vouchers.length} {group.vouchers.length === 1 ? 'Entry' : 'Entries'}
+                              </span>
+                              {group.receiptsCount > 0 && (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-350 border border-emerald-200/50">
+                                  {group.receiptsCount} Receipts (Cr)
+                                </span>
+                              )}
+                              {group.paymentsCount > 0 && (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-350 border border-rose-200/50">
+                                  {group.paymentsCount} Payments (Dr)
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Amounts & Volume */}
+                          <div className="flex items-center gap-6 shrink-0 font-mono text-xs">
+                            {group.totalDebit > 0 && (
+                              <div className="flex flex-col items-end">
+                                <span className="text-[9px] uppercase font-bold text-slate-400 font-sans">Debit (Dr)</span>
+                                <span className="font-black text-rose-600 dark:text-rose-400">
+                                  ₹ {group.totalDebit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                </span>
+                              </div>
+                            )}
+                            {group.totalCredit > 0 && (
+                              <div className="flex flex-col items-end">
+                                <span className="text-[9px] uppercase font-bold text-slate-400 font-sans">Credit (Cr)</span>
+                                <span className="font-black text-emerald-600 dark:text-emerald-400">
+                                  ₹ {group.totalCredit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                </span>
+                              </div>
+                            )}
+                            <div className="flex flex-col items-end pl-3 border-l border-slate-200 dark:border-slate-800">
+                              <span className="text-[9px] uppercase font-bold text-indigo-500 font-sans">Total Volume</span>
+                              <span className="font-black text-slate-900 dark:text-slate-100 text-[13px]">
+                                ₹ {group.totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Ledger Nested Entries Table */}
+                        {isExpanded && (
+                          <div className="p-0 bg-white dark:bg-[#14141c] overflow-x-auto">
+                            <table className="w-full text-left text-xs border-collapse">
+                              <thead>
+                                <tr className="bg-slate-100/70 dark:bg-[#1a1a24] text-[9.5px] uppercase font-bold text-slate-500 dark:text-slate-400 border-b border-slate-200/70 dark:border-slate-800">
+                                  <th className="py-2 px-3 w-24">Date</th>
+                                  <th className="py-2 px-3 w-28">{isBankStatement ? 'Ref / UTR No' : 'Invoice No'}</th>
+                                  <th className="py-2 px-3 min-w-[200px]">{isBankStatement ? 'Description / Narration' : 'Particulars / Goods'}</th>
+                                  <th className="py-2 px-3 w-32">Voucher Type</th>
+                                  {isBankStatement ? (
+                                    <>
+                                      <th className="py-2 px-3 text-right w-24">Debit (₹)</th>
+                                      <th className="py-2 px-3 text-right w-24">Credit (₹)</th>
+                                      <th className="py-2 px-3 min-w-[130px]">Debit Account</th>
+                                      <th className="py-2 px-3 min-w-[130px]">Credit Account</th>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <th className="py-2 px-3 text-right w-24">Taxable (₹)</th>
+                                      <th className="py-2 px-3 text-right w-24">GST Tax (₹)</th>
+                                      <th className="py-2 px-3 text-right w-28">Total Amount (₹)</th>
+                                    </>
+                                  )}
+                                  <th className="py-2 px-3 text-center w-24">Status</th>
+                                  <th className="py-2 px-3 text-center w-28">Action</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100 dark:divide-slate-850">
+                                {group.vouchers.map((vch, vIdx) => {
+                                  const isReceipt = vch.isReceipt || vch.credit > 0;
+                                  const invKey = vch.id || `inv-${vIdx}`;
+                                  const hasItems = vch.items && vch.items.length > 0;
+                                  const isInvExpanded = expandedInvoices.has(invKey);
+
+                                  return (
+                                    <React.Fragment key={invKey}>
+                                      <tr
+                                        className="hover:bg-slate-50/80 dark:hover:bg-slate-900/40 transition h-10"
+                                      >
+                                        <td className="py-1.5 px-3 font-mono text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                                          <div className="flex items-center gap-1.5">
+                                            {hasItems && (
+                                              <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  toggleExpandInvoice(invKey);
+                                                }}
+                                                className="p-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 cursor-pointer border-none bg-transparent"
+                                                title="Toggle line items breakdown"
+                                              >
+                                                {isInvExpanded ? <ChevronDown size={12} className="text-indigo-600" /> : <ChevronRight size={12} />}
+                                              </button>
+                                            )}
+                                            <span>{vch.date || '--'}</span>
+                                          </div>
+                                        </td>
+                                        <td className="py-1.5 px-3 font-mono text-[10.5px] text-slate-600 dark:text-slate-300 font-bold">
+                                          {vch.instNumber || vch.voucherNo || '--'}
+                                        </td>
+                                        <td className="py-1.5 px-3 text-[11px] font-medium text-slate-800 dark:text-slate-200 truncate max-w-xs" title={vch.narration}>
+                                          <div className="flex items-center gap-1.5">
+                                            <span className="truncate">{vch.narration || vch.partyName || '--'}</span>
+                                            {hasItems && (
+                                              <button
+                                                type="button"
+                                                onClick={() => toggleExpandInvoice(invKey)}
+                                                className="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-300 border border-indigo-200/50 shrink-0 cursor-pointer hover:bg-indigo-100"
+                                              >
+                                                {vch.items.length} items
+                                              </button>
+                                            )}
+                                          </div>
+                                        </td>
+                                        <td className="py-1.5 px-3">
+                                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${
+                                            isReceipt
+                                              ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-350'
+                                              : 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-350'
+                                          }`}>
+                                            {vch.voucherType || (isReceipt ? 'Receipt' : 'Payment')}
+                                          </span>
+                                        </td>
+                                        {isBankStatement ? (
+                                          <>
+                                            <td className="py-1.5 px-3 text-right font-mono font-bold text-rose-600 dark:text-rose-400">
+                                              {vch.debit > 0 ? `₹ ${parseFloat(vch.debit).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '-'}
+                                            </td>
+                                            <td className="py-1.5 px-3 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                                              {vch.credit > 0 ? `₹ ${parseFloat(vch.credit).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '-'}
+                                            </td>
+                                            <td className="py-1.5 px-3 text-[10.5px] text-slate-600 dark:text-slate-400 truncate max-w-[120px]">
+                                              {vch.debitAccount || '--'}
+                                            </td>
+                                            <td className="py-1.5 px-3 text-[10.5px] text-slate-600 dark:text-slate-400 truncate max-w-[120px]">
+                                              {vch.creditAccount || '--'}
+                                            </td>
+                                          </>
+                                        ) : (
+                                          <>
+                                            <td className="py-1.5 px-3 text-right font-mono font-bold text-slate-700 dark:text-slate-300">
+                                              ₹ {parseFloat(vch.taxable_value || vch.totalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                            </td>
+                                            <td className="py-1.5 px-3 text-right font-mono font-bold text-indigo-600 dark:text-indigo-400">
+                                              ₹ {parseFloat(vch.tax_amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                            </td>
+                                            <td className="py-1.5 px-3 text-right font-mono font-black text-slate-900 dark:text-slate-100">
+                                              ₹ {parseFloat(vch.totalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                            </td>
+                                          </>
+                                        )}
+                                        <td className="py-1.5 px-3 text-center">
+                                          <span className="inline-flex items-center gap-1 text-[9.5px] font-bold text-emerald-600 dark:text-emerald-400">
+                                            <CheckCircle2 size={10} />
+                                            <span>{vch.reconciliationStatus || 'Ready'}</span>
+                                          </span>
+                                        </td>
+                                        <td className="py-1.5 px-3 text-center">
+                                          <button
+                                            type="button"
+                                            onClick={() => handleOpenDraftModal(vch)}
+                                            className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 rounded-md text-[10.5px] font-bold transition cursor-pointer shadow-3xs"
+                                            title="Click to view & edit full voucher details"
+                                          >
+                                            <Eye size={11} />
+                                            <span>Details</span>
+                                          </button>
+                                        </td>
+                                      </tr>
+
+                                      {/* Sub-table: Line Items Breakdown */}
+                                      {isInvExpanded && hasItems && (
+                                        <tr className="bg-indigo-50/15 dark:bg-indigo-950/20 border-b border-indigo-100 dark:border-indigo-900/50">
+                                          <td colSpan={10} className="py-2.5 px-6">
+                                            <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#191925] p-3 shadow-inner">
+                                              <div className="text-[10px] font-black uppercase text-indigo-600 dark:text-indigo-400 mb-2 flex items-center justify-between">
+                                                <span className="flex items-center gap-1.5">
+                                                  <span>Line Items Breakdown</span>
+                                                  <span className="px-1.5 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900/50 text-[9px] font-mono">
+                                                    {vch.items.length} {vch.items.length === 1 ? 'item' : 'items'}
+                                                  </span>
+                                                </span>
+                                                <span className="font-mono text-slate-500 text-[10px]">
+                                                  Invoice: <b>{vch.instNumber || vch.voucherNo}</b> ({vch.date})
+                                                </span>
+                                              </div>
+                                              <table className="w-full text-[10.5px] border-collapse">
+                                                <thead>
+                                                  <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-400 font-bold uppercase text-[9px]">
+                                                    <th className="py-1 px-2 text-left w-8">#</th>
+                                                    <th className="py-1 px-2 text-left min-w-[160px]">Stock Item Name</th>
+                                                    <th className="py-1 px-2 text-left w-24">HSN/SAC</th>
+                                                    <th className="py-1 px-2 text-right w-24">Quantity</th>
+                                                    <th className="py-1 px-2 text-right w-24">Rate (₹)</th>
+                                                    <th className="py-1 px-2 text-right w-20">GST Rate</th>
+                                                    <th className="py-1 px-2 text-right w-28">Amount (₹)</th>
+                                                  </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-100 dark:divide-slate-850 font-mono">
+                                                  {vch.items.map((it, itIdx) => (
+                                                    <tr key={itIdx} className="hover:bg-slate-50 dark:hover:bg-slate-900/50">
+                                                      <td className="py-1 px-2 text-slate-400 font-sans">{itIdx + 1}</td>
+                                                      <td className="py-1 px-2 font-sans font-semibold text-slate-800 dark:text-slate-200">{it.stockItem || it.item_name || '--'}</td>
+                                                      <td className="py-1 px-2 text-slate-500">{it.hsnSacCode || it.hsn_code || '--'}</td>
+                                                      <td className="py-1 px-2 text-right">{it.billQuantity || it.quantity || it.qty || 1} {it.unit || 'Nos'}</td>
+                                                      <td className="py-1 px-2 text-right">₹ {parseFloat(it.billRate || it.rate || 0).toFixed(2)}</td>
+                                                      <td className="py-1 px-2 text-right">{it.gstRate || it.gst_rate || 0}%</td>
+                                                      <td className="py-1 px-2 text-right font-black text-slate-900 dark:text-slate-100">
+                                                        ₹ {parseFloat(it.amount || it.taxable_amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                                      </td>
+                                                    </tr>
+                                                  ))}
+                                                </tbody>
+                                              </table>
+                                            </div>
+                                          </td>
+                                        </tr>
+                                      )}
+                                    </React.Fragment>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="py-12 text-center text-slate-400 font-semibold">
+                    <Layers size={24} className="text-slate-300 mx-auto mb-2" />
+                    <span>No ledger entries found matching current filter.</span>
+                  </div>
+                )}
+              </div>
+            ) : viewTab === 'grouped' ? (
               <table className="w-full border-collapse text-left text-slate-700 dark:text-slate-350 text-xs min-w-[1250px]">
                 <thead>
                   <tr className="bg-slate-50/90 dark:bg-[#1f1f2a] border-b border-slate-200 dark:border-slate-800 text-[10px] text-slate-550 dark:text-slate-400 font-bold uppercase tracking-wider h-9 sticky top-0 z-10 select-none">
                     <th className="py-1.5 px-3 font-extrabold w-24">DATE</th>
-                    <th className="py-1.5 px-3 font-extrabold min-w-[200px]">DESCRIPTION / NARRATION</th>
-                    <th className="py-1.5 px-3 font-extrabold w-28">REF / UTR NO</th>
-                    <th className="py-1.5 px-3 font-extrabold text-right w-24">DEBIT (₹)</th>
-                    <th className="py-1.5 px-3 font-extrabold text-right w-24">CREDIT (₹)</th>
-                    <th className="py-1.5 px-3 font-extrabold min-w-[200px]">MATCHED MASTER LEDGER</th>
+                    <th className="py-1.5 px-3 font-extrabold w-32">{isBankStatement ? 'REF / UTR NO' : 'INVOICE NO'}</th>
+                    <th className="py-1.5 px-3 font-extrabold min-w-[200px]">{isBankStatement ? 'DESCRIPTION / NARRATION' : 'PARTY / CUSTOMER LEDGER'}</th>
                     <th className="py-1.5 px-3 font-extrabold w-36">VOUCHER TYPE</th>
-                    <th className="py-1.5 px-3 font-extrabold min-w-[150px]">DEBIT ACCOUNT</th>
-                    <th className="py-1.5 px-3 font-extrabold min-w-[150px]">CREDIT ACCOUNT</th>
-                    <th className="py-1.5 px-3 font-extrabold text-center w-28">STATUS</th>
-                    <th className="py-1.5 px-3 font-extrabold text-center w-28">CONFIDENCE</th>
+                    {!isBankStatement && (
+                      <th className="py-1.5 px-3 font-extrabold text-center w-24">ITEMS</th>
+                    )}
+                    {isBankStatement ? (
+                      <>
+                        <th className="py-1.5 px-3 font-extrabold text-right w-24">DEBIT (₹)</th>
+                        <th className="py-1.5 px-3 font-extrabold text-right w-24">CREDIT (₹)</th>
+                        <th className="py-1.5 px-3 font-extrabold min-w-[200px]">MATCHED MASTER LEDGER</th>
+                        <th className="py-1.5 px-3 font-extrabold min-w-[150px]">DEBIT ACCOUNT</th>
+                        <th className="py-1.5 px-3 font-extrabold min-w-[150px]">CREDIT ACCOUNT</th>
+                      </>
+                    ) : (
+                      <>
+                        <th className="py-1.5 px-3 font-extrabold text-right w-28">TAXABLE (₹)</th>
+                        <th className="py-1.5 px-3 font-extrabold text-right w-24">GST (₹)</th>
+                        <th className="py-1.5 px-3 font-extrabold text-right w-28">TOTAL AMOUNT (₹)</th>
+                      </>
+                    )}
+                    <th className="py-1.5 px-3 font-extrabold text-center w-24">STATUS</th>
+                    <th className="py-1.5 px-3 font-extrabold text-center w-24">CONFIDENCE</th>
+                    <th className="py-1.5 px-3 font-extrabold text-center w-20">DETAILS</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-150 dark:divide-slate-850 font-sans">
                   {filteredGroupedVouchers.length > 0 ? (
                     filteredGroupedVouchers.map((vch, idx) => {
                       const isReceipt = vch.isReceipt || vch.credit > 0;
+                      const invKey = vch.id || `inv-grp-${idx}`;
+                      const hasItems = vch.items && vch.items.length > 0;
+                      const isInvExpanded = expandedInvoices.has(invKey);
+
                       return (
-                        <tr key={vch.id || idx} className="hover:bg-slate-50/70 dark:hover:bg-slate-900/30 transition-colors h-12 border-b border-slate-100 dark:border-slate-850">
+                        <React.Fragment key={invKey}>
+                          <tr className="hover:bg-slate-50/70 dark:hover:bg-slate-900/30 transition-colors h-12 border-b border-slate-100 dark:border-slate-850">
 
-                          {/* Date */}
-                          <td className="py-1.5 px-3">
-                            <input
-                              type="text"
-                              value={vch.date || ''}
-                              onChange={e => handleUpdateVoucherRow(idx, 'date', e.target.value)}
-                              className="w-full bg-transparent border-none font-mono text-[11px] font-bold outline-none focus:bg-indigo-50/50 rounded px-1"
-                            />
-                          </td>
+                            {/* Date */}
+                            <td className="py-1.5 px-3">
+                              <input
+                                type="text"
+                                value={vch.date || ''}
+                                onChange={e => handleUpdateVoucherRow(idx, 'date', e.target.value)}
+                                className="w-full bg-transparent border-none font-mono text-[11px] font-bold outline-none focus:bg-indigo-50/50 rounded px-1"
+                              />
+                            </td>
 
-                          {/* Description / Narration */}
-                          <td className="py-1.5 px-3">
-                            <input
-                              type="text"
-                              value={vch.narration || ''}
-                              onChange={e => handleUpdateVoucherRow(idx, 'narration', e.target.value)}
-                              className="w-full bg-transparent border-none text-[11px] font-medium outline-none focus:bg-indigo-50/50 rounded px-1 truncate"
-                              title={vch.narration}
-                            />
-                          </td>
+                            {/* Invoice No / Ref No */}
+                            <td className="py-1.5 px-3">
+                              <input
+                                type="text"
+                                value={vch.instNumber || vch.voucherNo || ''}
+                                onChange={e => handleUpdateVoucherRow(idx, 'instNumber', e.target.value)}
+                                className="w-full bg-transparent border-none font-mono text-[11px] font-bold text-slate-800 dark:text-slate-200 outline-none focus:bg-indigo-50/50 rounded px-1"
+                              />
+                            </td>
 
-                          {/* Ref / UTR No */}
-                          <td className="py-1.5 px-3">
-                            <input
-                              type="text"
-                              value={vch.instNumber || ''}
-                              onChange={e => handleUpdateVoucherRow(idx, 'instNumber', e.target.value)}
-                              className="w-full bg-transparent border-none font-mono text-[10.5px] text-slate-500 outline-none focus:bg-indigo-50/50 rounded px-1"
-                            />
-                          </td>
+                            {/* Description / Party Ledger */}
+                            <td className="py-1.5 px-3">
+                              {isBankStatement ? (
+                                <input
+                                  type="text"
+                                  value={vch.narration || ''}
+                                  onChange={e => handleUpdateVoucherRow(idx, 'narration', e.target.value)}
+                                  className="w-full bg-transparent border-none text-[11px] font-medium outline-none focus:bg-indigo-50/50 rounded px-1 truncate"
+                                  title={vch.narration}
+                                />
+                              ) : (
+                                <div className="flex items-center gap-1.5">
+                                  <select
+                                    value={vch.partyName || ''}
+                                    onChange={e => handleUpdateVoucherRow(idx, 'partyName', e.target.value)}
+                                    className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded px-2 py-1 text-[11px] font-bold text-slate-900 dark:text-slate-100 outline-none focus:border-indigo-500 truncate min-w-[140px]"
+                                  >
+                                    {allAvailableLedgers.map(l => (
+                                      <option key={l} value={l}>{l}</option>
+                                    ))}
+                                  </select>
 
-                          {/* Debit */}
-                          <td className="py-1.5 px-3 text-right font-mono font-black text-rose-600 dark:text-rose-400">
-                            {vch.debit > 0 ? `₹ ${parseFloat(vch.debit).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '-'}
-                          </td>
+                                  <button
+                                    onClick={() => setMasterModal({
+                                      isOpen: true,
+                                      rowIndex: idx,
+                                      voucherId: vch.id,
+                                      uploadedParty: vch.partyName || vch.narration || '',
+                                      groupName: 'Sundry Creditors',
+                                      selectedLedger: vch.partyName || vch.narration || '',
+                                      gstin: '',
+                                      phone: '',
+                                      city: ''
+                                    })}
+                                    className="p-1 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 rounded transition cursor-pointer shrink-0"
+                                    title="Add/Edit Master Ledger"
+                                  >
+                                    <Plus size={12} />
+                                  </button>
+                                </div>
+                              )}
+                            </td>
 
-                          {/* Credit */}
-                          <td className="py-1.5 px-3 text-right font-mono font-black text-emerald-600 dark:text-emerald-400">
-                            {vch.credit > 0 ? `₹ ${parseFloat(vch.credit).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '-'}
-                          </td>
-
-                          {/* Matched Master Ledger + Edit/Add Button */}
-                          <td className="py-1.5 px-3">
-                            <div className="flex items-center gap-1.5">
+                            {/* Voucher Type */}
+                            <td className="py-1.5 px-3">
                               <select
-                                value={vch.partyName || ''}
-                                onChange={e => handleUpdateVoucherRow(idx, 'partyName', e.target.value)}
-                                className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded px-2 py-1 text-[11px] font-bold text-slate-900 dark:text-slate-100 outline-none focus:border-indigo-500 truncate min-w-[140px]"
+                                value={vch.voucherType || (isBankStatement ? (isReceipt ? 'Receipt Voucher' : 'Payment Voucher') : 'Purchase Invoice')}
+                                onChange={e => handleUpdateVoucherRow(idx, 'voucherType', e.target.value)}
+                                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded px-2 py-1 text-[10.5px] font-black outline-none focus:border-indigo-500"
                               >
-                                {allAvailableLedgers.map(l => (
-                                  <option key={l} value={l}>{l}</option>
-                                ))}
+                                {isBankStatement ? (
+                                  <>
+                                    <option value="Receipt Voucher">Receipt Voucher</option>
+                                    <option value="Payment Voucher">Payment Voucher</option>
+                                    <option value="Contra Voucher">Contra Voucher</option>
+                                  </>
+                                ) : (
+                                  <>
+                                    <option value="Purchase Invoice">Purchase Invoice</option>
+                                    <option value="Sales Invoice">Sales Invoice</option>
+                                    <option value="Receipt Voucher">Receipt Voucher</option>
+                                    <option value="Payment Voucher">Payment Voucher</option>
+                                  </>
+                                )}
                               </select>
+                            </td>
 
+                            {/* Items count button (for invoices) */}
+                            {!isBankStatement && (
+                              <td className="py-1.5 px-3 text-center">
+                                {hasItems ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleExpandInvoice(invKey)}
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9.5px] font-bold bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-300 border border-indigo-200/50 hover:bg-indigo-100 transition cursor-pointer"
+                                  >
+                                    <span>{vch.items.length} items</span>
+                                    {isInvExpanded ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
+                                  </button>
+                                ) : (
+                                  <span className="text-[10px] text-slate-400 font-mono">1 item</span>
+                                )}
+                              </td>
+                            )}
+
+                            {isBankStatement ? (
+                              <>
+                                {/* Debit */}
+                                <td className="py-1.5 px-3 text-right font-mono font-black text-rose-600 dark:text-rose-400">
+                                  {vch.debit > 0 ? `₹ ${parseFloat(vch.debit).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '-'}
+                                </td>
+
+                                {/* Credit */}
+                                <td className="py-1.5 px-3 text-right font-mono font-black text-emerald-600 dark:text-emerald-400">
+                                  {vch.credit > 0 ? `₹ ${parseFloat(vch.credit).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '-'}
+                                </td>
+
+                                {/* Matched Master Ledger + Edit/Add Button */}
+                                <td className="py-1.5 px-3">
+                                  <div className="flex items-center gap-1.5">
+                                    <select
+                                      value={vch.partyName || ''}
+                                      onChange={e => handleUpdateVoucherRow(idx, 'partyName', e.target.value)}
+                                      className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded px-2 py-1 text-[11px] font-bold text-slate-900 dark:text-slate-100 outline-none focus:border-indigo-500 truncate min-w-[140px]"
+                                    >
+                                      {allAvailableLedgers.map(l => (
+                                        <option key={l} value={l}>{l}</option>
+                                      ))}
+                                    </select>
+
+                                    <button
+                                      onClick={() => setMasterModal({
+                                        isOpen: true,
+                                        rowIndex: idx,
+                                        voucherId: vch.id,
+                                        uploadedParty: vch.narration || '',
+                                        groupName: isReceipt ? 'Sundry Debtors' : 'Sundry Creditors',
+                                        selectedLedger: vch.partyName || vch.narration || '',
+                                        gstin: '',
+                                        phone: '',
+                                        city: ''
+                                      })}
+                                      className="p-1 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 rounded transition cursor-pointer shrink-0"
+                                      title="Add/Edit Master Ledger"
+                                    >
+                                      <Plus size={12} />
+                                    </button>
+                                  </div>
+                                </td>
+
+                                {/* Debit Account */}
+                                <td className="py-1.5 px-3">
+                                  <select
+                                    value={vch.debitAccount || (isReceipt ? 'HDFC Bank Account' : vch.partyName)}
+                                    onChange={e => handleUpdateVoucherRow(idx, 'debitAccount', e.target.value)}
+                                    className="w-full bg-transparent border border-slate-200 dark:border-slate-800 rounded px-1.5 py-0.5 text-[10.5px] font-semibold truncate outline-none"
+                                  >
+                                    {allAvailableLedgers.map(l => (
+                                      <option key={l} value={l}>{l}</option>
+                                    ))}
+                                  </select>
+                                </td>
+
+                                {/* Credit Account */}
+                                <td className="py-1.5 px-3">
+                                  <select
+                                    value={vch.creditAccount || (isReceipt ? vch.partyName : 'HDFC Bank Account')}
+                                    onChange={e => handleUpdateVoucherRow(idx, 'creditAccount', e.target.value)}
+                                    className="w-full bg-transparent border border-slate-200 dark:border-slate-800 rounded px-1.5 py-0.5 text-[10.5px] font-semibold truncate outline-none"
+                                  >
+                                    {allAvailableLedgers.map(l => (
+                                      <option key={l} value={l}>{l}</option>
+                                    ))}
+                                  </select>
+                                </td>
+                              </>
+                            ) : (
+                              <>
+                                {/* Taxable */}
+                                <td className="py-1.5 px-3 text-right font-mono font-bold text-slate-700 dark:text-slate-300">
+                                  ₹ {parseFloat(vch.taxable_value || vch.totalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                </td>
+
+                                {/* GST Tax */}
+                                <td className="py-1.5 px-3 text-right font-mono font-bold text-indigo-600 dark:text-indigo-400">
+                                  ₹ {parseFloat(vch.tax_amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                </td>
+
+                                {/* Total Amount */}
+                                <td className="py-1.5 px-3 text-right font-mono font-black text-slate-900 dark:text-slate-100">
+                                  ₹ {parseFloat(vch.totalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                </td>
+                              </>
+                            )}
+
+                            {/* Status */}
+                            <td className="py-1.5 px-3 text-center">
+                              <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9.5px] font-black border ${vch.reconciliationStatus === 'Needs Review' || !vch.partyName || vch.partyName === 'Unspecified Party'
+                                ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-350 border-amber-200/50'
+                                : 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-350 border-emerald-200/50'
+                                }`}>
+                                <CheckCircle2 size={9} />
+                                <span>{vch.reconciliationStatus || 'Ready'}</span>
+                              </span>
+                            </td>
+
+                            {/* Confidence & Reasoning */}
+                            <td className="py-1.5 px-3 text-center" title={vch.aiReasoning}>
+                              <ConfidenceBar value={vch.confidence || 95} />
+                            </td>
+
+                            {/* Action - Details */}
+                            <td className="py-1.5 px-3 text-center">
                               <button
-                                onClick={() => setMasterModal({
-                                  isOpen: true,
-                                  rowIndex: idx,
-                                  voucherId: vch.id,
-                                  uploadedParty: vch.narration || '',
-                                  groupName: isReceipt ? 'Sundry Debtors' : 'Sundry Creditors',
-                                  selectedLedger: vch.partyName || vch.narration || '',
-                                  gstin: '',
-                                  phone: '',
-                                  city: ''
-                                })}
-                                className="p-1 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 rounded transition cursor-pointer shrink-0"
-                                title="Add/Edit Master Ledger"
+                                type="button"
+                                onClick={() => handleOpenDraftModal(vch)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 rounded-md text-[10.5px] font-bold transition cursor-pointer shadow-3xs"
+                                title="Click to view & edit full voucher details"
                               >
-                                <Plus size={12} />
+                                <Eye size={11} />
+                                <span>Details</span>
                               </button>
-                            </div>
-                          </td>
+                            </td>
 
-                          {/* Voucher Type */}
-                          <td className="py-1.5 px-3">
-                            <select
-                              value={vch.voucherType || (isReceipt ? 'Receipt Voucher' : 'Payment Voucher')}
-                              onChange={e => handleUpdateVoucherRow(idx, 'voucherType', e.target.value)}
-                              className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded px-2 py-1 text-[10.5px] font-black outline-none focus:border-indigo-500"
-                            >
-                              <option value="Receipt Voucher">Receipt Voucher</option>
-                              <option value="Payment Voucher">Payment Voucher</option>
-                              <option value="Contra Voucher">Contra Voucher</option>
-                            </select>
-                          </td>
+                          </tr>
 
-                          {/* Debit Account */}
-                          <td className="py-1.5 px-3">
-                            <select
-                              value={vch.debitAccount || (isReceipt ? 'HDFC Bank Account' : vch.partyName)}
-                              onChange={e => handleUpdateVoucherRow(idx, 'debitAccount', e.target.value)}
-                              className="w-full bg-transparent border border-slate-200 dark:border-slate-800 rounded px-1.5 py-0.5 text-[10.5px] font-semibold truncate outline-none"
-                            >
-                              {allAvailableLedgers.map(l => (
-                                <option key={l} value={l}>{l}</option>
-                              ))}
-                            </select>
-                          </td>
-
-                          {/* Credit Account */}
-                          <td className="py-1.5 px-3">
-                            <select
-                              value={vch.creditAccount || (isReceipt ? vch.partyName : 'HDFC Bank Account')}
-                              onChange={e => handleUpdateVoucherRow(idx, 'creditAccount', e.target.value)}
-                              className="w-full bg-transparent border border-slate-200 dark:border-slate-800 rounded px-1.5 py-0.5 text-[10.5px] font-semibold truncate outline-none"
-                            >
-                              {allAvailableLedgers.map(l => (
-                                <option key={l} value={l}>{l}</option>
-                              ))}
-                            </select>
-                          </td>
-
-                          {/* Status */}
-                          <td className="py-1.5 px-3 text-center">
-                            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9.5px] font-black border ${vch.reconciliationStatus === 'Needs Review' || !vch.partyName || vch.partyName === 'Unspecified Party'
-                              ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-350 border-amber-200/50'
-                              : 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-350 border-emerald-200/50'
-                              }`}>
-                              <CheckCircle2 size={9} />
-                              <span>{vch.reconciliationStatus || 'Ready'}</span>
-                            </span>
-                          </td>
-
-                          {/* Confidence & Reasoning */}
-                          <td className="py-1.5 px-3 text-center" title={vch.aiReasoning}>
-                            <ConfidenceBar value={vch.confidence || 95} />
-                          </td>
-
-                        </tr>
+                          {/* Sub-table: Line Items Breakdown for Invoices in All Invoices view */}
+                          {!isBankStatement && isInvExpanded && hasItems && (
+                            <tr className="bg-indigo-50/15 dark:bg-indigo-950/20 border-b border-indigo-100 dark:border-indigo-900/50">
+                              <td colSpan={11} className="py-2.5 px-6">
+                                <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#191925] p-3 shadow-inner">
+                                  <div className="text-[10px] font-black uppercase text-indigo-600 dark:text-indigo-400 mb-2 flex items-center justify-between">
+                                    <span className="flex items-center gap-1.5">
+                                      <span>Line Items Breakdown</span>
+                                      <span className="px-1.5 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900/50 text-[9px] font-mono">
+                                        {vch.items.length} {vch.items.length === 1 ? 'item' : 'items'}
+                                      </span>
+                                    </span>
+                                    <span className="font-mono text-slate-500 text-[10px]">
+                                      Invoice: <b>{vch.instNumber || vch.voucherNo}</b> ({vch.date}) — Party: <b>{vch.partyName}</b>
+                                    </span>
+                                  </div>
+                                  <table className="w-full text-[10.5px] border-collapse">
+                                    <thead>
+                                      <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-400 font-bold uppercase text-[9px]">
+                                        <th className="py-1 px-2 text-left w-8">#</th>
+                                        <th className="py-1 px-2 text-left min-w-[160px]">Stock Item Name</th>
+                                        <th className="py-1 px-2 text-left w-24">HSN/SAC</th>
+                                        <th className="py-1 px-2 text-right w-24">Quantity</th>
+                                        <th className="py-1 px-2 text-right w-24">Rate (₹)</th>
+                                        <th className="py-1 px-2 text-right w-20">GST Rate</th>
+                                        <th className="py-1 px-2 text-right w-28">Amount (₹)</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100 dark:divide-slate-850 font-mono">
+                                      {vch.items.map((it, itIdx) => (
+                                        <tr key={itIdx} className="hover:bg-slate-50 dark:hover:bg-slate-900/50">
+                                          <td className="py-1 px-2 text-slate-400 font-sans">{itIdx + 1}</td>
+                                          <td className="py-1 px-2 font-sans font-semibold text-slate-800 dark:text-slate-200">{it.stockItem || it.item_name || '--'}</td>
+                                          <td className="py-1 px-2 text-slate-500">{it.hsnSacCode || it.hsn_code || '--'}</td>
+                                          <td className="py-1 px-2 text-right">{it.billQuantity || it.quantity || it.qty || 1} {it.unit || 'Nos'}</td>
+                                          <td className="py-1 px-2 text-right">₹ {parseFloat(it.billRate || it.rate || 0).toFixed(2)}</td>
+                                          <td className="py-1 px-2 text-right">{it.gstRate || it.gst_rate || 0}%</td>
+                                          <td className="py-1 px-2 text-right font-black text-slate-900 dark:text-slate-100">
+                                            ₹ {parseFloat(it.amount || it.taxable_amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
                       );
                     })
                   ) : (
                     <tr>
-                      <td colSpan={11} className="py-12 text-center text-slate-400 font-semibold">
+                      <td colSpan={12} className="py-12 text-center text-slate-400 font-semibold">
                         <div className="flex flex-col items-center gap-2">
                           <Layers size={24} className="text-slate-300" />
                           <span>No extracted transaction data found for this document.</span>

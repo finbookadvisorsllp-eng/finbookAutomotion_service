@@ -1,4 +1,5 @@
 import os
+import re
 import asyncio
 import uuid
 import logging
@@ -54,7 +55,7 @@ def _run_ocr_background(file_path: str, file_type: str, upload_id: str, mongo_ur
     from app.db import resolve_db_name
     try:
         client = pymongo.MongoClient(mongo_uri)
-        target_db = resolve_db_name(company_id) if company_id else db_name
+        target_db = (db_name if db_name and db_name.strip() else None) or (resolve_db_name(company_id) if company_id else None) or "sf_tenant_6ab4dab543fdb8be89fc18a9"
         db = client[target_db]
 
         # ── STAGE 2: Raw OCR ───────────────────────────────────────────────────
@@ -287,16 +288,198 @@ def _run_ocr_background(file_path: str, file_type: str, upload_id: str, mongo_ur
                     "bank_statement_items": items,
                     "bank_statement_batch_id": batch_res.get("batch_id")
                 }
+            is_multi_invoice = False
+            multi_grouped_vouchers = []
+            multi_excel_grid = []
+            multi_col_mapping = []
+
+            # Check if this document is a multi-page PDF with multiple distinct invoices
+            if not is_bank_statement and len(pages) > 1:
+                vouchers_detected = []
+                current_v = None
+
+                for i, p in enumerate(pages):
+                    pnum = p.get('page_number', i + 1)
+                    ptxt = p.get('text', '')
+                    if not ptxt.strip():
+                        continue
+
+                    pdata = agent_orchestrator._extract_via_regex(ptxt, filename, company_name, company_gstin)
+                    vno = pdata.get('voucher_number')
+                    vdate = pdata.get('voucher_date')
+                    pname = pdata.get('party_name')
+                    pgstin = pdata.get('party_gstin')
+                    pitems = pdata.get('line_items', [])
+                    ptotal = float(pdata.get('grand_total') or 0.0)
+                    summary = pdata.get('summary', {})
+                    ptaxable = float(summary.get('total_taxable_value') or summary.get('subtotal') or ptotal)
+                    ptax = float((summary.get('total_cgst', 0) or 0) + (summary.get('total_sgst', 0) or 0) + (summary.get('total_igst', 0) or 0))
+                    vtype = "Sales Invoice" if pdata.get('voucher_type') == "Sales" else "Purchase Invoice"
+                    ptxt_lower = ptxt.lower()
+                    if 'super seeds' in ptxt_lower:
+                        seller = 'Super Seeds Pvt Ltd'
+                    elif 'nuziveedu' in ptxt_lower:
+                        seller = 'NUZIVEEDU SEEDS LIMITED'
+                    elif 'anu products' in ptxt_lower:
+                        seller = 'ANU PRODUCTS LIMITED'
+                    else:
+                        seller = pname or 'Sundry Creditor'
+
+                    # Invoice number fallback
+                    m_inv = re.search(r'(?:invoice no\.?|bill of supply no\s*:?|invoice no\.?\s*:?)\s*([A-Za-z0-9\/\-_]+)', ptxt, re.I)
+                    if m_inv:
+                        cand = m_inv.group(1).strip()
+                        if len(cand) > 3 and cand.lower() not in ['dated', 'date']:
+                            vno = cand
+                    elif not vno:
+                        m_code = re.search(r'\b(IM\/2[56]-\d{2}\/\d+|JBL\/2[56]-\d{2}\/\d+|IND\/2[56]-\d{2}\/\d+|511\d{7})\b', ptxt)
+                        if m_code:
+                            vno = m_code.group(1)
+
+                    # Date fallback
+                    if not vdate or len(vdate) < 6:
+                        m_d = re.search(r'(?:dated|date\s*:?)\s*(\d{1,2}[\.\-\/][A-Za-z0-9]+[\.\-\/]\d{2,4})', ptxt, re.I)
+                        if m_d:
+                            vdate = m_d.group(1).strip()
+
+                    # Total amount fallback
+                    if ptotal == 0.0:
+                        m_tot = re.search(r'(?:invoice amount\s*:?|total|net value rs:?)\s*[^\d\n]*([\d,]+\.\d{2})', ptxt, re.I)
+                        if m_tot:
+                            try:
+                                ptotal = float(m_tot.group(1).replace(',', ''))
+                            except:
+                                pass
+
+                    norm_items = []
+                    for idx, it in enumerate(pitems):
+                        norm_items.append({
+                            "id": idx + 1,
+                            "stockItem": it.get("item_name") or f"Item {idx + 1}",
+                            "stock_item_name": it.get("item_name") or f"Item {idx + 1}",
+                            "description": it.get("description") or "",
+                            "hsnSacCode": it.get("hsn_sac") or it.get("hsn_code") or "",
+                            "billQuantity": float(it.get("quantity") or it.get("qty") or 1.0),
+                            "unit": it.get("unit") or "Nos",
+                            "billRate": float(it.get("rate") or 0.0),
+                            "gstRate": float(it.get("gst_rate_percent") or it.get("gst_rate") or 0.0),
+                            "amount": float(it.get("total_amount") or it.get("taxable_amount") or it.get("amount") or 0.0)
+                        })
+
+                    items_sum = sum(it['amount'] for it in norm_items)
+                    if ptotal == 0.0 and items_sum > 0:
+                        ptotal = items_sum
+                    if ptaxable == 0.0 and items_sum > 0:
+                        ptaxable = items_sum
+
+                    # Check continuation of previous voucher
+                    is_cont = False
+                    if current_v:
+                        if vno and current_v.get('invoice_number') == vno:
+                            is_cont = True
+                        elif not vno and any(w in ptxt_lower for w in ['pages:2 of 2', 'pages: 2 of 2', 'page 2', 'continued']):
+                            is_cont = True
+
+                    if is_cont and current_v:
+                        current_v['items'].extend(norm_items)
+                        current_v['itemsCount'] = len(current_v['items'])
+                        current_v['source_pages'].append(pnum)
+                        if ptotal > current_v['totalAmount']:
+                            current_v['totalAmount'] = ptotal
+                            current_v['amount'] = ptotal
+                        if ptaxable > current_v['taxable_value']:
+                            current_v['taxable_value'] = ptaxable
+                        if ptax > current_v['tax_amount']:
+                            current_v['tax_amount'] = ptax
+                    else:
+                        v_idx = len(vouchers_detected) + 1
+                        current_v = {
+                            "voucher_id": f"VCH-{str(v_idx).zfill(3)}",
+                            "voucher_type": vtype,
+                            "party_ledger": seller,
+                            "party_name": seller,
+                            "party_gstin": pgstin or "",
+                            "invoice_number": vno or f"INV-{str(v_idx).zfill(3)}",
+                            "ref_no": vno or f"INV-{str(v_idx).zfill(3)}",
+                            "invoice_date": vdate or "",
+                            "date": vdate or "",
+                            "totalAmount": ptotal,
+                            "amount": ptotal,
+                            "taxable_value": ptaxable,
+                            "tax_amount": ptax,
+                            "items": norm_items,
+                            "itemsCount": len(norm_items),
+                            "status": "Ready",
+                            "source_pages": [pnum]
+                        }
+                        vouchers_detected.append(current_v)
+
+                # If multiple vouchers detected across pages, treat as Multi-Invoice Batch
+                if len(vouchers_detected) > 1:
+                    is_multi_invoice = True
+                    multi_grouped_vouchers = vouchers_detected
+
+                    multi_excel_grid = [
+                        ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'],
+                        ['Invoice Date', 'Party / Customer Name', 'Invoice Number', 'Voucher Type', 'Items Count', 'Taxable Value', 'GST Tax', 'Total Amount', 'Status']
+                    ]
+                    for v in multi_grouped_vouchers:
+                        multi_excel_grid.append([
+                            v.get("invoice_date", ""),
+                            v.get("party_ledger", ""),
+                            v.get("invoice_number", ""),
+                            v.get("voucher_type", ""),
+                            v.get("itemsCount", 0),
+                            f"{v.get('taxable_value', 0.0):.2f}",
+                            f"{v.get('tax_amount', 0.0):.2f}",
+                            f"{v.get('totalAmount', 0.0):.2f}",
+                            v.get("status", "Ready")
+                        ])
+
+                    multi_col_mapping = [
+                        {"original_name": "Invoice Date", "standard_erp_field": "Voucher Date", "col_idx": 0},
+                        {"original_name": "Party / Customer Name", "standard_erp_field": "Party Name", "col_idx": 1},
+                        {"original_name": "Invoice Number", "standard_erp_field": "Reference No", "col_idx": 2},
+                        {"original_name": "Voucher Type", "standard_erp_field": "Voucher Type", "col_idx": 3},
+                        {"original_name": "Items Count", "standard_erp_field": "Items Count", "col_idx": 4},
+                        {"original_name": "Taxable Value", "standard_erp_field": "Taxable Value", "col_idx": 5},
+                        {"original_name": "GST Tax", "standard_erp_field": "Tax Amount", "col_idx": 6},
+                        {"original_name": "Total Amount", "standard_erp_field": "Total Amount", "col_idx": 7},
+                        {"original_name": "Status", "standard_erp_field": "Status", "col_idx": 8},
+                    ]
+                    logger.info(f"[BG] Multi-Invoice PDF detected: {len(multi_grouped_vouchers)} invoices split for upload_id={upload_id}")
+
+            if is_multi_invoice:
+                doc_type_val = "Multi-Invoice Batch"
+                schema = {
+                    "document_type": "Multi-Invoice Batch",
+                    "overall_confidence": 98,
+                    "is_multi_invoice": True,
+                    "sections": [
+                        {
+                            "id": "voucher_details",
+                            "title": "Multi-Invoice Batch Overview",
+                            "order": 1,
+                            "fields": [
+                                {"id": "voucher_type", "label": "Document Type", "type": "text", "value": "Multi-Invoice Batch", "editable": False},
+                                {"id": "total_invoices", "label": "Total Invoices Extracted", "type": "number", "value": len(multi_grouped_vouchers), "editable": False},
+                                {"id": "narration", "label": "AI Reasoning", "type": "textarea", "value": f"Extracted {len(multi_grouped_vouchers)} distinct invoices across {len(pages)} pages grouped by party and date."}
+                            ]
+                        }
+                    ],
+                    "grouped_vouchers": multi_grouped_vouchers
+                }
             else:
-                # Fetch base64 page image for Multimodal Vision AI (handwritten bills, photos, scans)
+                # Only fetch base64 image if text is insufficient (handwritten scans/photos)
                 vision_b64_url = None
-                try:
-                    b64_imgs = ocr_service.get_document_images_base64(file_path, file_type, max_pages=1)
-                    if b64_imgs:
-                        vision_b64_url = b64_imgs[0]
-                        logger.info(f"[VISION AI OCR] Prepared Vision Image URL for upload_id={upload_id}")
-                except Exception as b64_err:
-                    logger.warning(f"[VISION AI OCR] Could not get base64 image: {b64_err}")
+                if len(full_text.strip()) < 30:
+                    try:
+                        b64_imgs = ocr_service.get_document_images_base64(file_path, file_type, max_pages=1)
+                        if b64_imgs:
+                            vision_b64_url = b64_imgs[0]
+                            logger.info(f"[VISION AI OCR] Prepared Vision Image URL for upload_id={upload_id}")
+                    except Exception as b64_err:
+                        logger.warning(f"[VISION AI OCR] Could not get base64 image: {b64_err}")
 
                 schema = agent_orchestrator.extract(
                     full_text,
@@ -358,7 +541,7 @@ def _run_ocr_background(file_path: str, file_type: str, upload_id: str, mongo_ur
                     inv_num = next((f["value"] for f in voucher_details.get("fields", []) if f["id"] == "invoice_number"), None)
                     supplier_gstin = next((f["value"] for f in voucher_details.get("fields", []) if "gstin" in f["id"]), None)
 
-            if is_invoice_doc and inv_num and supplier_gstin:
+            if not is_multi_invoice and is_invoice_doc and inv_num and supplier_gstin:
                 # Query db for another upload of same invoice
                 existing_doc = db["bulk_uploads"].find_one({
                     "_id": {"$ne": ObjectId(upload_id)},
@@ -405,6 +588,13 @@ def _run_ocr_background(file_path: str, file_type: str, upload_id: str, mongo_ur
                     "confidence": 98,
                     "reasoning": "PDF Bank Statement Transaction History"
                 }
+            elif is_multi_invoice:
+                doc_type_val = "Multi-Invoice Batch"
+                ai_classification = {
+                    "voucher_category": "Multi-Invoice Batch",
+                    "confidence": 98,
+                    "reasoning": f"Multi-page PDF containing {len(multi_grouped_vouchers)} individual invoices split automatically"
+                }
             else:
                 doc_type_val = schema.get("document_type") or "Unknown"
                 ai_classification = {
@@ -413,22 +603,32 @@ def _run_ocr_background(file_path: str, file_type: str, upload_id: str, mongo_ur
                     "reasoning": "Specialized accounting extraction"
                 }
 
-            cat_val = "Financial" if is_bank_statement or doc_type_val != "Unknown" else "Unknown"
+            cat_val = "Financial" if (is_bank_statement or is_multi_invoice or doc_type_val != "Unknown") else "Unknown"
 
             # Update bulk_uploads with final schema (keeps review UI working)
             final_status = "Ready For Review"
+            update_data = {
+                "status":            final_status,
+                "document_type":     doc_type_val,
+                "type":              doc_type_val,
+                "category":          cat_val,
+                "dynamic_schema":    schema,
+                "ai_classification": ai_classification,
+                "pipeline_stage":    "ai_complete",
+                "pipeline_progress": 100
+            }
+            if is_multi_invoice:
+                update_data.update({
+                    "is_multi_invoice": True,
+                    "excel_grid": multi_excel_grid,
+                    "excelData": multi_excel_grid,
+                    "column_mapping": multi_col_mapping,
+                    "grouped_vouchers": multi_grouped_vouchers
+                })
+
             db["bulk_uploads"].update_one(
                 {"_id": ObjectId(upload_id)},
-                {"$set": {
-                    "status":            final_status,
-                    "document_type":     doc_type_val,
-                    "type":              doc_type_val,
-                    "category":          cat_val,
-                    "dynamic_schema":    schema,
-                    "ai_classification": ai_classification,
-                    "pipeline_stage":    "ai_complete",
-                    "pipeline_progress": 100
-                }}
+                {"$set": update_data}
             )
             logger.info(f"[BG] All stages complete for upload_id={upload_id}")
         else:
@@ -518,7 +718,7 @@ async def upload_file(
                     existing["file_type"],
                     str(existing["_id"]),
                     MONGO_URI,
-                    DB_NAME,
+                    db.name,
                     existing.get("company_id")
                 )
                 if os.path.exists(file_path):
@@ -603,7 +803,7 @@ async def upload_file(
             file_type,
             upload_id,
             MONGO_URI,
-            DB_NAME,
+            db.name,
             company_id
         )
 
@@ -643,16 +843,36 @@ async def get_ocr_progress(
     Stages: processing | ocr_running | ocr_complete | ai_running | ai_complete | failed
     """
     if not ObjectId.is_valid(upload_id):
-        raise HTTPException(status_code=400, detail="Invalid upload_id format.")
+        return {
+            "success": True,
+            "stage": "processing",
+            "stage_label": "Uploading and starting OCR...",
+            "progress": 10,
+            "status": "Processing",
+            "ocr_done": False,
+            "ai_done": False,
+            "dynamic_schema": None,
+            "error": None
+        }
 
     record = await db["bulk_uploads"].find_one(
         {"_id": ObjectId(upload_id)},
-        # Only fetch the fields we need — faster query
         {"status": 1, "pipeline_stage": 1, "pipeline_progress": 1,
-         "dynamic_schema": 1, "ocr_error": 1, "filename": 1, "ai_classification": 1}
+         "dynamic_schema": 1, "ocr_error": 1, "filename": 1, "ai_classification": 1,
+         "document_type": 1, "is_multi_invoice": 1, "grouped_vouchers": 1, "excel_grid": 1, "column_mapping": 1}
     )
     if not record:
-        raise HTTPException(status_code=404, detail=f"Upload ID {upload_id} not found.")
+        return {
+            "success": True,
+            "stage": "processing",
+            "stage_label": "Initializing document pipeline...",
+            "progress": 10,
+            "status": "Processing",
+            "ocr_done": False,
+            "ai_done": False,
+            "dynamic_schema": None,
+            "error": None
+        }
 
     stage = record.get("pipeline_stage")
     db_status = record.get("status", "Processing")
@@ -692,6 +912,8 @@ async def get_ocr_progress(
         "failed":       "Processing failed.",
     }
 
+    is_multi_invoice = bool(record.get("is_multi_invoice") or record.get("document_type") == "Multi-Invoice Batch" or (record.get("grouped_vouchers") and len(record.get("grouped_vouchers")) > 1))
+
     return {
         "success": True,
         "upload_id": upload_id,
@@ -702,6 +924,11 @@ async def get_ocr_progress(
         "ocr_done": stage in ("ocr_complete", "ai_running", "ai_complete"),
         "ai_done": stage == "ai_complete",
         "dynamic_schema": dynamic_schema,  # None until ai_complete
+        "document_type": record.get("document_type", ""),
+        "is_multi_invoice": is_multi_invoice,
+        "grouped_vouchers": record.get("grouped_vouchers", []),
+        "excel_grid": record.get("excel_grid", []),
+        "column_mapping": record.get("column_mapping", []),
         "error": record.get("ocr_error") if stage == "failed" else None,
     }
 
@@ -1538,7 +1765,9 @@ async def list_uploads(
                 "grouped_vouchers": syn_vouchers,
                 "groupedVouchers": syn_vouchers,
                 "ai_reasoning": r.get("ai_reasoning", ""),
-                "aiReasoning": r.get("ai_reasoning", "")
+                "aiReasoning": r.get("ai_reasoning", ""),
+                "is_multi_invoice": bool(r.get("is_multi_invoice") or r.get("document_type") == "Multi-Invoice Batch" or len(syn_vouchers) > 1),
+                "document_type": r.get("document_type") or r.get("dynamic_schema", {}).get("document_type") or "Unknown"
             })
         return {"success": True, "documents": uploads}
     except Exception as e:

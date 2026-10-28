@@ -94,7 +94,7 @@ function resolveFullFileUrl(url) {
 }
 
 // ── Main Component ────────────────────────────────────────────────────────────
-export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSuccess }) {
+export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSuccess, onOpenSpreadsheet }) {
   const [currentDoc, setCurrentDoc] = useState(doc);
   const [previewUrl, setPreviewUrl] = useState('');
   const [pipelineStage, setPipelineStage] = useState('processing');
@@ -111,6 +111,11 @@ export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSucc
 
   const handleReRunAi = async () => {
     if (isReRunning) return;
+    const targetId = currentDoc?.id || doc?.id;
+    if (!targetId || (typeof targetId === 'string' && targetId.startsWith('DOC-'))) {
+      toast.info('Document upload is still finalizing. Please wait a moment.');
+      return;
+    }
     setIsReRunning(true);
     setIsStoreInitialized(false);
     setPipelineStage('ocr_running');
@@ -120,12 +125,12 @@ export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSucc
 
     try {
       // Trigger backend re-analyze with force_rerun=true (skip OCR, already done)
-      const res = await bulkUploadApi.reAnalyzeOnly(doc.id);
+      const res = await bulkUploadApi.reAnalyzeOnly(targetId);
 
       if (res && res.success && res.schema) {
         toast.success('Document re-analyzed successfully!');
         // Fetch fresh full document from backend
-        const fullRes = await bulkUploadApi.getDocument(doc.id);
+        const fullRes = await bulkUploadApi.getDocument(targetId);
         if (fullRes.success && fullRes.document) {
           const d = fullRes.document;
           if (d.fileUrl && d.fileUrl.startsWith('/')) d.fileUrl = resolveFullFileUrl(d.fileUrl);
@@ -1081,10 +1086,14 @@ export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSucc
             voucherType: docTypeLower.includes('debit') ? 'debit_note' : 'purchase_invoice',
             invoiceNumber: vNum,
             voucherNumber: vNum,
+            supplierInvoiceNumber: vNum,
             invoiceDate: vDate,
             voucherDate: vDate,
+            supplierInvoiceDate: vDate,
             partyLedger: pLedger,
             partyGstin: pGstin,
+            consigneeLedger: schema.consigneeLedger || schema.consignee_name || 'Same as Party',
+            consigneeGstin: schema.consigneeGstin || schema.consignee_gstin || '',
             gstRegistration: gstReg,
             entryTab: eTab,
             productLines: prodLines,
@@ -1274,28 +1283,59 @@ export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSucc
     setIsStoreInitialized(true);
   }, [mapSchemaToForm, mapSchemaToFundFlow]);
 
+  // Keep currentDoc in sync when parent doc prop updates (e.g. from tempId to real uploadId)
+  useEffect(() => {
+    if (doc) {
+      setCurrentDoc(prev => {
+        if (!prev || prev.id !== doc.id || prev.fileUrl !== doc.fileUrl) {
+          return { ...prev, ...doc };
+        }
+        return prev;
+      });
+    }
+  }, [doc]);
+
   // ── Progressive polling ───────────────────────────────────────────────────
   useEffect(() => {
     let active = true;
+    const activeDoc = currentDoc || doc;
+    const targetId = activeDoc?.id || activeDoc?.uploadId;
 
-    if (doc.dynamic_schema && (doc.status === 'Ready For Review' || doc.status === 'AI Analyzed')) {
-      setCurrentDoc(doc);
+    // If already detected as Multi-Invoice Batch, automatically route to spreadsheet review
+    const isAlreadyMulti = Boolean(
+      activeDoc?.is_multi_invoice ||
+      activeDoc?.document_type === 'Multi-Invoice Batch' ||
+      activeDoc?.type === 'Multi-Invoice Batch' ||
+      (activeDoc?.grouped_vouchers && activeDoc.grouped_vouchers.length > 1)
+    );
+    if (isAlreadyMulti && onOpenSpreadsheet) {
+      onOpenSpreadsheet(activeDoc);
+      return;
+    }
+
+    if (activeDoc?.dynamic_schema && (activeDoc.status === 'Ready For Review' || activeDoc.status === 'AI Analyzed')) {
+      setCurrentDoc(activeDoc);
       setPipelineStage('ai_complete');
       setPipelineProgress(100);
       setPipelineLabel('Extraction complete!');
-      initStore(doc);
+      initStore(activeDoc);
       return;
     }
 
     const poll = async () => {
+      const currentTargetId = currentDoc?.id || doc?.id;
+      if (!currentTargetId || (typeof currentTargetId === 'string' && currentTargetId.startsWith('DOC-'))) {
+        return;
+      }
+
       try {
-        const res = await bulkUploadApi.getProgress(doc.id);
+        const res = await bulkUploadApi.getProgress(currentTargetId);
         if (!active) return;
 
         if (res.success) {
           setPipelineStage(res.stage || 'processing');
-          setPipelineProgress(res.progress || 5);
-          setPipelineLabel(res.stage_label || 'Processing...');
+          setPipelineProgress(res.progress || 10);
+          setPipelineLabel(res.stage_label || 'Processing document with OCR & AI...');
 
           if (res.stage !== 'failed') {
             setCurrentDoc(prev => ({ ...prev, status: res.status }));
@@ -1305,17 +1345,43 @@ export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSucc
             clearInterval(pollRef.current);
             pollRef.current = null;
             try {
-              const fullRes = await bulkUploadApi.getDocument(doc.id);
+              const fullRes = await bulkUploadApi.getDocument(currentTargetId);
               if (active && fullRes.success && fullRes.document) {
                 const d = fullRes.document;
                 if (d.fileUrl && d.fileUrl.startsWith('/')) d.fileUrl = resolveFullFileUrl(d.fileUrl);
+
+                // Auto-switch to spreadsheet review for multi-invoice batches
+                const isDocMulti = Boolean(
+                  d.is_multi_invoice ||
+                  d.document_type === 'Multi-Invoice Batch' ||
+                  d.type === 'Multi-Invoice Batch' ||
+                  (d.grouped_vouchers && d.grouped_vouchers.length > 1) ||
+                  res.is_multi_invoice ||
+                  res.document_type === 'Multi-Invoice Batch'
+                );
+
+                if (isDocMulti && onOpenSpreadsheet) {
+                  onOpenSpreadsheet(d);
+                  return;
+                }
+
                 setCurrentDoc(d);
+                setPipelineStage('ai_complete');
+                setPipelineProgress(100);
+                setPipelineLabel('Extraction complete!');
                 initStore(d);
               }
             } catch (e) {
               console.error('Failed to fetch full doc after pipeline', e);
-              const fallback = { ...doc, dynamic_schema: res.dynamic_schema, status: res.status };
+              const fallback = { ...activeDoc, dynamic_schema: res.dynamic_schema, status: res.status };
+              if ((res.is_multi_invoice || res.document_type === 'Multi-Invoice Batch') && onOpenSpreadsheet) {
+                onOpenSpreadsheet(fallback);
+                return;
+              }
               setCurrentDoc(fallback);
+              setPipelineStage('ai_complete');
+              setPipelineProgress(100);
+              setPipelineLabel('Extraction complete!');
               initStore(fallback);
             }
           } else if (res.stage === 'failed') {
@@ -1336,7 +1402,7 @@ export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSucc
       active = false;
       if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
     };
-  }, [doc.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [doc?.id, currentDoc?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleOcrVoucherTypeChange = (typeId) => {
     const docTypeMap = {
@@ -1597,6 +1663,27 @@ export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSucc
           </button>
         </div>
       </div>
+
+      {/* ── Multi-Invoice Notification Banner ── */}
+      {(currentDoc?.is_multi_invoice || (currentDoc?.grouped_vouchers && currentDoc.grouped_vouchers.length > 1) || currentDoc?.document_type === 'Multi-Invoice Batch') && (
+        <div className="bg-indigo-50 dark:bg-indigo-950/40 border-b border-indigo-200 dark:border-indigo-800/60 px-4 py-2 flex items-center justify-between text-indigo-900 dark:text-indigo-200 shrink-0">
+          <div className="flex items-center gap-2">
+            <span className="text-sm">⚡</span>
+            <span className="font-bold text-[11px]">
+              Multi-Invoice Batch: {currentDoc?.grouped_vouchers?.length || 'Multiple'} separate invoices extracted across pages!
+            </span>
+            <span className="text-[10px] text-indigo-600 dark:text-indigo-400">
+              View all invoices grouped party-wise &amp; date-wise in the spreadsheet grid.
+            </span>
+          </div>
+          <button
+            onClick={() => onOpenSpreadsheet ? onOpenSpreadsheet(currentDoc || doc) : onClose()}
+            className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-[10.5px] font-bold cursor-pointer transition shadow-2xs border-none"
+          >
+            Open Spreadsheet &amp; Ledger View &rarr;
+          </button>
+        </div>
+      )}
 
       {/* ─── 3-Panel Layout ─── */}
       <div className="flex-1 flex overflow-hidden min-h-0">

@@ -160,27 +160,21 @@ class OcrService:
         try:
             h, w = img_bgr.shape[:2]
 
-            # Step 1 — Upscale if image is too small (min 1500px wide for good OCR)
-            target_min_width = 1500
+            # Step 1 — Upscale only if image is very small (min 1100px wide for good OCR)
+            target_min_width = 1100
             if w < target_min_width:
                 scale = target_min_width / w
                 new_w = int(w * scale)
                 new_h = int(h * scale)
                 img_bgr = cv2.resize(img_bgr, (new_w, new_h), interpolation=cv2.INTER_CUBIC)
-                logger.debug(f"Upscaled image from {w}x{h} to {new_w}x{new_h}")
-
-            # Step 2 — Denoise (bilateral filtering is extremely fast and preserves sharp text edges)
-            img_bgr = cv2.bilateralFilter(img_bgr, d=5, sigmaColor=50, sigmaSpace=50)
-
-            # Step 3 — Unsharp mask to sharpen text edges
-            blurred = cv2.GaussianBlur(img_bgr, (0, 0), sigmaX=1.5)
-            img_bgr = cv2.addWeighted(img_bgr, 1.5, blurred, -0.5, 0)
-
-            # Step 4 — Adaptive contrast enhancement (CLAHE)
-            img_bgr = self.enhance_contrast(img_bgr)
-
-            # Step 5 — Deskew
-            img_bgr = self.deskew(img_bgr)
+                img_bgr = cv2.bilateralFilter(img_bgr, d=3, sigmaColor=30, sigmaSpace=30)
+                img_bgr = self.enhance_contrast(img_bgr)
+            elif w > 1900:
+                # Downscale excessively large images to 1600px max for fast inference
+                scale = 1600 / w
+                new_w = int(w * scale)
+                new_h = int(h * scale)
+                img_bgr = cv2.resize(img_bgr, (new_w, new_h), interpolation=cv2.INTER_AREA)
 
         except Exception as e:
             logger.warning(f"preprocess_image pipeline error: {e}. Using original image.")
@@ -295,7 +289,7 @@ class OcrService:
                             page_idx = p_num - 1
                             if page_idx < len(doc):
                                 page = doc.load_page(page_idx)
-                                zoom = 200 / 72  # Render at 200 DPI
+                                zoom = 135 / 72  # Render at 135 DPI (fast & crisp for RapidOCR)
                                 mat = fitz.Matrix(zoom, zoom)
                                 pix = page.get_pixmap(matrix=mat)
                                 
