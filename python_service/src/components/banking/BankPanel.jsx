@@ -44,6 +44,7 @@ import BulkUploadPanel from '../bulk-upload/BulkUploadPanel';
 import BankAiReviewPanel from './BankAiReviewPanel';
 import BankRuleMappingModal from './BankRuleMappingModal';
 import { calculateBatchSummary } from './bankSummaryHelper';
+import BankReconciliationDashboard from './BankReconciliationDashboard';
 
 // All dropdown data is fetched dynamically from the database via useFundFlowStore.
 // No hardcoded arrays — see BankPanel component body for dynamic derivations.
@@ -1255,6 +1256,28 @@ const BankPanel = ({ mode: propMode, isDark }) => {
       );
     }
 
+    if (activeTab === 'Inbox') {
+      return (
+        <BankReconciliationDashboard
+          vouchers={baseInboxData}
+          selectedBank={selectedBank}
+          setSelectedBank={setSelectedBank}
+          dynamicBanks={dynamicBanks}
+          dynamicBankLedgers={dynamicBankLedgers}
+          onUploadStatement={() => {
+            setSelectedUploadLedger(selectedBank || '');
+            setIsUploadStatementOpen(true);
+          }}
+          onDeleteVoucher={handleDeleteVoucher}
+          deletingId={deletingId}
+          onBulkDelete={handleBulkDelete}
+          selectedRows={selectedRows}
+          setSelectedRows={setSelectedRows}
+          loading={fundFlowStore.loading.list || fundFlowStore.masterData.loading}
+        />
+      );
+    }
+
     const colKey = (activeTab === 'Review' || activeTab === 'Archive') ? 'ReviewArchive' : activeTab;
     const columns = COLUMNS[colKey] || COLUMNS['Manage Bank'];
     const all = DATA[activeTab] || [];
@@ -1456,7 +1479,7 @@ const BankPanel = ({ mode: propMode, isDark }) => {
       </FilterDrawer>}
 
       {/* Clean Header Bar */}
-      {activeTab !== 'AI Voucher Review' && activeTab !== 'Add Bank Rule' && (
+      {activeTab !== 'AI Voucher Review' && activeTab !== 'Add Bank Rule' && activeTab !== 'Inbox' && (
         <div className="rounded-xl border p-3 shrink-0" style={{ borderColor: 'var(--app-border)', backgroundColor: 'var(--app-panel-bg)' }}>
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-3">
@@ -1532,7 +1555,7 @@ const BankPanel = ({ mode: propMode, isDark }) => {
       )}
 
       {/* KPI cards */}
-      {tabKpis().length > 0 && (
+      {activeTab !== 'Inbox' && tabKpis().length > 0 && (
         <div className={`grid gap-3 shrink-0 ${tabKpis().length === 4 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2 sm:grid-cols-3'}`}>
           {tabKpis().map((k, i) => (
             <StatCard
