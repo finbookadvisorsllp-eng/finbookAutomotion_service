@@ -208,6 +208,9 @@ export default function ExcelBulkUploadReview({
           totalAmount: totalAmount,
           taxable_value: v.taxable_value || v.taxableAmount || totalAmount,
           tax_amount: v.tax_amount || v.taxAmount || 0,
+          party_gstin: v.party_gstin || v.partyGstin || '',
+          salesLedger: v.salesLedger || v.sales_ledger || '',
+          purchaseLedger: v.purchaseLedger || v.purchase_ledger || '',
           status: v.status || 'Ready',
           narration: v.narration || '',
           instNumber: refNo,
@@ -401,88 +404,203 @@ export default function ExcelBulkUploadReview({
     }
   }, [vouchersState, computedGroupedVouchers, previewDoc, selectedCompany, setDocuments, onClose, excelGridData]);
 
+  // Helper to normalize dates for date inputs (YYYY-MM-DD)
+  const normalizeDateForForm = (dStr) => {
+    if (!dStr) return '';
+    const s = String(dStr).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    const parts = s.split(/[-/]/);
+    if (parts.length === 3) {
+      if (parts[0].length === 2 && parts[2].length === 4) {
+        return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+      }
+      if (parts[0].length === 4 && parts[1].length <= 2 && parts[2].length <= 2) {
+        return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+      }
+    }
+    return s;
+  };
+
   // Open Draft Form Modal Handler
   const handleOpenDraftModal = useCallback((vch) => {
     const isSales = String(vch.voucherType || '').toLowerCase().includes('sales');
     const isPurchase = String(vch.voucherType || '').toLowerCase().includes('purchase');
 
+    const rawItems = (vch.items && vch.items.length > 0)
+      ? vch.items
+      : (vch.productLines && vch.productLines.length > 0)
+        ? vch.productLines
+        : [];
+
+    const partyName = vch.partyName || vch.party_ledger || vch.matchedMaster || '';
+    const formattedDate = normalizeDateForForm(vch.date || vch.invoice_date || '');
+    const voucherNum = vch.voucherNo || vch.invoice_number || vch.instNumber || '';
+
     if (isSales) {
       const store = useSalesStore.getState();
       store.resetForm();
-      const productLines = (vch.items || vch.productLines || []).map((it, idx) => ({
-        id: Date.now() + idx,
-        srNo: idx + 1,
-        stockItem: it.stockItem || it.item_name || '',
-        description: it.description || '',
-        hsnSacCode: it.hsnSacCode || it.hsn_code || '',
-        billQuantity: parseFloat(it.billQuantity || it.quantity || it.qty || 1),
-        unit: it.unit || 'Nos',
-        billRate: parseFloat(it.billRate || it.rate || 0),
-        discountPercent: parseFloat(it.discountPercent || it.discount || 0),
-        amount: parseFloat(it.amount || it.taxable_amount || 0),
-        gstRate: parseFloat(it.gstRate || it.gst_rate || 0),
-        taxabilityType: 'Taxable'
-      }));
-      store.setForm({
-        voucherNumber: vch.voucherNo || vch.invoice_number || '',
-        voucherDate: vch.date || '',
-        partyLedger: vch.partyName || vch.matchedMaster || '',
-        totalAmount: parseFloat(vch.totalAmount || vch.amount || 0),
-        productLines: productLines.length > 0 ? productLines : [{
-          id: Date.now(),
-          srNo: 1,
-          stockItem: 'General Goods/Services',
-          billQuantity: 1,
-          unit: 'Nos',
-          billRate: parseFloat(vch.totalAmount || 0),
-          amount: parseFloat(vch.totalAmount || 0),
-          gstRate: 18
-        }],
+
+      const partyDetails = store.masterData?.partyLedgerDetails?.[partyName] || {};
+      const partyGstin = vch.party_gstin || vch.partyGstin || partyDetails.gstin || '';
+      const stateCode = partyGstin ? partyGstin.trim().substring(0, 2) : (partyDetails.gstState || '23');
+      const gstReg = partyDetails.gstState ? `${partyDetails.gstState} Registration` : `${stateCode} Registration`;
+      const gstRegType = partyDetails.registrationType || 'Regular';
+      const salesLedger = vch.salesLedger || store.masterData?.salesLedgers?.[0] || 'Sales Account';
+
+      const productLines = rawItems.length > 0
+        ? rawItems.map((it, idx) => {
+            const qty = parseFloat(it.billQuantity || it.quantity || it.qty || 1);
+            const rate = parseFloat(it.billRate || it.rate || 0);
+            const disc = parseFloat(it.discountPercent || it.discount || 0);
+            const itemAmt = parseFloat(it.amount || it.taxable_amount || it.taxable_value || (qty * rate * (1 - disc / 100)) || 0);
+            const gstRate = parseFloat(it.gstRate !== undefined ? it.gstRate : (it.gst_rate !== undefined ? it.gst_rate : 18));
+            const hsn = String(it.hsnSacCode || it.hsn_code || it.hsn || '').trim();
+            const stockItemName = it.stockItem || it.stock_item_name || it.item_name || it.name || it.description || 'Stock Item';
+            const finalRate = rate > 0 ? rate : (qty > 0 && itemAmt > 0 ? parseFloat((itemAmt / qty).toFixed(2)) : itemAmt);
+            const finalAmt = itemAmt > 0 ? itemAmt : parseFloat((qty * finalRate * (1 - disc / 100)).toFixed(2));
+            return {
+              id: Date.now() + idx,
+              srNo: idx + 1,
+              stockItem: stockItemName,
+              description: it.description || '',
+              hsnSacCode: hsn,
+              billQuantity: qty,
+              unit: it.unit || 'Nos',
+              billRate: finalRate,
+              discountPercent: disc,
+              amount: finalAmt,
+              gstRate: gstRate,
+              taxabilityType: 'Taxable',
+              rcm: false
+            };
+          })
+        : [{
+            id: Date.now(),
+            srNo: 1,
+            stockItem: 'General Goods/Services',
+            description: vch.narration || '',
+            hsnSacCode: '',
+            billQuantity: 1,
+            unit: 'Nos',
+            billRate: parseFloat(vch.taxable_value || vch.totalAmount || 0),
+            discountPercent: 0,
+            amount: parseFloat(vch.taxable_value || vch.totalAmount || 0),
+            gstRate: (vch.tax_amount > 0 && vch.taxable_value > 0)
+              ? Math.round((vch.tax_amount / vch.taxable_value) * 100)
+              : 18,
+            taxabilityType: 'Taxable',
+            rcm: false
+          }];
+
+      const initialSalesData = {
+        voucherNumber: voucherNum,
+        invoiceNumber: voucherNum,
+        referenceNumber: voucherNum,
+        voucherNumberSeries: 'Manual',
+        voucherDate: formattedDate,
+        invoiceDate: formattedDate,
+        partyLedger: partyName,
+        partyGstin: partyGstin,
+        gstRegistration: gstReg,
+        gstRegistrationType: gstRegType,
+        consigneeLedger: 'Same as Party',
+        consigneeGstin: partyGstin,
+        salesLedger: salesLedger,
+        narration: vch.narration || (voucherNum ? `Invoice No: ${voucherNum}` : ''),
+        entryTab: 'with_item',
         voucherType: 'sales_invoice',
-        entryMode: 'ocr'
-      });
+        entryMode: 'ocr',
+        productLines: productLines,
+      };
+
+      store.setForm(initialSalesData);
       setManualVoucherType('sales');
-      setManualVoucherDraft(vch);
+      setManualVoucherDraft(initialSalesData);
       setShowManualFormModal(true);
       return;
     }
+
     if (isPurchase) {
       const store = usePurchaseStore.getState();
       store.resetForm('purchase_invoice');
-      const productLines = (vch.items || vch.productLines || []).map((it, idx) => ({
-        id: Date.now() + idx,
-        srNo: idx + 1,
-        stockItem: it.stockItem || it.item_name || '',
-        description: it.description || '',
-        hsnSacCode: it.hsnSacCode || it.hsn_code || '',
-        billQuantity: parseFloat(it.billQuantity || it.quantity || it.qty || 1),
-        unit: it.unit || 'Nos',
-        billRate: parseFloat(it.billRate || it.rate || 0),
-        discountPercent: parseFloat(it.discountPercent || it.discount || 0),
-        amount: parseFloat(it.amount || it.taxable_amount || 0),
-        gstRate: parseFloat(it.gstRate || it.gst_rate || 0),
-        taxabilityType: 'Taxable'
-      }));
-      store.updateForm({
-        invoiceNumber: vch.voucherNo || vch.invoice_number || '',
-        invoiceDate: vch.date || '',
-        supplierLedger: vch.partyName || vch.matchedMaster || '',
-        totalAmount: parseFloat(vch.totalAmount || vch.amount || 0),
-        productLines: productLines.length > 0 ? productLines : [{
-          id: Date.now(),
-          srNo: 1,
-          stockItem: 'General Goods/Services',
-          billQuantity: 1,
-          unit: 'Nos',
-          billRate: parseFloat(vch.totalAmount || 0),
-          amount: parseFloat(vch.totalAmount || 0),
-          gstRate: 18
-        }],
+
+      const partyDetails = store.masterData?.partyLedgerDetails?.[partyName] || {};
+      const partyGstin = vch.party_gstin || vch.partyGstin || partyDetails.gstin || '';
+      const stateCode = partyGstin ? partyGstin.trim().substring(0, 2) : (partyDetails.gstState || '23');
+      const gstReg = partyDetails.gstState ? `${partyDetails.gstState} Registration` : `${stateCode} Registration`;
+      const gstRegType = partyDetails.registrationType || 'Regular';
+      const purchaseLedger = vch.purchaseLedger || store.masterData?.purchaseLedgers?.[0] || 'Purchase Account';
+
+      const productLines = rawItems.length > 0
+        ? rawItems.map((it, idx) => {
+            const qty = parseFloat(it.billQuantity || it.quantity || it.qty || 1);
+            const rate = parseFloat(it.billRate || it.rate || 0);
+            const disc = parseFloat(it.discountPercent || it.discount || 0);
+            const itemAmt = parseFloat(it.amount || it.taxable_amount || it.taxable_value || (qty * rate * (1 - disc / 100)) || 0);
+            const gstRate = parseFloat(it.gstRate !== undefined ? it.gstRate : (it.gst_rate !== undefined ? it.gst_rate : 18));
+            const hsn = String(it.hsnSacCode || it.hsn_code || it.hsn || '').trim();
+            const stockItemName = it.stockItem || it.stock_item_name || it.item_name || it.name || it.description || 'Stock Item';
+            const finalRate = rate > 0 ? rate : (qty > 0 && itemAmt > 0 ? parseFloat((itemAmt / qty).toFixed(2)) : itemAmt);
+            const finalAmt = itemAmt > 0 ? itemAmt : parseFloat((qty * finalRate * (1 - disc / 100)).toFixed(2));
+            return {
+              id: Date.now() + idx,
+              srNo: idx + 1,
+              stockItem: stockItemName,
+              description: it.description || '',
+              hsnSacCode: hsn,
+              billQuantity: qty,
+              unit: it.unit || 'Nos',
+              billRate: finalRate,
+              discountPercent: disc,
+              amount: finalAmt,
+              gstRate: gstRate,
+              taxabilityType: 'Taxable',
+              rcm: false
+            };
+          })
+        : [{
+            id: Date.now(),
+            srNo: 1,
+            stockItem: 'General Goods/Services',
+            description: vch.narration || '',
+            hsnSacCode: '',
+            billQuantity: 1,
+            unit: 'Nos',
+            billRate: parseFloat(vch.taxable_value || vch.totalAmount || 0),
+            discountPercent: 0,
+            amount: parseFloat(vch.taxable_value || vch.totalAmount || 0),
+            gstRate: (vch.tax_amount > 0 && vch.taxable_value > 0)
+              ? Math.round((vch.tax_amount / vch.taxable_value) * 100)
+              : 18,
+            taxabilityType: 'Taxable',
+            rcm: false
+          }];
+
+      const initialPurchaseData = {
+        voucherNumber: voucherNum,
+        invoiceNumber: voucherNum,
+        referenceNumber: voucherNum,
+        voucherNumberSeries: 'Manual',
+        voucherDate: formattedDate,
+        invoiceDate: formattedDate,
+        partyLedger: partyName,
+        supplierLedger: partyName,
+        partyGstin: partyGstin,
+        gstRegistration: gstReg,
+        gstRegistrationType: gstRegType,
+        consigneeLedger: 'Same as Party',
+        consigneeGstin: partyGstin,
+        purchaseLedger: purchaseLedger,
+        narration: vch.narration || (voucherNum ? `Invoice No: ${voucherNum}` : ''),
+        entryTab: 'with_item',
         voucherType: 'purchase_invoice',
-        entryMode: 'ocr'
-      });
+        entryMode: 'ocr',
+        productLines: productLines,
+      };
+
+      store.updateForm(initialPurchaseData);
       setManualVoucherType('purchase');
-      setManualVoucherDraft(vch);
+      setManualVoucherDraft(initialPurchaseData);
       setShowManualFormModal(true);
       return;
     }
@@ -1664,12 +1782,16 @@ export default function ExcelBulkUploadReview({
               />
             ) : manualVoucherType === 'purchase' ? (
               <CreatePurchase
+                key={manualVoucherDraft?.voucherNumber || manualVoucherDraft?.invoiceNumber || 'purchase-modal'}
                 isDark={isDark || false}
+                initialData={manualVoucherDraft}
                 onBack={() => setShowManualFormModal(false)}
               />
             ) : (
               <CreateSales
+                key={manualVoucherDraft?.voucherNumber || manualVoucherDraft?.invoiceNumber || 'sales-modal'}
                 isDark={isDark || false}
+                initialData={manualVoucherDraft}
                 onBack={() => setShowManualFormModal(false)}
               />
             )}

@@ -507,7 +507,9 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
     }
   }, [masterData?.purchaseLedgers, form.purchaseLedger]);
 
-  const [activeTab, setActiveTab] = useState('Without Item Invoice');
+  const [activeTab, setActiveTab] = useState(
+    (initialData?.entryTab === 'with_item' || form.entryTab === 'with_item') ? 'With Item Invoice' : 'Without Item Invoice'
+  );
 
   // Sync tab state
   useEffect(() => {

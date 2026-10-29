@@ -437,6 +437,9 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
         ...initialData,
         entryMode: initialData.entryMode || 'manual'
       });
+      if (initialData.entryTab) {
+        setActiveTab(initialData.entryTab === 'with_item' ? 'With Item' : 'Without Item');
+      }
       setInitialDataLoaded(true);
     }
   }, [initialData, initialDataLoaded]);
@@ -584,7 +587,9 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
     }
   }, [masterData?.salesLedgers, form.salesLedger]);
 
-  const [activeTab, setActiveTab] = useState('Without Item');
+  const [activeTab, setActiveTab] = useState(
+    (initialData?.entryTab === 'with_item' || form.entryTab === 'with_item') ? 'With Item' : 'Without Item'
+  );
 
   // Sync tab from store
   // Change by Anjalee: Map 'with_item'/'without_item' correctly to display tab labels
