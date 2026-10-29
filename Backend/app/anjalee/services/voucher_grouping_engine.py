@@ -88,7 +88,11 @@ class VoucherGroupingEngine:
                 key = f"{v_type.upper()}|ROW-{row_num}"
             elif inv_no:
                 v_type = default_doc_type
-                key = f"{v_type.upper()}|{inv_no.upper()}|{party.upper()}"
+                key = f"{v_type.upper()}|INV:{inv_no.upper()}|{party.upper()}"
+            elif party and inv_date:
+                # Group multi-item rows with same party and date into one invoice
+                v_type = default_doc_type
+                key = f"{v_type.upper()}|DATE:{inv_date}|PARTY:{party.upper()}"
             else:
                 v_type = default_doc_type
                 key = f"{v_type.upper()}|ROW-{row_num}|{party.upper()}"
