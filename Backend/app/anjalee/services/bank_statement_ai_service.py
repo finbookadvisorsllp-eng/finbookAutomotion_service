@@ -363,6 +363,7 @@ class BankStatementAIService:
         """
         Parses multi-page PDF bank statements (15+ pages) using pdfplumber table extraction.
         Extracts ALL transaction rows across all pages without truncating or dropping items.
+        Supports both single-amount columns with Cr/Dr and separate Debit/Credit columns (e.g. SBI, HDFC).
         """
         transactions = []
         try:
@@ -376,31 +377,50 @@ class BankStatementAIService:
                         if not table or len(table) < 2:
                             continue
                         
-                        headers = [str(cell).strip().lower() if cell else "" for cell in table[0]]
+                        # Find the actual header row (check first 3 rows)
+                        header_row_idx = 0
+                        for r_i, r in enumerate(table[:3]):
+                            r_lower = [str(c).strip().lower() if c else "" for c in r]
+                            if any(any(h in cell for h in ['date', 'particular', 'desc', 'narration', 'debit', 'credit', 'withdrawal', 'deposit', 'amount']) for cell in r_lower):
+                                header_row_idx = r_i
+                                break
                         
-                        date_col = next((i for i, h in enumerate(headers) if "date" in h), None)
-                        desc_col = next((i for i, h in enumerate(headers) if "desc" in h or "particular" in h or "narration" in h), None)
-                        type_col = next((i for i, h in enumerate(headers) if "cr/dr" in h or "type" in h or "d/c" in h or "dr/cr" in h or "cr" in h or "dr" in h), None)
-                        amt_col = next((i for i, h in enumerate(headers) if "amount" in h or "txn" in h), None)
-                        bal_col = next((i for i, h in enumerate(headers) if "balance" in h), None)
-                        ref_col = next((i for i, h in enumerate(headers) if "cheque" in h or "ref" in h or "id" in h), None)
+                        headers = [str(cell).strip().lower() if cell else "" for cell in table[header_row_idx]]
+                        
+                        # Date column
+                        date_col = next((i for i, h in enumerate(headers) if "txn date" in h or "tran date" in h or "trans date" in h), None)
+                        if date_col is None:
+                            date_col = next((i for i, h in enumerate(headers) if "date" in h), None)
+                        
+                        # Description / Narration column
+                        desc_col = next((i for i, h in enumerate(headers) if "desc" in h or "particular" in h or "narration" in h or "remark" in h), None)
+                        
+                        # Separate Debit & Credit columns
+                        debit_col = next((i for i, h in enumerate(headers) if ("debit" in h or "withdrawal" in h or "dr amt" in h or "dr amount" in h or h.strip() == "dr") and "cr" not in h), None)
+                        credit_col = next((i for i, h in enumerate(headers) if ("credit" in h or "deposit" in h or "cr amt" in h or "cr amount" in h or h.strip() == "cr") and "desc" not in h and "particular" not in h), None)
+                        
+                        # Single Amount column (strictly avoid 'txn' which matches 'txn date', and avoid 'date')
+                        amt_col = next((i for i, h in enumerate(headers) if ("amount" in h or "amt" in h) and "date" not in h and "debit" not in h and "credit" not in h and "withdr" not in h and "deposit" not in h), None)
+                        
+                        # Type column (Cr/Dr or Type - strictly avoid substring 'cr' matching 'description')
+                        type_col = next((i for i, h in enumerate(headers) if any(x in h for x in ["cr/dr", "dr/cr", "type", "d/c", "txn type"]) or h.strip() in ["cr", "dr", "d", "c"]), None)
+                        
+                        bal_col = next((i for i, h in enumerate(headers) if "balance" in h or "bal" in h), None)
+                        ref_col = next((i for i, h in enumerate(headers) if "cheque" in h or "chq" in h or "ref" in h or "utr" in h), None)
 
-                        for row in table[1:]:
+                        for row in table[header_row_idx + 1:]:
                             if not row or not any(row):
                                 continue
                             clean_row = [str(cell).strip() if cell else "" for cell in row]
                             
-                            raw_date = clean_row[date_col] if date_col is not None and date_col < len(clean_row) else (clean_row[1] if len(clean_row) > 1 else "")
-                            raw_desc = clean_row[desc_col] if desc_col is not None and desc_col < len(clean_row) else (clean_row[5] if len(clean_row) > 5 else "")
-                            raw_type = clean_row[type_col] if type_col is not None and type_col < len(clean_row) else (clean_row[6] if len(clean_row) > 6 else "")
-                            raw_amt = clean_row[amt_col] if amt_col is not None and amt_col < len(clean_row) else (clean_row[7] if len(clean_row) > 7 else "")
-                            raw_bal = clean_row[bal_col] if bal_col is not None and bal_col < len(clean_row) else (clean_row[8] if len(clean_row) > 8 else "")
-                            raw_ref = clean_row[ref_col] if ref_col is not None and ref_col < len(clean_row) else (clean_row[1] if len(clean_row) > 1 else "")
-
+                            raw_date = clean_row[date_col] if date_col is not None and date_col < len(clean_row) else (clean_row[0] if len(clean_row) > 0 else "")
+                            
                             date_match = re.search(r'\b(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}[/-]\d{1,2}[/-]\d{1,2})\b', raw_date)
                             if not date_match:
-                                row_str = " ".join(clean_row)
-                                date_match = re.search(r'\b(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}[/-]\d{1,2}[/-]\d{1,2})\b', row_str)
+                                for cell in clean_row:
+                                    date_match = re.search(r'\b(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}[/-]\d{1,2}[/-]\d{1,2})\b', cell)
+                                    if date_match:
+                                        break
                             
                             if not date_match:
                                 continue
@@ -417,18 +437,65 @@ class BankStatementAIService:
                             except Exception:
                                 fmt_date = datetime.now().strftime("%Y-%m-%d")
 
-                            amt_clean = re.sub(r'[^\d.]', '', raw_amt.replace(',', ''))
-                            try:
-                                amt_val = float(amt_clean)
-                            except ValueError:
-                                amt_val = 0.0
+                            raw_desc = clean_row[desc_col] if desc_col is not None and desc_col < len(clean_row) else ""
+                            raw_bal = clean_row[bal_col] if bal_col is not None and bal_col < len(clean_row) else ""
+                            raw_ref = clean_row[ref_col] if ref_col is not None and ref_col < len(clean_row) else ""
 
-                            if amt_val <= 0:
-                                for cell in clean_row:
-                                    num_c = re.sub(r'[^\d.]', '', cell.replace(',', ''))
+                            amt_val = 0.0
+                            is_credit = False
+
+                            # 1. First prioritize explicit Debit / Credit columns if present
+                            if debit_col is not None or credit_col is not None:
+                                raw_deb = clean_row[debit_col] if (debit_col is not None and debit_col < len(clean_row)) else ""
+                                raw_crd = clean_row[credit_col] if (credit_col is not None and credit_col < len(clean_row)) else ""
+
+                                deb_clean = re.sub(r'[^\d.]', '', raw_deb.replace(',', ''))
+                                crd_clean = re.sub(r'[^\d.]', '', raw_crd.replace(',', ''))
+
+                                try:
+                                    deb_val = float(deb_clean) if deb_clean and not re.search(r'[-/]', raw_deb) else 0.0
+                                except ValueError:
+                                    deb_val = 0.0
+
+                                try:
+                                    crd_val = float(crd_clean) if crd_clean and not re.search(r'[-/]', raw_crd) else 0.0
+                                except ValueError:
+                                    crd_val = 0.0
+
+                                if crd_val > 0:
+                                    amt_val = crd_val
+                                    is_credit = True
+                                elif deb_val > 0:
+                                    amt_val = deb_val
+                                    is_credit = False
+
+                            # 2. If no separate debit/credit or values are 0, check single Amount column
+                            if amt_val <= 0 and amt_col is not None and amt_col < len(clean_row):
+                                raw_amt = clean_row[amt_col]
+                                if not re.search(r'\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b', raw_amt):
+                                    amt_clean = re.sub(r'[^\d.]', '', raw_amt.replace(',', ''))
                                     try:
-                                        v = float(num_c)
-                                        if v > 0 and v != float(clean_row[0] if clean_row[0].isdigit() else 0):
+                                        amt_val = float(amt_clean)
+                                    except ValueError:
+                                        amt_val = 0.0
+                                    
+                                    raw_type = clean_row[type_col] if type_col is not None and type_col < len(clean_row) else ""
+                                    raw_type_lower = raw_type.lower().strip()
+                                    is_credit = "cr" in raw_type_lower or "deposit" in raw_type_lower or "credit" in raw_type_lower
+
+                            # 3. Fallback: Search row cells but NEVER accept dates as amounts
+                            if amt_val <= 0:
+                                for c_i, cell in enumerate(clean_row):
+                                    if c_i in [date_col, desc_col, bal_col]:
+                                        continue
+                                    if re.search(r'\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b', cell):
+                                        continue
+                                    if "/" in cell or ("-" in cell and not cell.startswith("-")):
+                                        continue
+                                    cell_clean = re.sub(r'[^\d.]', '', cell.replace(',', ''))
+                                    try:
+                                        v = float(cell_clean)
+                                        if v > 0 and "." in cell:
                                             amt_val = v
                                             break
                                     except ValueError:
@@ -439,16 +506,17 @@ class BankStatementAIService:
 
                             bal_clean = re.sub(r'[^\d.]', '', raw_bal.replace(',', ''))
                             try:
-                                bal_val = float(bal_clean)
+                                bal_val = float(bal_clean) if not re.search(r'\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b', raw_bal) else None
                             except ValueError:
                                 bal_val = None
 
-                            is_credit = "cr" in raw_type.lower() or "deposit" in raw_type.lower() or "credit" in raw_type.lower()
                             tx_type = "credit" if is_credit else "debit"
                             debit = 0.0 if is_credit else amt_val
                             credit = amt_val if is_credit else 0.0
 
-                            narration = raw_desc if raw_desc and raw_desc != "-" else f"Bank Transaction on {fmt_date}"
+                            clean_desc = re.sub(r'\s+', ' ', raw_desc).strip()
+                            narration = clean_desc if clean_desc and clean_desc != "-" else f"Bank Transaction on {fmt_date}"
+                            clean_ref = re.sub(r'\s+', ' ', raw_ref).strip() if raw_ref and raw_ref != "-" else None
 
                             transactions.append({
                                 "date": fmt_date,
@@ -458,7 +526,7 @@ class BankStatementAIService:
                                 "amount": round(amt_val, 2),
                                 "type": tx_type,
                                 "balance": round(bal_val, 2) if bal_val else None,
-                                "referenceNumber": raw_ref if raw_ref and raw_ref != "-" else None,
+                                "referenceNumber": clean_ref,
                                 "page": page_idx + 1
                             })
         except Exception as e:
