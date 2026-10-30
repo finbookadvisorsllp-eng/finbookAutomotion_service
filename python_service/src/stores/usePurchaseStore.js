@@ -527,8 +527,14 @@ export const usePurchaseStore = create((set, get) => ({
       // Map database structure to UI rows with temporary UI ids
       const doc = res.data;
 
-      const productLines = Array.isArray(doc.productLines) && doc.productLines.length > 0
-        ? doc.productLines.map((line, idx) => ({ ...line, id: Date.now() + idx }))
+      const rawProductLines = (Array.isArray(doc.productLines) && doc.productLines.length > 0)
+        ? doc.productLines
+        : ((Array.isArray(doc.inventoryEntries) && doc.inventoryEntries.length > 0)
+          ? doc.inventoryEntries
+          : (Array.isArray(doc.items) && doc.items.length > 0 ? doc.items : []));
+
+      const productLines = rawProductLines.length > 0
+        ? rawProductLines.map((line, idx) => ({ ...line, id: Date.now() + idx }))
         : [{ id: Date.now(), srNo: 1, stockItem: '', description: '', hsnSacCode: '', billQuantity: 0, billRate: 0, discountPercent: 0, amount: 0, rcm: false, taxabilityType: 'Taxable', gstRate: 0 }];
 
       const purchaseLines = Array.isArray(doc.purchaseLines) && doc.purchaseLines.length > 0
@@ -549,6 +555,7 @@ export const usePurchaseStore = create((set, get) => ({
 
       const formValues = {
         ...doc,
+        partyLedger: doc.partyLedger || doc.partyLedgerName || doc.partyName || doc.party || '',
         consigneeGstin: doc.consigneeGstin || '',
         entryMode: doc.entryMode || 'manual',
         ocrMetadata: doc.ocrMetadata || null,

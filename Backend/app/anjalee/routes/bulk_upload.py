@@ -2225,20 +2225,80 @@ async def get_saved_bulk_vouchers(
             if is_bank:
                 continue
 
-            v_no = doc.get("voucherNumber") or doc.get("invoiceNumber") or doc.get("vchNo") or str(doc["_id"])
-            if v_no not in vouchers_map:
-                doc["_id"] = str(doc["_id"])
+            doc_id = str(doc["_id"])
+            if doc_id not in vouchers_map:
+                doc["_id"] = doc_id
+                doc["id"] = doc_id
                 created = doc.get("createdAt") or doc.get("created_at")
                 if isinstance(created, (datetime, date)):
                     doc["createdAt"] = created.strftime("%Y-%m-%d %H:%M:%S")
                     doc["created_at"] = doc["createdAt"]
                 doc["collection"] = coll_name
+
+                # Normalize party name
+                party = (
+                    doc.get("partyName")
+                    or doc.get("partyLedgerName")
+                    or doc.get("partyLedger")
+                    or doc.get("party")
+                    or doc.get("customerName")
+                    or doc.get("vendorName")
+                    or "Unspecified Party"
+                )
+                doc["partyName"] = party
+                doc["partyLedgerName"] = party
+                doc["partyLedger"] = party
+
+                # Normalize total amount
+                amt = (
+                    doc.get("totalAmount")
+                    if doc.get("totalAmount") is not None
+                    else (
+                        doc.get("grandTotal")
+                        if doc.get("grandTotal") is not None
+                        else (
+                            doc.get("amount")
+                            if doc.get("amount") is not None
+                            else (doc.get("netAmount") or 0.0)
+                        )
+                    )
+                )
+                try:
+                    doc["totalAmount"] = float(amt)
+                except Exception:
+                    doc["totalAmount"] = 0.0
+
+                # Normalize date
+                v_date = (
+                    doc.get("voucherDate")
+                    or doc.get("date")
+                    or doc.get("invoiceDate")
+                    or ""
+                )
+                if isinstance(v_date, (datetime, date)):
+                    v_date = v_date.strftime("%Y-%m-%d")
+                doc["voucherDate"] = str(v_date)
+                doc["date"] = str(v_date)
+
+                # Normalize voucher number / invoice number
+                v_num = doc.get("voucherNumber") or doc.get("invoiceNumber") or doc.get("vchNo") or f"VCH-{doc_id[-6:]}"
+                doc["voucherNo"] = v_num
+                doc["voucherNumber"] = v_num
+
                 # Ensure items / productLines are accessible
-                if not doc.get("items") and doc.get("productLines"):
-                    doc["items"] = doc["productLines"]
-                elif not doc.get("items") and doc.get("inventoryEntries"):
-                    doc["items"] = doc["inventoryEntries"]
-                vouchers_map[v_no] = doc
+                items = doc.get("items") or doc.get("productLines") or doc.get("inventoryEntries") or doc.get("salesEntries") or []
+                doc["items"] = items
+
+                # Normalize document type
+                norm_doc_type = doc.get("docType") or doc.get("voucherType") or "Sales Voucher"
+                if "purchase" in v_type:
+                    norm_doc_type = "Purchase Invoice"
+                elif "sales" in v_type:
+                    norm_doc_type = "Sales Invoice"
+                doc["docType"] = norm_doc_type
+                doc["voucherType"] = norm_doc_type
+
+                vouchers_map[doc_id] = doc
 
     deduplicated = sorted(
         vouchers_map.values(),
@@ -2286,9 +2346,26 @@ async def export_saved_vouchers_xml(
             cur = db[coll].find({"isDeleted": {"$ne": True}}).sort([("createdAt", -1), ("created_at", -1)]).limit(500)
             items = await cur.to_list(length=500) if hasattr(cur, "to_list") else list(cur)
             for d in items:
-                vno = d.get("voucherNumber") or d.get("invoiceNumber") or str(d["_id"])
-                if vno not in v_map:
-                    v_map[vno] = d
+                v_type = str(d.get("voucherType") or d.get("docType") or "").lower()
+                src = str(d.get("source") or "").lower()
+                cat = str(d.get("category") or "").lower()
+                is_bank = (
+                    d.get("isBankStatement")
+                    or "bank" in v_type
+                    or "payment" in v_type
+                    or "contra" in v_type
+                    or "receipt" in v_type
+                    or "bank" in src
+                    or "bank" in cat
+                )
+                if "sales" in v_type or "purchase" in v_type or "invoice" in v_type or "debit_note" in v_type or "credit_note" in v_type:
+                    is_bank = False
+                if is_bank:
+                    continue
+
+                d_id = str(d["_id"])
+                if d_id not in v_map:
+                    v_map[d_id] = d
         docs_to_export = list(v_map.values())
 
     if not docs_to_export:

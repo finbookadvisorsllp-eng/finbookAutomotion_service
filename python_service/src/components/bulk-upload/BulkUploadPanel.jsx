@@ -157,7 +157,7 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
         : localSaved;
 
       allList.forEach(v => {
-        const key = v.voucherNumber || v.voucherNo || v.vchNo || v.id;
+        const key = v._id || v.id || v.voucherNumber || v.voucherNo || v.vchNo;
         if (key) {
           map.set(key, v);
         }
@@ -170,7 +170,7 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
       const localSaved = JSON.parse(localStorage.getItem('saved_bulk_vouchers') || '[]');
       const map = new Map();
       localSaved.forEach(v => {
-        const key = v.voucherNumber || v.voucherNo || v.vchNo || v.id;
+        const key = v._id || v.id || v.voucherNumber || v.voucherNo || v.vchNo;
         if (key) map.set(key, v);
       });
       const deduplicated = Array.from(map.values());
@@ -1697,13 +1697,22 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
       // 2. Remove from localStorage
       const localSaved = JSON.parse(localStorage.getItem('saved_bulk_vouchers') || '[]');
       const updatedLocal = localSaved.filter(s => {
-        const sKey = s.voucherNo || s.voucherNumber || s.vchNo || s.id;
-        return sKey !== vNo && s.id !== vch.id;
+        const sId = s._id || s.id;
+        const vId = vch._id || vch.id;
+        if (sId && vId) return sId !== vId;
+        const sKey = s.voucherNo || s.voucherNumber || s.vchNo;
+        return sKey !== vNo;
       });
       localStorage.setItem('saved_bulk_vouchers', JSON.stringify(updatedLocal));
 
       // 3. Remove from state
-      setSavedVouchers(prev => prev.filter(s => (s.voucherNo || s.voucherNumber || s.vchNo || s.id) !== vNo && s.id !== vch.id));
+      setSavedVouchers(prev => prev.filter(s => {
+        const sId = s._id || s.id;
+        const vId = vch._id || vch.id;
+        if (sId && vId) return sId !== vId;
+        const sKey = s.voucherNo || s.voucherNumber || s.vchNo;
+        return sKey !== vNo;
+      }));
 
       toast.success(`Deleted voucher ${vNo} from MongoDB & local panel!`);
     } catch (err) {
@@ -1713,8 +1722,34 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
   }, [selectedCompany]);
 
   const handleEditSavedVoucher = useCallback((vch) => {
-    setAiReviewDoc(vch);
-  }, []);
+    if (!vch) return;
+    const vType = String(vch.voucherType || vch.docType || '').toLowerCase();
+    let normType = 'sales_invoice';
+    if (vType.includes('purchase')) {
+      normType = 'purchase_invoice';
+    } else if (vType.includes('sales')) {
+      normType = 'sales_invoice';
+    } else if (vType.includes('bank_payment') || vType.includes('receipt')) {
+      normType = 'bank_payment';
+    } else if (vType.includes('cash_payment') || vType.includes('payment')) {
+      normType = 'cash_payment';
+    } else if (vType.includes('contra')) {
+      normType = 'contra';
+    } else if (vType.includes('credit')) {
+      normType = 'credit_note';
+    } else if (vType.includes('debit')) {
+      normType = 'debit_note';
+    }
+
+    const editId = vch._id || vch.id;
+    navigate('/sales/new', {
+      state: {
+        voucherType: normType,
+        editId: editId,
+        initialData: vch
+      }
+    });
+  }, [navigate]);
 
   const renderSavedVouchersTable = () => (
     <div className="bg-[var(--app-panel-bg)] border border-[var(--app-border)]/60 rounded-lg shadow-2xs overflow-hidden flex flex-col flex-1 min-h-0">
@@ -1791,12 +1826,21 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
           <tbody className="divide-y divide-[var(--app-row-border)] font-medium text-[var(--app-text)]">
             {savedVouchers.length > 0 ? (
               savedVouchers.map((vch, idx) => {
-                const itemsCount = vch.items ? vch.items.length : 1;
+                const rawItems = vch.items || vch.inventoryEntries || vch.salesEntries || vch.productLines || [];
+                const itemsCount = Array.isArray(rawItems) && rawItems.length > 0 ? rawItems.length : 1;
                 const isApproved = (vch.status || '').toLowerCase().includes('approved') || (vch.status || '').toLowerCase().includes('completed');
+                const party = vch.partyName || vch.partyLedgerName || vch.partyLedger || vch.party || 'Unspecified Party';
+                const totalAmt = parseFloat(vch.totalAmount ?? vch.grandTotal ?? vch.amount ?? vch.netAmount ?? 0);
+                const vNo = vch.voucherNo || vch.voucherNumber || '-';
+                const invNo = vch.invoiceNumber || '';
+
                 return (
-                  <tr key={vch.id || idx} className="hover:bg-[var(--app-row-hover)]/60 transition-colors h-11">
+                  <tr key={vch._id || vch.id || idx} className="hover:bg-[var(--app-row-hover)]/60 transition-colors h-11">
                     <td className="py-2 px-3 font-mono font-black text-indigo-600 dark:text-indigo-400">
-                      {vch.voucherNo || vch.voucherNumber || '-'}
+                      <div>{vNo}</div>
+                      {invNo && invNo !== vNo && (
+                        <div className="text-[10px] font-normal text-slate-400">Ref: {invNo}</div>
+                      )}
                     </td>
                     <td className="py-2 px-3 font-bold text-slate-800 dark:text-slate-200">
                       <span className="px-2 py-0.5 rounded-full text-[9.5px] font-black uppercase bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200/40">
@@ -1804,10 +1848,10 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
                       </span>
                     </td>
                     <td className="py-2 px-3 font-extrabold text-slate-900 dark:text-slate-100">
-                      {vch.partyName || vch.party || 'Unspecified Party'}
+                      {party}
                     </td>
                     <td className="py-2 px-3 font-mono text-slate-600 dark:text-slate-400">
-                      {vch.voucherDate || vch.date || '-'}
+                      {vch.voucherDate || vch.date || vch.invoiceDate || '-'}
                     </td>
                     <td className="py-2 px-3 text-center font-bold">
                       <span className="px-2 py-0.5 rounded-md text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
@@ -1815,7 +1859,7 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
                       </span>
                     </td>
                     <td className="py-2 px-3 font-mono font-black text-slate-900 dark:text-slate-100">
-                      ₹ {parseFloat(vch.totalAmount || vch.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      ₹ {totalAmt.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </td>
                     <td className="py-2 px-3 text-center">
                       {isApproved ? (
@@ -1838,7 +1882,7 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
                               const companyId = typeof selectedCompany === 'string'
                                 ? selectedCompany
                                 : (selectedCompany?.id || selectedCompany?._id || selectedCompany?.dbName || localStorage.getItem('selectedCompanyId') || '');
-                              await bulkUploadApi.exportSavedVouchersXml(vch.voucherNo || vch.voucherNumber || vch.id, companyId);
+                              await bulkUploadApi.exportSavedVouchersXml(vch._id || vch.id || vch.voucherNo || vch.voucherNumber, companyId);
                               toast.success(`Exported Tally XML for ${vch.voucherNo || vch.voucherNumber}!`);
                             } catch (e) {
                               toast.error("Failed to export XML: " + e.message);

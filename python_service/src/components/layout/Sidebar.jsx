@@ -23,7 +23,7 @@ const NAV = [
   },
   {
     label: 'Voucher Entry', icon: FileText, children: [
-      'Manual Voucher Entry', 'Bulk Upload', 'OCR Upload', 'Text to Entry','Approval Center', 
+      'Manual Voucher Entry', 'Bulk Upload', 'Text to Entry', 'Approval Center', 
     ],
   },
   { label: 'Sales', icon: TrendingUp },

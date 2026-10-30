@@ -625,7 +625,7 @@ export const useSalesStore = create((set, get) => ({
       const formValues = {
         ...data,
         voucherType: normalizeVoucherType(data.voucherType),
-        partyLedger: data.partyLedgerName || data.partyLedger || '',
+        partyLedger: data.partyLedgerName || data.partyLedger || data.partyName || data.party || '',
         partyGstin: data.partyGSTIN || data.partyGstin || '',
         gstRegistration: data.gstRegistration || (data.companyState ? `${data.companyState} Registration` : (data.gstState ? `${data.gstState} Registration` : '')),
         gstRegistrationType: data.gstRegistrationType || '',
