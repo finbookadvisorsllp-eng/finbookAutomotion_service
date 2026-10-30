@@ -1122,6 +1122,12 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                           }
                         }}
                       />
+                      {form.partyLedger && !(masterData.purchasePartyLedgers || []).includes(form.partyLedger) && !(masterData.partyLedgers || []).includes(form.partyLedger) && !(masterData.allLedgers || []).includes(form.partyLedger) && (
+                        <span className="text-[9.5px] font-bold text-rose-600 dark:text-rose-400 flex items-center gap-1 mt-0.5">
+                          <AlertCircle size={10} />
+                          Doesn't exist in master data
+                        </span>
+                      )}
                     </div>
 
                     {/* Party GSTIN */}
@@ -1356,6 +1362,12 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                                       updateProductLine(row.id, updates);
                                     }}
                                   />
+                                  {row.stockItem && !(masterData.stockItems || []).includes(row.stockItem) && (
+                                    <span className="text-[9px] font-bold text-rose-600 dark:text-rose-400 flex items-center gap-1 mt-0.5">
+                                      <AlertCircle size={9} />
+                                      Doesn't exist in master data
+                                    </span>
+                                  )}
                                   <input
                                     type="text"
                                     value={row.description || ''}

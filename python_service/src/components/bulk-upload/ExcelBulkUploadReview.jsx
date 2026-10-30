@@ -145,24 +145,6 @@ export default function ExcelBulkUploadReview({
     useFundFlowStore.getState().fetchMasterData();
   }, []);
 
-  const partyLedgers = useMemo(() => [
-    ...(salesMasterData?.partyLedgers || []),
-    ...(purchaseMasterData?.partyLedgers || []),
-    ...(fundFlowMasterData?.partyLedgers || []).map(l => l.name || l.ledgerName || l)
-  ], [salesMasterData?.partyLedgers, purchaseMasterData?.partyLedgers, fundFlowMasterData?.partyLedgers]);
-
-  const allAvailableLedgers = useMemo(() => {
-    const list = Array.from(new Set([
-      ...partyLedgers,
-      ...customLedgers,
-      'HDFC Bank Account', 'ICICI Bank Account', 'SBI Bank Account', 'Bank Account',
-      'Cash Account', 'Suspense Account', 'Sales Account', 'Purchase Account',
-      'Sundry Debtors', 'Sundry Creditors', 'Electricity Expense', 'Rent Expense',
-      'Office Expenses', 'Consulting Fees'
-    ]));
-    return list;
-  }, [partyLedgers, customLedgers]);
-
   // ── Column index map ──────────────────────────────────────────────────────
   const colIdxMap = useMemo(() => {
     const headers = excelGridData[1] || [];
@@ -277,6 +259,65 @@ export default function ExcelBulkUploadReview({
   useEffect(() => {
     setVouchersState(computedGroupedVouchers);
   }, [computedGroupedVouchers]);
+
+  // Master Data Lookups
+  const partyLedgers = useMemo(() => [
+    ...(salesMasterData?.partyLedgers || []),
+    ...(purchaseMasterData?.partyLedgers || []),
+    ...(fundFlowMasterData?.partyLedgers || []).map(l => l.name || l.ledgerName || l)
+  ], [salesMasterData?.partyLedgers, purchaseMasterData?.partyLedgers, fundFlowMasterData?.partyLedgers]);
+
+  const masterPartyLedgerSet = useMemo(() => {
+    const set = new Set();
+    (partyLedgers || []).forEach(p => {
+      if (typeof p === 'string') set.add(p.trim().toLowerCase());
+      else if (p?.name) set.add(String(p.name).trim().toLowerCase());
+      else if (p?.ledgerName) set.add(String(p.ledgerName).trim().toLowerCase());
+    });
+    return set;
+  }, [partyLedgers]);
+
+  const masterStockItemSet = useMemo(() => {
+    const items = [
+      ...(purchaseMasterData?.stockItems || []),
+      ...(salesMasterData?.stockItems || [])
+    ];
+    const set = new Set();
+    items.forEach(it => {
+      if (typeof it === 'string') set.add(it.trim().toLowerCase());
+      else if (it?.name) set.add(String(it.name).trim().toLowerCase());
+      else if (it?.stockItem) set.add(String(it.stockItem).trim().toLowerCase());
+    });
+    return set;
+  }, [purchaseMasterData?.stockItems, salesMasterData?.stockItems]);
+
+  const isPartyInMaster = useCallback((partyName) => {
+    if (!partyName || partyName === 'Unspecified Party' || partyName === 'Unspecified Ledger') return false;
+    return masterPartyLedgerSet.has(partyName.trim().toLowerCase());
+  }, [masterPartyLedgerSet]);
+
+  const isItemInMaster = useCallback((itemName) => {
+    if (!itemName || itemName === 'General Goods/Services') return true;
+    return masterStockItemSet.has(itemName.trim().toLowerCase());
+  }, [masterStockItemSet]);
+
+  const allAvailableLedgers = useMemo(() => {
+    const fromVouchers = [
+      ...(previewDoc?.grouped_vouchers || previewDoc?.groupedVouchers || []).map(v => v.party_ledger || v.party_name || v.partyName),
+      ...(Array.isArray(vouchersState) ? vouchersState.map(v => v.partyName || v.party_ledger) : [])
+    ].filter(Boolean);
+
+    const list = Array.from(new Set([
+      ...fromVouchers,
+      ...partyLedgers,
+      ...customLedgers,
+      'HDFC Bank Account', 'ICICI Bank Account', 'SBI Bank Account', 'Bank Account',
+      'Cash Account', 'Suspense Account', 'Sales Account', 'Purchase Account',
+      'Sundry Debtors', 'Sundry Creditors', 'Electricity Expense', 'Rent Expense',
+      'Office Expenses', 'Consulting Fees'
+    ]));
+    return list;
+  }, [partyLedgers, customLedgers, previewDoc, vouchersState]);
 
   // Row update handler
   const handleUpdateVoucherRow = useCallback((index, field, value) => {
@@ -1131,11 +1172,23 @@ export default function ExcelBulkUploadReview({
                                 <BookOpen size={14} />
                               </div>
                               <div className="flex flex-col min-w-0">
-                                <span className="font-extrabold text-xs text-slate-900 dark:text-slate-100 truncate">
-                                  {group.ledgerName}
-                                </span>
+                                <div className="flex items-center gap-2">
+                                  <span className={`font-extrabold text-xs truncate ${isPartyInMaster(group.ledgerName) ? 'text-slate-900 dark:text-slate-100' : 'text-rose-600 dark:text-rose-400 font-black'}`}>
+                                    {group.ledgerName}
+                                  </span>
+                                  {!isPartyInMaster(group.ledgerName) ? (
+                                    <span className="px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-300 dark:border-rose-800 flex items-center gap-1 shrink-0">
+                                      <AlertCircle size={10} />
+                                      Doesn't exist in master data
+                                    </span>
+                                  ) : (
+                                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-350 border border-emerald-200/50 shrink-0">
+                                      In Master Data
+                                    </span>
+                                  )}
+                                </div>
                                 <span className="text-[10px] text-slate-400 font-medium">
-                                  Master Ledger
+                                  {isPartyInMaster(group.ledgerName) ? 'Master Ledger' : 'New Party (Not in Master Data)'}
                                 </span>
                               </div>
                             </div>
@@ -1247,7 +1300,14 @@ export default function ExcelBulkUploadReview({
                                         </td>
                                         <td className="py-1.5 px-3 text-[11px] font-medium text-slate-800 dark:text-slate-200 truncate max-w-xs" title={vch.narration}>
                                           <div className="flex items-center gap-1.5">
-                                            <span className="truncate">{vch.narration || vch.partyName || '--'}</span>
+                                            <span className={`truncate ${!isPartyInMaster(vch.partyName) ? 'text-rose-600 dark:text-rose-400 font-bold' : ''}`}>
+                                              {vch.narration || vch.partyName || '--'}
+                                            </span>
+                                            {!isPartyInMaster(vch.partyName) && (
+                                              <span className="px-1.5 py-0.2 rounded text-[8.5px] font-bold bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200 shrink-0" title="Party doesn't exist in master data">
+                                                Not in Master
+                                              </span>
+                                            )}
                                             {hasItems && (
                                               <button
                                                 type="button"
@@ -1347,7 +1407,19 @@ export default function ExcelBulkUploadReview({
                                                   {vch.items.map((it, itIdx) => (
                                                     <tr key={itIdx} className="hover:bg-slate-50 dark:hover:bg-slate-900/50">
                                                       <td className="py-1 px-2 text-slate-400 font-sans">{itIdx + 1}</td>
-                                                      <td className="py-1 px-2 font-sans font-semibold text-slate-800 dark:text-slate-200">{it.stockItem || it.item_name || '--'}</td>
+                                                      <td className="py-1 px-2 font-sans font-semibold">
+                                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                                          <span className={isItemInMaster(it.stockItem || it.item_name) ? "text-slate-800 dark:text-slate-200" : "text-rose-600 dark:text-rose-400 font-bold"}>
+                                                            {it.stockItem || it.item_name || '--'}
+                                                          </span>
+                                                          {!isItemInMaster(it.stockItem || it.item_name) && (
+                                                            <span className="px-1.5 py-0.2 rounded text-[8.5px] font-bold bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-300 dark:border-rose-800 flex items-center gap-0.5 shrink-0">
+                                                              <AlertCircle size={9} />
+                                                              Doesn't exist in master data
+                                                            </span>
+                                                          )}
+                                                        </div>
+                                                      </td>
                                                       <td className="py-1 px-2 text-slate-500">{it.hsnSacCode || it.hsn_code || '--'}</td>
                                                       <td className="py-1 px-2 text-right">{it.billQuantity || it.quantity || it.qty || 1} {it.unit || 'Nos'}</td>
                                                       <td className="py-1 px-2 text-right">₹ {parseFloat(it.billRate || it.rate || 0).toFixed(2)}</td>
@@ -1454,34 +1526,55 @@ export default function ExcelBulkUploadReview({
                                   title={vch.narration}
                                 />
                               ) : (
-                                <div className="flex items-center gap-1.5">
-                                  <select
-                                    value={vch.partyName || ''}
-                                    onChange={e => handleUpdateVoucherRow(idx, 'partyName', e.target.value)}
-                                    className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded px-2 py-1 text-[11px] font-bold text-slate-900 dark:text-slate-100 outline-none focus:border-indigo-500 truncate min-w-[140px]"
-                                  >
-                                    {allAvailableLedgers.map(l => (
-                                      <option key={l} value={l}>{l}</option>
-                                    ))}
-                                  </select>
+                                <div className="flex flex-col gap-0.5 min-w-[170px]">
+                                  <div className="flex items-center gap-1.5">
+                                    <select
+                                      value={vch.partyName || ''}
+                                      onChange={e => handleUpdateVoucherRow(idx, 'partyName', e.target.value)}
+                                      className={`flex-1 bg-white dark:bg-slate-900 border rounded px-2 py-1 text-[11px] font-bold outline-none truncate min-w-[130px] ${
+                                        !isPartyInMaster(vch.partyName)
+                                          ? 'border-rose-400 bg-rose-50/30 text-rose-700 dark:text-rose-300 focus:border-rose-500'
+                                          : 'border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 focus:border-indigo-500'
+                                      }`}
+                                    >
+                                      {vch.partyName && !allAvailableLedgers.includes(vch.partyName) && (
+                                        <option value={vch.partyName}>{vch.partyName} (New)</option>
+                                      )}
+                                      {allAvailableLedgers.map(l => (
+                                        <option key={l} value={l}>
+                                          {l}{!isPartyInMaster(l) ? ' (Not in Master)' : ''}
+                                        </option>
+                                      ))}
+                                    </select>
 
-                                  <button
-                                    onClick={() => setMasterModal({
-                                      isOpen: true,
-                                      rowIndex: idx,
-                                      voucherId: vch.id,
-                                      uploadedParty: vch.partyName || vch.narration || '',
-                                      groupName: 'Sundry Creditors',
-                                      selectedLedger: vch.partyName || vch.narration || '',
-                                      gstin: '',
-                                      phone: '',
-                                      city: ''
-                                    })}
-                                    className="p-1 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 rounded transition cursor-pointer shrink-0"
-                                    title="Add/Edit Master Ledger"
-                                  >
-                                    <Plus size={12} />
-                                  </button>
+                                    <button
+                                      onClick={() => setMasterModal({
+                                        isOpen: true,
+                                        rowIndex: idx,
+                                        voucherId: vch.id,
+                                        uploadedParty: vch.partyName || vch.narration || '',
+                                        groupName: 'Sundry Creditors',
+                                        selectedLedger: vch.partyName || vch.narration || '',
+                                        gstin: vch.party_gstin || '',
+                                        phone: '',
+                                        city: ''
+                                      })}
+                                      className={`p-1 rounded transition cursor-pointer shrink-0 border ${
+                                        !isPartyInMaster(vch.partyName)
+                                          ? 'bg-rose-50 hover:bg-rose-100 text-rose-600 border-rose-300 shadow-xs'
+                                          : 'hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800'
+                                      }`}
+                                      title={!isPartyInMaster(vch.partyName) ? "Add this party to Master Data" : "Add/Edit Master Ledger"}
+                                    >
+                                      <Plus size={12} />
+                                    </button>
+                                  </div>
+                                  {!isPartyInMaster(vch.partyName) && (
+                                    <span className="text-[9px] font-bold text-rose-600 dark:text-rose-400 flex items-center gap-1">
+                                      <AlertCircle size={9} />
+                                      Doesn't exist in master data
+                                    </span>
+                                  )}
                                 </div>
                               )}
                             </td>
@@ -1548,6 +1641,9 @@ export default function ExcelBulkUploadReview({
                                       onChange={e => handleUpdateVoucherRow(idx, 'partyName', e.target.value)}
                                       className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded px-2 py-1 text-[11px] font-bold text-slate-900 dark:text-slate-100 outline-none focus:border-indigo-500 truncate min-w-[140px]"
                                     >
+                                      {vch.partyName && !allAvailableLedgers.includes(vch.partyName) && (
+                                        <option value={vch.partyName}>{vch.partyName}</option>
+                                      )}
                                       {allAvailableLedgers.map(l => (
                                         <option key={l} value={l}>{l}</option>
                                       ))}
@@ -1681,7 +1777,19 @@ export default function ExcelBulkUploadReview({
                                       {vch.items.map((it, itIdx) => (
                                         <tr key={itIdx} className="hover:bg-slate-50 dark:hover:bg-slate-900/50">
                                           <td className="py-1 px-2 text-slate-400 font-sans">{itIdx + 1}</td>
-                                          <td className="py-1 px-2 font-sans font-semibold text-slate-800 dark:text-slate-200">{it.stockItem || it.item_name || '--'}</td>
+                                          <td className="py-1 px-2 font-sans font-semibold">
+                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                              <span className={isItemInMaster(it.stockItem || it.item_name) ? "text-slate-800 dark:text-slate-200" : "text-rose-600 dark:text-rose-400 font-bold"}>
+                                                {it.stockItem || it.item_name || '--'}
+                                              </span>
+                                              {!isItemInMaster(it.stockItem || it.item_name) && (
+                                                <span className="px-1.5 py-0.2 rounded text-[8.5px] font-bold bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-300 dark:border-rose-800 flex items-center gap-0.5 shrink-0">
+                                                  <AlertCircle size={9} />
+                                                  Doesn't exist in master data
+                                                </span>
+                                              )}
+                                            </div>
+                                          </td>
                                           <td className="py-1 px-2 text-slate-500">{it.hsnSacCode || it.hsn_code || '--'}</td>
                                           <td className="py-1 px-2 text-right">{it.billQuantity || it.quantity || it.qty || 1} {it.unit || 'Nos'}</td>
                                           <td className="py-1 px-2 text-right">₹ {parseFloat(it.billRate || it.rate || 0).toFixed(2)}</td>
