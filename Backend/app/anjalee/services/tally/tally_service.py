@@ -755,3 +755,6 @@ class TallyPushService:
             "xmlPayload": combined_xml,
             "responseXml": response_xml
         }
+
+
+TallyService = TallyPushService

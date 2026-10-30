@@ -368,19 +368,22 @@ export default function ExcelBulkUploadReview({
         : (selectedCompany?.id || selectedCompany?._id || selectedCompany?.dbName || localStorage.getItem('selectedCompanyId') || '');
 
       const formattedForApi = listToSave.map(v => ({
-        invoiceNumber: v.instNumber || v.voucherNo || `BS-${v.id}`,
-        voucherNo: v.instNumber || v.voucherNo || `BS-${v.id}`,
-        voucherDate: v.date || new Date().toISOString().split('T')[0],
-        docType: v.voucherType || (v.isReceipt ? 'Receipt Voucher' : 'Payment Voucher'),
-        voucherType: v.voucherType || (v.isReceipt ? 'Receipt Voucher' : 'Payment Voucher'),
-        partyName: v.partyName || v.matchedMaster || 'Unspecified Party',
-        party: v.partyName || v.matchedMaster || 'Unspecified Party',
+        invoiceNumber: v.instNumber || v.voucherNo || `INV-${v.id}`,
+        voucherNo: v.instNumber || v.voucherNo || `INV-${v.id}`,
+        voucherDate: v.date || v.invoice_date || new Date().toISOString().split('T')[0],
+        docType: v.voucherType || (isBankStatement ? (v.isReceipt ? 'Receipt Voucher' : 'Payment Voucher') : 'Purchase Invoice'),
+        voucherType: v.voucherType || (isBankStatement ? (v.isReceipt ? 'Receipt Voucher' : 'Payment Voucher') : 'purchase_invoice'),
+        partyName: v.partyName || v.party_ledger || v.matchedMaster || 'Unspecified Party',
+        party: v.partyName || v.party_ledger || v.matchedMaster || 'Unspecified Party',
+        partyGstin: v.party_gstin || v.partyGstin || '',
         totalAmount: v.totalAmount || v.amount || 0,
         amount: v.totalAmount || v.amount || 0,
+        items: v.items || v.productLines || [],
+        productLines: v.items || v.productLines || [],
         debit: v.debit || 0,
         credit: v.credit || 0,
         narration: v.narration || '',
-        referenceNumber: v.instNumber || '',
+        referenceNumber: v.instNumber || v.voucherNo || '',
         debitAccount: v.debitAccount,
         creditAccount: v.creditAccount,
         status: 'approved'
@@ -402,7 +405,59 @@ export default function ExcelBulkUploadReview({
       console.error("Failed to save vouchers to database:", err);
       toast.error("Failed to import vouchers to database.");
     }
-  }, [vouchersState, computedGroupedVouchers, previewDoc, selectedCompany, setDocuments, onClose, excelGridData]);
+  }, [vouchersState, computedGroupedVouchers, previewDoc, selectedCompany, setDocuments, onClose, excelGridData, isBankStatement]);
+
+  // Bulk Save Draft handler
+  const handleSaveDraft = useCallback(async () => {
+    const listToSave = vouchersState.length > 0 ? vouchersState : computedGroupedVouchers;
+    if (!listToSave || listToSave.length === 0) {
+      toast.error("No voucher rows to save!");
+      return;
+    }
+
+    toast.loading("Saving vouchers as draft into database...");
+    try {
+      const companyId = typeof selectedCompany === 'string'
+        ? selectedCompany
+        : (selectedCompany?.id || selectedCompany?._id || selectedCompany?.dbName || localStorage.getItem('selectedCompanyId') || '');
+
+      const formattedForApi = listToSave.map(v => ({
+        invoiceNumber: v.instNumber || v.voucherNo || `INV-${v.id}`,
+        voucherNo: v.instNumber || v.voucherNo || `INV-${v.id}`,
+        voucherDate: v.date || v.invoice_date || new Date().toISOString().split('T')[0],
+        docType: v.voucherType || (isBankStatement ? (v.isReceipt ? 'Receipt Voucher' : 'Payment Voucher') : 'Purchase Invoice'),
+        voucherType: v.voucherType || (isBankStatement ? (v.isReceipt ? 'Receipt Voucher' : 'Payment Voucher') : 'purchase_invoice'),
+        partyName: v.partyName || v.party_ledger || v.matchedMaster || 'Unspecified Party',
+        party: v.partyName || v.party_ledger || v.matchedMaster || 'Unspecified Party',
+        partyGstin: v.party_gstin || v.partyGstin || '',
+        totalAmount: v.totalAmount || v.amount || 0,
+        amount: v.totalAmount || v.amount || 0,
+        items: v.items || v.productLines || [],
+        productLines: v.items || v.productLines || [],
+        debit: v.debit || 0,
+        credit: v.credit || 0,
+        narration: v.narration || '',
+        referenceNumber: v.instNumber || v.voucherNo || '',
+        status: 'draft'
+      }));
+
+      await bulkUploadApi.saveVouchersToMongo(
+        previewDoc.id || previewDoc.uploadId || 'bulk_upload',
+        formattedForApi,
+        'draft',
+        companyId
+      );
+
+      toast.dismiss();
+      toast.success(`Successfully saved ${formattedForApi.length} vouchers as draft!`);
+      setDocuments(prev => prev.map(d => d.id === previewDoc.id ? { ...d, status: 'Draft Saved', excelData: excelGridData } : d));
+      onClose();
+    } catch (err) {
+      toast.dismiss();
+      console.error("Failed to save draft vouchers:", err);
+      toast.error("Failed to save draft vouchers.");
+    }
+  }, [vouchersState, computedGroupedVouchers, previewDoc, selectedCompany, setDocuments, onClose, excelGridData, isBankStatement]);
 
   // Helper to normalize dates for date inputs (YYYY-MM-DD)
   const normalizeDateForForm = (dStr) => {
@@ -802,10 +857,7 @@ export default function ExcelBulkUploadReview({
             <span>AI Review</span>
           </button>
           <button
-            onClick={() => {
-              toast.success('Draft saved successfully!');
-              onClose();
-            }}
+            onClick={handleSaveDraft}
             className="h-8.5 px-3 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-355 hover:bg-slate-50 dark:hover:bg-slate-850 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-3xs bg-white dark:bg-[#20202c]"
           >
             <FolderOpen size={12} className="text-slate-450" />

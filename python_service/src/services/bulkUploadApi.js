@@ -160,6 +160,23 @@ export const bulkUploadApi = {
 
   deleteSavedVoucher: (voucherIdentifier, companyId = 'default') =>
     apiClient.delete(`/bulk-upload/saved-vouchers/${encodeURIComponent(voucherIdentifier)}?company_id=${companyId}`).then((r) => r.data),
+
+  exportSavedVouchersXml: async (voucherIds = null, companyId = 'default') => {
+    const params = new URLSearchParams();
+    if (voucherIds) params.append('voucher_id', Array.isArray(voucherIds) ? voucherIds.join(',') : voucherIds);
+    if (companyId) params.append('company_id', companyId);
+    const response = await apiClient.get(`/bulk-upload/saved-vouchers/export-xml?${params.toString()}`, {
+      responseType: 'blob',
+    });
+    const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/xml' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `tally_vouchers_${Date.now()}.xml`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    return { success: true };
+  },
 };
 
 export default bulkUploadApi;

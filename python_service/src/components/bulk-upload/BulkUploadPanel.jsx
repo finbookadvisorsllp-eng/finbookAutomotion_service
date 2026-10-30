@@ -153,7 +153,7 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
       
       const map = new Map();
       const allList = (res && res.success && Array.isArray(res.vouchers)) 
-        ? [...res.vouchers, ...localSaved] 
+        ? res.vouchers 
         : localSaved;
 
       allList.forEach(v => {
@@ -945,7 +945,9 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
       window.history.replaceState({}, '', url.toString());
       sessionStorage.removeItem('active_bulk_upload_doc_id');
     } catch (e) {}
-  }, []);
+    fetchSavedVouchers();
+    fetchDocuments();
+  }, [fetchSavedVouchers, fetchDocuments]);
 
   const handleOpenPreview = async (doc) => {
     const ext = (doc.name || '').split('.').pop().toLowerCase();
@@ -1714,6 +1716,52 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
 
   const renderSavedVouchersTable = () => (
     <div className="bg-[var(--app-panel-bg)] border border-[var(--app-border)]/60 rounded-lg shadow-2xs overflow-hidden flex flex-col flex-1 min-h-0">
+      <div className="p-3 bg-slate-50/70 dark:bg-slate-900/40 border-b border-[var(--app-border)]/60 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Database size={15} className="text-indigo-600 dark:text-indigo-400" />
+          <span className="font-extrabold text-xs text-slate-800 dark:text-slate-200">
+            Saved Vouchers in Database ({savedVouchers.length})
+          </span>
+          <span className="text-[10px] text-slate-500 hidden sm:inline">
+            All vouchers (Bulk Upload, OCR & Drafts) saved into MongoDB by voucher type
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={fetchSavedVouchers}
+            className="h-7 px-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded text-[11px] font-bold flex items-center gap-1 cursor-pointer transition border border-slate-200 dark:border-slate-700"
+            title="Refresh saved vouchers"
+          >
+            <RefreshCw size={11} />
+            <span>Refresh</span>
+          </button>
+          <button
+            onClick={async () => {
+              if (savedVouchers.length === 0) {
+                toast.info("No saved vouchers to export.");
+                return;
+              }
+              try {
+                toast.loading("Generating Tally XML for saved vouchers...");
+                const companyId = typeof selectedCompany === 'string'
+                  ? selectedCompany
+                  : (selectedCompany?.id || selectedCompany?._id || selectedCompany?.dbName || localStorage.getItem('selectedCompanyId') || '');
+                await bulkUploadApi.exportSavedVouchersXml(null, companyId);
+                toast.dismiss();
+                toast.success("Tally XML exported successfully!");
+              } catch (err) {
+                toast.dismiss();
+                toast.error("Failed to export Tally XML: " + (err.message || ""));
+              }
+            }}
+            className="h-7 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-[11px] font-bold flex items-center gap-1.5 cursor-pointer shadow-xs border-none transition"
+            title="Download Tally XML for all saved vouchers"
+          >
+            <Download size={12} />
+            <span>Export Tally XML</span>
+          </button>
+        </div>
+      </div>
       <div className="overflow-x-auto flex-1">
         <table className="w-full text-left border-collapse min-w-[1000px] text-xs whitespace-nowrap table-fixed">
           <colgroup>
@@ -1782,6 +1830,23 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
                     </td>
                     <td className="py-2 px-3 text-center">
                       <div className="flex items-center justify-center gap-1.5">
+                        <button
+                          onClick={async () => {
+                            try {
+                              const companyId = typeof selectedCompany === 'string'
+                                ? selectedCompany
+                                : (selectedCompany?.id || selectedCompany?._id || selectedCompany?.dbName || localStorage.getItem('selectedCompanyId') || '');
+                              await bulkUploadApi.exportSavedVouchersXml(vch.voucherNo || vch.voucherNumber || vch.id, companyId);
+                              toast.success(`Exported Tally XML for ${vch.voucherNo || vch.voucherNumber}!`);
+                            } catch (e) {
+                              toast.error("Failed to export XML: " + e.message);
+                            }
+                          }}
+                          className="p-1.5 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 rounded-lg transition border border-emerald-200/50 cursor-pointer"
+                          title="Download Tally XML for this voucher"
+                        >
+                          <FileText size={13} />
+                        </button>
                         <button
                           onClick={() => handleEditSavedVoucher(vch)}
                           className="p-1.5 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-lg transition border border-indigo-200/50 cursor-pointer"
@@ -3166,6 +3231,7 @@ export default function BulkUploadPanel({ ocrOnly = false }) {
                     onClick={() => {
                       setActiveTab(tab.id);
                       setCheckedDocIds([]);
+                      if (tab.id === 'Saved Vouchers') fetchSavedVouchers();
                     }}
                     className="relative flex items-center gap-2 px-4 h-10 rounded-full shrink-0 transition-colors hover:bg-[var(--m3-surface-container)] cursor-pointer"
                     style={{ color: isActive ? 'var(--m3-on-secondary-container)' : 'var(--m3-on-surface-variant)' }}

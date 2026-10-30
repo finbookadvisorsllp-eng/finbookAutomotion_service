@@ -1,3 +1,19 @@
+def serialize_bson(obj):
+    from bson import ObjectId
+    from datetime import datetime, date
+    if isinstance(obj, list):
+        return [serialize_bson(item) for item in obj]
+    elif isinstance(obj, dict):
+        return {str(k): serialize_bson(v) for k, v in obj.items()}
+    elif isinstance(obj, ObjectId):
+        return str(obj)
+    elif isinstance(obj, (datetime, date)):
+        return obj.strftime("%Y-%m-%d %H:%M:%S")
+    elif hasattr(obj, "to_decimal"):
+        return float(str(obj))
+    return obj
+
+import inspect
 import os
 import re
 import asyncio
@@ -36,6 +52,32 @@ _ocr_executor = ThreadPoolExecutor(max_workers=2)
 
 class OcrProcessRequest(BaseModel):
     upload_id: str
+
+
+class UpdateUploadStatusRequest(BaseModel):
+    upload_id: Optional[str] = None
+    id: Optional[str] = None
+    status: str
+
+
+@router.post("/status", response_model=dict)
+@router.put("/status", response_model=dict)
+@router.patch("/status", response_model=dict)
+async def update_upload_status(
+    payload: UpdateUploadStatusRequest,
+    db = Depends(get_async_db)
+):
+    upload_id = payload.upload_id or payload.id
+    new_status = payload.status
+    if not upload_id or not ObjectId.is_valid(upload_id):
+        return {"success": False, "message": "Invalid upload_id"}
+
+    coro = db["bulk_uploads"].update_one(
+        {"_id": ObjectId(upload_id)},
+        {"$set": {"status": new_status, "updated_at": datetime.utcnow()}}
+    )
+    res = await coro if inspect.isawaitable(coro) else coro
+    return {"success": True, "status": new_status, "modified_count": getattr(res, "modified_count", 1)}
 
 
 def _run_ocr_background(file_path: str, file_type: str, upload_id: str, mongo_uri: str, db_name: str, company_id: str = None):
@@ -534,23 +576,40 @@ def _run_ocr_background(file_path: str, file_type: str, upload_id: str, mongo_ur
                             'continued', 'contd', 'cont.', 'net value rs'
                         ])
 
-                        distinct_inv = (
-                            len(norm_curr_inv) >= 6 and len(norm_page_inv) >= 6 and
+                        # Genuine distinct invoice check:
+                        # If both pages have non-empty invoice numbers of length >= 4,
+                        # and neither is a prefix or substring of the other (not an OCR fragment)
+                        distinct_inv = bool(
+                            norm_curr_inv and norm_page_inv and
+                            len(norm_curr_inv) >= 4 and len(norm_page_inv) >= 4 and
                             norm_curr_inv != norm_page_inv and
-                            not norm_curr_inv.startswith('inv') and not norm_page_inv.startswith('inv')
+                            not norm_curr_inv.startswith('inv') and not norm_page_inv.startswith('inv') and
+                            (norm_curr_inv not in norm_page_inv and norm_page_inv not in norm_curr_inv)
                         )
 
-                        if distinct_inv:
-                            if norm_curr_date != norm_page_date and norm_page_date != "":
-                                is_cont = False
-                            else:
-                                is_cont = True
-                        elif norm_curr_inv and norm_page_inv and norm_curr_inv == norm_page_inv and not norm_curr_inv.startswith('inv'):
+                        different_date = bool(
+                            norm_curr_date and norm_page_date and norm_curr_date != norm_page_date
+                        )
+
+                        different_party = bool(
+                            norm_curr_party and norm_page_party and not same_party
+                        )
+
+                        # Decision matrix:
+                        if different_party or different_date or distinct_inv:
+                            # Clearly different invoices (merged PDF with different invoice numbers or dates or parties)
+                            is_cont = False
+                        elif norm_curr_inv and norm_page_inv and (norm_curr_inv == norm_page_inv or norm_page_inv in norm_curr_inv or norm_curr_inv in norm_page_inv):
+                            # Exact same invoice or OCR fragment of same invoice
                             is_cont = True
                         elif same_party and same_date:
+                            # Continuation page of same invoice for same party and date
                             is_cont = True
                         elif same_party and (has_cont_kw or not norm_page_date):
+                            # Continuation keywords (e.g. Page 2, Page 3, terms, continued)
                             is_cont = True
+                        else:
+                            is_cont = False
 
                     real_items = [
                         it for it in norm_items
@@ -2095,19 +2154,13 @@ async def get_saved_bulk_vouchers(
     db = Depends(get_async_db)
 ):
     """
-    Fetches all individual vouchers saved from Bulk Upload across sales_vouchers, purchase_vouchers, and vouchers collections.
+    Fetches only OCR and Bulk Upload vouchers across sales_vouchers, purchase_vouchers, and vouchers collections.
+    Excludes bank payment / statement vouchers.
     """
-    query = {
-        "$or": [
-            {"source": "Bulk Upload"},
-            {"isBulkUpload": True}
-        ]
-    }
-
     vouchers_map = {}
 
     for coll_name in ["sales_vouchers", "purchase_vouchers", "vouchers"]:
-        cursor = db[coll_name].find(query).sort("created_at", -1)
+        cursor = db[coll_name].find({"isDeleted": {"$ne": True}}).sort([("createdAt", -1), ("created_at", -1)])
         if hasattr(cursor, "to_list"):
             res = cursor.to_list(length=1000)
             docs = await res if (asyncio.iscoroutine(res) or hasattr(res, "__await__")) else res
@@ -2115,19 +2168,105 @@ async def get_saved_bulk_vouchers(
             docs = list(cursor[:1000])
 
         for doc in docs:
-            v_no = doc.get("voucherNumber") or doc.get("invoiceNumber") or str(doc["_id"])
+            # Exclude bank statement and bank payment vouchers
+            v_type = str(doc.get("voucherType") or doc.get("docType") or "").lower()
+            src = str(doc.get("source") or "").lower()
+            cat = str(doc.get("category") or "").lower()
+            is_bank = (
+                doc.get("isBankStatement")
+                or "bank" in v_type
+                or "payment" in v_type
+                or "contra" in v_type
+                or "receipt" in v_type
+                or "bank" in src
+                or "bank" in cat
+            )
+            # Retain sales and purchase invoice vouchers
+            if "sales" in v_type or "purchase" in v_type or "invoice" in v_type or "debit_note" in v_type or "credit_note" in v_type:
+                is_bank = False
+
+            if is_bank:
+                continue
+
+            v_no = doc.get("voucherNumber") or doc.get("invoiceNumber") or doc.get("vchNo") or str(doc["_id"])
             if v_no not in vouchers_map:
                 doc["_id"] = str(doc["_id"])
-                if isinstance(doc.get("created_at"), datetime):
-                    doc["created_at"] = doc["created_at"].strftime("%Y-%m-%d %H:%M:%S")
+                created = doc.get("createdAt") or doc.get("created_at")
+                if isinstance(created, (datetime, date)):
+                    doc["createdAt"] = created.strftime("%Y-%m-%d %H:%M:%S")
+                    doc["created_at"] = doc["createdAt"]
+                doc["collection"] = coll_name
+                # Ensure items / productLines are accessible
+                if not doc.get("items") and doc.get("productLines"):
+                    doc["items"] = doc["productLines"]
+                elif not doc.get("items") and doc.get("inventoryEntries"):
+                    doc["items"] = doc["inventoryEntries"]
                 vouchers_map[v_no] = doc
 
-    deduplicated = list(vouchers_map.values())
-    return {
+    deduplicated = sorted(
+        vouchers_map.values(),
+        key=lambda x: str(x.get("createdAt") or x.get("created_at") or x.get("voucherDate") or ""),
+        reverse=True
+    )
+    return serialize_bson({
         "success": True,
         "count": len(deduplicated),
         "vouchers": deduplicated
-    }
+    })
+
+
+@router.get("/saved-vouchers/export-xml")
+async def export_saved_vouchers_xml(
+    voucher_id: Optional[str] = None,
+    company_id: Optional[str] = None,
+    db = Depends(get_async_db)
+):
+    """
+    Generates combined or single Tally XML envelope for saved vouchers for Tally import.
+    """
+    from fastapi.responses import Response
+    from app.anjalee.services.tally.tally_service import TallyService
+
+    docs_to_export = []
+
+    if voucher_id:
+        target_ids = [v.strip() for v in voucher_id.split(",") if v.strip()]
+        for vid in target_ids:
+            found = None
+            for coll in ["sales_vouchers", "purchase_vouchers", "vouchers"]:
+                q = {"$or": [{"voucherNumber": vid}, {"invoiceNumber": vid}, {"vchNo": vid}]}
+                if ObjectId.is_valid(vid):
+                    q["$or"].append({"_id": ObjectId(vid)})
+                doc = await db[coll].find_one(q)
+                if doc:
+                    found = doc
+                    break
+            if found:
+                docs_to_export.append(found)
+    else:
+        v_map = {}
+        for coll in ["sales_vouchers", "purchase_vouchers", "vouchers"]:
+            cur = db[coll].find({"isDeleted": {"$ne": True}}).sort([("createdAt", -1), ("created_at", -1)]).limit(500)
+            items = await cur.to_list(length=500) if hasattr(cur, "to_list") else list(cur)
+            for d in items:
+                vno = d.get("voucherNumber") or d.get("invoiceNumber") or str(d["_id"])
+                if vno not in v_map:
+                    v_map[vno] = d
+        docs_to_export = list(v_map.values())
+
+    if not docs_to_export:
+        raise HTTPException(status_code=404, detail="No vouchers found to generate XML")
+
+    envelope_xml, comp_name = await TallyService.build_multi_voucher_payload(db, docs_to_export)
+    filename = f"tally_vouchers_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xml"
+    return Response(
+        content=envelope_xml,
+        media_type="application/xml",
+        headers={
+            "Content-Disposition": f"attachment; filename={filename}",
+            "Access-Control-Expose-Headers": "Content-Disposition"
+        }
+    )
 
 
 @router.delete("/saved-vouchers/{voucher_identifier}", response_model=dict)
@@ -2153,8 +2292,9 @@ async def delete_saved_bulk_voucher(
 
     deleted_count = 0
     for coll_name in ["sales_vouchers", "purchase_vouchers", "vouchers", "fund_flow_vouchers"]:
-        res = await db[coll_name].delete_many(query)
-        deleted_count += res.deleted_count
+        coro = db[coll_name].delete_many(query)
+        res = await coro if inspect.isawaitable(coro) else coro
+        deleted_count += getattr(res, "deleted_count", 0)
 
     return {
         "success": True,
@@ -2612,10 +2752,13 @@ async def save_bulk_vouchers(
         company_id_val = ObjectId(company_id) if (company_id and ObjectId.is_valid(company_id)) else company_id
 
         # EXACT KEY-VALUE PAIRS MATCHING MANUAL VOUCHER ENTRY (sales_service.py)
+        v_guid = str(vch.get("voucherGuid") or vch.get("guid") or ObjectId())
         doc = {
             "companyId": company_id_val,
             "company_id": company_id_val,
             "orgId": company_id_val,
+            "voucherGuid": v_guid,
+            "guid": v_guid,
             "voucherNumber": vch_no,
             "invoiceNumber": ext_invoice_no or vch_no,
             "voucherDate": vch_date,
@@ -2686,6 +2829,8 @@ async def save_bulk_vouchers(
             ]
         }
 
+        new_doc_status = "Approved & Imported" if save_status == "approved" else "Draft Saved"
+
         # 1. General vouchers collection
         await db["vouchers"].update_one(query, {"$set": doc}, upsert=True)
 
@@ -2696,6 +2841,15 @@ async def save_bulk_vouchers(
             await db["purchase_vouchers"].update_one(query, {"$set": doc}, upsert=True)
         else:
             await db["fund_flow_vouchers"].update_one(query, {"$set": doc}, upsert=True)
+
+        # 3. Pre-generate Tally XML for instant download/sync
+        try:
+            from app.anjalee.services.tally.tally_service import TallyService
+            inserted_doc = await db[coll_target].find_one(query)
+            if inserted_doc:
+                await TallyService.generate_and_save_xml(db, str(inserted_doc["_id"]), coll_target)
+        except Exception as tally_err:
+            logger.warning(f"Failed to generate Tally XML for {vch_no}: {tally_err}")
 
         saved_vouchers_list.append({
             "id": str(doc.get("_id") or vch_no),
@@ -2713,18 +2867,19 @@ async def save_bulk_vouchers(
 
         saved_count += 1
 
+    final_doc_status = "Approved & Imported" if save_status == "approved" else "Draft Saved"
     if upload_id and ObjectId.is_valid(upload_id):
         await db["bulk_uploads"].update_one(
             {"_id": ObjectId(upload_id)},
-            {"$set": {"status": new_doc_status, "updated_at": datetime.utcnow()}}
+            {"$set": {"status": final_doc_status, "updated_at": datetime.utcnow()}}
         )
 
-    return {
+    return serialize_bson({
         "success": True,
         "saved_count": saved_count,
         "vouchers": saved_vouchers_list,
         "message": f"Successfully saved {saved_count} vouchers into MongoDB!"
-    }
+    })
 
 
 

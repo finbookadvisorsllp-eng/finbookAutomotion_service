@@ -165,7 +165,7 @@ def warm_up_tenant_cache():
 
 def _get_active_iam_org_db() -> str:
     """Helper to fetch default organization dbName."""
-    return settings.DEFAULT_DB_NAME or "finbook_23aafff9731l1z7"
+    return settings.DEFAULT_DB_NAME or "sf_tenant_amit_traders_20261028"
 
 def resolve_db_name(company_ref: str) -> str:
     """
@@ -295,8 +295,10 @@ def resolve_db_name(company_ref: str) -> str:
 _indexed_dbs = set()
 
 def extract_company_ref_from_request(request: Request) -> str:
-    company_header = request.headers.get("x-company-id") or request.headers.get("x-company")
-    if not company_header:
+    company_header = request.headers.get("x-company-id") or request.headers.get("x-company") or request.headers.get("x-org-id")
+    if not company_header or str(company_header).strip().lower() in ("default", "undefined", "null", ""):
+        company_header = request.query_params.get("company_id") or request.query_params.get("companyId") or request.query_params.get("company")
+    if not company_header or str(company_header).strip().lower() in ("default", "undefined", "null", ""):
         auth_header = request.headers.get("authorization") or request.headers.get("Authorization")
         if auth_header and auth_header.startswith("Bearer "):
             try:
@@ -306,6 +308,8 @@ def extract_company_ref_from_request(request: Request) -> str:
                 company_header = claims.get("orgDbName") or claims.get("orgId") or claims.get("companyId")
             except Exception:
                 pass
+    if not company_header or str(company_header).strip().lower() in ("default", "undefined", "null", ""):
+        company_header = "sf_tenant_amit_traders_20261028"
     return company_header or ""
 
 def get_db(request: Request):
@@ -326,7 +330,25 @@ def get_db(request: Request):
 # Change by Anjalee: Add async motor client and FastAPI dependency for dynamic database mapping
 from motor.motor_asyncio import AsyncIOMotorClient
 
-async_client = AsyncIOMotorClient(settings.MONGO_URI, serverSelectionTimeoutMS=5000)
+_async_clients = {}
+
+def get_async_client():
+    import asyncio
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+    if loop not in _async_clients or _async_clients[loop] is None:
+        _async_clients[loop] = AsyncIOMotorClient(settings.MONGO_URI, serverSelectionTimeoutMS=5000)
+    return _async_clients[loop]
+
+class _MotorClientProxy:
+    def __getitem__(self, item):
+        return get_async_client()[item]
+    def __getattr__(self, name):
+        return getattr(get_async_client(), name)
+
+async_client = _MotorClientProxy()
 
 async def get_async_db(request: Request):
     """
@@ -336,11 +358,10 @@ async def get_async_db(request: Request):
     company_ref = extract_company_ref_from_request(request)
     db_name = resolve_db_name(company_ref)
     
-    
     if db_name not in _indexed_dbs:
         _indexed_dbs.add(db_name)
         threading.Thread(target=ensure_db_indexes, args=(client[db_name],), daemon=True).start()
         
-    return async_client[db_name]
+    return get_async_client()[db_name]
 
 
