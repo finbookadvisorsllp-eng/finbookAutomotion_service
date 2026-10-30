@@ -57,6 +57,214 @@ function ConfidenceBar({ value = 1.0 }) {
 // Main Component: ExcelBulkUploadReview
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ── Fuzzy & Partial Master Matching Algorithms ──────────────────────────────
+export function normalizeMasterName(val) {
+  if (!val || typeof val !== 'string') return '';
+  let s = val.toLowerCase().trim();
+  s = s.replace(/\b(20\d{2}[-_/]\d{2,4}|20\d{2}|\d{2}[-_/]\d{2})\b/g, ' ');
+  s = s.replace(/[-_./,\\()[\]{}&@#:;*+]/g, ' ');
+  s = s.replace(/\b(pvt|private|ltd|limited|llp|inc|corp|co|company|firm|traders|enterprises|store|stores|agency|agencies|contractor|supplier)\b/g, ' ');
+  s = s.replace(/\s+/g, ' ').trim();
+  return s;
+}
+
+export function normalizeItemName(val) {
+  if (!val || typeof val !== 'string') return '';
+  let s = val.toLowerCase().trim();
+  s = s.replace(/\bw\.?c\.?\b/g, 'white cement');
+  s = s.replace(/[-_./,\\()[\]{}&@#:;*+]/g, ' ');
+  s = s.replace(/(\d+)\s*(kg|kgs|bag|bags|mtr|mtrs|nos|no|pkt|pkts|gm|gms|l|ltr|ltrs)\b/g, '$1$2');
+  s = s.replace(/\s+/g, ' ').trim();
+  return s;
+}
+
+function levenshtein(a, b) {
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+  const matrix = [];
+  for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+  for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j] + 1
+        );
+      }
+    }
+  }
+  return matrix[b.length][a.length];
+}
+
+function stringSimilarity(s1, s2) {
+  if (!s1 || !s2) return 0;
+  if (s1 === s2) return 1;
+  const maxLen = Math.max(s1.length, s2.length);
+  if (maxLen === 0) return 1;
+  const dist = levenshtein(s1, s2);
+  return (maxLen - dist) / maxLen;
+}
+
+export function findBestMasterMatch(raw, candidates, threshold = 0.70) {
+  if (!raw || typeof raw !== 'string') return null;
+  const rawClean = raw.trim();
+  if (!rawClean || rawClean === 'Unspecified Party' || rawClean === 'Unspecified Ledger') return null;
+
+  const rawLower = rawClean.toLowerCase();
+  const rawNorm = normalizeMasterName(rawClean);
+
+  if (!Array.isArray(candidates) || candidates.length === 0) return null;
+
+  let bestMatch = null;
+  let bestScore = 0;
+
+  for (const cand of candidates) {
+    const candName = typeof cand === 'string' ? cand : (cand?.name || cand?.ledgerName || cand?.stockItem || '');
+    if (!candName) continue;
+
+    const candLower = candName.trim().toLowerCase();
+    const candNorm = normalizeMasterName(candName);
+
+    if (candLower === rawLower) {
+      return candName;
+    }
+
+    if (rawNorm && candNorm && rawNorm === candNorm) {
+      return candName;
+    }
+
+    if (candLower.length >= 4 && rawLower.includes(candLower)) {
+      const score = 0.95;
+      if (score > bestScore) {
+        bestScore = score;
+        bestMatch = candName;
+      }
+      continue;
+    }
+    if (rawLower.length >= 4 && candLower.includes(rawLower)) {
+      const score = 0.92;
+      if (score > bestScore) {
+        bestScore = score;
+        bestMatch = candName;
+      }
+      continue;
+    }
+
+    if (candNorm.length >= 4 && rawNorm.includes(candNorm)) {
+      const score = 0.90;
+      if (score > bestScore) {
+        bestScore = score;
+        bestMatch = candName;
+      }
+      continue;
+    }
+    if (rawNorm.length >= 4 && candNorm.includes(rawNorm)) {
+      const score = 0.88;
+      if (score > bestScore) {
+        bestScore = score;
+        bestMatch = candName;
+      }
+      continue;
+    }
+
+    const rawTokens = rawNorm.split(/\s+/).filter(t => t.length > 2);
+    const candTokens = candNorm.split(/\s+/).filter(t => t.length > 2);
+    if (rawTokens.length > 0 && candTokens.length > 0) {
+      const intersection = rawTokens.filter(t => candTokens.includes(t));
+      const overlapScore = intersection.length / Math.min(rawTokens.length, candTokens.length);
+      if (overlapScore >= 0.75) {
+        const score = 0.85 + (overlapScore * 0.1);
+        if (score > bestScore) {
+          bestScore = score;
+          bestMatch = candName;
+        }
+        continue;
+      }
+    }
+
+    if (rawNorm && candNorm) {
+      const sim = stringSimilarity(rawNorm, candNorm);
+      if (sim > bestScore) {
+        bestScore = sim;
+        bestMatch = candName;
+      }
+    }
+
+    const directSim = stringSimilarity(rawLower, candLower);
+    if (directSim > bestScore) {
+      bestScore = directSim;
+      bestMatch = candName;
+    }
+  }
+
+  if (bestScore >= threshold) {
+    return bestMatch;
+  }
+  return null;
+}
+
+export function findBestMasterStockItem(raw, candidates, threshold = 0.70) {
+  if (!raw || typeof raw !== 'string') return null;
+  const rawClean = raw.trim();
+  if (!rawClean || rawClean === '--' || rawClean === 'General Goods/Services') return null;
+
+  const rawLower = rawClean.toLowerCase();
+  const rawNorm = normalizeItemName(rawClean);
+  const rawTokensSorted = rawNorm.split(/\s+/).filter(Boolean).sort().join(' ');
+
+  let bestMatch = null;
+  let bestScore = 0;
+
+  for (const cand of candidates) {
+    const candName = typeof cand === 'string' ? cand : (cand?.name || cand?.stockItem || cand?.itemName || '');
+    if (!candName) continue;
+
+    const candLower = candName.trim().toLowerCase();
+    const candNorm = normalizeItemName(candName);
+    const candTokensSorted = candNorm.split(/\s+/).filter(Boolean).sort().join(' ');
+
+    if (candLower === rawLower) return candName;
+    if (rawNorm && candNorm && rawNorm === candNorm) return candName;
+    if (rawTokensSorted && candTokensSorted && rawTokensSorted === candTokensSorted) return candName;
+
+    if (candLower.length >= 3 && rawLower.includes(candLower)) {
+      if (0.95 > bestScore) { bestScore = 0.95; bestMatch = candName; }
+      continue;
+    }
+    if (rawLower.length >= 3 && candLower.includes(rawLower)) {
+      if (0.92 > bestScore) { bestScore = 0.92; bestMatch = candName; }
+      continue;
+    }
+
+    const rawTokens = rawNorm.split(/\s+/).filter(Boolean);
+    const candTokens = candNorm.split(/\s+/).filter(Boolean);
+    if (rawTokens.length > 0 && candTokens.length > 0) {
+      const inter = rawTokens.filter(t => candTokens.includes(t));
+      const overlap = inter.length / Math.min(rawTokens.length, candTokens.length);
+      if (overlap >= 0.75) {
+        const score = 0.85 + (overlap * 0.1);
+        if (score > bestScore) { bestScore = score; bestMatch = candName; }
+        continue;
+      }
+    }
+
+    if (rawTokensSorted && candTokensSorted) {
+      const sim = stringSimilarity(rawTokensSorted, candTokensSorted);
+      if (sim > bestScore) { bestScore = sim; bestMatch = candName; }
+    }
+    const directSim = stringSimilarity(rawLower, candLower);
+    if (directSim > bestScore) { bestScore = directSim; bestMatch = candName; }
+  }
+
+  if (bestScore >= threshold) return bestMatch;
+  return null;
+}
+
 export default function ExcelBulkUploadReview({
   previewDoc,
   excelGridData,
@@ -267,6 +475,11 @@ export default function ExcelBulkUploadReview({
     ...(fundFlowMasterData?.partyLedgers || []).map(l => l.name || l.ledgerName || l)
   ], [salesMasterData?.partyLedgers, purchaseMasterData?.partyLedgers, fundFlowMasterData?.partyLedgers]);
 
+  const allStockItemsList = useMemo(() => [
+    ...(purchaseMasterData?.stockItems || []),
+    ...(salesMasterData?.stockItems || [])
+  ], [purchaseMasterData?.stockItems, salesMasterData?.stockItems]);
+
   const masterPartyLedgerSet = useMemo(() => {
     const set = new Set();
     (partyLedgers || []).forEach(p => {
@@ -278,28 +491,89 @@ export default function ExcelBulkUploadReview({
   }, [partyLedgers]);
 
   const masterStockItemSet = useMemo(() => {
-    const items = [
-      ...(purchaseMasterData?.stockItems || []),
-      ...(salesMasterData?.stockItems || [])
-    ];
     const set = new Set();
-    items.forEach(it => {
+    allStockItemsList.forEach(it => {
       if (typeof it === 'string') set.add(it.trim().toLowerCase());
       else if (it?.name) set.add(String(it.name).trim().toLowerCase());
       else if (it?.stockItem) set.add(String(it.stockItem).trim().toLowerCase());
+      else if (it?.itemName) set.add(String(it.itemName).trim().toLowerCase());
     });
     return set;
-  }, [purchaseMasterData?.stockItems, salesMasterData?.stockItems]);
+  }, [allStockItemsList]);
+
+  const getMatchedMasterParty = useCallback((partyName) => {
+    if (!partyName || partyName === 'Unspecified Party' || partyName === 'Unspecified Ledger') return null;
+    const clean = partyName.trim();
+    if (masterPartyLedgerSet.has(clean.toLowerCase())) {
+      const exact = partyLedgers.find(p => (typeof p === 'string' ? p : p?.name || p?.ledgerName || '').trim().toLowerCase() === clean.toLowerCase());
+      return typeof exact === 'string' ? exact : (exact?.name || exact?.ledgerName || clean);
+    }
+    return findBestMasterMatch(clean, partyLedgers, 0.70);
+  }, [masterPartyLedgerSet, partyLedgers]);
+
+  const getMatchedMasterStockItem = useCallback((itemName) => {
+    if (!itemName || itemName === 'General Goods/Services' || itemName === '--') return null;
+    const clean = itemName.trim();
+    if (masterStockItemSet.has(clean.toLowerCase())) {
+      const exact = allStockItemsList.find(it => (typeof it === 'string' ? it : it?.name || it?.stockItem || it?.itemName || '').trim().toLowerCase() === clean.toLowerCase());
+      return typeof exact === 'string' ? exact : (exact?.name || exact?.stockItem || exact?.itemName || clean);
+    }
+    return findBestMasterStockItem(clean, allStockItemsList, 0.70);
+  }, [masterStockItemSet, allStockItemsList]);
 
   const isPartyInMaster = useCallback((partyName) => {
     if (!partyName || partyName === 'Unspecified Party' || partyName === 'Unspecified Ledger') return false;
-    return masterPartyLedgerSet.has(partyName.trim().toLowerCase());
-  }, [masterPartyLedgerSet]);
+    if (masterPartyLedgerSet.has(partyName.trim().toLowerCase())) return true;
+    return Boolean(getMatchedMasterParty(partyName));
+  }, [masterPartyLedgerSet, getMatchedMasterParty]);
 
   const isItemInMaster = useCallback((itemName) => {
-    if (!itemName || itemName === 'General Goods/Services') return true;
-    return masterStockItemSet.has(itemName.trim().toLowerCase());
-  }, [masterStockItemSet]);
+    if (!itemName || itemName === 'General Goods/Services' || itemName === '--') return true;
+    if (masterStockItemSet.has(itemName.trim().toLowerCase())) return true;
+    return Boolean(getMatchedMasterStockItem(itemName));
+  }, [masterStockItemSet, getMatchedMasterStockItem]);
+
+  // Auto-resolve fuzzy matches on load so that vouchers automatically take the matched master ledger and items
+  useEffect(() => {
+    if ((!partyLedgers || partyLedgers.length === 0) && (!allStockItemsList || allStockItemsList.length === 0)) return;
+    setVouchersState(prev => {
+      if (!Array.isArray(prev) || prev.length === 0) return prev;
+      let hasChange = false;
+      const next = prev.map(v => {
+        const curParty = v.partyName || v.party_ledger || '';
+        const matched = getMatchedMasterParty(curParty);
+        let itemsChanged = false;
+        let updatedItems = v.items;
+        if (Array.isArray(v.items) && v.items.length > 0) {
+          updatedItems = v.items.map(it => {
+            const rawIt = it.stockItem || it.item_name || '';
+            const matchedIt = getMatchedMasterStockItem(rawIt);
+            if (matchedIt && matchedIt !== rawIt) {
+              hasChange = true;
+              itemsChanged = true;
+              return { ...it, stockItem: matchedIt, item_name: matchedIt, rawItemName: it.rawItemName || rawIt };
+            }
+            return it;
+          });
+        }
+        if (matched && matched !== curParty) {
+          hasChange = true;
+          return {
+            ...v,
+            partyName: matched,
+            matchedMaster: matched,
+            rawPartyName: v.rawPartyName || curParty,
+            items: itemsChanged ? updatedItems : v.items
+          };
+        }
+        if (itemsChanged) {
+          return { ...v, items: updatedItems };
+        }
+        return v;
+      });
+      return hasChange ? next : prev;
+    });
+  }, [partyLedgers, allStockItemsList, getMatchedMasterParty, getMatchedMasterStockItem]);
 
   const allAvailableLedgers = useMemo(() => {
     const fromVouchers = [
@@ -822,10 +1096,12 @@ export default function ExcelBulkUploadReview({
     const map = new Map();
     filteredGroupedVouchers.forEach((vch, originalIdx) => {
       const rawKey = (vch.partyName || vch.matchedMaster || 'Unspecified Ledger').trim();
-      const key = rawKey || 'Unspecified Ledger';
+      const matchedParty = getMatchedMasterParty(rawKey) || rawKey;
+      const key = matchedParty || 'Unspecified Ledger';
       if (!map.has(key)) {
         map.set(key, {
           ledgerName: key,
+          rawPartyName: (vch.rawPartyName && vch.rawPartyName !== key) ? vch.rawPartyName : (rawKey !== key ? rawKey : null),
           vouchers: [],
           totalDebit: 0,
           totalCredit: 0,
@@ -1105,8 +1381,46 @@ export default function ExcelBulkUploadReview({
                 />
               </div>
               <button
-                onClick={() => toast.info('AI Master Matching Auto-Fix complete')}
+                onClick={() => {
+                  let resolvedCount = 0;
+                  setVouchersState(prev => {
+                    const next = prev.map(v => {
+                      const curParty = v.partyName || v.party_ledger || '';
+                      const matched = getMatchedMasterParty(curParty);
+                      let itemsChanged = false;
+                      const updatedItems = (v.items || []).map(it => {
+                        const rawIt = it.stockItem || it.item_name || '';
+                        const mIt = getMatchedMasterStockItem(rawIt);
+                        if (mIt && mIt !== rawIt) {
+                          resolvedCount++;
+                          itemsChanged = true;
+                          return { ...it, stockItem: mIt, item_name: mIt, rawItemName: rawIt };
+                        }
+                        return it;
+                      });
+                      if (matched && matched !== curParty) {
+                        resolvedCount++;
+                        return {
+                          ...v,
+                          partyName: matched,
+                          matchedMaster: matched,
+                          rawPartyName: v.rawPartyName || curParty,
+                          items: itemsChanged ? updatedItems : v.items
+                        };
+                      }
+                      return itemsChanged ? { ...v, items: updatedItems } : v;
+                    });
+                    return next;
+                  });
+
+                  if (resolvedCount > 0) {
+                    toast.success(`AI Auto Match: Successfully mapped ${resolvedCount} ledgers / items to Master Data!`);
+                  } else {
+                    toast.info("All recognizable ledgers and items are already matched with Master Data.");
+                  }
+                }}
                 className="h-8 px-3 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 rounded-lg text-xs font-extrabold transition flex items-center gap-1.5 cursor-pointer shadow-3xs"
+                title="Automatically match all party ledgers and stock items against Master Data"
               >
                 <Wand2 size={11} className="text-indigo-650" />
                 <span>AI Auto Match</span>
@@ -1176,6 +1490,11 @@ export default function ExcelBulkUploadReview({
                                   <span className={`font-extrabold text-xs truncate ${isPartyInMaster(group.ledgerName) ? 'text-slate-900 dark:text-slate-100' : 'text-rose-600 dark:text-rose-400 font-black'}`}>
                                     {group.ledgerName}
                                   </span>
+                                  {group.rawPartyName && group.rawPartyName !== group.ledgerName && (
+                                    <span className="text-[10px] text-slate-400 font-medium italic">
+                                      (Matched from "{group.rawPartyName}")
+                                    </span>
+                                  )}
                                   {!isPartyInMaster(group.ledgerName) ? (
                                     <span className="px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-300 dark:border-rose-800 flex items-center gap-1 shrink-0">
                                       <AlertCircle size={10} />
