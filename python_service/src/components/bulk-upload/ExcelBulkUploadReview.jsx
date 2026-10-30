@@ -500,16 +500,32 @@ export default function ExcelBulkUploadReview({
       const stateCode = partyGstin ? partyGstin.trim().substring(0, 2) : (partyDetails.gstState || '23');
       const gstReg = partyDetails.gstState ? `${partyDetails.gstState} Registration` : `${stateCode} Registration`;
       const gstRegType = partyDetails.registrationType || 'Regular';
-      const salesLedger = vch.salesLedger || store.masterData?.salesLedgers?.[0] || 'Sales Account';
+      const defaultSalesLedger = store.masterData?.salesLedgers?.find(l => l.toLowerCase() === 'sales account' || l.toLowerCase().includes('sales')) || store.masterData?.salesLedgers?.[0] || 'Sales Account';
+      const salesLedger = vch.salesLedger || defaultSalesLedger;
 
       const productLines = rawItems.length > 0
         ? rawItems.map((it, idx) => {
-            const qty = parseFloat(it.billQuantity || it.quantity || it.qty || 1);
-            const rate = parseFloat(it.billRate || it.rate || 0);
-            const disc = parseFloat(it.discountPercent || it.discount || 0);
-            const itemAmt = parseFloat(it.amount || it.taxable_amount || it.taxable_value || (qty * rate * (1 - disc / 100)) || 0);
-            const gstRate = parseFloat(it.gstRate !== undefined ? it.gstRate : (it.gst_rate !== undefined ? it.gst_rate : 18));
-            const hsn = String(it.hsnSacCode || it.hsn_code || it.hsn || '').trim();
+            const qty = parseFloat(it.billQuantity !== undefined ? it.billQuantity : (it.quantity !== undefined ? it.quantity : (it.qty !== undefined ? it.qty : 1))) || 1;
+            const rate = parseFloat(it.billRate !== undefined ? it.billRate : (it.rate !== undefined ? it.rate : 0)) || 0;
+            const disc = parseFloat(it.discountPercent !== undefined ? it.discountPercent : (it.discount !== undefined ? it.discount : 0)) || 0;
+            const itemAmt = parseFloat(it.amount !== undefined ? it.amount : (it.taxable_amount !== undefined ? it.taxable_amount : (it.taxable_value !== undefined ? it.taxable_value : (qty * rate * (1 - disc / 100))))) || 0;
+            let gstRate = parseFloat(it.gstRate !== undefined ? it.gstRate : (it.gst_rate !== undefined ? it.gst_rate : 0));
+            if (!gstRate || gstRate === 0) {
+              const desc = String(it.description || vch.narration || '').toLowerCase();
+              if (desc.includes('2.5%') || desc.includes('5%')) gstRate = 5;
+              else if (desc.includes('12%') || desc.includes('6%')) gstRate = 12;
+              else if (desc.includes('18%') || desc.includes('9%')) gstRate = 18;
+              else if (desc.includes('28%') || desc.includes('14%')) gstRate = 28;
+              else if (vch.tax_amount > 0 && vch.taxable_value > 0) {
+                const inferred = Math.round((vch.tax_amount / vch.taxable_value) * 100);
+                if ([5, 12, 18, 28].includes(inferred)) gstRate = inferred;
+              }
+            }
+            let hsn = String(it.hsnSacCode || it.hsn_code || it.hsn || '').trim();
+            if (!hsn && it.description) {
+              const hsnMatch = String(it.description).match(/\b(\d{4,8})\b/);
+              if (hsnMatch) hsn = hsnMatch[1];
+            }
             const stockItemName = it.stockItem || it.stock_item_name || it.item_name || it.name || it.description || 'Stock Item';
             const finalRate = rate > 0 ? rate : (qty > 0 && itemAmt > 0 ? parseFloat((itemAmt / qty).toFixed(2)) : itemAmt);
             const finalAmt = itemAmt > 0 ? itemAmt : parseFloat((qty * finalRate * (1 - disc / 100)).toFixed(2));
@@ -584,16 +600,32 @@ export default function ExcelBulkUploadReview({
       const stateCode = partyGstin ? partyGstin.trim().substring(0, 2) : (partyDetails.gstState || '23');
       const gstReg = partyDetails.gstState ? `${partyDetails.gstState} Registration` : `${stateCode} Registration`;
       const gstRegType = partyDetails.registrationType || 'Regular';
-      const purchaseLedger = vch.purchaseLedger || store.masterData?.purchaseLedgers?.[0] || 'Purchase Account';
+      const defaultPurchaseLedger = store.masterData?.purchaseLedgers?.find(l => l.toLowerCase() === 'purchase account' || l.toLowerCase() === 'purchase' || l.toLowerCase().includes('purchase')) || store.masterData?.purchaseLedgers?.[0] || 'Purchase Account';
+      const purchaseLedger = vch.purchaseLedger || defaultPurchaseLedger;
 
       const productLines = rawItems.length > 0
         ? rawItems.map((it, idx) => {
-            const qty = parseFloat(it.billQuantity || it.quantity || it.qty || 1);
-            const rate = parseFloat(it.billRate || it.rate || 0);
-            const disc = parseFloat(it.discountPercent || it.discount || 0);
-            const itemAmt = parseFloat(it.amount || it.taxable_amount || it.taxable_value || (qty * rate * (1 - disc / 100)) || 0);
-            const gstRate = parseFloat(it.gstRate !== undefined ? it.gstRate : (it.gst_rate !== undefined ? it.gst_rate : 18));
-            const hsn = String(it.hsnSacCode || it.hsn_code || it.hsn || '').trim();
+            const qty = parseFloat(it.billQuantity !== undefined ? it.billQuantity : (it.quantity !== undefined ? it.quantity : (it.qty !== undefined ? it.qty : 1))) || 1;
+            const rate = parseFloat(it.billRate !== undefined ? it.billRate : (it.rate !== undefined ? it.rate : 0)) || 0;
+            const disc = parseFloat(it.discountPercent !== undefined ? it.discountPercent : (it.discount !== undefined ? it.discount : 0)) || 0;
+            const itemAmt = parseFloat(it.amount !== undefined ? it.amount : (it.taxable_amount !== undefined ? it.taxable_amount : (it.taxable_value !== undefined ? it.taxable_value : (qty * rate * (1 - disc / 100))))) || 0;
+            let gstRate = parseFloat(it.gstRate !== undefined ? it.gstRate : (it.gst_rate !== undefined ? it.gst_rate : 0));
+            if (!gstRate || gstRate === 0) {
+              const desc = String(it.description || vch.narration || '').toLowerCase();
+              if (desc.includes('2.5%') || desc.includes('5%')) gstRate = 5;
+              else if (desc.includes('12%') || desc.includes('6%')) gstRate = 12;
+              else if (desc.includes('18%') || desc.includes('9%')) gstRate = 18;
+              else if (desc.includes('28%') || desc.includes('14%')) gstRate = 28;
+              else if (vch.tax_amount > 0 && vch.taxable_value > 0) {
+                const inferred = Math.round((vch.tax_amount / vch.taxable_value) * 100);
+                if ([5, 12, 18, 28].includes(inferred)) gstRate = inferred;
+              }
+            }
+            let hsn = String(it.hsnSacCode || it.hsn_code || it.hsn || '').trim();
+            if (!hsn && it.description) {
+              const hsnMatch = String(it.description).match(/\b(\d{4,8})\b/);
+              if (hsnMatch) hsn = hsnMatch[1];
+            }
             const stockItemName = it.stockItem || it.stock_item_name || it.item_name || it.name || it.description || 'Stock Item';
             const finalRate = rate > 0 ? rate : (qty > 0 && itemAmt > 0 ? parseFloat((itemAmt / qty).toFixed(2)) : itemAmt);
             const finalAmt = itemAmt > 0 ? itemAmt : parseFloat((qty * finalRate * (1 - disc / 100)).toFixed(2));
@@ -1813,40 +1845,75 @@ export default function ExcelBulkUploadReview({
 
       {/* ── MODAL 2: MANUAL FORM MODAL ─────────────────────────────────────── */}
       {showManualFormModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white dark:bg-[#181824] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl max-w-5xl w-full max-h-[92vh] overflow-y-auto relative p-6">
-            <button
-              onClick={() => setShowManualFormModal(false)}
-              className="absolute right-4 top-4 p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer border-none bg-transparent z-50"
-            >
-              <X size={18} />
-            </button>
+        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4 overflow-hidden">
+          <div className="bg-[var(--app-panel-bg)] border border-[var(--app-border)] rounded-2xl shadow-2xl w-full max-w-[98vw] 2xl:max-w-[1720px] h-[96vh] flex flex-col relative overflow-hidden">
+            {/* Modal Header */}
+            <div className="px-5 py-3 border-b border-[var(--app-border)] flex items-center justify-between shrink-0 bg-[var(--app-table-head-bg)]/80 select-none">
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="text-[11px] font-black uppercase tracking-wider text-[var(--app-accent)] px-2.5 py-1 rounded bg-[var(--app-accent-soft)] border border-[var(--app-accent)]/20">
+                  {manualVoucherType === 'purchase' ? 'Purchase Voucher Review' : manualVoucherType === 'sales' ? 'Sales Voucher Review' : 'Bank / Fund Flow Voucher Review'}
+                </span>
+                <span className="font-extrabold text-sm text-[var(--app-heading)] truncate">
+                  {manualVoucherDraft?.partyLedger || manualVoucherDraft?.partyName || 'Voucher Details'}
+                </span>
+                {(manualVoucherDraft?.invoiceNumber || manualVoucherDraft?.voucherNumber) && (
+                  <span className="text-xs font-mono font-bold text-[var(--app-muted)] bg-[var(--app-control-bg)] px-2 py-0.5 rounded border border-[var(--app-border)]">
+                    Inv #{manualVoucherDraft?.invoiceNumber || manualVoucherDraft?.voucherNumber}
+                  </span>
+                )}
+                {manualVoucherDraft?.voucherDate && (
+                  <span className="text-xs font-mono font-medium text-[var(--app-muted)]">
+                    Date: <b>{manualVoucherDraft.voucherDate}</b>
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={() => setShowManualFormModal(false)}
+                className="p-1.5 text-[var(--app-muted)] hover:text-red-500 rounded-lg hover:bg-[var(--app-row-hover)] transition cursor-pointer border-none bg-transparent"
+                title="Close Form Modal"
+              >
+                <X size={20} />
+              </button>
+            </div>
 
-            {manualVoucherType === 'fundflow' ? (
-              <CreateFundFlow
-                isDark={isDark || false}
-                voucherType={manualVoucherDraft?.isReceipt ? 'bank_payment' : 'cash_payment'}
-                onBack={() => setShowManualFormModal(false)}
-                onSaveSuccess={() => {
-                  toast.success('Voucher saved successfully!');
-                  setShowManualFormModal(false);
-                }}
-              />
-            ) : manualVoucherType === 'purchase' ? (
-              <CreatePurchase
-                key={manualVoucherDraft?.voucherNumber || manualVoucherDraft?.invoiceNumber || 'purchase-modal'}
-                isDark={isDark || false}
-                initialData={manualVoucherDraft}
-                onBack={() => setShowManualFormModal(false)}
-              />
-            ) : (
-              <CreateSales
-                key={manualVoucherDraft?.voucherNumber || manualVoucherDraft?.invoiceNumber || 'sales-modal'}
-                isDark={isDark || false}
-                initialData={manualVoucherDraft}
-                onBack={() => setShowManualFormModal(false)}
-              />
-            )}
+            {/* Scrollable Form Body */}
+            <div className="flex-1 overflow-y-auto p-3 sm:p-5 themed-scrollbar bg-[var(--app-content-bg)]/30">
+              {manualVoucherType === 'fundflow' ? (
+                <CreateFundFlow
+                  isDark={isDark || false}
+                  voucherType={manualVoucherDraft?.isReceipt ? 'bank_payment' : 'cash_payment'}
+                  onBack={() => setShowManualFormModal(false)}
+                  onSaveSuccess={() => {
+                    toast.success('Voucher saved successfully!');
+                    setShowManualFormModal(false);
+                  }}
+                />
+              ) : manualVoucherType === 'purchase' ? (
+                <CreatePurchase
+                  key={manualVoucherDraft?.voucherNumber || manualVoucherDraft?.invoiceNumber || 'purchase-modal'}
+                  isDark={isDark || false}
+                  voucherType="purchase_invoice"
+                  initialData={manualVoucherDraft}
+                  onBack={() => setShowManualFormModal(false)}
+                  onSaveSuccess={() => {
+                    toast.success('Purchase voucher saved successfully!');
+                    setShowManualFormModal(false);
+                  }}
+                />
+              ) : (
+                <CreateSales
+                  key={manualVoucherDraft?.voucherNumber || manualVoucherDraft?.invoiceNumber || 'sales-modal'}
+                  isDark={isDark || false}
+                  voucherType="sales_invoice"
+                  initialData={manualVoucherDraft}
+                  onBack={() => setShowManualFormModal(false)}
+                  onSaveSuccess={() => {
+                    toast.success('Sales voucher saved successfully!');
+                    setShowManualFormModal(false);
+                  }}
+                />
+              )}
+            </div>
           </div>
         </div>
       )}

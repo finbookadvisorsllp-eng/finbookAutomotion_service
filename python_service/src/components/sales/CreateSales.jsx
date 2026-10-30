@@ -1333,9 +1333,9 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
                                 </td>
                                 <td className="p-1 border-r" style={{ borderColor: theme.border }}>
                                   <select
-                                    value={row.gstRate || 0}
+                                    value={row.gstRate !== undefined ? row.gstRate : 0}
                                     onChange={(e) => updateProductLine(row.id, 'gstRate', parseFloat(e.target.value) || 0)}
-                                    className="w-full h-7 px-1.5 rounded border outline-none text-[10px] bg-[var(--app-panel-bg)] cursor-pointer transition-all focus:border-[var(--app-accent)]"
+                                    className="w-full h-7 px-1.5 rounded border outline-none text-[10.5px] font-semibold bg-[var(--app-panel-bg)] cursor-pointer transition-all focus:border-[var(--app-accent)]"
                                     style={{ borderColor: theme.border, color: theme.text }}
                                   >
                                     <option value={0}>0%</option>
@@ -1343,6 +1343,9 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
                                     <option value={12}>12%</option>
                                     <option value={18}>18%</option>
                                     <option value={28}>28%</option>
+                                    {row.gstRate !== undefined && ![0, 5, 12, 18, 28].includes(row.gstRate) && (
+                                      <option value={row.gstRate}>{row.gstRate}%</option>
+                                    )}
                                   </select>
                                 </td>
                                 <td className="p-1 border-r" style={{ borderColor: theme.border }}>
@@ -1351,7 +1354,7 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
                                     value={row.billQuantity || ''}
                                     onChange={(e) => updateProductLine(row.id, 'billQuantity', parseFloat(e.target.value) || 0)}
                                     placeholder="1"
-                                    className="w-full h-7 px-2 rounded border outline-none text-right text-[10px] bg-[var(--app-panel-bg)] transition-all focus:border-[var(--app-accent)]"
+                                    className="w-full h-7 px-2 rounded border outline-none text-right font-bold text-[10.5px] bg-[var(--app-panel-bg)] transition-all focus:border-[var(--app-accent)]"
                                     style={{ borderColor: theme.border, color: theme.text }}
                                   />
                                 </td>
@@ -1359,15 +1362,15 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
                                   <select
                                     value={row.unit || 'Nos'}
                                     onChange={(e) => updateProductLine(row.id, 'unit', e.target.value)}
-                                    className="w-full h-7 px-1.5 rounded border outline-none text-[10px] bg-[var(--app-panel-bg)] cursor-pointer transition-all focus:border-[var(--app-accent)]"
+                                    className="w-full h-7 px-1.5 rounded border outline-none text-[10.5px] font-medium bg-[var(--app-panel-bg)] cursor-pointer transition-all focus:border-[var(--app-accent)]"
                                     style={{ borderColor: theme.border, color: theme.text }}
                                   >
-                                    <option>Nos</option>
-                                    <option>Pcs</option>
-                                    <option>Kg</option>
-                                    <option>Ltr</option>
-                                    <option>Box</option>
-                                    <option>Mtr</option>
+                                    {['Nos', 'Pcs', 'Bag', 'BAG', 'Bags', 'Box', 'BOX', 'Boxes', 'Kg', 'Kgs', 'Ltr', 'Mtr', 'Pack', 'Pkt', 'Qtl', 'Ton'].map(u => (
+                                      <option key={u} value={u}>{u}</option>
+                                    ))}
+                                    {row.unit && !['Nos', 'Pcs', 'Bag', 'BAG', 'Bags', 'Box', 'BOX', 'Boxes', 'Kg', 'Kgs', 'Ltr', 'Mtr', 'Pack', 'Pkt', 'Qtl', 'Ton'].includes(row.unit) && (
+                                      <option value={row.unit}>{row.unit}</option>
+                                    )}
                                   </select>
                                 </td>
                                 <td className="p-1 border-r" style={{ borderColor: theme.border }}>
@@ -1376,7 +1379,7 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
                                     value={row.billRate || ''}
                                     onChange={(e) => updateProductLine(row.id, 'billRate', parseFloat(e.target.value) || 0)}
                                     placeholder="0.00"
-                                    className="w-full h-7 px-2 rounded border outline-none text-right text-[10px] bg-[var(--app-panel-bg)] transition-all focus:border-[var(--app-accent)]"
+                                    className="w-full h-7 px-2 rounded border outline-none text-right font-bold text-[10.5px] bg-[var(--app-panel-bg)] transition-all focus:border-[var(--app-accent)]"
                                     style={{ borderColor: theme.border, color: theme.text }}
                                   />
                                 </td>
@@ -1386,12 +1389,12 @@ const CreateSales = ({ isDark, voucherType, onBack, onVoucherTypeChange, onSaveS
                                     value={row.discountPercent || ''}
                                     onChange={(e) => updateProductLine(row.id, 'discountPercent', parseFloat(e.target.value) || 0)}
                                     placeholder="0"
-                                    className="w-full h-7 px-2 rounded border outline-none text-right text-[10px] bg-[var(--app-panel-bg)] transition-all focus:border-[var(--app-accent)]"
+                                    className="w-full h-7 px-2 rounded border outline-none text-right font-medium text-[10.5px] bg-[var(--app-panel-bg)] transition-all focus:border-[var(--app-accent)]"
                                     style={{ borderColor: theme.border, color: theme.text }}
                                   />
                                 </td>
-                                <td className="px-1.5 py-1 text-right font-bold text-[var(--app-heading)] text-[10px] border-r" style={{ borderColor: theme.border }}>
-                                  ₹{parseFloat(row.amount || 0).toFixed(2)}
+                                <td className="px-2 py-1 text-right font-black text-[var(--app-heading)] text-[11px] border-r" style={{ borderColor: theme.border }}>
+                                  ₹{parseFloat(row.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </td>
                                 <td className="px-0 py-0 text-center">
                                   <button

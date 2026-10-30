@@ -503,7 +503,8 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
   // Default purchaseLedger to the first available ledger once masterData loads if empty
   useEffect(() => {
     if (!form.purchaseLedger && masterData?.purchaseLedgers?.length > 0) {
-      updateForm({ purchaseLedger: masterData.purchaseLedgers[0] });
+      const best = masterData.purchaseLedgers.find(l => l.toLowerCase() === 'purchase account' || l.toLowerCase() === 'purchase' || l.toLowerCase().includes('purchase')) || masterData.purchaseLedgers[0];
+      updateForm({ purchaseLedger: best });
     }
   }, [masterData?.purchaseLedgers, form.purchaseLedger]);
 
@@ -1315,21 +1316,21 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                         </tbody>
                       </table>
                     ) : (
-                      <div className="max-h-[360px] overflow-y-auto themed-scrollbar w-full">
-                        <table className="w-full text-left text-[10px] border-collapse min-w-[780px]" style={{ borderColor: theme.border }}>
+                      <div className="max-h-[480px] overflow-y-auto themed-scrollbar w-full overflow-x-auto">
+                        <table className="w-full text-left text-[11px] border-collapse min-w-[960px]" style={{ borderColor: theme.border }}>
                           <thead className="sticky top-0 z-20">
                             <tr className="border-b" style={{ borderColor: theme.border, color: theme.mutedText }}>
-                              <th className="px-1 py-1.5 w-6 text-center border-r sticky top-0 z-20" style={{ backgroundColor: 'var(--m3-surface-container-low)', borderColor: theme.border }}>#</th>
-                              <th className="px-1 py-1.5 w-44 border-r sticky top-0 z-20" style={{ backgroundColor: 'var(--m3-surface-container-low)', borderColor: theme.border }}>Item / Ledger *</th>
-                              <th className="px-1 py-1.5 w-14 text-right border-r sticky top-0 z-20" style={{ backgroundColor: 'var(--m3-surface-container-low)', borderColor: theme.border }}>Stock Qty</th>
-                              <th className="px-1 py-1.5 w-16 border-r sticky top-0 z-20" style={{ backgroundColor: 'var(--m3-surface-container-low)', borderColor: theme.border }}>HSN/SAC</th>
-                              <th className="px-1 py-1.5 w-12 border-r sticky top-0 z-20" style={{ backgroundColor: 'var(--m3-surface-container-low)', borderColor: theme.border }}>GST%</th>
-                              <th className="px-1 py-1.5 w-12 text-right border-r sticky top-0 z-20" style={{ backgroundColor: 'var(--m3-surface-container-low)', borderColor: theme.border }}>Qty</th>
-                              <th className="px-1 py-1.5 w-14 border-r sticky top-0 z-20" style={{ backgroundColor: 'var(--m3-surface-container-low)', borderColor: theme.border }}>Unit</th>
-                              <th className="px-1 py-1.5 w-18 text-right border-r sticky top-0 z-20" style={{ backgroundColor: 'var(--m3-surface-container-low)', borderColor: theme.border }}>Rate (₹)</th>
-                              <th className="px-1 py-1.5 w-12 text-right border-r sticky top-0 z-20" style={{ backgroundColor: 'var(--m3-surface-container-low)', borderColor: theme.border }}>Disc%</th>
-                              <th className="px-1 py-1.5 w-20 text-right border-r sticky top-0 z-20" style={{ backgroundColor: 'var(--m3-surface-container-low)', borderColor: theme.border }}>Amount (₹)</th>
-                              <th className="px-1 py-1.5 w-10 text-center sticky top-0 z-20" style={{ backgroundColor: 'var(--m3-surface-container-low)', borderColor: theme.border }}></th>
+                              <th className="px-1.5 py-2 w-8 text-center border-r sticky top-0 z-20" style={{ backgroundColor: 'var(--m3-surface-container-low)', borderColor: theme.border }}>#</th>
+                              <th className="px-2 py-2 min-w-[240px] border-r sticky top-0 z-20" style={{ backgroundColor: 'var(--m3-surface-container-low)', borderColor: theme.border }}>Item / Ledger *</th>
+                              <th className="px-2 py-2 w-20 text-right border-r sticky top-0 z-20" style={{ backgroundColor: 'var(--m3-surface-container-low)', borderColor: theme.border }}>Stock Qty</th>
+                              <th className="px-2 py-2 w-24 border-r sticky top-0 z-20" style={{ backgroundColor: 'var(--m3-surface-container-low)', borderColor: theme.border }}>HSN/SAC</th>
+                              <th className="px-2 py-2 w-20 border-r sticky top-0 z-20" style={{ backgroundColor: 'var(--m3-surface-container-low)', borderColor: theme.border }}>GST%</th>
+                              <th className="px-2 py-2 w-20 text-right border-r sticky top-0 z-20" style={{ backgroundColor: 'var(--m3-surface-container-low)', borderColor: theme.border }}>Qty</th>
+                              <th className="px-2 py-2 w-24 border-r sticky top-0 z-20" style={{ backgroundColor: 'var(--m3-surface-container-low)', borderColor: theme.border }}>Unit</th>
+                              <th className="px-2 py-2 w-28 text-right border-r sticky top-0 z-20" style={{ backgroundColor: 'var(--m3-surface-container-low)', borderColor: theme.border }}>Rate (₹)</th>
+                              <th className="px-2 py-2 w-20 text-right border-r sticky top-0 z-20" style={{ backgroundColor: 'var(--m3-surface-container-low)', borderColor: theme.border }}>Disc%</th>
+                              <th className="px-2 py-2 w-32 text-right border-r sticky top-0 z-20" style={{ backgroundColor: 'var(--m3-surface-container-low)', borderColor: theme.border }}>Amount (₹)</th>
+                              <th className="px-1 py-2 w-10 text-center sticky top-0 z-20" style={{ backgroundColor: 'var(--m3-surface-container-low)', borderColor: theme.border }}></th>
                             </tr>
                           </thead>
                         <tbody>
@@ -1385,9 +1386,9 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                                 </td>
                                 <td className="p-1 border-r" style={{ borderColor: theme.border }}>
                                   <select
-                                    value={row.gstRate || 0}
+                                    value={row.gstRate !== undefined ? row.gstRate : 0}
                                     onChange={(e) => updateProductLine(row.id, { gstRate: parseFloat(e.target.value) || 0 })}
-                                    className="w-full h-7 px-1.5 rounded border outline-none text-[10px] bg-[var(--app-panel-bg)] cursor-pointer transition-all focus:border-[var(--app-accent)]"
+                                    className="w-full h-7 px-1.5 rounded border outline-none text-[10.5px] font-semibold bg-[var(--app-panel-bg)] cursor-pointer transition-all focus:border-[var(--app-accent)]"
                                     style={{ borderColor: theme.border, color: theme.text }}
                                   >
                                     <option value={0}>0%</option>
@@ -1395,6 +1396,9 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                                     <option value={12}>12%</option>
                                     <option value={18}>18%</option>
                                     <option value={28}>28%</option>
+                                    {row.gstRate !== undefined && ![0, 5, 12, 18, 28].includes(row.gstRate) && (
+                                      <option value={row.gstRate}>{row.gstRate}%</option>
+                                    )}
                                   </select>
                                 </td>
                                 <td className="p-1 border-r" style={{ borderColor: theme.border }}>
@@ -1403,7 +1407,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                                     value={row.billQuantity || ''}
                                     onChange={(e) => updateProductLine(row.id, { billQuantity: parseFloat(e.target.value) || 0 })}
                                     placeholder="1"
-                                    className="w-full h-7 px-2 rounded border outline-none text-right text-[10px] bg-[var(--app-panel-bg)] transition-all focus:border-[var(--app-accent)]"
+                                    className="w-full h-7 px-2 rounded border outline-none text-right font-bold text-[10.5px] bg-[var(--app-panel-bg)] transition-all focus:border-[var(--app-accent)]"
                                     style={{ borderColor: theme.border, color: theme.text }}
                                   />
                                 </td>
@@ -1411,15 +1415,15 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                                   <select
                                     value={row.unit || 'Nos'}
                                     onChange={(e) => updateProductLine(row.id, { unit: e.target.value })}
-                                    className="w-full h-7 px-1.5 rounded border outline-none text-[10px] bg-[var(--app-panel-bg)] cursor-pointer transition-all focus:border-[var(--app-accent)]"
+                                    className="w-full h-7 px-1.5 rounded border outline-none text-[10.5px] font-medium bg-[var(--app-panel-bg)] cursor-pointer transition-all focus:border-[var(--app-accent)]"
                                     style={{ borderColor: theme.border, color: theme.text }}
                                   >
-                                    <option>Nos</option>
-                                    <option>Pcs</option>
-                                    <option>Kg</option>
-                                    <option>Ltr</option>
-                                    <option>Box</option>
-                                    <option>Mtr</option>
+                                    {['Nos', 'Pcs', 'Bag', 'BAG', 'Bags', 'Box', 'BOX', 'Boxes', 'Kg', 'Kgs', 'Ltr', 'Mtr', 'Pack', 'Pkt', 'Qtl', 'Ton'].map(u => (
+                                      <option key={u} value={u}>{u}</option>
+                                    ))}
+                                    {row.unit && !['Nos', 'Pcs', 'Bag', 'BAG', 'Bags', 'Box', 'BOX', 'Boxes', 'Kg', 'Kgs', 'Ltr', 'Mtr', 'Pack', 'Pkt', 'Qtl', 'Ton'].includes(row.unit) && (
+                                      <option value={row.unit}>{row.unit}</option>
+                                    )}
                                   </select>
                                 </td>
                                 <td className="p-1 border-r" style={{ borderColor: theme.border }}>
@@ -1428,7 +1432,7 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                                     value={row.billRate || ''}
                                     onChange={(e) => updateProductLine(row.id, { billRate: parseFloat(e.target.value) || 0 })}
                                     placeholder="0.00"
-                                    className="w-full h-7 px-2 rounded border outline-none text-right text-[10px] bg-[var(--app-panel-bg)] transition-all focus:border-[var(--app-accent)]"
+                                    className="w-full h-7 px-2 rounded border outline-none text-right font-bold text-[10.5px] bg-[var(--app-panel-bg)] transition-all focus:border-[var(--app-accent)]"
                                     style={{ borderColor: theme.border, color: theme.text }}
                                   />
                                 </td>
@@ -1438,12 +1442,12 @@ const CreatePurchase = ({ isDark, onBack, voucherType, onVoucherTypeChange, onSa
                                     value={row.discountPercent || ''}
                                     onChange={(e) => updateProductLine(row.id, { discountPercent: parseFloat(e.target.value) || 0 })}
                                     placeholder="0"
-                                    className="w-full h-7 px-2 rounded border outline-none text-right text-[10px] bg-[var(--app-panel-bg)] transition-all focus:border-[var(--app-accent)]"
+                                    className="w-full h-7 px-2 rounded border outline-none text-right font-medium text-[10.5px] bg-[var(--app-panel-bg)] transition-all focus:border-[var(--app-accent)]"
                                     style={{ borderColor: theme.border, color: theme.text }}
                                   />
                                 </td>
-                                <td className="px-1.5 py-1 text-right font-bold text-[var(--app-heading)] text-[10px] border-r" style={{ borderColor: theme.border }}>
-                                  ₹{parseFloat(row.amount || 0).toFixed(2)}
+                                <td className="px-2 py-1 text-right font-black text-[var(--app-heading)] text-[11px] border-r" style={{ borderColor: theme.border }}>
+                                  ₹{parseFloat(row.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </td>
                                 <td className="px-0 py-0 text-center">
                                   <button
