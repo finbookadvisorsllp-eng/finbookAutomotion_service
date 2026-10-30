@@ -346,19 +346,65 @@ export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSucc
     const documentTypeVal = (schema?.document_type || '').toLowerCase();
     const isPurchaseDoc = documentTypeVal.includes('purchase') || documentTypeVal.includes('debit');
 
-    if (schema?.productLines && schema.productLines.length > 0) {
-      for (const line of schema.productLines) {
+    // Extract flat top-level fields from schema if available
+    if (schema) {
+      if (schema.partyLedger || schema.partyName || schema.partyLedgerName || schema.party || schema.supplierName || schema.vendorName) {
+        fields.partyLedger = schema.partyLedger || schema.partyName || schema.partyLedgerName || schema.party || schema.supplierName || schema.vendorName;
+      }
+      if (schema.partyGstin || schema.partyGSTIN || schema.supplierGstin || schema.gstin) {
+        fields.partyGstin = schema.partyGstin || schema.partyGSTIN || schema.supplierGstin || schema.gstin;
+      }
+      if (schema.invoiceNumber || schema.voucherNumber || schema.billNumber) {
+        fields.invoiceNumber = schema.invoiceNumber || schema.voucherNumber || schema.billNumber;
+        fields.voucherNumber = fields.invoiceNumber;
+      }
+      if (schema.invoiceDate || schema.voucherDate || schema.date) {
+        const d = cleanDate(schema.invoiceDate || schema.voucherDate || schema.date);
+        fields.invoiceDate = d;
+        fields.voucherDate = d;
+      }
+      if (schema.consigneeLedger || schema.consignee_name || schema.consigneeName) {
+        fields.consigneeLedger = schema.consigneeLedger || schema.consignee_name || schema.consigneeName;
+      }
+      if (schema.consigneeGstin || schema.consignee_gstin) {
+        fields.consigneeGstin = schema.consigneeGstin || schema.consignee_gstin;
+      }
+      if (schema.vehicleNo || schema.vehicleNumber) {
+        fields.vehicleNo = schema.vehicleNo || schema.vehicleNumber;
+      }
+      if (schema.ewayBillNo || schema.eWayBillNo) {
+        fields.ewayBillNo = schema.ewayBillNo || schema.eWayBillNo;
+      }
+      if (schema.taxableValue || schema.taxableAmount || schema.baseAmount) {
+        summaryTotals.taxableValue = parseNumeric(schema.taxableValue || schema.taxableAmount || schema.baseAmount);
+      }
+      if (schema.totalAmount || schema.grandTotal || schema.amount) {
+        summaryTotals.totalAmount = parseNumeric(schema.totalAmount || schema.grandTotal || schema.amount);
+      }
+      if (schema.cgst) summaryTotals.cgstTotal = parseNumeric(schema.cgst);
+      if (schema.sgst) summaryTotals.sgstTotal = parseNumeric(schema.sgst);
+      if (schema.igst) summaryTotals.igstTotal = parseNumeric(schema.igst);
+    }
+
+    const rawInputLines = (schema?.productLines && schema.productLines.length > 0)
+      ? schema.productLines
+      : ((schema?.items && schema.items.length > 0)
+          ? schema.items
+          : ((schema?.inventoryEntries && schema.inventoryEntries.length > 0) ? schema.inventoryEntries : []));
+
+    if (rawInputLines && rawInputLines.length > 0) {
+      for (const line of rawInputLines) {
         productLines.push({
           id: line.id || (Date.now() + Math.random()),
-          srNo: productLines.length + 1,
-          stockItem: line.stockItem || line.item_name || '',
+          srNo: line.srNo || (productLines.length + 1),
+          stockItem: line.stockItem || line.itemName || line.item_name || '',
           description: line.description || '',
-          hsnSacCode: line.hsnSacCode || line.hsn_code || '',
-          billQuantity: parseNumeric(line.billQuantity || line.qty || 1),
+          hsnSacCode: line.hsnSacCode || line.hsn_code || line.hsn || '',
+          billQuantity: parseNumeric(line.billQuantity || line.quantity || line.qty || 1),
           unit: normalizeUnit(line.unit || 'Nos'),
           billRate: parseNumeric(line.billRate || line.rate || 0),
           discountPercent: parseNumeric(line.discountPercent || line.discount || 0),
-          amount: parseNumeric(line.amount || 0),
+          amount: parseNumeric(line.amount || line.taxableAmount || line.taxable || 0),
           gstRate: parseNumeric(line.gstRate || line.gst_rate || 0),
           rcm: Boolean(line.rcm),
           taxabilityType: line.taxabilityType || 'Taxable'
@@ -991,47 +1037,51 @@ export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSucc
     const sales = docTypeLower.includes('sales') || docTypeLower.includes('credit');
     const purchase = docTypeLower.includes('purchase') || docTypeLower.includes('debit') || isChallan || docTypeLower.includes('bill');
     
-    const rawProdLines = schema?.productLines || [];
-    const hasActualItems = rawProdLines.some(l => (l.stockItem && l.stockItem.trim() !== '') || (parseFloat(l.billQuantity) || 0) > 0 || (parseFloat(l.amount) || 0) > 0);
+    const rawProdLines = (schema?.productLines && schema.productLines.length > 0)
+      ? schema.productLines
+      : ((schema?.items && schema.items.length > 0)
+          ? schema.items
+          : ((schema?.inventoryEntries && schema.inventoryEntries.length > 0) ? schema.inventoryEntries : []));
+    const hasActualItems = rawProdLines.some(l => (l.stockItem || l.itemName || l.item_name || '').trim() !== '' || (parseFloat(l.billQuantity || l.quantity || l.qty) || 0) > 0 || (parseFloat(l.amount || l.taxableAmount) || 0) > 0);
     const isInvoiceDoc = sales || purchase || hasActualItems;
 
     // Check if schema is in new flat format or old sections format
-    const isFlatSchema = schema && (schema.voucherNumber !== undefined || schema.partyLedger !== undefined || schema.productLines !== undefined);
+    const isFlatSchema = schema && (schema.voucherNumber !== undefined || schema.invoiceNumber !== undefined || schema.partyLedger !== undefined || schema.partyName !== undefined || schema.productLines !== undefined || schema.items !== undefined);
 
     if (isFlatSchema) {
-      const vNum = schema.voucherNumber || schema.invoiceNumber || '';
-      const vDate = schema.voucherDate || schema.invoiceDate || '';
-      const pLedger = schema.partyLedger || '';
-      const pGstin = schema.partyGstin || '';
+      const vNum = schema.voucherNumber || schema.invoiceNumber || schema.billNumber || '';
+      const vDate = schema.voucherDate || schema.invoiceDate || schema.date || '';
+      const pLedger = schema.partyLedger || schema.partyName || schema.partyLedgerName || schema.party || schema.supplierName || schema.vendorName || '';
+      const pGstin = schema.partyGstin || schema.partyGSTIN || schema.supplierGstin || schema.gstin || '';
       const gstReg = schema.gstRegistration || '';
       const eTab = schema.entryTab || (hasActualItems ? 'with_item' : 'without_item');
       
-      const prodLines = (schema.productLines || []).map((line, idx) => ({
+      const prodLines = rawProdLines.map((line, idx) => ({
         id: line.id || (Date.now() + idx),
         srNo: line.srNo || (idx + 1),
-        stockItem: line.stockItem || '',
+        stockItem: line.stockItem || line.itemName || line.item_name || '',
         description: line.description || '',
-        hsnSacCode: line.hsnSacCode || '',
-        billQuantity: line.billQuantity || 0,
+        hsnSacCode: line.hsnSacCode || line.hsn_code || line.hsn || '',
+        billQuantity: line.billQuantity || line.quantity || line.qty || 0,
         unit: line.unit || 'Nos',
-        billRate: line.billRate || 0,
-        discountPercent: line.discountPercent || 0,
-        amount: line.amount || 0,
-        gstRate: line.gstRate || 0,
+        billRate: line.billRate || line.rate || 0,
+        discountPercent: line.discountPercent || line.discount || 0,
+        amount: line.amount || line.taxableAmount || line.taxable || 0,
+        gstRate: line.gstRate || line.gst_rate || 0,
         rcm: line.rcm || false,
         taxabilityType: line.taxabilityType || 'Taxable'
       }));
 
       // Map service lines for both salesLines and purchaseLines to support without-item mode switching!
-      const serviceLines = (schema.productLines || []).map((line, idx) => ({
+      const serviceLines = rawProdLines.map((line, idx) => ({
         id: line.id || (Date.now() + 100 + idx),
         srNo: line.srNo || (idx + 1),
-        salesLedger: line.stockItem || '',
-        purchaseLedger: line.stockItem || '',
+        salesLedger: line.stockItem || line.itemName || line.item_name || '',
+        purchaseLedger: line.stockItem || line.itemName || line.item_name || '',
         description: line.description || '',
-        hsnSacCode: line.hsnSacCode || '',
-        amount: line.amount || 0,
-        gstRate: line.gstRate || 0
+        hsnSacCode: line.hsnSacCode || line.hsn_code || line.hsn || '',
+        amount: line.amount || line.taxableAmount || line.taxable || 0,
+        gstRate: line.gstRate || line.gst_rate || 0
       }));
 
       const bRows = (schema.billRows || schema.bill_allocations || []).map((r, idx) => ({
@@ -1313,7 +1363,8 @@ export default function OcrManualReviewScreen({ doc, isDark, onClose, onSaveSucc
       return;
     }
 
-    if (activeDoc?.dynamic_schema && (activeDoc.status === 'Ready For Review' || activeDoc.status === 'AI Analyzed')) {
+    if (activeDoc?.dynamic_schema && Object.keys(activeDoc.dynamic_schema).length > 0 && 
+        !['processing', 'ocr_running', 'layout_running', 'ai_running'].includes((activeDoc.status || '').toLowerCase())) {
       setCurrentDoc(activeDoc);
       setPipelineStage('ai_complete');
       setPipelineProgress(100);
