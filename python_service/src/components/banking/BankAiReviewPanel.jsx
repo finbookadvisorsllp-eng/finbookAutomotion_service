@@ -551,20 +551,27 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
   };
 
   const handleSaveSelectedVouchers = async () => {
-    if (selectedItemIds.length === 0) {
-      toast.error('Please select at least one voucher to save');
+    const bId = batchData.batch_id || batchData._id;
+    const currentItems = batchData.items || [];
+    const unsavedItems = currentItems.filter(i => i.status !== 'saved');
+
+    if (unsavedItems.length === 0) {
+      toast.info('All vouchers are already saved!');
       return;
     }
-    const bId = batchData.batch_id || batchData._id;
+
+    const targetItemIds = selectedItemIds.length > 0
+      ? selectedItemIds
+      : unsavedItems.map(i => i.item_id);
+
     setSavingLoading(true);
     try {
-      // 1. Fast bulk bind: if any selected items need suggested ledgers bound, do it in ONE batch call!
+      // 1. Fast bulk bind: if any target items need suggested ledgers bound, do it in ONE batch call!
       const unmappedNeedBinding = [];
-      const currentItems = batchData.items || [];
-      for (const id of selectedItemIds) {
+      for (const id of targetItemIds) {
         const it = currentItems.find(i => i.item_id === id);
         if (it && (!it.partyLedger || it.partyLedger === 'Unmapped' || it.partyLedger.includes('-- Select'))) {
-          const effParty = getItemSuggestedLedger(it);
+          const effParty = getItemSuggestedLedger(it) || getEffectiveParty(it);
           if (effParty) {
             unmappedNeedBinding.push({ item_id: id, partyLedger: effParty });
           }
@@ -578,8 +585,8 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
         }
       }
 
-      // 2. Direct fast save of all selected vouchers in 1 single request
-      const res = await bankStatementAiApi.saveVouchers(bId, selectedItemIds);
+      // 2. Direct fast save of all selected/pending vouchers in 1 single request
+      const res = await bankStatementAiApi.saveVouchers(bId, targetItemIds);
       if (res && res.success) {
         toast.success(`Successfully saved ${res.saved_count || selectedItemIds.length} accounting voucher(s)!`);
         
@@ -976,11 +983,17 @@ export default function BankAiReviewPanel({ batchData: initialBatchData, onClose
 
           <button
             onClick={handleSaveSelectedVouchers}
-            disabled={selectedItemIds.length === 0 || savingLoading}
+            disabled={savingLoading || ((batchData?.items || []).filter(i => i.status !== 'saved').length === 0)}
             className="h-8 px-3.5 py-1 rounded-lg text-[10.5px] font-black uppercase tracking-wider bg-[var(--app-accent)] text-white shadow-xs hover:opacity-90 transition-all disabled:opacity-50 cursor-pointer whitespace-nowrap inline-flex items-center gap-1.5"
           >
             {savingLoading ? <RefreshCw className="animate-spin" size={13} /> : <CheckCircle2 size={13} />}
-            <span>Approve & Save Vouchers ({selectedItemIds.length})</span>
+            <span>
+              {selectedItemIds.length > 0
+                ? `Approve & Save Selected (${selectedItemIds.length})`
+                : (batchData?.items || []).filter(i => i.status !== 'saved').length > 0
+                  ? `Approve & Save All (${(batchData?.items || []).filter(i => i.status !== 'saved').length} Pending)`
+                  : `All Vouchers Saved (${batchData?.items?.length || 0})`}
+            </span>
           </button>
           <button
             onClick={handlePushSelectedVouchers}

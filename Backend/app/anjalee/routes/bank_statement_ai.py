@@ -35,7 +35,7 @@ class TransactionUpdateRequest(BaseModel):
 
 class SaveVouchersRequest(BaseModel):
     batch_id: str
-    item_ids: List[str]
+    item_ids: Optional[List[str]] = None
 
 
 class PushToTallyStatementRequest(BaseModel):
